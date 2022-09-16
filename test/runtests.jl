@@ -1,6 +1,6 @@
-using Subzero
+using Subzero, LibGEOS
 using Test
 
 @testset "Subzero.jl" begin
-    # Write your tests here.
+    include("test_floe_operations.jl")
 end
