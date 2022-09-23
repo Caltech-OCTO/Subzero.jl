@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - gitactions
     tags: ['*']
   pull_request:
 concurrency:
