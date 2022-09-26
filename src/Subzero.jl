@@ -1,12 +1,19 @@
+"""
+Main module for `Subzero.jl` - UW's sea ice model ported from MATLAB to Julia
+"""
 module Subzero
 
-using LibGEOS
+export 
+    Model,
+    Simulation,
+    run!
+
+import LibGEOS as LG
 using Plots
 
-# exports here!
-export hashole
 # some structs here!
 
 include("floe_operations.jl")
+include("model.jl")
 
 end
