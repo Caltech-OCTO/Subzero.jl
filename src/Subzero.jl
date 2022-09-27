@@ -1,5 +1,5 @@
 """
-Main module for `Subzero.jl` - UW's sea ice model ported from MATLAB to Julia
+Module `Subzero.jl` - UW's sea ice model ported from MATLAB to Julia
 """
 module Subzero
 
@@ -9,7 +9,7 @@ export
     run!
 
 import LibGEOS as LG
-using Plots
+using Plots, StructArrays
 
 # some structs here!
 
