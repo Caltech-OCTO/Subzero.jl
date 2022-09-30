@@ -16,7 +16,7 @@ Inputs: coords <LibGEOS.Polygon>
 Output: <LibGEOS.Polygon>
 """
 function translate(poly::LG.Polygon, vec::Vector{T}) where {T<:Real}
-    coords = LG.GeoInterface.coordinates(poly)::Vector{Vector{Vector{Float64}}}
+    coords = LG.GeoInterface.coordinates(poly)::PolyVec64
     return LG.Polygon(translate(coords, convert(Vector{Float64}, vec)))
 end
 
@@ -27,7 +27,7 @@ Inputs: coords <LibGEOS.Polygon>
 Output: <LibGEOS.Polygon>
 """
 function scale(poly::LG.Polygon, factor::T) where {T<:Real}
-    coords = LG.GeoInterface.coordinates(poly)::Vector{Vector{Vector{Float64}}}
+    coords = LG.GeoInterface.coordinates(poly)::PolyVec64
     return LG.Polygon(coords .* factor)
 end
 
