@@ -1,22 +1,22 @@
 """
 Translate each of the given coodinates by given vector -
 Coordinates and vector must be vectors of same underlying type
-Inputs: coords <Vector{Vector{Vector{Real}}}>
+Inputs: coords PolyVec{Float}
         vec <Vector{Real}>
-Output: <Vector{Vector{Vector{Real}}}>
+Output: PolyVec{Float}
 """
-function translate(coords::Vector{Vector{Vector{T}}}, vec::Vector{T}) where {T<:Real}
+function translate(coords::PolyVec{T}, vec) where {T<:AbstractFloat}
     return [c .+ repeat([vec], length(c)) for c in coords]
 end
 
 """
 Translate the given polygon by the given vector and return a new polygon -
 Inputs: coords <LibGEOS.Polygon>
-        vec <Vector{Real}>
+        vec <Vector{Float}>
 Output: <LibGEOS.Polygon>
 """
-function translate(poly::LG.Polygon, vec::Vector{T}) where {T<:Real}
-    coords = LG.GeoInterface.coordinates(poly)::PolyVec64
+function translate(poly::LG.Polygon, vec)
+    coords = LG.GeoInterface.coordinates(poly)::PolyVec{Float64}
     return LG.Polygon(translate(coords, convert(Vector{Float64}, vec)))
 end
 
@@ -26,8 +26,8 @@ Inputs: coords <LibGEOS.Polygon>
         factor <Real>
 Output: <LibGEOS.Polygon>
 """
-function scale(poly::LG.Polygon, factor::T) where {T<:Real}
-    coords = LG.GeoInterface.coordinates(poly)::PolyVec64
+function scale(poly::LG.Polygon, factor)
+    coords = LG.GeoInterface.coordinates(poly)::PolyVec{Float64}
     return LG.Polygon(coords .* factor)
 end
 
@@ -102,3 +102,45 @@ function sortregions(multipoly::LG.MultiPolygon)
     return sort(poly_lst, by=LG.area, rev=true)
 end
 
+"""
+Pulls x and y coordinates from standard polygon vector coordinates into seperate vectors - only keeps external coordinates and disregards holes
+Inputs: coords  PolyVec{Float} polygon coordinates
+Outputs: x      <Vector{Float}> x coordinates
+         y      <Vector{Float}> y coordinates
+"""
+function seperate_xy(coords::PolyVec{T}) where {T<:AbstractFloat}
+    x = first.(coords[1])
+    y = last.(coords[1])
+    return x, y 
+end
+
+"""
+Calculate the mass moment of intertia from polygon coordinates.
+Inputs: coords      <PolyVec{Float}>
+        h           <Real> height of floe
+        rhoice      <Real> Density of ice
+Output: mass moment of inertia <Float>
+Note: Assumes that first and last point within the coordinates are the same. Will not give correct answer otherwise.
+
+Based on paper: Marin, Joaquin."Computing columns, footings and gates through moments of area." Computers & Structures 18.2 (1984): 343-349.
+"""
+function calc_moment_inertia(coords::PolyVec{T}, h; rhoice = 920.0) where {T<:AbstractFloat}
+    x, y = seperate_xy(coords)
+    N = length(x)
+    wi = x[1:N-1] .* y[2:N] - x[2:N] .* y[1:N-1];
+    Ixx = 1/12 * sum(wi .* ((y[1:N-1] + y[2:N]).^2 - y[1:N-1] .* y[2:N]))
+    Iyy = 1/12 * sum(wi .* ((x[1:N-1] + x[2:N]).^2 - x[1:N-1] .* x[2:N]))
+    return abs(Ixx + Iyy)*h*rhoice;
+end
+
+"""
+Calculate the mass moment of intertia from a LibGEOS polygon object using above coordinate-based moment of intertia function.
+Inputs: poly      LibGEOS.Polygon
+        h           <Real> height of floe
+        rhoice      <Real> Density of ice
+Output: mass moment of inertia <Float>
+"""
+function calc_moment_inertia(poly::LG.Polygon, h; rhoice = 920.0)
+    return calc_moment_inertia(LG.GeoInterface.coordinates(poly),
+                               h, rhoice = 920.0)
+end

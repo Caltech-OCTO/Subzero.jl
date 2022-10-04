@@ -1,4 +1,4 @@
-using Subzero
+using Subzero, StructArrays
 import LibGEOS as LG
 
 # User Inputs
@@ -6,27 +6,28 @@ const type = Float64::DataType
 
 const x = 4e5
 const y=4e5
-const dgrid = 10000
+const Δgrid = 10000
 const h_mean = 0.5
-const h_delta = 0.25
-const icetemp = -20.0
-const ocntemp = 3.0
-const dt = 10
-const newfloe_dt = 500
+const Δh = 0.25
+const To = 0.0
+const Ta = -20.0
+const Δt = 10
+const newfloe_Δt = 500
+ocntemp = 3
 
 # Model instantiation
-grid = Grid(x, y, dgrid)
-ocean = Ocean(ones(grid.size), zeros(grid.size), fill(ocntemp, grid.size))
+grid = Grid(x, y, Δgrid)
+ocean = Ocean(ones(grid.size), zeros(grid.size), fill(3.0, grid.size))
 wind = Wind(ocean)
 poly = LG.Polygon([[[0.0, 4e4], [0.0, 1e4], [4e4, 1e4], 
                     [4e4, 4e4], [0.0, 4e4]]])
-floe = Floe(poly, h_mean, h_delta)
+floe = Floe(poly, h_mean, Δh)
 #floe_arr = Subzero.StructArrays.StructArray([floe])
 # Simulation set-up
-mean_heatflux, iceheight = Subzero.calc_icestuff(ocean, -3, 10, 500)
-
-model = Model(grid, ocean, wind, floe, mean_heatflux, iceheight, 920.0, 1.4e-4, 15*pi/180)
+floe_arr = StructArray(floe for i in 1:1)
+model = Model(grid, ocean, wind, floe_arr, To, Ta, Δt, newfloe_Δt)
 # show progress
+
 
 # run!(simulation)
 
