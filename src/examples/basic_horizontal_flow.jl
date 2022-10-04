@@ -28,7 +28,6 @@ floe_arr = StructArray(floe for i in 1:1)
 model = Model(grid, ocean, wind, floe_arr, To, Ta, Δt, newfloe_Δt)
 # show progress
 
-
 # run!(simulation)
 
 #psi_ocean(xocn, yocn)=0.5e4/1*(sin.(4*(pi/x)*xocn).* sin.(4*(pi/y)*yocn))

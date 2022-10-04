@@ -5,12 +5,12 @@ Structs and functions used to define a Subzero model
 """
 Grid splitting the model into distinct rectanglular grid cells where xlines are the grid lines in the x-direction (1xn vector) and ylines are the grid lines in the y-direction (1xm vector). xgrid is the xline vector repeated m times as rows in a nxm array and ygrid is the yline vector repeated n times as columns in a nxm vector.
 """ #VT<:AbstractVector{T}, MT<:AbstractMatrix{T}
-struct Grid{FT<:AbstractFloat, VT<:AbstractVector{FT}, MT<:AbstractMatrix{FT}}
+struct Grid{FT<:AbstractFloat}
     size::Tuple{Int, Int}
-    xlines::VT
-    ylines::VT
-    xgrid::MT
-    ygrid::MT
+    xlines::Vector{FT}
+    ylines::Vector{FT}
+    xgrid::Matrix{FT}
+    ygrid::Matrix{FT}
 end
 
 """
@@ -40,10 +40,10 @@ end
 """
 Ocean velocities in the x-direction (uocn) and y-direction (vocn). uocn and vocn should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Ocean also needs temperature in each grid cell. Model cannot be constructed if size of ocean and grid do not match.
 """
-struct Ocean{FT<:AbstractFloat, MT<:AbstractMatrix{FT}}
-    uocn::MT
-    vocn::MT
-    tempocn::MT
+struct Ocean{FT<:AbstractFloat}
+    uocn::Matrix{FT}
+    vocn::Matrix{FT}
+    tempocn::Matrix{FT}
 end
 
 """
@@ -69,9 +69,9 @@ Ocean(grid, u, v, temp, t::Type{T} = Float64) where T =
 """
 Wind velocities in the x-direction (uwind) and y-direction (vwind). uwind and vwind should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Model cannot be constructed if size of wind and grid do not match.
 """
-struct Wind{FT<:AbstractFloat, MT<:AbstractMatrix{FT}}
-    uwind::MT
-    vwind::MT
+struct Wind{FT<:AbstractFloat}
+    uwind::Matrix{FT}
+    vwind::Matrix{FT}
 end
 
 """
@@ -108,9 +108,9 @@ Coordinates are vector of vector of vector of points of the form:
 [[[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]], 
  [[w1, z1], [w2, z2], ..., [wn, zn], [w1, z1]], ...] where the xy coordinates are the exterior border of the floe and the wz coordinates, or any other following sets of coordinates, describe holes within the floe. There should not be holes for the majority of the time as they will be removed, but this format makes for easy conversion to and from LibGEOS Polygons. 
 """
-@kwdef mutable struct Floe{FT<:AbstractFloat, VT<:AbstractVector{FT}, PT<:AbstractVector{<:AbstractVector{VT}}}
-    centroid::VT            # center of mass of floe (might not be in floe!)
-    coords::PT              # floe coordinates
+@kwdef mutable struct Floe{FT<:AbstractFloat}
+    centroid::Vector{FT}    # center of mass of floe (might not be in floe!)
+    coords::PolyVec{FT}     # floe coordinates
     height::FT              # floe height (m)
     area::FT                # floe area (m^2)
     mass::FT                # floe mass (kg)
@@ -118,7 +118,7 @@ Coordinates are vector of vector of vector of points of the form:
     #angles::Vector{T}
    
     rmax::FT                # distance of vertix farthest from centroid (m)
-    αcoords::PT             # rotated coordinates (rotated by angle alpha)
+    αcoords::PolyVec{FT}    # rotated coordinates (rotated by angle alpha)
     α::FT = 0.0             # angle rotated from starting coords
     ufloe::FT = 0.0         # floe x-velocity
     vfloe::FT = 0.0         # floe y-velocity
@@ -211,17 +211,17 @@ function periodicCompat(w1::W1, w2::W2) where {W1<:Wall, W2<:Wall}
 end
 
 
-struct RectangleBoundary{FT, PV<:AbstractVector{<:AbstractVector{<:AbstractVector{FT}}}}<:AbstractBoundary{FT}
+struct RectangleBoundary{FT}<:AbstractBoundary{FT}
     north::Wall
     south::Wall
     east::Wall
     west::Wall
-    coords::PV
+    coords::PolyVec{FT}
     # should we add a coords one that holds the box so we can do polygon operations?
     RectangleBoundary(north, south, east, west, coords) = 
         (periodicCompat(north, south) && periodicCompat(east, west)) &&
         (north.val>south.val && east.val > west.wal) ?
-        new{FT, typeof(coords)}(north, south, east, west, coords) : 
+        new{FT}(north, south, east, west, coords) : 
         throw(ArgumentError("Periodic wall must have matching opposite wall and/or North value must be greater then South and East must be greater than West."))
 end
 
@@ -249,14 +249,12 @@ Model which holds grid, ocean, wind structs, each with the same underlying float
 - turn angle: Ekman spiral caused angle between the stress and surface current
               (angle is positive)
 """
-struct Model{FT<:AbstractFloat, VT<:AbstractVector{FT},
-MT<:AbstractMatrix{FT}, PT<:AbstractVector{<:AbstractVector{VT}},
-GT<:Grid{FT, VT, MT}, OT<:Ocean{FT, MT}, WT<:Wind{FT, MT}, FT<:Floe{FT, VT, PT}}
-# TODO: Add boundaries
-    grid::GT
-    ocean::OT
-    wind::WT
-    floes::StructArray{FT}
+struct Model{FT<:AbstractFloat}
+    grid::Grid{FT}
+    ocean::Ocean{FT}
+    wind::Wind{FT}
+    # TODO: Add boundaries
+    floes::StructArray{Floe{FT}}
     heatflux::FT                # ocean heat flux
     new_iceh::FT                # thickness of new sea ice during model run
     ρi::FT                      # ice density
@@ -284,11 +282,11 @@ Outputs:
         heatflux: ?
         h0: the height of new ice that forms during the simulation
 """
-#= function calc_new_iceh(To, Ta, Δt, newfloe_Δt; ρi = 920.0, L = 2.93e5, k = 2.14)
+function calc_new_iceh(To, Ta, Δt, newfloe_Δt; ρi = 920.0, L = 2.93e5, k = 2.14)
     h0 = real(sqrt(2k * Δt * newfloe_Δt * (To - Ta)/ρi*L))
     heatflux = k./h0.*(To - Ta)
     return h0, heatflux
-end =#
+end
 
 """
     Model(grid, ocean, wind, floe, To, Ta, Δt::Int, newfloe_Δt::Int;
@@ -316,7 +314,7 @@ Inputs:
 Outputs:
         Model with all needed fields defined.         
 """
-#= function Model(grid, ocean, wind, floes, To, Ta, Δt::Int, newfloe_Δt::Int;
+function Model(grid, ocean, wind, floes, To, Ta, Δt::Int, newfloe_Δt::Int;
 ρi = 920.0, coriolis = 1.4e-4, turnangle = 15*pi/180, L = 2.93e5, k = 2.14, t::Type{T} = Float64) where T
 #TODO: Should To and Ta be matricies? They are temperature of Ocean/Ice interface and Atmosphere/Ice interface
     new_iceh, heatflux = calc_new_iceh(To, Ta, Δt, newfloe_Δt, ρi = ρi)
@@ -324,4 +322,3 @@ Outputs:
                  convert(T, new_iceh), convert(T, ρi),
                  convert(T, coriolis), convert(T, turnangle))
 end
- =#
