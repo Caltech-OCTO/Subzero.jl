@@ -9,16 +9,13 @@ const y = 4e5
 const Δgrid = 10000
 const h_mean = 0.5
 const Δh = 0.25
-const To = 0.0
-const Ta = -20.0
 const Δt = 10
 const newfloe_Δt = 500
-ocntemp = 3
 
 # Model instantiation
 grid = Grid(x, y, Δgrid)
 ocean = Ocean(ones(grid.size), zeros(grid.size), fill(3.0, grid.size))
-wind = Wind(ocean)
+wind = Wind(ones(grid.size), zeros(grid.size), fill(4.0, grid.size))
 
 # Domain creation
 domain = Subzero.RectangleDomain(grid, Subzero.PeriodicBC(),
@@ -36,7 +33,7 @@ floe = Floe(poly2, h_mean, Δh)
 floe_arr = StructArray(floe for i in 1:1)
 
 
-model = Model(grid, ocean, wind, domain, topo_arr, floe_arr, To, Ta, Δt, newfloe_Δt)
+model = Model(grid, ocean, wind, domain, topo_arr, floe_arr, Δt, newfloe_Δt)
 
 # Simulation set-up
 

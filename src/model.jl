@@ -41,7 +41,7 @@ function Grid(x, y, Δgrid, t::Type{T} = Float64) where T
 end
 
 """
-Ocean velocities in the x-direction (uocn) and y-direction (vocn). uocn and vocn should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Ocean also needs temperature in each grid cell. Model cannot be constructed if size of ocean and grid do not match.
+Ocean velocities in the x-direction (uocn) and y-direction (vocn). uocn and vocn should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Ocean also needs temperature at the ocean/ice interface in each grid cell. Model cannot be constructed if size of ocean and grid do not match.
 """
 struct Ocean{FT<:AbstractFloat}
     uocn::Matrix{FT}
@@ -57,7 +57,7 @@ Inputs:
         grid    <Grid> model grid cell
         u       <Real> ocean x-velocity for each grid cell
         v       <Real> ocean y-velocity for each grid cell
-        temp    <Real> ocean temperature for each grid cell
+        temp    <Real> temperature at ocean/ice interface per grid cell
         t       <Type> datatype to convert ocean fields - must be a Float!
 Output: 
         Ocean with constant velocity and temperature in each grid cell.
@@ -70,11 +70,12 @@ Ocean(grid, u, v, temp, t::Type{T} = Float64) where T =
 # TODO: Do we want to be able to use a psi function? - Ask Mukund
 
 """
-Wind velocities in the x-direction (uwind) and y-direction (vwind). uwind and vwind should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Model cannot be constructed if size of wind and grid do not match.
+Wind velocities in the x-direction (uwind) and y-direction (vwind). uwind and vwind should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Wind also needs temperature at the atmosphere/ice interface in each grid cell. Model cannot be constructed if size of wind and grid do not match.
 """
 struct Wind{FT<:AbstractFloat}
     uwind::Matrix{FT}
     vwind::Matrix{FT}
+    tempwind::Matrix{FT}
 end
 
 """
@@ -85,26 +86,15 @@ Inputs:
         grid    <Grid> model grid cell
         u       <Real> wind x-velocity for each grid cell
         v       <Real> wind y-velocity for each grid cell
+        temp    <Real> temperature at atmopshere/ice interface per grid cell
         t       <Type> datatype to convert ocean fields - must be a Float!
 Output: 
         Ocean with constant velocity and temperature in each grid cell.
 """
-Wind(grid, u, v, t::Type{T} = Float64) where T = 
-    Wind(fill(convert(T, u), grid.size), fill(convert(T, v), grid.size))
-
-"""
-    Wind(ocn)
-
-Construct model atmosphere/wind.
-Inputs: 
-        ocn     <Ocean> model ocean
-Output: 
-        Ocean with the same wind velocity as ocean velocity in each grid cell.
-Note:
-        Type does not need to be set at the ocean type will already be set.
-"""
-Wind(ocn) = Wind(deepcopy(ocn.uocn), deepcopy(ocn.vocn))
-
+Wind(grid, u, v, temp, t::Type{T} = Float64) where T = 
+    Wind(fill(convert(T, u), grid.size),
+         fill(convert(T, v), grid.size),
+         fill(convert(T, temp), grid.size))
 
 """
     AbstractBC
@@ -261,6 +251,15 @@ struct CircleDomain{FT, BC<:AbstractBC}<:AbstractDomain{FT}
     condition::BC
 end
 
+"""
+    Topography{FT<:AbstractFloat}
+
+Singular topographic element with fields describing current state. These are used to create the desired topography within the simulation and will be treated as "islands" within the model in that they will not move or break due to floe interactions, but they will affect floes. 
+
+Coordinates are vector of vector of vector of points of the form:
+[[[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]], 
+ [[w1, z1], [w2, z2], ..., [wn, zn], [w1, z1]], ...] where the xy coordinates are the exterior border of the element and the wz coordinates, or any other following sets of coordinates, describe holes within it - although there should not be any. This format makes for easy conversion to and from LibGEOS Polygons. 
+"""
 struct Topography{FT<:AbstractFloat}
     centroid::Vector{FT}    # center of mass of topographical element
     coords::PolyVec{FT}     # coordinates
@@ -269,6 +268,20 @@ struct Topography{FT<:AbstractFloat}
     rmax::FT                # distance of vertix farthest from centroid (m)
 end
 
+"""
+    Topography(poly::LG.Polygon, h, t::Type{T} = Float64)
+
+Constructor for topographic element with LibGEOS Polygon
+    Inputs:
+            poly    <LibGEOS.Polygon> 
+            h       <Real> height of element
+            t       <Type> datatype to convert ocean fields - must be a Float!
+    Output:
+            Topographic element with needed fields defined
+    Note:
+            Types are specified at Float64 below as type annotations given that when written LibGEOS could exclusivley use Float64 (as of 09/29/22). When this is fixed, this annotation will need to be updated.
+            We should only run the model with Float64 right now or else we will be converting the Polygon back and forth all of the time. 
+"""
 function Topography(poly::LG.Polygon, h, t::Type{T} = Float64) where T
     topo = rmholes(poly)
     centroid = LG.GeoInterface.coordinates(LG.centroid(topo))::Vector{Float64}
@@ -279,6 +292,17 @@ function Topography(poly::LG.Polygon, h, t::Type{T} = Float64) where T
     return Topography(centroid, coords, h, a, rmax)
 end
 
+"""
+    Topography(coords::PolyVec{T}, h, t::Type{T} = Float64)
+
+Topogrpahic element constructor with PolyVec{Float64}(i.e. Vector{Vector{Vector{Float64}}}) coordinates
+Inputs:
+poly    <LibGEOS.Polygon> 
+h       <Real> height of element
+t       <Type> datatype to convert ocean fields - must be a Float!
+Output:
+        Topographic element with needed fields defined
+"""
 function Topography(coords::PolyVec{T}, h, t::Type{T} = Float64) where T
     return Topography(LG.Polygon(coords), h, T)
 end
@@ -383,8 +407,8 @@ struct Model{FT<:AbstractFloat, DT<:AbstractDomain{FT}}
     domain::DT
     topos::StructArray{Topography{FT}}
     floes::StructArray{Floe{FT}}
-    heatflux::FT                # ocean heat flux
-    new_iceh::FT                # thickness of new sea ice during model run
+    heatflux::Matrix{FT}        # ocean heat flux
+    h_new::FT                   # thickness of new sea ice during model run
     ρi::FT                      # ice density
     coriolis::FT                # ocean coriolis force
     turnangle::FT               # ocean turn angle
@@ -395,8 +419,8 @@ end
 
 Calculate height of new floes during simulation and heat flux.
 Inputs:
-        To          <Real> Ocean-Ice interface temperature
-        Ta          <Real> Atmosphere-Ice interface temperature
+        To          <Matrix{Float}> Ocean-Ice interface temperature
+        Ta          <Matrix{Float}> Atmosphere-Ice interface temperature
         Δt          <Int> Timestep within the model in seconds
         newfloe_Δt  <Int> Timesteps between new floe creation
         ρi          <Float> Density of ice
@@ -407,17 +431,17 @@ Inputs:
         k           <Float> Thermal conductivity of surface ice
                             [Watts/(meters Kelvin)]
 Outputs:
-        heatflux: ?
-        h0: the height of new ice that forms during the simulation
+        - the height of new ice that forms during the simulation
+        - heatflux from difference in ocean and atmosphere temperatures
 """
 function calc_new_iceh(To, Ta, Δt, newfloe_Δt; ρi = 920.0, L = 2.93e5, k = 2.14)
-    h0 = real(sqrt(2k * Δt * newfloe_Δt * (To - Ta)/ρi*L))
-    heatflux = k./h0.*(To - Ta)
-    return h0, heatflux
+    heatflux = k/(ρi*L) .* (Ta .- To)
+    h0 = real(sqrt(-2Δt * newfloe_Δt .* heatflux))
+    return mean(h0), heatflux
 end
 
 """
-    Model(grid, ocean, wind, floe, To, Ta, Δt::Int, newfloe_Δt::Int;
+    Model(grid, ocean, wind, floe, Δt::Int, newfloe_Δt::Int;
     ρi = 920.0, coriolis = 1.4e-4, turnangle = 15*pi/180, L = 2.93e5, k = 2.14, t::Type{T} = Float64) where T
 
 Model constructor
@@ -428,8 +452,6 @@ Inputs:
         domain      <AbstractDomain subtype>
         topo        <StructArray{<:Topography}>
         floes       <StructArray{<:Floe}>
-        To          <Real> Ocean-Ice interface temperature
-        Ta          <Real> Atmosphere-Ice interface temperature
         Δt          <Int> Timestep within the model in seconds
         newfloe_Δt  <Int> Timesteps between new floe creation
         ρi          <Float> Density of ice
@@ -444,11 +466,12 @@ Inputs:
 Outputs:
         Model with all needed fields defined.         
 """
-function Model(grid, ocean, wind, domain, topo, floes, To, Ta, Δt::Int, newfloe_Δt::Int; ρi = 920.0, coriolis = 1.4e-4, turnangle = 15*pi/180,
+function Model(grid, ocean, wind, domain, topos, floes, Δt::Int, newfloe_Δt::Int; ρi = 920.0, coriolis = 1.4e-4, turnangle = 15*pi/180,
 L = 2.93e5, k = 2.14, t::Type{T} = Float64) where T
 #TODO: Should To and Ta be matricies? They are temperature of Ocean/Ice interface and Atmosphere/Ice interface
-    new_iceh, heatflux = calc_new_iceh(To, Ta, Δt, newfloe_Δt, ρi = ρi)
-    return Model(grid, ocean, wind, domain, topo, floes, convert(T, heatflux),
-                 convert(T, new_iceh), convert(T, ρi),
-                 convert(T, coriolis), convert(T, turnangle))
+    h_new, heatflux = calc_new_iceh(ocean.tempocn, wind.tempwind, Δt,
+                                    newfloe_Δt, ρi = ρi)
+    return Model(grid, ocean, wind, domain, topos, floes,
+                 convert(Matrix{T}, heatflux), convert(T, h_new),
+                 convert(T, ρi), convert(T, coriolis), convert(T, turnangle))
 end

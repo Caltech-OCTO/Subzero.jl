@@ -37,5 +37,5 @@ const RingVec{T} = Vector{Vector{T}} where T<:AbstractFloat
 
 include("floe_operations.jl")
 include("model.jl")
-
+include("simulation.jl")
 end
