@@ -41,6 +41,72 @@ function Grid(x, y, Δgrid, t::Type{T} = Float64) where T
 end
 
 """
+Ocean velocities in the x-direction (uocn) and y-direction (vocn). uocn and vocn should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Ocean also needs temperature in each grid cell. Model cannot be constructed if size of ocean and grid do not match.
+"""
+struct Ocean{FT<:AbstractFloat}
+    uocn::Matrix{FT}
+    vocn::Matrix{FT}
+    tempocn::Matrix{FT}
+end
+
+"""
+    Ocean(grid, u, v, temp, FT)
+
+Construct model ocean.
+Inputs: 
+        grid    <Grid> model grid cell
+        u       <Real> ocean x-velocity for each grid cell
+        v       <Real> ocean y-velocity for each grid cell
+        temp    <Real> ocean temperature for each grid cell
+        t       <Type> datatype to convert ocean fields - must be a Float!
+Output: 
+        Ocean with constant velocity and temperature in each grid cell.
+"""
+Ocean(grid, u, v, temp, t::Type{T} = Float64) where T =
+    Ocean(fill(convert(T, u), grid.size), 
+          fill(convert(T, v), grid.size), 
+          fill(convert(T, temp), grid.size))
+
+# TODO: Do we want to be able to use a psi function? - Ask Mukund
+
+"""
+Wind velocities in the x-direction (uwind) and y-direction (vwind). uwind and vwind should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Model cannot be constructed if size of wind and grid do not match.
+"""
+struct Wind{FT<:AbstractFloat}
+    uwind::Matrix{FT}
+    vwind::Matrix{FT}
+end
+
+"""
+    Wind(grid, u, v, FT)
+
+Construct model atmosphere/wind.
+Inputs: 
+        grid    <Grid> model grid cell
+        u       <Real> wind x-velocity for each grid cell
+        v       <Real> wind y-velocity for each grid cell
+        t       <Type> datatype to convert ocean fields - must be a Float!
+Output: 
+        Ocean with constant velocity and temperature in each grid cell.
+"""
+Wind(grid, u, v, t::Type{T} = Float64) where T = 
+    Wind(fill(convert(T, u), grid.size), fill(convert(T, v), grid.size))
+
+"""
+    Wind(ocn)
+
+Construct model atmosphere/wind.
+Inputs: 
+        ocn     <Ocean> model ocean
+Output: 
+        Ocean with the same wind velocity as ocean velocity in each grid cell.
+Note:
+        Type does not need to be set at the ocean type will already be set.
+"""
+Wind(ocn) = Wind(deepcopy(ocn.uocn), deepcopy(ocn.vocn))
+
+
+"""
     AbstractBC
 
 An abstract type for types of boundary conditions for edges of model domain. Boundary conditions will control behavior of sea ice floes at edges of domain.
@@ -195,71 +261,27 @@ struct CircleDomain{FT, BC<:AbstractBC}<:AbstractDomain{FT}
     condition::BC
 end
 
-"""
-Ocean velocities in the x-direction (uocn) and y-direction (vocn). uocn and vocn should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Ocean also needs temperature in each grid cell. Model cannot be constructed if size of ocean and grid do not match.
-"""
-struct Ocean{FT<:AbstractFloat}
-    uocn::Matrix{FT}
-    vocn::Matrix{FT}
-    tempocn::Matrix{FT}
+struct Topography{FT<:AbstractFloat}
+    centroid::Vector{FT}    # center of mass of topographical element
+    coords::PolyVec{FT}     # coordinates
+    height::FT              # height (m)
+    area::FT                # area (m^2)
+    rmax::FT                # distance of vertix farthest from centroid (m)
 end
 
-"""
-    Ocean(grid, u, v, temp, FT)
-
-Construct model ocean.
-Inputs: 
-        grid    <Grid> model grid cell
-        u       <Real> ocean x-velocity for each grid cell
-        v       <Real> ocean y-velocity for each grid cell
-        temp    <Real> ocean temperature for each grid cell
-        t       <Type> datatype to convert ocean fields - must be a Float!
-Output: 
-        Ocean with constant velocity and temperature in each grid cell.
-"""
-Ocean(grid, u, v, temp, t::Type{T} = Float64) where T =
-    Ocean(fill(convert(T, u), grid.size), 
-          fill(convert(T, v), grid.size), 
-          fill(convert(T, temp), grid.size))
-
-# TODO: Do we want to be able to use a psi function? - Ask Mukund
-
-"""
-Wind velocities in the x-direction (uwind) and y-direction (vwind). uwind and vwind should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Model cannot be constructed if size of wind and grid do not match.
-"""
-struct Wind{FT<:AbstractFloat}
-    uwind::Matrix{FT}
-    vwind::Matrix{FT}
+function Topography(poly::LG.Polygon, h, t::Type{T} = Float64) where T
+    topo = rmholes(poly)
+    centroid = LG.GeoInterface.coordinates(LG.centroid(topo))::Vector{Float64}
+    a = LG.area(topo)::Float64  # floe area
+    coords = translate(LG.GeoInterface.coordinates(topo)::PolyVec{Float64},
+                       -centroid)
+    rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
+    return Topography(centroid, coords, h, a, rmax)
 end
 
-"""
-    Wind(grid, u, v, FT)
-
-Construct model atmosphere/wind.
-Inputs: 
-        grid    <Grid> model grid cell
-        u       <Real> wind x-velocity for each grid cell
-        v       <Real> wind y-velocity for each grid cell
-        t       <Type> datatype to convert ocean fields - must be a Float!
-Output: 
-        Ocean with constant velocity and temperature in each grid cell.
-"""
-Wind(grid, u, v, t::Type{T} = Float64) where T = 
-    Wind(fill(convert(T, u), grid.size), fill(convert(T, v), grid.size))
-
-"""
-    Wind(ocn)
-
-Construct model atmosphere/wind.
-Inputs: 
-        ocn     <Ocean> model ocean
-Output: 
-        Ocean with the same wind velocity as ocean velocity in each grid cell.
-Note:
-        Type does not need to be set at the ocean type will already be set.
-"""
-Wind(ocn) = Wind(deepcopy(ocn.uocn), deepcopy(ocn.vocn))
-
+function Topography(coords::PolyVec{T}, h, t::Type{T} = Float64) where T
+    return Topography(LG.Polygon(coords), h, T)
+end
 
 """
 Singular sea ice floe with fields describing current state. Centroid is a vector of points of the form: [x,y].
@@ -345,16 +367,6 @@ Floe(coords::PolyVec{Float64}, h_mean, Δh, ρi = 920.0, u = 0.0,
 v = 0.0, ξ = 0.0, t::Type{T} = Float64) where T =
     Floe(LG.Polygon(coords), h_mean, Δh, ρi, u, v, ξ, T)
 
-
-struct Topography{FT<:AbstractFloat}
-    centroid::Vector{FT}    # center of mass of topographical element
-    coords::PolyVec{FT}     # coordinates
-    height::FT              # height (m)
-    area::FT                # area (m^2)
-    mass::FT                # mass (kg)
-    rmax::FT                # distance of vertix farthest from centroid (m)
-end
-
 """
 Model which holds grid, ocean, wind structs, each with the same underlying float type (either Float32 of Float64). It also holds an StructArray of floe structs, again each relying on the same underlying float type. Finally it holds several physical constants. These are:
 - heatflux ?
@@ -369,6 +381,7 @@ struct Model{FT<:AbstractFloat, DT<:AbstractDomain{FT}}
     ocean::Ocean{FT}
     wind::Wind{FT}
     domain::DT
+    topos::StructArray{Topography{FT}}
     floes::StructArray{Floe{FT}}
     heatflux::FT                # ocean heat flux
     new_iceh::FT                # thickness of new sea ice during model run
@@ -413,6 +426,7 @@ Inputs:
         ocean       <Ocean>
         wind        <Wind>
         domain      <AbstractDomain subtype>
+        topo        <StructArray{<:Topography}>
         floes       <StructArray{<:Floe}>
         To          <Real> Ocean-Ice interface temperature
         Ta          <Real> Atmosphere-Ice interface temperature
@@ -430,11 +444,11 @@ Inputs:
 Outputs:
         Model with all needed fields defined.         
 """
-function Model(grid, ocean, wind, domain, floes, To, Ta, Δt::Int, newfloe_Δt::Int; ρi = 920.0, coriolis = 1.4e-4, turnangle = 15*pi/180,
+function Model(grid, ocean, wind, domain, topo, floes, To, Ta, Δt::Int, newfloe_Δt::Int; ρi = 920.0, coriolis = 1.4e-4, turnangle = 15*pi/180,
 L = 2.93e5, k = 2.14, t::Type{T} = Float64) where T
 #TODO: Should To and Ta be matricies? They are temperature of Ocean/Ice interface and Atmosphere/Ice interface
     new_iceh, heatflux = calc_new_iceh(To, Ta, Δt, newfloe_Δt, ρi = ρi)
-    return Model(grid, ocean, wind, domain, floes, convert(T, heatflux),
+    return Model(grid, ocean, wind, domain, topo, floes, convert(T, heatflux),
                  convert(T, new_iceh), convert(T, ρi),
                  convert(T, coriolis), convert(T, turnangle))
 end

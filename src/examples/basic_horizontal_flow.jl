@@ -20,19 +20,23 @@ grid = Grid(x, y, Δgrid)
 ocean = Ocean(ones(grid.size), zeros(grid.size), fill(3.0, grid.size))
 wind = Wind(ocean)
 
-# Boundary creation
-boundary = Subzero.RectangleDomain(grid, Subzero.PeriodicBC(),
+# Domain creation
+domain = Subzero.RectangleDomain(grid, Subzero.PeriodicBC(),
                                      Subzero.PeriodicBC(),
                                      Subzero.CollisionBC(), Subzero.OpenBC())
 
+# Topography instantiation
+poly1 = LG.Polygon([[[0.0, 0.0], [5e3, 0.0], [5e3, 1e4],[0.0, 1e4], [0.0, 0.0]]])
+topo = Topography(poly1, h_mean)
+topo_arr = StructArray(topo for i in 1:1)
 # Floe instantiation
-poly = LG.Polygon([[[0.0, 4e4], [0.0, 1e4], [4e4, 1e4], 
+poly2 = LG.Polygon([[[0.0, 4e4], [0.0, 1e4], [4e4, 1e4], 
                     [4e4, 4e4], [0.0, 4e4]]])
-floe = Floe(poly, h_mean, Δh)
+floe = Floe(poly2, h_mean, Δh)
 floe_arr = StructArray(floe for i in 1:1)
 
 
-model = Model(grid, ocean, wind, boundary, floe_arr, To, Ta, Δt, newfloe_Δt)
+model = Model(grid, ocean, wind, domain, topo_arr, floe_arr, To, Ta, Δt, newfloe_Δt)
 
 # Simulation set-up
 

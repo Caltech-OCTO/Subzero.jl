@@ -12,6 +12,7 @@ export
     Boundary,
     AbstractDomain,
     RectangleDomain,
+    Topography,
     Floe,
     Model,
     Simulation,
