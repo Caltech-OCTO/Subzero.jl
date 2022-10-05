@@ -3,8 +3,10 @@ Structs and functions used to define a Subzero model
 """
 
 """
+    Grid{FT<:AbstractFloat}
+
 Grid splitting the model into distinct rectanglular grid cells where xlines are the grid lines in the x-direction (1xn vector) and ylines are the grid lines in the y-direction (1xm vector). xgrid is the xline vector repeated m times as rows in a nxm array and ygrid is the yline vector repeated n times as columns in a nxm vector.
-""" #VT<:AbstractVector{T}, MT<:AbstractMatrix{T}
+"""
 struct Grid{FT<:AbstractFloat}
     size::Tuple{Int, Int}
     xlines::Vector{FT}
@@ -12,6 +14,7 @@ struct Grid{FT<:AbstractFloat}
     xgrid::Matrix{FT}
     ygrid::Matrix{FT}
 end
+# TODO: Add check that ocean/wind are the same size as the grid
 
 """
     Grid(x, y, dgrid)
@@ -35,6 +38,161 @@ function Grid(x, y, Δgrid, t::Type{T} = Float64) where T
     xgrid = repeat(reshape(xlines, 1, :), inner=(nylines,1))
     ygrid = repeat(ylines, outer = (1, nxlines))
     return Grid((nxlines, nylines), xlines, ylines, xgrid, ygrid)
+end
+
+"""
+    AbstractBC
+
+An abstract type for types of boundary conditions for edges of model domain. Boundary conditions will control behavior of sea ice floes at edges of domain.
+"""
+abstract type AbstractBC end
+
+"""
+    OpenBC <: AbstractBC
+
+A simple concrete type of boundary condition, which allows a floe to pass out of the domain edge without any effects on the floe.
+"""
+struct OpenBC<:AbstractBC end
+
+"""
+    PeriodicBC <: AbstractBC
+
+A simple concrete type of boundary condition, which moves a floe from one side of the domain to the opposite side of the domain, bringing the floe back into the grid.
+
+NOTE: Not implemented yet!
+"""
+struct PeriodicBC<:AbstractBC end 
+
+"""
+    CollisionBC <: AbstractBC
+
+A simple concrete type of boundary condition, which stops a floe from exiting the domain. If the COLLISION flag is on within the simulation, this will exert a potentially breaking force on the floe, else it will just stop the floe from leaving the domain.
+
+NOTE: Not implemented yet!
+"""
+struct CollisionBC<:AbstractBC end
+
+"""
+    CompressionBC <: AbstractBC
+
+A simple concrete type of boundary condition, which creates a floe along the boundary that moves from the boundary towards the center of the domain, compressing the ice within the dominan.
+
+NOTE: Not implemented yet!
+"""
+struct CompressionBC<:AbstractBC end
+
+"""
+    Boundary{BC<:AbstractBC, FT<:AbstractFloat}
+
+One straight edge of a rectangular domian. Holds the boundary condition for the edge and a value that represents the constant x or y-value that the boundary is located at. This value is assigned as an x or a y value based on if the boundary is a north/south "wall" of a rectangular domain (y-value) or a east/west "wall" of the domain (x-value). 
+
+For example, if a boundary has a condition of "open" and a value of 5.0 and is then the "north" edge of a rectangular domain it will be the top of the rectangle at y = 5.0 and floes will pass through the top of the domain without being acted on by any forces.
+"""
+struct Boundary{BC<:AbstractBC, FT<:AbstractFloat}
+    condition::BC
+    val::FT # this could just be maximum value in x or y direction... 
+end
+
+"""
+    AbstractDomain{FT <: AbstractFloat}
+
+An abstract type for shapes of domains that contain the model.
+"""
+abstract type AbstractDomain{FT <: AbstractFloat} end
+
+"""
+    periodicCompat(b1::B, b2::B)
+
+Checks if two boundaries with the same boundary condition B are compatible as opposites. They are by definition, given that if both floes are periodic they work as a north/south pair or a east/west pair and otherwise there are no restrictions on "matching" boundaries.
+"""
+function periodicCompat(b1::B, b2::B) where B<:Boundary
+    return true
+end
+
+"""
+    periodicCompat(b1::B1, b2::B2)
+
+Checks if two boundaries with the different boundary conditions (B2 and B2) are compatible as opposites. If either is periodic they are not compatible, otherwise there are no restrictions on "matching" boundaries.  
+"""
+function periodicCompat(b1::B1, b2::B2) where {B1<:Boundary, B2<:Boundary}
+    return !(b1.condition isa PeriodicBC || b2.condition isa PeriodicBC)
+end
+
+"""
+    RectangleDomain{FT}<:AbstractDomain{FT}
+
+Rectangular subtype of AbstractDomain that holds 4 Boundaries and coordinates to form a polygon out of the boundaries. The coordinates field is a RingVec for easy conversion to a linear ring using LibGEOS so that is can be the interior hole of a polygon around the domain. 
+
+In order to create a RectangleDomain, three conditions need to be met. First, if needs to be periodically compatible. This means that pairs of opposite boundaries both need to be periodic if one of them is periodic. Next, the value in the north boundary must be greater than the south boundary and the value in the east boundary must be greater than the west in order to form a valid rectangle. Finally, the last point in coords should match the first one for ease of making into a polygon.
+"""
+struct RectangleDomain{FT}<:AbstractDomain{FT}
+    north::Boundary
+    south::Boundary
+    east::Boundary
+    west::Boundary
+    coords::RingVec{FT} 
+
+    RectangleDomain(north, south, east, west, coords) = 
+        (periodicCompat(north, south) && periodicCompat(east, west)) &&
+        (north.val>south.val && east.val > west.val) ?
+        new{eltype(eltype(coords))}(north, south, east, west,
+                                    valid_ringvec!(coords)) : 
+        throw(ArgumentError("Periodic boundary must have matching opposite boundary and/or North value must be greater then South and East must be greater than West."))
+end
+
+"""
+    RectangleDomain(north, south, east, west)
+
+Create a rectangular domain from 4 boundaries. 
+Inputs:
+        north   <Boundary>
+        south   <Boundary>
+        east    <Boundary>
+        west    <Boundary>
+Output:
+        Rectangular Domain with 4 given boundaries and rectangle coordinates created by using each boundaties values to determine the corners.
+"""
+function RectangleDomain(north::Boundary, south::Boundary, east::Boundary, west::Boundary)
+    coords = [[west.val, north.val], [west.val, south.val],
+              [east.val, south.val], [east.val, north.val],
+              [west.val, north.val]]
+    return RectangleDomain(north, south, east, west, coords)
+end
+
+"""
+    RectangleDomain(grid, northBC = Open(), southBC = Open(),
+    eastBC = Open(), westBC = Open())
+
+Create a rectangular domain from a grid and 4 boundary conditions 
+Inputs:
+        grid      <Grid>
+        southBC   <AbstractBC subtype>
+        eastBC    <AbstractBC subtype>
+        westBC    <AbstractBC subtype>
+        westBC    <AbstractBC subtype>
+Output:
+        Rectangular Domain with boundaries along the edges of the grid with each boundary having given boundary conditions. 
+"""
+function RectangleDomain(grid::Grid, northBC = Open(), southBC = Open(),
+eastBC = Open(), westBC = Open())
+    northwall = Boundary(northBC, maximum(grid.ylines))
+    southwall = Boundary(southBC, minimum(grid.ylines))
+    eastwall = Boundary(eastBC, maximum(grid.xlines))
+    westwall = Boundary(westBC, minimum(grid.xlines))
+    return RectangleDomain(northwall, southwall, eastwall, westwall)
+end
+
+"""
+    CircleDomain{FT}<:AbstractDomain{FT}
+
+Circle subtype of AbstractDomain holds one boundary condition and a Float centroid and radius. The entire domain boundary has the given boundary condition.
+
+Note: Not implemented yet!!
+"""
+struct CircleDomain{FT, BC<:AbstractBC}<:AbstractDomain{FT}
+    Radius::FT
+    Centroid::FT
+    condition::BC
 end
 
 """
@@ -102,6 +260,7 @@ Note:
 """
 Wind(ocn) = Wind(deepcopy(ocn.uocn), deepcopy(ocn.vocn))
 
+
 """
 Singular sea ice floe with fields describing current state. Centroid is a vector of points of the form: [x,y].
 Coordinates are vector of vector of vector of points of the form:
@@ -110,14 +269,13 @@ Coordinates are vector of vector of vector of points of the form:
 """
 @kwdef mutable struct Floe{FT<:AbstractFloat}
     centroid::Vector{FT}    # center of mass of floe (might not be in floe!)
-    coords::PolyVec{FT}     # floe coordinates
     height::FT              # floe height (m)
     area::FT                # floe area (m^2)
     mass::FT                # floe mass (kg)
-    #inertia_moment::T
+    moment::FT      # mass moment of intertia
     #angles::Vector{T}
-   
     rmax::FT                # distance of vertix farthest from centroid (m)
+    coords::PolyVec{FT}     # floe coordinates
     αcoords::PolyVec{FT}    # rotated coordinates (rotated by angle alpha)
     α::FT = 0.0             # angle rotated from starting coords
     ufloe::FT = 0.0         # floe x-velocity
@@ -154,6 +312,7 @@ function Floe(poly::LG.Polygon, hmean, Δh, ρi = 920.0, u = 0.0, v = 0.0, ξ = 
     h = hmean + (-1)^rand(0:1) * rand() * Δh  # floe height
     a = LG.area(floe)::Float64  # floe area
     m = a * h * ρi  # floe mass
+    mi = calc_moment_inertia(floe, h, ρi = ρi)
     coords = translate(LG.GeoInterface.coordinates(floe)::PolyVec{Float64},
                        -centroid)
     αcoords = deepcopy(coords)
@@ -161,9 +320,8 @@ function Floe(poly::LG.Polygon, hmean, Δh, ρi = 920.0, u = 0.0, v = 0.0, ξ = 
 
     return Floe(centroid = convert(Vector{T}, centroid),
                 height = convert(T, h), area = convert(T, a),
-                mass = convert(T, m), coords = convert(PolyVec{T}, coords), rmax = convert(T, rmax), αcoords = convert(PolyVec{T}, αcoords),
-                ufloe = convert(T, u), vfloe = convert(T, v),
-                ξfloe = convert(T, ξ))
+                mass = convert(T, m), moment = convert(T, mi),
+                coords = convert(PolyVec{T}, coords), rmax = convert(T, rmax), αcoords = convert(PolyVec{T}, αcoords), ufloe = convert(T, u), vfloe = convert(T, v), ξfloe = convert(T, ξ))
 end
 
 """
@@ -188,56 +346,13 @@ v = 0.0, ξ = 0.0, t::Type{T} = Float64) where T =
     Floe(LG.Polygon(coords), h_mean, Δh, ρi, u, v, ξ, T)
 
 
-#TODO add boundary struct
-abstract type AbstractBC end
-
-struct Freeflow<:AbstractBC end
-struct Periodic<:AbstractBC end  # Not implemented yet
-struct Collision<:AbstractBC end # Not implemented yet
-struct Compression<:AbstractBC end # Not implemented yet
-
-struct Wall{BC<:AbstractBC, FT<:AbstractFloat}
-    condition::BC
-    val::FT # this could just be maximum value in x or y direction... 
-end
-
-abstract type AbstractBoundary{FT <: AbstractFloat} end
-
-function periodicCompat(w1::W, w2::W) where W<:Wall
-    return true
-end
-function periodicCompat(w1::W1, w2::W2) where {W1<:Wall, W2<:Wall}
-    return !(w1.condition isa Periodic || w2.condition isa Periodic)
-end
-
-
-struct RectangleBoundary{FT}<:AbstractBoundary{FT}
-    north::Wall
-    south::Wall
-    east::Wall
-    west::Wall
-    coords::PolyVec{FT}
-    # should we add a coords one that holds the box so we can do polygon operations?
-    RectangleBoundary(north, south, east, west, coords) = 
-        (periodicCompat(north, south) && periodicCompat(east, west)) &&
-        (north.val>south.val && east.val > west.wal) ?
-        new{FT}(north, south, east, west, coords) : 
-        throw(ArgumentError("Periodic wall must have matching opposite wall and/or North value must be greater then South and East must be greater than West."))
-end
-
-function RectangleBoundary(north, south, east, west)
-    coords = [[[west.val, north.val], [west.val, south.val],
-               [east.val, south.val], [east.val, north.val],
-               [west.val, north.val]]]
-    return RectangleBoundary(north, south, east, west, coords)
-end
-
-# Not implemented yet
-struct CircleBoundary{FT, BC<:AbstractBC}<:AbstractBoundary{FT}
-    Radius::FT
-    Centroid::FT
-    condition::BC
-    # Should we allow periodic?
+struct Topography{FT<:AbstractFloat}
+    centroid::Vector{FT}    # center of mass of topographical element
+    coords::PolyVec{FT}     # coordinates
+    height::FT              # height (m)
+    area::FT                # area (m^2)
+    mass::FT                # mass (kg)
+    rmax::FT                # distance of vertix farthest from centroid (m)
 end
 
 """
@@ -249,11 +364,11 @@ Model which holds grid, ocean, wind structs, each with the same underlying float
 - turn angle: Ekman spiral caused angle between the stress and surface current
               (angle is positive)
 """
-struct Model{FT<:AbstractFloat}
+struct Model{FT<:AbstractFloat, DT<:AbstractDomain{FT}}
     grid::Grid{FT}
     ocean::Ocean{FT}
     wind::Wind{FT}
-    # TODO: Add boundaries
+    domain::DT
     floes::StructArray{Floe{FT}}
     heatflux::FT                # ocean heat flux
     new_iceh::FT                # thickness of new sea ice during model run
@@ -297,6 +412,7 @@ Inputs:
         grid        <Grid>
         ocean       <Ocean>
         wind        <Wind>
+        domain      <AbstractDomain subtype>
         floes       <StructArray{<:Floe}>
         To          <Real> Ocean-Ice interface temperature
         Ta          <Real> Atmosphere-Ice interface temperature
@@ -314,11 +430,11 @@ Inputs:
 Outputs:
         Model with all needed fields defined.         
 """
-function Model(grid, ocean, wind, floes, To, Ta, Δt::Int, newfloe_Δt::Int;
-ρi = 920.0, coriolis = 1.4e-4, turnangle = 15*pi/180, L = 2.93e5, k = 2.14, t::Type{T} = Float64) where T
+function Model(grid, ocean, wind, domain, floes, To, Ta, Δt::Int, newfloe_Δt::Int; ρi = 920.0, coriolis = 1.4e-4, turnangle = 15*pi/180,
+L = 2.93e5, k = 2.14, t::Type{T} = Float64) where T
 #TODO: Should To and Ta be matricies? They are temperature of Ocean/Ice interface and Atmosphere/Ice interface
     new_iceh, heatflux = calc_new_iceh(To, Ta, Δt, newfloe_Δt, ρi = ρi)
-    return Model(grid, ocean, wind, floes, convert(T, heatflux),
+    return Model(grid, ocean, wind, domain, floes, convert(T, heatflux),
                  convert(T, new_iceh), convert(T, ρi),
                  convert(T, coriolis), convert(T, turnangle))
 end

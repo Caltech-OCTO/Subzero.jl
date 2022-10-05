@@ -1,5 +1,5 @@
 @testset "Floe Operations" begin
-    ext = [[0.0, 1.0],  [0.0, 0.0],  [1.0, 0.0],  [1.0, 1.0], [0.0, 1.0]]
+    ext = [[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
     hole1 = [[0.2, 0.3], [0.2, 0.2], [0.3, 0.2], [0.3, 0.3], [0.2, 0.3]]
     hole2 = [[0.5, 0.6], [0.5, 0.5], [0.6, 0.5], [0.6, 0.6], [0.5, 0.6]]
     poly_nohole = LibGEOS.Polygon([ext])
@@ -9,13 +9,26 @@
     multipoly_hole2 = LibGEOS.MultiPolygon([poly_nohole, poly_hole1,
                                                          poly_hole2])
 
-    # Test predicate hashole for polygons and multipolygons
+    # Test validating/correcting RingVecs and PolyVecs
+    @test Subzero.valid_ringvec!(ext) == ext
+    invalid_ext = [[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]
+    @test Subzero.valid_ringvec!(invalid_ext) == ext
+    @test_throws AssertionError Subzero.valid_ringvec!([[0.0, 1.0], [0.0, 0.0]])
+    invalid_coords = [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0]],
+                      [[0.2, 0.3], [0.2, 0.2], [0.3, 0.2], [0.3, 0.3]]]
+    @test Subzero.valid_polyvec!(invalid_coords) == [ext, hole1]
+
+    # Test predicate hashole for coords, polygons and multipolygons
+    @test !Subzero.hashole([ext])
+    @test Subzero.hashole([ext, hole1])
     @test !Subzero.hashole(poly_nohole)
     @test Subzero.hashole(poly_hole1)
     @test Subzero.hashole(poly_hole2)
     @test Subzero.hashole(multipoly_hole1)
 
     # Test removing holes from polygons and multipolygons
+    @test [ext] == Subzero.rmholes([ext])
+    @test [ext] == Subzero.rmholes([ext, hole1])
     @test LibGEOS.equals(Subzero.rmholes(poly_nohole), poly_nohole)
     @test LibGEOS.equals(Subzero.rmholes(poly_hole1), poly_nohole)
     @test LibGEOS.equals(Subzero.rmholes(poly_hole2), poly_nohole)

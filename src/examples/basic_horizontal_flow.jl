@@ -5,7 +5,7 @@ import LibGEOS as LG
 const type = Float64::DataType
 
 const x = 4e5
-const y=4e5
+const y = 4e5
 const Δgrid = 10000
 const h_mean = 0.5
 const Δh = 0.25
@@ -19,13 +19,23 @@ ocntemp = 3
 grid = Grid(x, y, Δgrid)
 ocean = Ocean(ones(grid.size), zeros(grid.size), fill(3.0, grid.size))
 wind = Wind(ocean)
+
+# Boundary creation
+boundary = Subzero.RectangleDomain(grid, Subzero.PeriodicBC(),
+                                     Subzero.PeriodicBC(),
+                                     Subzero.CollisionBC(), Subzero.OpenBC())
+
+# Floe instantiation
 poly = LG.Polygon([[[0.0, 4e4], [0.0, 1e4], [4e4, 1e4], 
                     [4e4, 4e4], [0.0, 4e4]]])
 floe = Floe(poly, h_mean, Δh)
-#floe_arr = Subzero.StructArrays.StructArray([floe])
-# Simulation set-up
 floe_arr = StructArray(floe for i in 1:1)
-model = Model(grid, ocean, wind, floe_arr, To, Ta, Δt, newfloe_Δt)
+
+
+model = Model(grid, ocean, wind, boundary, floe_arr, To, Ta, Δt, newfloe_Δt)
+
+# Simulation set-up
+
 # show progress
 
 # run!(simulation)
