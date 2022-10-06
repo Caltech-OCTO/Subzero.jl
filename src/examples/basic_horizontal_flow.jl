@@ -14,8 +14,8 @@ const newfloe_Δt = 500
 
 # Model instantiation
 grid = Grid(x, y, Δgrid)
-ocean = Ocean(ones(grid.size), zeros(grid.size), fill(3.0, grid.size))
-wind = Wind(ones(grid.size), zeros(grid.size), fill(4.0, grid.size))
+ocean = Ocean(ones(grid.dims), zeros(grid.dims), fill(3.0, grid.dims))
+wind = Wind(ones(grid.dims), zeros(grid.dims), fill(4.0, grid.dims))
 
 # Domain creation
 domain = Subzero.RectangleDomain(grid, Subzero.PeriodicBC(),

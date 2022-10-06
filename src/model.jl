@@ -5,16 +5,21 @@ Structs and functions used to define a Subzero model
 """
     Grid{FT<:AbstractFloat}
 
-Grid splitting the model into distinct rectanglular grid cells where xlines are the grid lines in the x-direction (1xn vector) and ylines are the grid lines in the y-direction (1xm vector). xgrid is the xline vector repeated m times as rows in a nxm array and ygrid is the yline vector repeated n times as columns in a nxm vector.
+Grid splitting the model into distinct rectanglular grid cells where xlines are the grid lines in the x-direction (1xn vector) and ylines are the grid lines in the y-direction (1xm vector). xgrid is the xline vector repeated m times as rows in a nxm array and ygrid is the yline vector repeated n times as columns in a nxm vector. The dimensions of each of the fields must match according to the above definitions.
 """
 struct Grid{FT<:AbstractFloat}
-    size::Tuple{Int, Int}
+    dims::Tuple{Int, Int}
     xlines::Vector{FT}
     ylines::Vector{FT}
     xgrid::Matrix{FT}
     ygrid::Matrix{FT}
+
+    Grid(dims, xlines, ylines, xgrid, ygrid) =
+        (size(xgrid) == dims && size(ygrid) == dims &&
+        length(xlines) == dims[2] && length(ylines) == dims[1]) ? 
+        new{eltype(xlines)}(dims, xlines, ylines, xgrid, ygrid) :
+        throw(ArgumentError("Grid dimensions don't match within fields."))
 end
-# TODO: Add check that ocean/wind are the same size as the grid
 
 """
     Grid(x, y, dgrid)
@@ -37,16 +42,21 @@ function Grid(x, y, Δgrid, t::Type{T} = Float64) where T
     nylines = length(ylines)
     xgrid = repeat(reshape(xlines, 1, :), inner=(nylines,1))
     ygrid = repeat(ylines, outer = (1, nxlines))
-    return Grid((nxlines, nylines), xlines, ylines, xgrid, ygrid)
+    return Grid((nylines, nxlines), xlines, ylines, xgrid, ygrid)
 end
 
 """
-Ocean velocities in the x-direction (uocn) and y-direction (vocn). uocn and vocn should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Ocean also needs temperature at the ocean/ice interface in each grid cell. Model cannot be constructed if size of ocean and grid do not match.
+Ocean velocities in the x-direction (u) and y-direction (v). u and v should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Ocean also needs temperature at the ocean/ice interface in each grid cell. Ocean fields must all be matricies with the same dimensions. Model cannot be constructed if size of ocean and grid do not match.
 """
 struct Ocean{FT<:AbstractFloat}
-    uocn::Matrix{FT}
-    vocn::Matrix{FT}
-    tempocn::Matrix{FT}
+    u::Matrix{FT}
+    v::Matrix{FT}
+    temp::Matrix{FT}
+
+    Ocean(u, v, temp) =
+        (size(u) == size(v) && size(v) == size(temp)) ?
+        new{eltype(u)}(u, v, temp) :
+        throw(ArgumentError("All ocean fields matricies must have the same dimensions."))
 end
 
 """
@@ -63,19 +73,24 @@ Output:
         Ocean with constant velocity and temperature in each grid cell.
 """
 Ocean(grid, u, v, temp, t::Type{T} = Float64) where T =
-    Ocean(fill(convert(T, u), grid.size), 
-          fill(convert(T, v), grid.size), 
-          fill(convert(T, temp), grid.size))
+    Ocean(fill(convert(T, u), grid.dims), 
+          fill(convert(T, v), grid.dims), 
+          fill(convert(T, temp), grid.dims))
 
 # TODO: Do we want to be able to use a psi function? - Ask Mukund
 
 """
-Wind velocities in the x-direction (uwind) and y-direction (vwind). uwind and vwind should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Wind also needs temperature at the atmosphere/ice interface in each grid cell. Model cannot be constructed if size of wind and grid do not match.
+Wind velocities in the x-direction (u) and y-direction (v). u and v should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Wind also needs temperature at the atmosphere/ice interface in each grid cell. Model cannot be constructed if size of wind and grid do not match.
 """
 struct Wind{FT<:AbstractFloat}
-    uwind::Matrix{FT}
-    vwind::Matrix{FT}
-    tempwind::Matrix{FT}
+    u::Matrix{FT}
+    v::Matrix{FT}
+    temp::Matrix{FT}
+
+    Wind(u, v, temp) =
+    (size(u) == size(v) && size(v) == size(temp)) ?
+    new{eltype(u)}(u, v, temp) :
+    throw(ArgumentError("All wind fields matricies must have the same dimensions."))
 end
 
 """
@@ -92,9 +107,9 @@ Output:
         Ocean with constant velocity and temperature in each grid cell.
 """
 Wind(grid, u, v, temp, t::Type{T} = Float64) where T = 
-    Wind(fill(convert(T, u), grid.size),
-         fill(convert(T, v), grid.size),
-         fill(convert(T, temp), grid.size))
+    Wind(fill(convert(T, u), grid.dims),
+         fill(convert(T, v), grid.dims),
+         fill(convert(T, temp), grid.dims))
 
 """
     AbstractBC
@@ -145,8 +160,8 @@ One straight edge of a rectangular domian. Holds the boundary condition for the 
 For example, if a boundary has a condition of "open" and a value of 5.0 and is then the "north" edge of a rectangular domain it will be the top of the rectangle at y = 5.0 and floes will pass through the top of the domain without being acted on by any forces.
 """
 struct Boundary{BC<:AbstractBC, FT<:AbstractFloat}
-    condition::BC
-    val::FT # this could just be maximum value in x or y direction... 
+    bc::BC
+    val::FT 
 end
 
 """
@@ -157,21 +172,21 @@ An abstract type for shapes of domains that contain the model.
 abstract type AbstractDomain{FT <: AbstractFloat} end
 
 """
-    periodicCompat(b1::B, b2::B)
+    periodic_compat(b1::B, b2::B)
 
 Checks if two boundaries with the same boundary condition B are compatible as opposites. They are by definition, given that if both floes are periodic they work as a north/south pair or a east/west pair and otherwise there are no restrictions on "matching" boundaries.
 """
-function periodicCompat(b1::B, b2::B) where B<:Boundary
+function periodic_compat(b1::B, b2::B) where B<:Boundary
     return true
 end
 
 """
-    periodicCompat(b1::B1, b2::B2)
+    periodic_compat(b1::B1, b2::B2)
 
 Checks if two boundaries with the different boundary conditions (B2 and B2) are compatible as opposites. If either is periodic they are not compatible, otherwise there are no restrictions on "matching" boundaries.  
 """
-function periodicCompat(b1::B1, b2::B2) where {B1<:Boundary, B2<:Boundary}
-    return !(b1.condition isa PeriodicBC || b2.condition isa PeriodicBC)
+function periodic_compat(b1::B1, b2::B2) where {B1<:Boundary, B2<:Boundary}
+    return !(b1.bc isa PeriodicBC || b2.bc isa PeriodicBC)
 end
 
 """
@@ -181,38 +196,17 @@ Rectangular subtype of AbstractDomain that holds 4 Boundaries and coordinates to
 
 In order to create a RectangleDomain, three conditions need to be met. First, if needs to be periodically compatible. This means that pairs of opposite boundaries both need to be periodic if one of them is periodic. Next, the value in the north boundary must be greater than the south boundary and the value in the east boundary must be greater than the west in order to form a valid rectangle. Finally, the last point in coords should match the first one for ease of making into a polygon.
 """
-struct RectangleDomain{FT}<:AbstractDomain{FT}
-    north::Boundary
-    south::Boundary
-    east::Boundary
-    west::Boundary
-    coords::RingVec{FT} 
+struct RectangleDomain{FT, NBC<:AbstractBC, SBC<:AbstractBC, EBC<:AbstractBC, WBC<:AbstractBC}<:AbstractDomain{FT}
+    north::Boundary{NBC, FT}
+    south::Boundary{SBC, FT}
+    east::Boundary{EBC, FT}
+    west::Boundary{WBC, FT}
 
-    RectangleDomain(north, south, east, west, coords) = 
-        (periodicCompat(north, south) && periodicCompat(east, west)) &&
+    RectangleDomain(north, south, east, west) = 
+        (periodic_compat(north, south) && periodic_compat(east, west)) &&
         (north.val>south.val && east.val > west.val) ?
-        new{eltype(eltype(coords))}(north, south, east, west,
-                                    valid_ringvec!(coords)) : 
+        new{typeof(north.val),typeof(north.bc),typeof(south.bc), typeof(east.bc),typeof(west.bc)}(north, south, east, west) : 
         throw(ArgumentError("Periodic boundary must have matching opposite boundary and/or North value must be greater then South and East must be greater than West."))
-end
-
-"""
-    RectangleDomain(north, south, east, west)
-
-Create a rectangular domain from 4 boundaries. 
-Inputs:
-        north   <Boundary>
-        south   <Boundary>
-        east    <Boundary>
-        west    <Boundary>
-Output:
-        Rectangular Domain with 4 given boundaries and rectangle coordinates created by using each boundaties values to determine the corners.
-"""
-function RectangleDomain(north::Boundary, south::Boundary, east::Boundary, west::Boundary)
-    coords = [[west.val, north.val], [west.val, south.val],
-              [east.val, south.val], [east.val, north.val],
-              [west.val, north.val]]
-    return RectangleDomain(north, south, east, west, coords)
 end
 
 """
@@ -231,11 +225,11 @@ Output:
 """
 function RectangleDomain(grid::Grid, northBC = Open(), southBC = Open(),
 eastBC = Open(), westBC = Open())
-    northwall = Boundary(northBC, maximum(grid.ylines))
-    southwall = Boundary(southBC, minimum(grid.ylines))
-    eastwall = Boundary(eastBC, maximum(grid.xlines))
-    westwall = Boundary(westBC, minimum(grid.xlines))
-    return RectangleDomain(northwall, southwall, eastwall, westwall)
+    north = Boundary(northBC, maximum(grid.ylines))
+    south = Boundary(southBC, minimum(grid.ylines))
+    east = Boundary(eastBC, maximum(grid.xlines))
+    west = Boundary(westBC, minimum(grid.xlines))
+    return RectangleDomain(north, south, east, west)
 end
 
 """
@@ -246,9 +240,27 @@ Circle subtype of AbstractDomain holds one boundary condition and a Float centro
 Note: Not implemented yet!!
 """
 struct CircleDomain{FT, BC<:AbstractBC}<:AbstractDomain{FT}
-    Radius::FT
-    Centroid::FT
-    condition::BC
+    radius::FT
+    centroid::FT
+    bc::BC
+end
+
+"""
+    domain_coords(domain::RectangleDomain)
+Inputs:
+        domain<RectangleDomain>
+Output:
+        RingVec coordinates for edges of rectangular domain based off of boundary values
+"""
+function domain_coords(domain::RectangleDomain)
+    nval = domain.north.val
+    sval = domain.south.val
+    eval = domain.east.val
+    wval = domain.west.val
+    coords = [[val, nval], [val, sval],
+              [eval, sval], [eval, nval],
+              [val, nval]]
+    return coords
 end
 
 """
@@ -391,6 +403,30 @@ Floe(coords::PolyVec{Float64}, h_mean, Δh, ρi = 920.0, u = 0.0,
 v = 0.0, ξ = 0.0, t::Type{T} = Float64) where T =
     Floe(LG.Polygon(coords), h_mean, Δh, ρi, u, v, ξ, T)
 
+
+function domain_in_grid(domain::RectangleDomain, grid)
+    if (domain.north.val <= maximum(grid.ylines) &&
+       domain.south.val >= minimum(grid.ylines) &&
+       domain.east.val <= maximum(grid.xlines) &&
+       domain.west.val >= minimum(grid.xlines))
+       return true
+    end
+    return false
+end
+
+function domain_in_grid(domain::CircleDomain, grid)
+    x, y = domain.centroid
+    r = domain.radius
+    if (x + r <  maximum(grid.xlines) &&
+        x - r <  minimum(grid.xlines) &&
+        y + r <  maximum(grid.ylines) &&
+        y - r <  minimum(grid.xlines))
+        return true
+    end
+    return false
+end
+
+
 """
 Model which holds grid, ocean, wind structs, each with the same underlying float type (either Float32 of Float64). It also holds an StructArray of floe structs, again each relying on the same underlying float type. Finally it holds several physical constants. These are:
 - heatflux ?
@@ -412,6 +448,13 @@ struct Model{FT<:AbstractFloat, DT<:AbstractDomain{FT}}
     ρi::FT                      # ice density
     coriolis::FT                # ocean coriolis force
     turnangle::FT               # ocean turn angle
+
+    Model(grid, ocean, wind, domain, topos, floes, heatflux, h_new, ρi, coriolis, turnangle) = 
+        (grid.dims == size(ocean.u) && grid.dims == size(wind.u) &&
+        domain_in_grid(domain, grid)) ?
+        new{typeof(ρi), typeof(domain)}(grid, ocean, wind, domain, topos, floes,
+                                    heatflux, h_new, ρi, coriolis, turnangle) :
+        throw(ArgumentError("Size of grid does not match size of ocean and/or wind grid OR domain is not within grid."))
 end
 
 """
@@ -469,7 +512,7 @@ Outputs:
 function Model(grid, ocean, wind, domain, topos, floes, Δt::Int, newfloe_Δt::Int; ρi = 920.0, coriolis = 1.4e-4, turnangle = 15*pi/180,
 L = 2.93e5, k = 2.14, t::Type{T} = Float64) where T
 #TODO: Should To and Ta be matricies? They are temperature of Ocean/Ice interface and Atmosphere/Ice interface
-    h_new, heatflux = calc_new_iceh(ocean.tempocn, wind.tempwind, Δt,
+    h_new, heatflux = calc_new_iceh(ocean.temp, wind.temp, Δt,
                                     newfloe_Δt, ρi = ρi)
     return Model(grid, ocean, wind, domain, topos, floes,
                  convert(Matrix{T}, heatflux), convert(T, h_new),
