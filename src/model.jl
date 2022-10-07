@@ -15,10 +15,10 @@ struct Grid{FT<:AbstractFloat}
     ygrid::Matrix{FT}
 
     Grid(dims, xlines, ylines, xgrid, ygrid) =
-        (size(xgrid) == dims && size(ygrid) == dims &&
+        (size(xgrid) == size(ygrid) == dims &&
         length(xlines) == dims[2] && length(ylines) == dims[1]) ? 
         new{eltype(xlines)}(dims, xlines, ylines, xgrid, ygrid) :
-        throw(ArgumentError("Grid dimensions don't match within fields."))
+        throw(ArgumentError("Grid dimensions don't match within Grid fields."))
 end
 
 """
@@ -54,7 +54,7 @@ struct Ocean{FT<:AbstractFloat}
     temp::Matrix{FT}
 
     Ocean(u, v, temp) =
-        (size(u) == size(v) && size(v) == size(temp)) ?
+        (size(u) == size(v) == size(temp)) ?
         new{eltype(u)}(u, v, temp) :
         throw(ArgumentError("All ocean fields matricies must have the same dimensions."))
 end
@@ -88,7 +88,7 @@ struct Wind{FT<:AbstractFloat}
     temp::Matrix{FT}
 
     Wind(u, v, temp) =
-    (size(u) == size(v) && size(v) == size(temp)) ?
+    (size(u) == size(v) == size(temp)) ?
     new{eltype(u)}(u, v, temp) :
     throw(ArgumentError("All wind fields matricies must have the same dimensions."))
 end
@@ -257,11 +257,11 @@ function domain_coords(domain::RectangleDomain)
     sval = domain.south.val
     eval = domain.east.val
     wval = domain.west.val
-    coords = [[val, nval], [val, sval],
+    coords = [[wval, nval], [wval, sval],
               [eval, sval], [eval, nval],
-              [val, nval]]
+              [wval, nval]]
     return coords
-end
+end #TODO: Might not need!
 
 """
     Topography{FT<:AbstractFloat}
@@ -274,7 +274,7 @@ Coordinates are vector of vector of vector of points of the form:
 """
 struct Topography{FT<:AbstractFloat}
     centroid::Vector{FT}    # center of mass of topographical element
-    coords::PolyVec{FT}     # coordinates
+    coords::PolyVec{FT}     # coordinates centered at (0,0)
     height::FT              # height (m)
     area::FT                # area (m^2)
     rmax::FT                # distance of vertix farthest from centroid (m)
@@ -301,7 +301,7 @@ function Topography(poly::LG.Polygon, h, t::Type{T} = Float64) where T
     coords = translate(LG.GeoInterface.coordinates(topo)::PolyVec{Float64},
                        -centroid)
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
-    return Topography(centroid, coords, h, a, rmax)
+    return Topography(centroid, coords, h, a, rmax) #TODO convert!!
 end
 
 """
@@ -333,7 +333,7 @@ Coordinates are vector of vector of vector of points of the form:
     moment::FT      # mass moment of intertia
     #angles::Vector{T}
     rmax::FT                # distance of vertix farthest from centroid (m)
-    coords::PolyVec{FT}     # floe coordinates
+    coords::PolyVec{FT}     # floe coordinates centered at (0,0)
     αcoords::PolyVec{FT}    # rotated coordinates (rotated by angle alpha)
     α::FT = 0.0             # angle rotated from starting coords
     ufloe::FT = 0.0         # floe x-velocity
@@ -450,7 +450,7 @@ struct Model{FT<:AbstractFloat, DT<:AbstractDomain{FT}}
     turnangle::FT               # ocean turn angle
 
     Model(grid, ocean, wind, domain, topos, floes, heatflux, h_new, ρi, coriolis, turnangle) = 
-        (grid.dims == size(ocean.u) && grid.dims == size(wind.u) &&
+        (grid.dims == size(ocean.u) == size(wind.u) &&
         domain_in_grid(domain, grid)) ?
         new{typeof(ρi), typeof(domain)}(grid, ocean, wind, domain, topos, floes,
                                     heatflux, h_new, ρi, coriolis, turnangle) :
