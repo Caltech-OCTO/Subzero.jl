@@ -4,8 +4,8 @@ import LibGEOS as LG
 # User Inputs
 const type = Float64::DataType
 
-const x = 4e5
-const y = 4e5
+const Lx = 4e5
+const Ly = 3e5
 const Δgrid = 10000
 const h_mean = 0.5
 const Δh = 0.25
@@ -13,7 +13,7 @@ const Δt = 10
 const newfloe_Δt = 500
 
 # Model instantiation
-grid = Grid(x, y, Δgrid)
+grid = Grid(Lx, Ly, Δgrid, Δgrid)
 ocean = Ocean(ones(grid.dims), zeros(grid.dims), fill(3.0, grid.dims))
 wind = Wind(ones(grid.dims), zeros(grid.dims), fill(4.0, grid.dims))
 

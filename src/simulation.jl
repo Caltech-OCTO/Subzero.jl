@@ -3,27 +3,27 @@ Structs and functions to create and run a Subzero simulation
 """
 
 
-#= function calc_eulerian(grid, floe_arr, topography_arr, coarse_nx, coarse_ny, PERIODIC)
-    live_floes = filter(floe->floe.alive, floe_arr)
-    topography_poly = LG.MultiPolygon([translate(poly.coords, centroid) for
-                                       poly in topography_arr])
-    # TODO: Periodic section!
+# function calc_ocean_coupling(grid, floe_arr, topography_arr, coarse_nx, coarse_ny, PERIODIC)
+#     live_floes = filter(floe->floe.alive, floe_arr)
+#     topography_poly = LG.MultiPolygon([translate(poly.coords, centroid) for
+#                                        poly in topography_arr])
+#     # TODO: Periodic section!
 
-    # create coarse grid
-end =#
+#     # create coarse grid
+# end
 
-struct EulerianGrid{FT<:AbstractFloat}
-    coarse_nx ::Int
-    coarse_ny ::Int
-    xlines::Matrix{FT}
-    ylines::Matrix{FT}
-    xgrid::Matrix{FT}
-    ygrid::Matrix{FT}
+# struct EulerianGrid{FT<:AbstractFloat}
+#     coarse_nx ::Int
+#     coarse_ny ::Int
+#     xlines::Matrix{FT}
+#     ylines::Matrix{FT}
+#     xgrid::Matrix{FT}
+#     ygrid::Matrix{FT}
 
-    EulerianGrid(xgrid, ygrid) =  (size(xgrid) == size(ygrid)) ?
-        new{eltype(xgrid)}(xgrid, ygrid) :
-        throw(ArgumentError("Grid dimensions don't match within EularianGrid."))
-end
+#     EulerianGrid(xgrid, ygrid) =  (size(xgrid) == size(ygrid)) ?
+#         new{eltype(xgrid)}(xgrid, ygrid) :
+#         throw(ArgumentError("Grid dimensions don't match within EularianGrid."))
+# end
 
 #= function EulerianGrid(domain::CircleDomain, coarse_nx::Int, coarse_ny::Int)
     nval = domain.centroid[2] + domain.radius
@@ -98,6 +98,9 @@ end
 
 struct Simulation
     model::Model
+    fig
+    coarse_x::Int
+    coarse_y::Int
     PERIODIC::Bool
     RIDGING::Bool
     FRACTURES::Bool
@@ -108,4 +111,16 @@ struct Simulation
     RAFTING::Bool
     AVERAGE::Bool
     KEEP_MIN::Bool
+end
+
+function run!(simulation)
+    xmin = model.grid.xg[1]
+    xmax = model.grid.xg[end]
+    ymin = model.grid.yg[1]
+    ymax = model.grid.yg[end]
+    ratio = model.grid.yg[end]/model.grid.xg[end]
+    plt = Plots.plot(xlims = (xmin, xmax),
+              ylims = (ymin, ymax), size = (1200, 1200), aspect_ratio=ratio)
+              # should move to simulation intialization
+
 end

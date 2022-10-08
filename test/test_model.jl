@@ -2,45 +2,48 @@
     # Grid Creation
     @testset "Grid" begin
         # Large grid default constructor
-        xlines = collect(-4e5:1e4:4e5)
-        ylines = collect(-3e5:1e4:3e5)
-        xgrid = repeat(reshape(xlines, 1, :), inner=(length(ylines),1))
-        ygrid = repeat(ylines, outer = (1, length(xlines)))
-        gbig = Subzero.Grid((61, 81), xlines, ylines, xgrid, ygrid)
-        @test gbig.dims == (61, 81)
-        @test gbig.xlines == xlines
-        @test gbig.ylines == ylines
-        @test gbig.xgrid == xgrid
-        @test gbig.ygrid == ygrid
+        xg = collect(-4e5:1e4:4e5)
+        yg = collect(-3e5:1e4:3e5)
+        xc = collect(-3.95e5:1e4:3.95e5)
+        yc = collect(-2.95e5:1e4:2.95e5)
+        gbig = Subzero.Grid((length(yc), length(xc)), xg, yg, xc, yc)
+        @test gbig.dims == (60, 80)
+        @test gbig.xg == xg
+        @test gbig.yg == yg
+        @test gbig.xc == xc
+        @test gbig.yc == yc
         # Default constructor fails for non-matching dimensions
-        @test_throws ArgumentError Subzero.Grid((61, 81), xlines, ylines,
-                                                Float64[0.0], ygrid)
-        @test_throws ArgumentError Subzero.Grid((61, 81), xlines, ylines,
-                                                xgrid, Float64[0.0])
-        @test_throws ArgumentError Subzero.Grid((61, 81), Float64[0.0], ylines,
-        xgrid, ygrid)
-        @test_throws ArgumentError Subzero.Grid((61, 81), xlines, Float64[0.0],
-        xgrid, ygrid)
+        @test_throws ArgumentError Subzero.Grid((60, 80), xg, yg,
+                                                Float64[0.0], yc)
+        @test_throws ArgumentError Subzero.Grid((60, 80), xg, yg,
+                                                xc, Float64[0.0])
+        @test_throws ArgumentError Subzero.Grid((60, 80), Float64[0.0], yg,
+                                                xc, yc)
+        @test_throws ArgumentError Subzero.Grid((60, 80), xg, Float64[0.0],
+                                                xc, yc)
         
         # Non-square grid using custom constructor
-        g1 = Subzero.Grid(10, 8, 2)
-        @test g1.dims == (9, 11)
-        @test g1.xlines == collect(-10.0:2:10.0)
-        @test g1.ylines == collect(-8:2:8)
-        @test g1.xgrid[1, :] == g1.xlines
-        @test g1.ygrid[:, 1] == g1.ylines
+        g1 = Subzero.Grid(-10, 10, -8, 8, 2, 4)
+        @test g1.dims == (4, 10)
+        @test g1.xg == collect(-10.0:2:10.0)
+        @test g1.yg == collect(-8:4:8)
+        @test g1.xc == collect(-9.0:2:9.0)
+        @test g1.yc == collect(-6.0:4:6.0)
         @test typeof(g1) == Subzero.Grid{Float64}
         # Uneven grid size creation (grid cut short) using custom constructor
-        g2 = Subzero.Grid(10.5, 8.0, 2.5)
-        @test g2.dims == (7, 9)
-        @test g2.xlines == collect(-10.5:2.5:10.5)
-        @test size(g2.xgrid) == g2.dims
+        g2 = Subzero.Grid(10.5, 8.0, 2.5, 2)
+        @test g2.dims == (4, 4)
+        @test g2.xg == collect(0.0:2.5:10.5)
+        @test g2.yg == collect(0.0:2.0:8.0)
+        @test g2.xc == collect(1.25:2.5:8.75)
+        @test g2.yc == collect(1.0:2.0:7.0)
         # Custom constructor Float32
-        @test typeof(Subzero.Grid(10, 8, 2, Float32)) == Subzero.Grid{Float32}
+        @test typeof(Subzero.Grid(10, 8, 2, 2, Float32)) ==
+              Subzero.Grid{Float32}
     end
 
     @testset "Ocean" begin
-        g = Subzero.Grid(4e5, 3e5, 1e4)
+        g = Subzero.Grid(4e5, 3e5, 1e4, 1e4)
         # Large ocean default constructor
         uocn = fill(3.0, g.dims)
         vocn = fill(4.0, g.dims)
@@ -64,7 +67,7 @@
     end
 
     @testset "Wind" begin
-        g = Subzero.Grid(4e5, 3e5, 1e4)
+        g = Subzero.Grid(4e5, 3e5, 1e4, 1e4)
         # Large wind default constructor
         uwind = fill(3.0, g.dims)
         vwind = fill(4.0, g.dims)

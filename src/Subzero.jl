@@ -8,7 +8,7 @@ export
     Ocean,
     Wind,
     AbstractBC,
-    Open,
+    OpenBC,
     Boundary,
     AbstractDomain,
     RectangleDomain,
@@ -20,7 +20,8 @@ export
 
 import LibGEOS as LG
 import Base.@kwdef # this is being exported as of version 1.9
-using Plots, StructArrays, Statistics
+import Plots.plot, Plots.plot!, Plots.quiver!
+using StructArrays, Statistics
 
 
 """
@@ -38,4 +39,5 @@ const RingVec{T} = Vector{Vector{T}} where T<:AbstractFloat
 include("floe_operations.jl")
 include("model.jl")
 include("simulation.jl")
+include("plotting.jl")
 end

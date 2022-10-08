@@ -5,45 +5,79 @@ Structs and functions used to define a Subzero model
 """
     Grid{FT<:AbstractFloat}
 
-Grid splitting the model into distinct rectanglular grid cells where xlines are the grid lines in the x-direction (1xn vector) and ylines are the grid lines in the y-direction (1xm vector). xgrid is the xline vector repeated m times as rows in a nxm array and ygrid is the yline vector repeated n times as columns in a nxm vector. The dimensions of each of the fields must match according to the above definitions.
+Grid splitting the model into distinct rectanglular grid cells where xg are the grid lines in the x-direction (1xn vector) and yg are the grid lines in the y-direction (mx1 vector). xc and cy are the mid-lines on grid cells in the x and y-direction. These have dimensions n-1x1 and m-1x1 respectively. The dimension field holds the number of rows (m-1) and columns (n-1) in the grid. The dimensions of each of the fields must match according to the above definitions.
 """
 struct Grid{FT<:AbstractFloat}
     dims::Tuple{Int, Int}
-    xlines::Vector{FT}
-    ylines::Vector{FT}
-    xgrid::Matrix{FT}
-    ygrid::Matrix{FT}
+    xg::Vector{FT}
+    yg::Vector{FT}
+    xc::Vector{FT}
+    yc::Vector{FT}
 
-    Grid(dims, xlines, ylines, xgrid, ygrid) =
-        (size(xgrid) == size(ygrid) == dims &&
-        length(xlines) == dims[2] && length(ylines) == dims[1]) ? 
-        new{eltype(xlines)}(dims, xlines, ylines, xgrid, ygrid) :
-        throw(ArgumentError("Grid dimensions don't match within Grid fields."))
+    Grid(dims, xg, yg, xc, yc) =
+        (length(xg) == dims[2]+1 && length(yg) == dims[1]+1 &&
+        length(xc) == dims[2] && length(yc) == dims[1]) ?
+        new{eltype(xg)}(dims, xg, yg, xc, yc) :
+        throw(ArgumentError("Dimension field doesn't match grid dimensions."))
 end
 
 """
-    Grid(x, y, dgrid)
+    Grid(lx, ux, ly, uy, Δx, Δy, t::Type{T} = Float64)
 
-Construct a rectanglular grid for the model.
+Construct a rectanglular grid for model given upper and lower bounds and grid cell dimensions.
 Inputs: 
-        x       <Real> grid length will range from -x to x
-        y       <Real> grid height will range from -y to ygrid
-        Δgrid   <Real> length/height of square grid cells
+        lx       <Real> lower bound of grid x-direction
+        ux       <Real> upper bound of grid x-direction
+        ly       <Real> lower bound of grid y-direction
+        uy       <Real> upper bound of grid y-direction
+        Δx       <Real> length/height of grid cells in x-direction
+        Δy       <Real> length/height of grid cells in y-direction
         t       <Type> datatype to convert grid fields - must be a Float!
 Output: 
-        Grid with length of 2x and height of 2y with square dgrid x dgrid grid cells
-Warning: If dgrid doesn't evenly divide 2x or 2y you won't get full size grid.
-         The grid will be "trimmed" to the nearest full grid square.
+        Grid from lx to ux and height from ly to uy with grid squares of size Δx by Δy
+Warning: If Δx doesn't evenly divide x length (lu-lx) or Δy doesn't evenly 
+         divide y length (uy-ly) you won't get full size grid. The grid will be "trimmed" to the nearest full grid square in both directions.
 """
-function Grid(x, y, Δgrid, t::Type{T} = Float64) where T
-    xlines = collect(T, -x:Δgrid:x) 
-    ylines = collect(T, -y:Δgrid:y)
-    nxlines = length(xlines)
-    nylines = length(ylines)
-    xgrid = repeat(reshape(xlines, 1, :), inner=(nylines,1))
-    ygrid = repeat(ylines, outer = (1, nxlines))
-    return Grid((nylines, nxlines), xlines, ylines, xgrid, ygrid)
+function Grid(lx, ux, ly, uy, Δx, Δy, t::Type{T} = Float64) where T
+    xg = collect(T, lx:Δx:ux) 
+    yg = collect(T, ly:Δy:uy)
+    nx = length(xg) - 1
+    ny = length(yg) - 1
+    xc = collect(xg[1]+Δx/2:Δx:xg[end]-Δx/2)
+    yc = collect(yg[1]+Δy/2:Δy:yg[end]-Δy/2)
+    return Grid((ny, nx), xg, yg, xc, yc)
 end
+
+
+"""
+    Grid(Lx, Ly, Δx, Δy, t::Type{T} = Float64)
+
+Construct a rectanglular grid for the model given Lx, Ly and cell dimensions.
+Inputs: 
+        Lx       <Real> grid length will range from 0 to Lx
+        Ly       <Real> grid height will range from y to Ly
+        Δx       <Real> length/height of grid cells in x-direction
+        Δy       <Real> length/height of grid cells in y-direction
+        t        <Type> datatype to convert grid fields - must be a Float!
+Output: 
+        Grid with length of Lx (0.0 to LX) and height of Ly (0.0 to LY) with square Δx by Δy grid cells
+Warning: If Δx doesn't evenly divide Lx or Δy doesn't evenly divide Ly you 
+         won't get full size grid. The grid will be "trimmed" to the nearest full grid square.
+"""
+function Grid(Lx, Ly, Δx, Δy, t::Type{T} = Float64) where T
+    return Grid(0.0, Lx, 0.0, Ly, Δx, Δy, T)
+end
+
+"""
+grids_from_lines(xg, yg)
+
+Creates x-grid and y-grid. Assume xg has length n and yg has length m. xgrid is the grid's xg vector repeated m times as rows in a mxn array and ygrid is the yg vector repeated n times as columns in a mxn vector.
+"""
+function grids_from_lines(xg, yg)
+    xgrid = repeat(reshape(xg, 1, :), inner=(length(yg),1))
+    ygrid = repeat(yg, outer = (1, length(xg)))
+    return xgrid, ygrid
+end # TODO: Might not need
 
 """
 Ocean velocities in the x-direction (u) and y-direction (v). u and v should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Ocean also needs temperature at the ocean/ice interface in each grid cell. Ocean fields must all be matricies with the same dimensions. Model cannot be constructed if size of ocean and grid do not match.
@@ -204,7 +238,7 @@ struct RectangleDomain{FT, NBC<:AbstractBC, SBC<:AbstractBC, EBC<:AbstractBC, WB
 
     RectangleDomain(north, south, east, west) = 
         (periodic_compat(north, south) && periodic_compat(east, west)) &&
-        (north.val>south.val && east.val > west.val) ?
+        (north.val > south.val && east.val > west.val) ?
         new{typeof(north.val),typeof(north.bc),typeof(south.bc), typeof(east.bc),typeof(west.bc)}(north, south, east, west) : 
         throw(ArgumentError("Periodic boundary must have matching opposite boundary and/or North value must be greater then South and East must be greater than West."))
 end
@@ -213,7 +247,7 @@ end
     RectangleDomain(grid, northBC = Open(), southBC = Open(),
     eastBC = Open(), westBC = Open())
 
-Create a rectangular domain from a grid and 4 boundary conditions 
+Create a maximum rectangular domain from a grid and 4 boundary conditions 
 Inputs:
         grid      <Grid>
         southBC   <AbstractBC subtype>
@@ -223,12 +257,12 @@ Inputs:
 Output:
         Rectangular Domain with boundaries along the edges of the grid with each boundary having given boundary conditions. 
 """
-function RectangleDomain(grid::Grid, northBC = Open(), southBC = Open(),
-eastBC = Open(), westBC = Open())
-    north = Boundary(northBC, maximum(grid.ylines))
-    south = Boundary(southBC, minimum(grid.ylines))
-    east = Boundary(eastBC, maximum(grid.xlines))
-    west = Boundary(westBC, minimum(grid.xlines))
+function RectangleDomain(grid::Grid, northBC = OpenBC(), southBC = OpenBC(),
+eastBC = OpenBC(), westBC = OpenBC())
+    north = Boundary(northBC, grid.yg[end])
+    south = Boundary(southBC, grid.yg[1])
+    east = Boundary(eastBC, grid.xg[end])
+    west = Boundary(westBC, grid.xg[1])
     return RectangleDomain(north, south, east, west)
 end
 
@@ -241,8 +275,32 @@ Note: Not implemented yet!!
 """
 struct CircleDomain{FT, BC<:AbstractBC}<:AbstractDomain{FT}
     radius::FT
-    centroid::FT
+    centroid::Vector{FT}
     bc::BC
+
+    CircleDomain(radius, centroid, bc) = radius > 0.0 ?
+        new{typeof(radius), typeof(bc)}(radius, centroid, bc) :
+        throw(ArgumentError("Radius should be positive."))
+end
+
+"""
+    CircleDomain(grid::Grid, bc = Open())
+
+Creates a maximum circular domain from a grid and a boundary condition
+Inputs:
+        grid      <Grid>
+        bc        <AbstractBC subtype> 
+Output:
+        Circular Domain that has a centroid in the center of the grid and a radius of half of the shorter side of the grid. Whole domain has the given boundary condition. 
+"""
+function CircleDomain(grid::Grid, bc = OpenBC())
+    xmin = grid.xg[1]
+    ymin = grid.yg[1]
+    xrad = (grid.xg[end] - xmin)/2
+    yrad = (grid.yg[end] - ymin)/2
+    radius = min(xrad, yrad)
+    centroid = [xmin + xrad, ymin + yrad]
+    return CircleDomain(radius, centroid, bc)
 end
 
 """
@@ -253,13 +311,13 @@ Output:
         RingVec coordinates for edges of rectangular domain based off of boundary values
 """
 function domain_coords(domain::RectangleDomain)
-    nval = domain.north.val
-    sval = domain.south.val
-    eval = domain.east.val
-    wval = domain.west.val
-    coords = [[wval, nval], [wval, sval],
-              [eval, sval], [eval, nval],
-              [wval, nval]]
+    northval = domain.north.val
+    southval = domain.south.val
+    eastval = domain.east.val
+    westval = domain.west.val
+    coords = [[westval, northval], [westval, southval],
+              [eastval, southval], [eastval, northval],
+              [westval, northval]]
     return coords
 end #TODO: Might not need!
 
@@ -278,6 +336,11 @@ struct Topography{FT<:AbstractFloat}
     height::FT              # height (m)
     area::FT                # area (m^2)
     rmax::FT                # distance of vertix farthest from centroid (m)
+
+    Topography(centriod, coords, height, area, rmax) = 
+        height > 0 && area > 0 && rmax > 0 ?
+        new{typeof(height)}(centriod, coords, height, area, rmax) :
+        throw(ArgumentError("Height, area, and maximum radius of a given topography element should be positive."))
 end
 
 """
@@ -301,7 +364,8 @@ function Topography(poly::LG.Polygon, h, t::Type{T} = Float64) where T
     coords = translate(LG.GeoInterface.coordinates(topo)::PolyVec{Float64},
                        -centroid)
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
-    return Topography(centroid, coords, h, a, rmax) #TODO convert!!
+    return Topography(convert(Vector{T}, centroid), convert(PolyVec{T}, coords),
+                      convert(T, h), convert(T, a), convert(T, rmax))
 end
 
 """
@@ -315,8 +379,9 @@ t       <Type> datatype to convert ocean fields - must be a Float!
 Output:
         Topographic element with needed fields defined
 """
-function Topography(coords::PolyVec{T}, h, t::Type{T} = Float64) where T
-    return Topography(LG.Polygon(coords), h, T)
+function Topography(coords::PolyVec{<:Real}, h, t::Type{T} = Float64) where T
+    return Topography(LG.Polygon(convert(PolyVec{Float64}, coords)), h, T)
+    # Polygon convert is needed since LibGEOS only takes Float64 - when this is fixed convert can be removed
 end
 
 """
@@ -330,7 +395,7 @@ Coordinates are vector of vector of vector of points of the form:
     height::FT              # floe height (m)
     area::FT                # floe area (m^2)
     mass::FT                # floe mass (kg)
-    moment::FT      # mass moment of intertia
+    moment::FT              # mass moment of intertia
     #angles::Vector{T}
     rmax::FT                # distance of vertix farthest from centroid (m)
     coords::PolyVec{FT}     # floe coordinates centered at (0,0)
@@ -343,10 +408,10 @@ Coordinates are vector of vector of vector of points of the form:
     fyOA::FT = 0.0          # force from ocean and wind in y direction
     torqueOA::FT = 0.0      # torque from ocean and wind
     alive::Bool = true      # floe is still active in simulation
-end
+end # TODO: do we want to do any checks? Ask Mukund!
 
 """
-    Floe(poly::LG.Polygon, hmean, Δh, ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, t::Type{T} = Float64) where T
+    Floe(poly::LG.Polygon, hmean, Δh, ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, t::Type{T} = Float64)
 
 Constructor for floe with LibGEOS Polygon
 Inputs:
@@ -399,28 +464,66 @@ Inputs:
 Output:
         Floe with needed fields defined - all default field values used so all forcings and velocities start at 0 and floe is "alive"
 """
-Floe(coords::PolyVec{Float64}, h_mean, Δh, ρi = 920.0, u = 0.0,
+Floe(coords::PolyVec{<:Real}, h_mean, Δh, ρi = 920.0, u = 0.0,
 v = 0.0, ξ = 0.0, t::Type{T} = Float64) where T =
-    Floe(LG.Polygon(coords), h_mean, Δh, ρi, u, v, ξ, T)
+    Floe(LG.Polygon(convert(PolyVec{Float64}, coords)), h_mean, Δh, ρi, u, v,
+         ξ, T) 
+    # Polygon convert is needed since LibGEOS only takes Float64 - when this is fixed convert can be removed
 
+"""
+    domain_in_grid(domain::RectangleDomain, grid)
 
+Checks if given rectangular domain is within given grid and gives user a warning if domain is not of maximum possible size given grid dimensions.
+
+Inputs:
+        domain      <RectangularDomain>
+        grid        <Grid>
+Outputs:
+        <Boolean> true if domain is within grid bounds, else false
+"""
 function domain_in_grid(domain::RectangleDomain, grid)
-    if (domain.north.val <= maximum(grid.ylines) &&
-       domain.south.val >= minimum(grid.ylines) &&
-       domain.east.val <= maximum(grid.xlines) &&
-       domain.west.val >= minimum(grid.xlines))
-       return true
+    northval = domain.north.val
+    southval = domain.south.val
+    eastval = domain.east.val
+    westval = domain.west.val
+    if (northval <= grid.yg[end] &&
+        southval >= grid.yg[1] &&
+        eastval <= grid.xg[end] &&
+        westval >= grid.xg[1])
+        if (northval != grid.yg[end] ||
+            southval != grid.yg[1] ||
+            eastval != grid.xg[end] ||
+            westval != grid.xg[1])
+            @warn "At least one wall of domain is smaller than grid. This could lead to unneeded computation. Consider making grid smaller or domain larger."
+        end 
+        return true
     end
     return false
 end
 
+"""
+    domain_in_grid(domain::CircleDomain, grid)
+
+Checks if given circular domain is within given grid and gives user a warning if domain is not of maximum possible size given grid dimensions.
+
+Inputs:
+        domain      <CircularDomain>
+        grid        <Grid>
+Outputs:
+        <Boolean> true if domain is within grid bounds, else false
+"""
 function domain_in_grid(domain::CircleDomain, grid)
     x, y = domain.centroid
     r = domain.radius
-    if (x + r <  maximum(grid.xlines) &&
-        x - r <  minimum(grid.xlines) &&
-        y + r <  maximum(grid.ylines) &&
-        y - r <  minimum(grid.xlines))
+    gridheight = grid.yg[end] - grid.yg[1]
+    gridwidth = grid.xg[end] - grid.xg[1]
+    if (x + r <=  grid.xg[end] &&
+        x - r >=  grid.xg[1] &&
+        y + r <=  grid.yg[end] &&
+        y - r >=  grid.yg[1])
+        if 2r != min(gridheight, gridwidth)
+            @warn "Circle domain does not have maximum possible radius within grid. This could lead to unneeded computation. Consider making the grid smaller of the domain larger."
+        end
         return true
     end
     return false
@@ -454,7 +557,7 @@ struct Model{FT<:AbstractFloat, DT<:AbstractDomain{FT}}
         domain_in_grid(domain, grid)) ?
         new{typeof(ρi), typeof(domain)}(grid, ocean, wind, domain, topos, floes,
                                     heatflux, h_new, ρi, coriolis, turnangle) :
-        throw(ArgumentError("Size of grid does not match size of ocean and/or wind grid OR domain is not within grid."))
+        throw(ArgumentError("Size of grid does not match size of ocean and/or wind OR domain is not within grid."))
 end
 
 """
@@ -479,7 +582,7 @@ Outputs:
 """
 function calc_new_iceh(To, Ta, Δt, newfloe_Δt; ρi = 920.0, L = 2.93e5, k = 2.14)
     heatflux = k/(ρi*L) .* (Ta .- To)
-    h0 = real(sqrt(-2Δt * newfloe_Δt .* heatflux))
+    h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* heatflux))) # Ask Mukund if this is right
     return mean(h0), heatflux
 end
 
@@ -511,7 +614,6 @@ Outputs:
 """
 function Model(grid, ocean, wind, domain, topos, floes, Δt::Int, newfloe_Δt::Int; ρi = 920.0, coriolis = 1.4e-4, turnangle = 15*pi/180,
 L = 2.93e5, k = 2.14, t::Type{T} = Float64) where T
-#TODO: Should To and Ta be matricies? They are temperature of Ocean/Ice interface and Atmosphere/Ice interface
     h_new, heatflux = calc_new_iceh(ocean.temp, wind.temp, Δt,
                                     newfloe_Δt, ρi = ρi)
     return Model(grid, ocean, wind, domain, topos, floes,
