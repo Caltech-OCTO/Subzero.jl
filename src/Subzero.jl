@@ -17,6 +17,7 @@ export
     Topography,
     Floe,
     Model,
+    CoarseGridData,
     Simulation,
     run!
 

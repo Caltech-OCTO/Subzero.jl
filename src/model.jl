@@ -6,6 +6,8 @@ Structs and functions used to define a Subzero model
     Grid{FT<:AbstractFloat}
 
 Grid splitting the model into distinct rectanglular grid cells where xg are the grid lines in the x-direction (1xn vector) and yg are the grid lines in the y-direction (mx1 vector). xc and cy are the mid-lines on grid cells in the x and y-direction. These have dimensions n-1x1 and m-1x1 respectively. The dimension field holds the number of rows (m-1) and columns (n-1) in the grid. The dimensions of each of the fields must match according to the above definitions.
+
+This struct is also used to create a coarse grid of the model domain. Ocean and floe data is averaged over this coarse grid and then saved as model output.
 """
 struct Grid{FT<:AbstractFloat}
     dims::Tuple{Int, Int}
@@ -24,7 +26,7 @@ end
 """
     Grid(lx, ux, ly, uy, Δx, Δy, t::Type{T} = Float64)
 
-Construct a rectanglular grid for model given upper and lower bounds and grid cell dimensions.
+Construct a rectanglular grid for model given upper and lower bounds for x and y and grid cell dimensions.
 Inputs: 
         lx       <Real> lower bound of grid x-direction
         ux       <Real> upper bound of grid x-direction
@@ -32,7 +34,7 @@ Inputs:
         uy       <Real> upper bound of grid y-direction
         Δx       <Real> length/height of grid cells in x-direction
         Δy       <Real> length/height of grid cells in y-direction
-        t       <Type> datatype to convert grid fields - must be a Float!
+        t        <Type> datatype to convert grid fields - must be a Float!
 Output: 
         Grid from lx to ux and height from ly to uy with grid squares of size Δx by Δy
 Warning: If Δx doesn't evenly divide x length (lu-lx) or Δy doesn't evenly 
@@ -65,6 +67,44 @@ Warning: If Δx doesn't evenly divide Lx or Δy doesn't evenly divide Ly you
          won't get full size grid. The grid will be "trimmed" to the nearest full grid square.
 """
 function Grid(Lx, Ly, Δx, Δy, t::Type{T} = Float64) where T
+    return Grid(0.0, Lx, 0.0, Ly, Δx, Δy, T)
+end
+
+"""
+    Grid(Lx, Ly, Δx, Δy, t::Type{T} = Float64)
+
+Construct a rectanglular grid for model given upper and lower bounds for x and y and the number of grid cells in both the x and y direction.
+Inputs: 
+        lx       <Real> lower bound of grid x-direction
+        ux       <Real> upper bound of grid x-direction
+        ly       <Real> lower bound of grid y-direction
+        uy       <Real> upper bound of grid y-direction
+        dims     <(Int, Int)> grid dimensions - rows -> ny, cols -> nx
+        t        <Type> datatype to convert grid fields - must be a Float!
+Output: 
+        Grid from lx to ux and height from ly to uy with nx grid cells in the x-direction and ny grid cells in the y-direction.
+"""
+function Grid(lx, ux, ly, uy, dims::Tuple{Int, Int}, t::Type{T} = Float64) where T
+    Δx = (ux-lx)/dims[2]
+    Δy = (uy-ly)/dims[1]
+    return Grid(lx, ux, ly, uy, Δx, Δy, T)
+end
+
+"""
+    Grid(Lx, Ly, nx, ny, t::Type{T} = Float64)
+
+    Construct a rectanglular grid for the model given Lx, Ly, and the number of grid cells in both the x and y direction.
+Inputs: 
+        Lx       <Real> grid length will range from 0 to Lx
+        Ly       <Real> grid height will range from y to Ly
+        dims     <(Int, Int)> grid dimensions
+        t        <Type> datatype to convert grid fields - must be a Float!
+Output: 
+        Grid from 0 to Lx and height from 0 to Ly with nx grid cells in the x-direction and ny grid cells in the y-direction.
+"""
+function Grid(Lx, Ly, dims::Tuple{Int, Int}, t::Type{T} = Float64) where T
+    Δx = Lx/dims[2]
+    Δy = Ly/dims[1]
     return Grid(0.0, Lx, 0.0, Ly, Δx, Δy, T)
 end
 
@@ -320,6 +360,48 @@ function domain_coords(domain::RectangleDomain)
               [westval, northval]]
     return coords
 end #TODO: Might not need!
+
+"""
+    Grid(domain::CircleDomain, nx::Int, ny::Int, t::Type{T} = Float64)
+
+Minimum grid that contains the given CircleDomain with the given number of grid cells in the x and y direction.
+
+Inputs: 
+        domain   <CircleDomain>
+        nx       <Int> number of grid cells in the x-direction
+        ny       <Int> number of grid cells in the y-direction
+        t        <Type> datatype to convert grid fields - must be a Float!
+Outputs:
+        Square grid where the height and width are equal to domain diameter and centered on circle centroid, with nx grid cells in the x-direction and ny grid cells in the y-direction.
+"""
+function Grid(domain::CircleDomain, nx::Int, ny::Int, t::Type{T} = Float64) where T
+    nval = domain.centroid[2] + domain.radius
+    sval = domain.centroid[2] - domain.radius
+    eval = domain.centroid[1] + domain.radius
+    wval = domain.centroid[1] - domain.radius
+    return Grid(wval, eval, sval, nval, nx, ny, T)
+end
+
+"""
+    Grid(domain::RectangleDomain, nx::Int, ny::Int, t::Type{T} = Float64)
+
+Minimum grid that contains the given RecangleDomain with the given number of grid cells in the x and y direction.
+
+Inputs: 
+        domain   <RectangleDomain>
+        nx       <Int> number of grid cells in the x-direction
+        ny       <Int> number of grid cells in the y-direction
+        t        <Type> datatype to convert grid fields - must be a Float!
+Outputs:
+        Rectangle grid that is exactly the side of the domain with nx grid cells in the x-direction and ny grid cells in the y-direction.
+"""
+function Grid(domain::RectangleDomain, nx::Int, ny::Int,  t::Type{T} = Float64) where T
+    nval = domain.north.val
+    sval = domain.south.val
+    eval = domain.east.val
+    wval = domain.west.val
+    return Grid(wval, eval, sval, nval, nx, ny, T)
+end
 
 """
     Topography{FT<:AbstractFloat}
@@ -610,7 +692,7 @@ Inputs:
         t           <Type> datatype to convert ocean fields - must
                            be a Float! 
 Outputs:
-        Model with all needed fields defined.         
+        Model with all needed fields defined and converted to FT.        
 """
 function Model(grid, ocean, wind, domain, topos, floes, Δt::Int, newfloe_Δt::Int; ρi = 920.0, coriolis = 1.4e-4, turnangle = 15*pi/180,
 L = 2.93e5, k = 2.14, t::Type{T} = Float64) where T

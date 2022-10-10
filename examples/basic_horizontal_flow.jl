@@ -11,6 +11,8 @@ const h_mean = 0.5
 const Δh = 0.25
 const Δt = 10
 const newfloe_Δt = 500
+const coarse_nx = 10
+const coarse_ny = 10
 
 # Model instantiation
 grid = Grid(Lx, Ly, Δgrid, Δgrid)
@@ -34,7 +36,10 @@ floe_arr = StructArray(floe for i in 1:1)
 
 model = Model(grid, ocean, wind, domain, topo_arr, floe_arr, Δt, newfloe_Δt)
 
-# Simulation set-up
-simulation = Simulation(model, 10, 12)
+plt = Subzero.setup_plot(model)
+cgrid = Grid(model.domain, coarse_nx, coarse_ny)
+cgrid_data = CoarseGridData(coarse_nx, coarse_ny)
 
+# Simulation set-up
+simulation = Simulation(model = model, cgrid = cgrid, cgrid_data = cgrid_data, fig = plt)
 run!(simulation)
