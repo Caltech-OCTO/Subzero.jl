@@ -7,8 +7,10 @@ export
     Grid,
     Ocean,
     Wind,
-    AbstractBC,
     OpenBC,
+    PeriodicBC,
+    CollisionBC,
+    CompressionBC,
     Boundary,
     AbstractDomain,
     RectangleDomain,
@@ -20,7 +22,7 @@ export
 
 import LibGEOS as LG
 import Base.@kwdef # this is being exported as of version 1.9
-import Plots.plot, Plots.plot!, Plots.quiver!
+using Plots
 using StructArrays, Statistics
 
 

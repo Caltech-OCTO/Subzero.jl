@@ -18,9 +18,8 @@ ocean = Ocean(ones(grid.dims), zeros(grid.dims), fill(3.0, grid.dims))
 wind = Wind(ones(grid.dims), zeros(grid.dims), fill(4.0, grid.dims))
 
 # Domain creation
-domain = Subzero.RectangleDomain(grid, Subzero.PeriodicBC(),
-                                     Subzero.PeriodicBC(),
-                                     Subzero.CollisionBC(), Subzero.OpenBC())
+domain = Subzero.RectangleDomain(grid, PeriodicBC(), PeriodicBC(),
+                                       CollisionBC(), OpenBC())
 
 # Topography instantiation
 poly1 = LG.Polygon([[[0.0, 0.0], [5e3, 0.0], [5e3, 1e4],[0.0, 1e4], [0.0, 0.0]]])
@@ -36,9 +35,6 @@ floe_arr = StructArray(floe for i in 1:1)
 model = Model(grid, ocean, wind, domain, topo_arr, floe_arr, Δt, newfloe_Δt)
 
 # Simulation set-up
+simulation = Simulation(model, 10, 12)
 
-# show progress
-
-# run!(simulation)
-
-#psi_ocean(xocn, yocn)=0.5e4/1*(sin.(4*(pi/x)*xocn).* sin.(4*(pi/y)*yocn))
+run!(simulation)

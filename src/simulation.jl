@@ -2,7 +2,6 @@
 Structs and functions to create and run a Subzero simulation
 """
 
-
 # function calc_ocean_coupling(grid, floe_arr, topography_arr, coarse_nx, coarse_ny, PERIODIC)
 #     live_floes = filter(floe->floe.alive, floe_arr)
 #     topography_poly = LG.MultiPolygon([translate(poly.coords, centroid) for
@@ -96,31 +95,28 @@ function EulerianData(coarse_nx, coarse_ny, t::Type{T} = Float64) where T
     height = zeros(T, coarse_nx, coarse_ny)
 end
 
-struct Simulation
+@kwdef struct Simulation
     model::Model
-    fig
+    fig::Plots.Plot
     coarse_x::Int
     coarse_y::Int
-    PERIODIC::Bool
-    RIDGING::Bool
-    FRACTURES::Bool
-    PACKING::Bool
-    WELDING::Bool
-    CORNERS::Bool
-    COLLISION::Bool
-    RAFTING::Bool
-    AVERAGE::Bool
-    KEEP_MIN::Bool
+    PERIODIC::Bool = false
+    RIDGING::Bool = false
+    FRACTURES::Bool = false
+    PACKING::Bool = false
+    WELDING::Bool = false
+    CORNERS::Bool = false
+    COLLISION::Bool = false
+    RAFTING::Bool = false
+    AVERAGE::Bool = false
+    KEEP_MIN::Bool = false
+end
+
+function Simulation(model, x, y)
+    return Simulation(model = model, fig = setup_plot(model), coarse_x = x,
+                      coarse_y = y)
 end
 
 function run!(simulation)
-    xmin = model.grid.xg[1]
-    xmax = model.grid.xg[end]
-    ymin = model.grid.yg[1]
-    ymax = model.grid.yg[end]
-    ratio = model.grid.yg[end]/model.grid.xg[end]
-    plt = Plots.plot(xlims = (xmin, xmax),
-              ylims = (ymin, ymax), size = (1200, 1200), aspect_ratio=ratio)
-              # should move to simulation intialization
-
+    plot_sim(simulation.model, simulation.fig, 1)
 end
