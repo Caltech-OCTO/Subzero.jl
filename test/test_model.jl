@@ -98,25 +98,79 @@
         b4 = Subzero.Boundary(Subzero.PeriodicBC(), 5.0)
         @test b1.bc == Subzero.PeriodicBC()
         @test b1.val == 0.0
+        b32 = Subzero.Boundary(Subzero.OpenBC(), 1, Float32)
+        @test typeof(b32.val) == Float32
+
         # Periodic Compat
         @test !Subzero.periodic_compat(b1, b2)
         @test !Subzero.periodic_compat(b2, b1)
         @test Subzero.periodic_compat(b1, b4)
         @test Subzero.periodic_compat(b2, b3)
+
+        # RectangularDomain default constructor
+        rdomain1 = Subzero.RectangleDomain(b4, b1, b3, b2)
+        @test rdomain1.north == b4
+        @test rdomain1.south == b1
+        @test rdomain1.east == b3
+
+        # RectangularDomain fails
+        @test_throws ArgumentError Subzero.RectangleDomain(b1, b4, b3, b2)
+        @test_throws ArgumentError Subzero.RectangleDomain(b4, b1, b2, b3)
+        @test_throws ArgumentError Subzero.RectangleDomain(b4, b1, b2, b2)
+        @test_throws ArgumentError Subzero.RectangleDomain(b4, b2, b2, b3)
+        @test_throws MethodError Subzero.RectangleDomain(b4, b1, b3, b32)
+
+        # RectangularDomain Grid constructor
+        g = Subzero.Grid(4e5, 3e5, 1e4, 1e4)
+        g32 = Subzero.Grid(4e5, 3e5, 1e4, 1e4, Float32)
+        rdomain2 = Subzero.RectangleDomain(g)
+        @test rdomain2.north == Subzero.Boundary(Subzero.OpenBC(), 3e5)
+        @test rdomain2.south == Subzero.Boundary(Subzero.OpenBC(), 0.0)
+        rdomain3 = Subzero.RectangleDomain(g, northBC = Subzero.CollisionBC(),
+                                           eastBC = Subzero.CompressionBC())
+        @test rdomain3.north.bc == Subzero.CollisionBC()
+        @test rdomain3.east.bc == Subzero.CompressionBC()
+        @test typeof(Subzero.RectangleDomain(g32).north.val) == Float32
+
+        # CircleDomain default constructor
+        cdomain1 = Subzero.CircleDomain(5.0, [1.0, 1.0], Subzero.OpenBC())
+        @test cdomain1.radius == 5.0
+        @test cdomain1.centroid == [1.0, 1.0]
+        @test cdomain1.bc == Subzero.OpenBC()
+
+        # CircleDomain fails
+        @test_throws ArgumentError Subzero.CircleDomain(-5.0, [1.0, 1.0],
+                                                        Subzero.OpenBC())
+        # CircleDomain Grid constructor
+        cdomain2 = Subzero.CircleDomain(g)
+        @test cdomain2.radius == 3e5/2
+        @test cdomain2.centroid == [2e5, 1.5e5]
+        @test cdomain2.bc == Subzero.OpenBC()
+        cdomain3 = Subzero.CircleDomain(g, bc = Subzero.CollisionBC())
+        @test cdomain3.bc == Subzero.CollisionBC()
+
+        # Grid from domains
+        rdomain_grid = Subzero.Grid(rdomain2, (30, 40))
+        @test rdomain_grid.dims == g.dims
+        @test rdomain_grid.xg == g.xg
+        @test rdomain_grid.xc == g.xc
+        cdomain_grid = Subzero.Grid(cdomain2, (30, 40))
+        @test cdomain_grid.dims == g.dims
+        @test cdomain_grid.xg == collect(5e4:7.5e3:3.5e5)
+        @test cdomain_grid.xc == collect(5.375e4:7.5e3:3.4625e5)
+
+        #TODO: Add 2 new grid tests
     end
 
+    @testset "Topography" begin
+        
+    end
 
-    # Ocean Creation
+    @testset "Floe" begin
+        
+    end
 
-    # Wind Creation
-
-    # Boundary Creation
-
-    # Domain Creation
-
-    # Topography Creation
-
-    # Floe Creation
-
-    # Model Creation
+    @testset "Model" begin
+        
+    end
 end

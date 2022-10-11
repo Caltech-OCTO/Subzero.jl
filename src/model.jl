@@ -109,17 +109,6 @@ function Grid(Lx, Ly, dims::Tuple{Int, Int}, t::Type{T} = Float64) where T
 end
 
 """
-grids_from_lines(xg, yg)
-
-Creates x-grid and y-grid. Assume xg has length n and yg has length m. xgrid is the grid's xg vector repeated m times as rows in a mxn array and ygrid is the yg vector repeated n times as columns in a mxn vector.
-"""
-function grids_from_lines(xg, yg)
-    xgrid = repeat(reshape(xg, 1, :), inner=(length(yg),1))
-    ygrid = repeat(yg, outer = (1, length(xg)))
-    return xgrid, ygrid
-end # TODO: Might not need
-
-"""
 Ocean velocities in the x-direction (u) and y-direction (v). u and v should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Ocean also needs temperature at the ocean/ice interface in each grid cell. Ocean fields must all be matricies with the same dimensions. Model cannot be constructed if size of ocean and grid do not match.
 """
 struct Ocean{FT<:AbstractFloat}
@@ -239,6 +228,20 @@ struct Boundary{BC<:AbstractBC, FT<:AbstractFloat}
 end
 
 """
+    Boundary(bc, val, t::Type{T} = Float64)
+
+Creates a boundary with given boundary condition and value and converts the value to desired Float type.
+Inputs:
+        bc      <AbstractBC subtype>
+        val     <Real>
+        t       <Type> datatype to convert ocean fields - must be a Float! 
+Output:
+        Boundary of type bc with value of given Float type.
+"""
+function Boundary(bc, val, t::Type{T} = Float64) where T
+    return Boundary(bc, convert(T, val))
+end
+"""
     AbstractDomain{FT <: AbstractFloat}
 
 An abstract type for shapes of domains that contain the model.
@@ -297,7 +300,7 @@ Inputs:
 Output:
         Rectangular Domain with boundaries along the edges of the grid with each boundary having given boundary conditions. 
 """
-function RectangleDomain(grid::Grid, northBC = OpenBC(), southBC = OpenBC(),
+function RectangleDomain(grid::Grid; northBC = OpenBC(), southBC = OpenBC(),
 eastBC = OpenBC(), westBC = OpenBC())
     north = Boundary(northBC, grid.yg[end])
     south = Boundary(southBC, grid.yg[1])
@@ -310,8 +313,6 @@ end
     CircleDomain{FT}<:AbstractDomain{FT}
 
 Circle subtype of AbstractDomain holds one boundary condition and a Float centroid and radius. The entire domain boundary has the given boundary condition.
-
-Note: Not implemented yet!!
 """
 struct CircleDomain{FT, BC<:AbstractBC}<:AbstractDomain{FT}
     radius::FT
@@ -320,7 +321,7 @@ struct CircleDomain{FT, BC<:AbstractBC}<:AbstractDomain{FT}
 
     CircleDomain(radius, centroid, bc) = radius > 0.0 ?
         new{typeof(radius), typeof(bc)}(radius, centroid, bc) :
-        throw(ArgumentError("Radius should be positive."))
+        throw(ArgumentError("Circle domain radius should be positive."))
 end
 
 """
@@ -333,7 +334,7 @@ Inputs:
 Output:
         Circular Domain that has a centroid in the center of the grid and a radius of half of the shorter side of the grid. Whole domain has the given boundary condition. 
 """
-function CircleDomain(grid::Grid, bc = OpenBC())
+function CircleDomain(grid::Grid; bc = OpenBC())
     xmin = grid.xg[1]
     ymin = grid.yg[1]
     xrad = (grid.xg[end] - xmin)/2
@@ -344,42 +345,23 @@ function CircleDomain(grid::Grid, bc = OpenBC())
 end
 
 """
-    domain_coords(domain::RectangleDomain)
-Inputs:
-        domain<RectangleDomain>
-Output:
-        RingVec coordinates for edges of rectangular domain based off of boundary values
-"""
-function domain_coords(domain::RectangleDomain)
-    northval = domain.north.val
-    southval = domain.south.val
-    eastval = domain.east.val
-    westval = domain.west.val
-    coords = [[westval, northval], [westval, southval],
-              [eastval, southval], [eastval, northval],
-              [westval, northval]]
-    return coords
-end #TODO: Might not need!
-
-"""
     Grid(domain::CircleDomain, nx::Int, ny::Int, t::Type{T} = Float64)
 
 Minimum grid that contains the given CircleDomain with the given number of grid cells in the x and y direction.
 
 Inputs: 
         domain   <CircleDomain>
-        nx       <Int> number of grid cells in the x-direction
-        ny       <Int> number of grid cells in the y-direction
+        dims     <(Int, Int)> grid dimensions - rows -> ny, cols -> nx
         t        <Type> datatype to convert grid fields - must be a Float!
 Outputs:
         Square grid where the height and width are equal to domain diameter and centered on circle centroid, with nx grid cells in the x-direction and ny grid cells in the y-direction.
 """
-function Grid(domain::CircleDomain, nx::Int, ny::Int, t::Type{T} = Float64) where T
-    nval = domain.centroid[2] + domain.radius
-    sval = domain.centroid[2] - domain.radius
-    eval = domain.centroid[1] + domain.radius
-    wval = domain.centroid[1] - domain.radius
-    return Grid(wval, eval, sval, nval, nx, ny, T)
+function Grid(domain::CircleDomain, dims::Tuple{Int, Int}, t::Type{T} = Float64) where T
+    northval = domain.centroid[2] + domain.radius
+    southval = domain.centroid[2] - domain.radius
+    eastval = domain.centroid[1] + domain.radius
+    westval = domain.centroid[1] - domain.radius
+    return Grid(westval, eastval, southval, northval, dims, T)
 end
 
 """
@@ -389,18 +371,17 @@ Minimum grid that contains the given RecangleDomain with the given number of gri
 
 Inputs: 
         domain   <RectangleDomain>
-        nx       <Int> number of grid cells in the x-direction
-        ny       <Int> number of grid cells in the y-direction
+        dims     <(Int, Int)> grid dimensions - rows -> ny, cols -> nx
         t        <Type> datatype to convert grid fields - must be a Float!
 Outputs:
         Rectangle grid that is exactly the side of the domain with nx grid cells in the x-direction and ny grid cells in the y-direction.
 """
-function Grid(domain::RectangleDomain, nx::Int, ny::Int,  t::Type{T} = Float64) where T
-    nval = domain.north.val
-    sval = domain.south.val
-    eval = domain.east.val
-    wval = domain.west.val
-    return Grid(wval, eval, sval, nval, nx, ny, T)
+function Grid(domain::RectangleDomain, dims::Tuple{Int, Int},  t::Type{T} = Float64) where T
+    northval = domain.north.val
+    southval = domain.south.val
+    eastval = domain.east.val
+    westval = domain.west.val
+    return Grid(westval, eastval, southval, northval, dims, T)
 end
 
 """

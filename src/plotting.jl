@@ -3,6 +3,17 @@ Plotting functions for Subzero Simulation
 """
 
 """
+grids_from_lines(xlines, ylines)
+
+Creates x-grid and y-grid. Assume xlines has length n and ylines has length m. xgrid is the grid's xline vector repeated m times as rows in a mxn array and ygrid is the yline vector repeated n times as columns in a mxn vector. xlines and ylines are typically either xg and yg of xc and yc.
+"""
+function grids_from_lines(xlines, ylines)
+    xgrid = repeat(reshape(xlines, 1, :), inner=(length(ylines),1))
+    ygrid = repeat(ylines, outer = (1, length(xlines)))
+    return xgrid, ygrid
+end
+
+"""
     domain_xycoords(domain::CircleDomain)
 
 X-y coordinates for a rough circle in shape of given domain to be used for plotting.

@@ -137,6 +137,24 @@ end
 #     # create coarse grid
 # end
 
+"""
+    domain_coords(domain::RectangleDomain)
+Inputs:
+        domain<RectangleDomain>
+Output:
+        RingVec coordinates for edges of rectangular domain based off of boundary values
+"""
+function domain_coords(domain::RectangleDomain)
+    northval = domain.north.val
+    southval = domain.south.val
+    eastval = domain.east.val
+    westval = domain.west.val
+    coords = [[westval, northval], [westval, southval],
+              [eastval, southval], [eastval, northval],
+              [westval, northval]]
+    return coords
+end #TODO: Might not need!
+
 function run!(simulation)
     plot_sim(simulation.model, simulation.fig, 1)
 end
