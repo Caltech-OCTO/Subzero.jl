@@ -40,6 +40,11 @@
         # Custom constructor Float32
         @test typeof(Subzero.Grid(10, 8, 2, 2, Float32)) ==
               Subzero.Grid{Float32}
+        # Grid constructor with dimensions
+        g3 = Subzero.Grid(-10, 10, -8, 8, (4, 10))
+        @test g3.dims == (4,10)
+        @test g3.xg == g1.xg
+        @test g3.yc == g1.yc
     end
 
     @testset "Ocean" begin
@@ -158,8 +163,6 @@
         @test cdomain_grid.dims == g.dims
         @test cdomain_grid.xg == collect(5e4:7.5e3:3.5e5)
         @test cdomain_grid.xc == collect(5.375e4:7.5e3:3.4625e5)
-
-        #TODO: Add 2 new grid tests
     end
 
     @testset "Topography" begin

@@ -1,6 +1,14 @@
 using Subzero, StructArrays
 import LibGEOS as LG
 
+
+
+
+floe_poly4 = LG.Polygon([[[2., 2.], [8., 2.], [8., 8.], [2., 2.]]])
+floe4 = Subzero.Floe(floe_poly4, 0.25, 0.0)
+area_ratio4, _, _, idx1 = Subzero.floe_area_ratio(floe4, collect(-5.:5.:10.), collect(0.:5.:10.))
+
+
 # User Inputs
 const type = Float64::DataType
 
@@ -16,7 +24,7 @@ const coarse_ny = 10
 
 # Model instantiation
 grid = Grid(Lx, Ly, Δgrid, Δgrid)
-ocean = Ocean(ones(grid.dims), zeros(grid.dims), fill(3.0, grid.dims))
+ocean = Ocean(grid, 1.0, 0.0, 3.0)
 wind = Wind(ones(grid.dims), zeros(grid.dims), fill(4.0, grid.dims))
 
 # Domain creation
@@ -25,6 +33,7 @@ domain = Subzero.RectangleDomain(grid, northBC = PeriodicBC(),
                                        eastBC = CollisionBC(),
                                        westBC = OpenBC())
 
+                                    
 # Topography instantiation
 poly1 = LG.Polygon([[[0.0, 0.0], [5e3, 0.0], [5e3, 1e4],[0.0, 1e4], [0.0, 0.0]]])
 topo = Topography(poly1, h_mean)
@@ -39,10 +48,12 @@ floe_arr = StructArray(floe for i in 1:1)
 
 model = Model(grid, ocean, wind, domain, topo_arr, floe_arr, Δt, newfloe_Δt)
 
-plt = Subzero.setup_plot(model)
-cgrid = Grid(model.domain, (coarse_nx, coarse_ny))
-cgrid_data = CoarseGridData(coarse_nx, coarse_ny)
+#plt = Subzero.setup_plot(model)
+#cgrid = Grid(model.domain, (coarse_nx, coarse_ny))
+#cgrid_data = CoarseGridData(coarse_nx, coarse_ny)
 
 # Simulation set-up
-simulation = Simulation(model = model, cgrid = cgrid, cgrid_data = cgrid_data, fig = plt)
+simulation = Simulation(model = model)
 run!(simulation)
+
+Subzero.floe_area_ratio(floe, grid.xg, grid.yg)

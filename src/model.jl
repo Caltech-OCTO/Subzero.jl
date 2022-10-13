@@ -115,10 +115,12 @@ struct Ocean{FT<:AbstractFloat}
     u::Matrix{FT}
     v::Matrix{FT}
     temp::Matrix{FT}
+    τx::Matrix{FT}
+    τy::Matrix{FT}
 
-    Ocean(u, v, temp) =
-        (size(u) == size(v) == size(temp)) ?
-        new{eltype(u)}(u, v, temp) :
+    Ocean(u, v, temp, τx, τy) =
+        (size(u) == size(v) == size(temp) == size(τx) == size(τy)) ?
+        new{eltype(u)}(u, v, temp, τx, τy) :
         throw(ArgumentError("All ocean fields matricies must have the same dimensions."))
 end
 
@@ -135,10 +137,11 @@ Inputs:
 Output: 
         Ocean with constant velocity and temperature in each grid cell.
 """
-Ocean(grid, u, v, temp, t::Type{T} = Float64) where T =
+Ocean(grid::Grid, u, v, temp, t::Type{T} = Float64) where T =
     Ocean(fill(convert(T, u), grid.dims), 
           fill(convert(T, v), grid.dims), 
-          fill(convert(T, temp), grid.dims))
+          fill(convert(T, temp), grid.dims),
+          zeros(T, grid.dims), zeros(T, grid.dims))
 
 # TODO: Do we want to be able to use a psi function? - Ask Mukund
 
@@ -464,12 +467,18 @@ Coordinates are vector of vector of vector of points of the form:
     coords::PolyVec{FT}     # floe coordinates centered at (0,0)
     αcoords::PolyVec{FT}    # rotated coordinates (rotated by angle alpha)
     α::FT = 0.0             # angle rotated from starting coords
-    ufloe::FT = 0.0         # floe x-velocity
-    vfloe::FT = 0.0         # floe y-velocity
-    ξfloe::FT = 0.0         # floe angular velocity
+    u::FT = 0.0             # floe x-velocity
+    v::FT = 0.0             # floe y-velocity
+    ξ::FT = 0.0             # floe angular velocity
     fxOA::FT = 0.0          # force from ocean and wind in x direction
     fyOA::FT = 0.0          # force from ocean and wind in y direction
     torqueOA::FT = 0.0      # torque from ocean and wind
+    p_dxdt::FT = 0.0          # previous timestep x-velocity
+    p_dydt::FT = 0.0          # previous timestep y-velocity
+    p_dudt::FT = 0.0          # previous timestep x-acceleration
+    p_dvdt::FT = 0.0          # previous timestep x-acceleration
+    p_dξdt::FT = 0.0          # previous timestep time derivative of ξ
+    p_dαdt::FT = 0.0          # previous timestep ξ
     alive::Bool = true      # floe is still active in simulation
 end # TODO: do we want to do any checks? Ask Mukund!
 
@@ -507,7 +516,8 @@ function Floe(poly::LG.Polygon, hmean, Δh, ρi = 920.0, u = 0.0, v = 0.0, ξ = 
     return Floe(centroid = convert(Vector{T}, centroid),
                 height = convert(T, h), area = convert(T, a),
                 mass = convert(T, m), moment = convert(T, mi),
-                coords = convert(PolyVec{T}, coords), rmax = convert(T, rmax), αcoords = convert(PolyVec{T}, αcoords), ufloe = convert(T, u), vfloe = convert(T, v), ξfloe = convert(T, ξ))
+                coords = convert(PolyVec{T}, coords), rmax = convert(T, rmax), αcoords = convert(PolyVec{T}, αcoords), u = convert(T, u),
+                v = convert(T, v), ξ = convert(T, ξ))
 end
 
 """
@@ -529,8 +539,7 @@ Output:
 """
 Floe(coords::PolyVec{<:Real}, h_mean, Δh, ρi = 920.0, u = 0.0,
 v = 0.0, ξ = 0.0, t::Type{T} = Float64) where T =
-    Floe(LG.Polygon(convert(PolyVec{Float64}, coords)), h_mean, Δh, ρi, u, v,
-         ξ, T) 
+    Floe(LG.Polygon(convert(PolyVec{Float64}, coords)), h_mean, Δh, ρi, u, v, ξ, T) 
     # Polygon convert is needed since LibGEOS only takes Float64 - when this is fixed convert can be removed
 
 """
@@ -595,9 +604,14 @@ end
 
 """
 Model which holds grid, ocean, wind structs, each with the same underlying float type (either Float32 of Float64). It also holds an StructArray of floe structs, again each relying on the same underlying float type. Finally it holds several physical constants. These are:
-- heatflux ?
-- new_iceh: the height of new ice that forms during the simulation
+- heatflux: difference in ocean and atmosphere temperatures
+- h_new: the height of new ice that forms during the simulation
+- modulus: elastic modulus used in floe interaction calculations
 - ρi: density of ice
+- ρo: density of ocean water
+- ρa: density of atmosphere
+- CIO: ice-ocean drag coefficent
+- CIA: ice-atmosphere drag coefficent
 - coriolis: ocean coriolis forcings
 - turn angle: Ekman spiral caused angle between the stress and surface current
               (angle is positive)
@@ -611,15 +625,20 @@ struct Model{FT<:AbstractFloat, DT<:AbstractDomain{FT}}
     floes::StructArray{Floe{FT}}
     heatflux::Matrix{FT}        # ocean heat flux
     h_new::FT                   # thickness of new sea ice during model run
+    modulus::FT                 # elastic modulus
     ρi::FT                      # ice density
+    ρo::FT                      # ocean density
+    ρa::FT                      # air density
+    CIO::FT                     # ice-ocean drag coefficent
+    CIA::FT                     # ice-atmosphere drag coefficent
     coriolis::FT                # ocean coriolis force
     turnangle::FT               # ocean turn angle
 
-    Model(grid, ocean, wind, domain, topos, floes, heatflux, h_new, ρi, coriolis, turnangle) = 
+    Model(grid, ocean, wind, domain, topos, floes, heatflux, h_new, modulus, ρi, ρo, ρa, CIO, CIA, coriolis, turnangle) = 
         (grid.dims == size(ocean.u) == size(wind.u) &&
         domain_in_grid(domain, grid)) ?
         new{typeof(ρi), typeof(domain)}(grid, ocean, wind, domain, topos, floes,
-                                    heatflux, h_new, ρi, coriolis, turnangle) :
+                                    heatflux, h_new, modulus, ρi, ρo, ρa, CIO, CIA, coriolis, turnangle) :
         throw(ArgumentError("Size of grid does not match size of ocean and/or wind OR domain is not within grid."))
 end
 
@@ -633,9 +652,6 @@ Inputs:
         Δt          <Int> Timestep within the model in seconds
         newfloe_Δt  <Int> Timesteps between new floe creation
         ρi          <Float> Density of ice
-        coriolis    <Float> Ocean coriolis forcings
-        turnangle   <Float> Ekman spiral caused angle between the stress and
-                            surface current - angle is positive
         L           <Float> Latent heat of freezing [Joules/kg]
         k           <Float> Thermal conductivity of surface ice
                             [Watts/(meters Kelvin)]
@@ -645,13 +661,14 @@ Outputs:
 """
 function calc_new_iceh(To, Ta, Δt, newfloe_Δt; ρi = 920.0, L = 2.93e5, k = 2.14)
     heatflux = k/(ρi*L) .* (Ta .- To)
-    h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* heatflux))) # Ask Mukund if this is right
+    h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* heatflux))) # Ask Mukund if this is right - not sure if this should even be here or in Sim
     return mean(h0), heatflux
 end
 
 """
-    Model(grid, ocean, wind, floe, Δt::Int, newfloe_Δt::Int;
-    ρi = 920.0, coriolis = 1.4e-4, turnangle = 15*pi/180, L = 2.93e5, k = 2.14, t::Type{T} = Float64) where T
+    Model(grid, ocean, wind, domain, topos, floes, Δt::Int, newfloe_Δt::Int;
+    ρi = 920.0, ρo = 1027, ρa = 1.2, CIO = 3e-3, CIA = 1e-3, coriolis = 1.4e-4, turnangle = 15*pi/180, L = 2.93e5, k = 2.14,
+    t::Type{T} = Float64)
 
 Model constructor
 Inputs:
@@ -663,23 +680,30 @@ Inputs:
         floes       <StructArray{<:Floe}>
         Δt          <Int> Timestep within the model in seconds
         newfloe_Δt  <Int> Timesteps between new floe creation
-        ρi          <Float> Density of ice
-        coriolis    <Float> Ocean coriolis forcings
-        turnangle   <Float> Ekman spiral caused angle between the stress and
+        ρi          <Real> Density of ice
+        ρo          <Real> Density of ocean water
+        ρa          <Real> Density of atmosphere
+        CIO         <Real> Ice-ocean drag coefficent
+        CIA         <Real> Ice-Atmosphere drag coefficent
+        coriolis    <Real> Ocean coriolis forcings
+        turnangle   <Real> Ekman spiral caused angle between the stress and
                             surface current - angle is positive
-        L           <Float> Latent heat of freezing [Joules/kg]
-        k           <Float> Thermal conductivity of surface ice
+        L           <Real> Latent heat of freezing [Joules/kg]
+        k           <Real> Thermal conductivity of surface ice
                             [Watts/(meters Kelvin)]
         t           <Type> datatype to convert ocean fields - must
                            be a Float! 
 Outputs:
-        Model with all needed fields defined and converted to FT.        
+        Model with all needed fields defined and converted to type t.        
 """
-function Model(grid, ocean, wind, domain, topos, floes, Δt::Int, newfloe_Δt::Int; ρi = 920.0, coriolis = 1.4e-4, turnangle = 15*pi/180,
-L = 2.93e5, k = 2.14, t::Type{T} = Float64) where T
+function Model(grid, ocean, wind, domain, topos, floes, Δt::Int, newfloe_Δt::Int; ρi = 920.0, ρo = 1027, ρa = 1.2, CIO = 3e-3, CIA = 1e-3, coriolis = 1.4e-4, turnangle = 15*pi/180, L = 2.93e5, k = 2.14,
+t::Type{T} = Float64) where T
     h_new, heatflux = calc_new_iceh(ocean.temp, wind.temp, Δt,
                                     newfloe_Δt, ρi = ρi)
+    modulus = 1.5e3*(mean(sqrt.(floes.area)) + minimum(sqrt.(floes.area)))
     return Model(grid, ocean, wind, domain, topos, floes,
                  convert(Matrix{T}, heatflux), convert(T, h_new),
-                 convert(T, ρi), convert(T, coriolis), convert(T, turnangle))
+                 convert(T, modulus), convert(T, ρi), convert(T, ρo),
+                 convert(T, ρa), convert(T, CIO), convert(T, CIA),
+                 convert(T, coriolis), convert(T, turnangle))
 end
