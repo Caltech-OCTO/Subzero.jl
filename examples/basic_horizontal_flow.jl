@@ -1,14 +1,6 @@
 using Subzero, StructArrays
 import LibGEOS as LG
 
-
-
-
-floe_poly4 = LG.Polygon([[[2., 2.], [8., 2.], [8., 8.], [2., 2.]]])
-floe4 = Subzero.Floe(floe_poly4, 0.25, 0.0)
-area_ratio4, _, _, idx1 = Subzero.floe_area_ratio(floe4, collect(-5.:5.:10.), collect(0.:5.:10.))
-
-
 # User Inputs
 const type = Float64::DataType
 
@@ -53,7 +45,5 @@ model = Model(grid, ocean, wind, domain, topo_arr, floe_arr, Δt, newfloe_Δt)
 #cgrid_data = CoarseGridData(coarse_nx, coarse_ny)
 
 # Simulation set-up
-simulation = Simulation(model = model)
+simulation = Simulation(model = model, nΔt = 2000)
 run!(simulation)
-
-Subzero.floe_area_ratio(floe, grid.xg, grid.yg)

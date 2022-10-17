@@ -27,9 +27,8 @@
         floe_poly4 = LibGEOS.Polygon([[[2., 2.], [8., 2.], [8., 8.], [2., 2.]]])
         floe4 = Subzero.Floe(floe_poly4, 0.25, 0.0)
         area_ratio4, _, _, idx1 = Subzero.floe_area_ratio(floe4, collect(-5.:5.:10.), collect(0.:5.:10.))
-        @test area_ratio4[1][1] == 0.18
-        @test area_ratio4[1][2] == 0.0
-        @test area_ratio4[1][3] == 0.36
-        @test area_ratio4[1][4] == 0.18
+        @test area_ratio4[1] == 0.18
+        @test area_ratio4[2] == 0.36
+        @test area_ratio4[3] == 0.18
     end
 end

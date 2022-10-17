@@ -92,54 +92,95 @@ Outputs:
         idx <Vector{(Int, Int)}> cartesian point defining one grid cell in grid
                                  - order matches area_ratios
 """
-function floe_area_ratio(floe, xg, yg)
+function floe_area_ratio(floe, xg, yg, t::Type{T} = Float64) where T
     floe_poly = LG.Polygon(translate(floe.αcoords, floe.centroid))
     xmin_idx, xmax_idx = floe_grid_bounds(xg, floe.centroid[1], floe.rmax)
     ymin_idx, ymax_idx = floe_grid_bounds(yg, floe.centroid[2], floe.rmax)
     nx = xmax_idx - xmin_idx
     ny = ymax_idx - ymin_idx
-    area_ratios = zeros(nx*ny)
-    xidx = zeros(Int, nx*ny)
-    yidx = zeros(Int, ny*ny)
-    cnt = 1
+    area_ratios = T[]
+    xidx = Int[]
+    yidx = Int[]
     for i = xmin_idx:(xmax_idx-1)
         for j = ymin_idx:(ymax_idx-1)
             cell_poly = LG.Polygon(cell_coords(xg[i], xg[i+1], yg[j], yg[j+1]))
-            area_ratios[cnt] = cell_area_ratio(cell_poly, floe_poly)
-            xidx[cnt] = i
-            yidx[cnt] = j
-            cnt+=1
+            ratio = cell_area_ratio(cell_poly, floe_poly)
+            if ratio > 0.0
+                push!(area_ratios, ratio)
+                push!(xidx, i)
+                push!(yidx, j)
+            end
         end
     end
     idx = CartesianIndex.(Tuple.(eachrow(hcat(xidx,yidx))))
     return area_ratios, xidx, yidx, idx
 end
 
-function calc_OA_forcings!(m, i, Δt, Δtocn)
-    floe = m.floe[i]
-    ocn = m.ocean
-    atm = m.wind
-    (Δx, Δy) = m.grid.dims
-    area_ratios, xidx, yidx, idx = floe_area_ratio(floe, m.grid.xg, m.grid.yg)
+"""
+    calc_OA_forcings!(m, i)
 
-    # Ice stress on ocean
+Calculate the effects on the ocean and atmpshere on floe i within the given model
+and the effects of the ice floe on the ocean.
+
+Inputs:
+        m <Model> given model
+        i <Int> floe i within the model's floes field
+Outputs:
+        None. Both floe and ocean fields are updated in-place. 
+"""
+function calc_OA_forcings!(m, i)
+    floe = m.floes[i]
+    Δx = m.grid.xg[2] - m.grid.xg[1]
+    Δy = m.grid.yg[2] - m.grid.yg[1]
+
+    # Grid squares under ice floe and ice area per cell
+    ma_ratio = floe.mass/floe.area
+    area_ratios, xidx, yidx, idx = floe_area_ratio(floe, m.grid.xg, m.grid.yg)
+    areas = area_ratios * (Δx * Δy)
+
+    # Ice velocity within each grid square
     lx = m.grid.xc[xidx] .- floe.centroid[1]
     ly = m.grid.yc[yidx] .- floe.centroid[2]
-    ui = floe.u .- ly*floe.ξ
-    vi = floe.v .- lx*floe.ξ
-    τxIO = m.ρo*m.Cio*(ui .- m.ocean.u[idx]).*abs.(ui .- m.ocean.u[idx])
-    τyIO = m.ρo*m.Cio*(vi .- m.ocean.v[idx]).*abs.(vi .- m.ocean.v[idx])
-    ocn.τx[idx] .= ocn.τx[idx].*(1 .- area_ratios) .+ τxIO.*area_ratios
-    ocn.τy[idx] .= ocn.τy[idx].*(1 .- area_ratios) .+ τyIO.*area_ratios
+    uice = floe.u .- ly*floe.ξ
+    vice = floe.v .- lx*floe.ξ
 
-    # Forces and torques on floes
-    Fxx = (-τxIO) + m.ρa * m.CIA * (atm.u[idx_floe] .- ui) .*
-          abs.(atm.u .- ui) .* area_ratios*(Δx^2)
-    Fyy = (-τyIO) + m.ρa * m.CIA * (atm.v[idx_floe] .- vi) .*
-          abs.(atm.v .- vi) .* area_ratios*(Δy^2)
-    floe.fxOA = sum(Fxx)
-    floe.fyOA = sum(Fyy)
-    floe.torqueOA = sum(lx.*Fyy .- ly.*Fxx)
+    # Force on ice from atmopshere
+    uatm = m.wind.u[idx]
+    vatm = m.wind.u[idx]
+    fx_atm = (m.ρa * m.CIA * sqrt.(uatm.^2 + vatm.^2) .* uatm) .* areas
+    fy_atm = (m.ρa * m.CIA * sqrt.(uatm.^2 + vatm.^2) .* vatm) .* areas
+
+    # Force on ice from pressure gradient
+    fx_pressure∇ = -ma_ratio * m.coriolis .* m.ocean.v[idx] .* areas
+    fy_pressure∇ = ma_ratio * m.coriolis .* m.ocean.u[idx] .* areas
+
+    # Force on ice from ocean
+    Δu_OI = m.ocean.u[idx] .- uice
+    Δv_OI = m.ocean.v[idx] .- vice
+    τx_ocn = m.ρo*m.CIO*sqrt.(Δu_OI.^2 + Δv_OI.^2) .* (cos(m.turnθ) .* Δu_OI .+ sin(m.turnθ) * Δv_OI)
+    τy_ocn = m.ρo*m.CIO*sqrt.(Δu_OI.^2 + Δv_OI.^2) .* (-sin(m.turnθ) .* Δu_OI .+ cos(m.turnθ) * Δv_OI)
+    fx_ocn = τx_ocn .* areas
+    fy_ocn = τy_ocn .* areas
+
+    # Sum above forces and find torque
+    fx = fx_atm .+ fx_pressure∇ .+ fx_ocn
+    fy = fy_atm .+ fy_pressure∇ .+ fy_ocn
+    trq = lx.*fy .- ly.*fx
+
+    # Add coriolis force to total foces
+    fx .+= ma_ratio * m.coriolis * floe.v * areas
+    fy .-= ma_ratio * m.coriolis * floe.u * areas
+
+    # Sum forces on ice floe
+    floe.fxOA = sum(fx)
+    floe.fyOA = sum(fy)
+    floe.τOA = sum(trq)
+    m.floes[i] = floe
+
+    # Update ocean stress fields with ice on ocean stress
+    m.ocean.τx[idx] .= m.ocean.τx[idx].*(1 .- area_ratios) .- τx_ocn.*area_ratios
+    m.ocean.τy[idx] .= m.ocean.τy[idx].*(1 .- area_ratios) .- τy_ocn.*area_ratios
+    return
 end
 
 """
@@ -151,9 +192,25 @@ Input:
 Output:
         floe with updated fields
 """
-function update_floe!(floe)
+function timestep_floe(floe, Δt)
     collision_force = [0.0 0.0]
     collision_torque = 0.0
+
+    if floe.height > 10
+        floe.height = 10
+    end
+    # TODO: Make variable to user input
+    if floe.mass < 100
+        floe.mass = 1e3
+        floe.alive = false
+    end
+
+    while maximum(abs.(collision_force)) > floe.mass/(5Δt)
+        collision_force /= 10
+        collision_torque /= 10
+        # TODO: check floe interactions
+    end
+
     area = floe.area
     mass = floe.mass
     height = floe.height
@@ -170,11 +227,11 @@ function update_floe!(floe)
     floe.p_dξdt = floe.ξ
     α = floe.α
     floe.αcoords = [map(p -> [cos(α)*p[1] - sin(α)*p[2],
-                              sin(α)*p[1] + cos(α)p[2]], floe.coords)]
+                              sin(α)*p[1] + cos(α)p[2]], floe.coords[1])]
 
     # Update ice velocities with forces and torques
-    dudt = (floe.FxOA*area + collision_force[1])/mass
-    dvdt = (floe.FyOA*area + collision_force[2])/mass
+    dudt = (floe.fxOA + collision_force[1])/mass
+    dvdt = (floe.fyOA + collision_force[2])/mass
     
     frac = if abs(Δt*dudt) > (height/2) && abs(Δt*dvdt) > (height/2)
         frac1 = (sign(dudt)*height/2Δt)/dudt
@@ -195,7 +252,7 @@ function update_floe!(floe)
     floe.p_dudt = dudt
     floe.p_dvdt = dvdt
 
-    dξdt = (floe.torqueOA*area+collision_torque)/intertial_moment
+    dξdt = (floe.τOA + collision_torque)/intertial_moment
     dξdt = frac*dξdt
     ξ = floe.ξ + 1.5Δt*dξdt-0.5Δt*floe.p_dξdt
     if abs(ξ) > 1e-5
@@ -204,11 +261,14 @@ function update_floe!(floe)
     floe.ξ = ξ
     floe.p_dξdt = dξdt
 
+    return floe
+
     # TODO: Thermodynamic growth 
     # Questions: What to do about heat flux being a matrix vs float
     # can we just update this at the end of this function, or does it
     # need to happen directly before OA calculations?
     # Calc_trajectory lines 68-73
+    # take heat flux underneith floe
 
     # TODO: Floe strain - Calc_trajectory lines 216-288
 
@@ -236,6 +296,19 @@ function cell_coords(xmin, xmax, ymin, ymax)
              [xmin, ymax]]]
 end
 
-function run!(simulation)
+function run!(sim)
     println("Model running!")
+    plt = setup_plot(sim.model)
+    t = 1
+    plot_sim(sim.model, plt, t)
+    while t < sim.nΔt
+        for i in eachindex(sim.model.floes)
+            calc_OA_forcings!(sim.model, i)
+            new_floe = timestep_floe(sim.model.floes[i], sim.Δt)
+            sim.model.floes[i] = new_floe
+        end
+        t+=1
+    end
+    plot_sim(sim.model, plt, t)
+    println("Model done running!")
 end

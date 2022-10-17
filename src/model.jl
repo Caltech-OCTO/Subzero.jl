@@ -472,7 +472,7 @@ Coordinates are vector of vector of vector of points of the form:
     ξ::FT = 0.0             # floe angular velocity
     fxOA::FT = 0.0          # force from ocean and wind in x direction
     fyOA::FT = 0.0          # force from ocean and wind in y direction
-    torqueOA::FT = 0.0      # torque from ocean and wind
+    τOA::FT = 0.0      # torque from ocean and wind
     p_dxdt::FT = 0.0          # previous timestep x-velocity
     p_dydt::FT = 0.0          # previous timestep y-velocity
     p_dudt::FT = 0.0          # previous timestep x-acceleration
@@ -632,13 +632,13 @@ struct Model{FT<:AbstractFloat, DT<:AbstractDomain{FT}}
     CIO::FT                     # ice-ocean drag coefficent
     CIA::FT                     # ice-atmosphere drag coefficent
     coriolis::FT                # ocean coriolis force
-    turnangle::FT               # ocean turn angle
+    turnθ::FT               # ocean turn angle
 
-    Model(grid, ocean, wind, domain, topos, floes, heatflux, h_new, modulus, ρi, ρo, ρa, CIO, CIA, coriolis, turnangle) = 
+    Model(grid, ocean, wind, domain, topos, floes, heatflux, h_new, modulus, ρi, ρo, ρa, CIO, CIA, coriolis, turnθ) = 
         (grid.dims == size(ocean.u) == size(wind.u) &&
         domain_in_grid(domain, grid)) ?
         new{typeof(ρi), typeof(domain)}(grid, ocean, wind, domain, topos, floes,
-                                    heatflux, h_new, modulus, ρi, ρo, ρa, CIO, CIA, coriolis, turnangle) :
+                                    heatflux, h_new, modulus, ρi, ρo, ρa, CIO, CIA, coriolis, turnθ) :
         throw(ArgumentError("Size of grid does not match size of ocean and/or wind OR domain is not within grid."))
 end
 
@@ -667,7 +667,7 @@ end
 
 """
     Model(grid, ocean, wind, domain, topos, floes, Δt::Int, newfloe_Δt::Int;
-    ρi = 920.0, ρo = 1027, ρa = 1.2, CIO = 3e-3, CIA = 1e-3, coriolis = 1.4e-4, turnangle = 15*pi/180, L = 2.93e5, k = 2.14,
+    ρi = 920.0, ρo = 1027, ρa = 1.2, CIO = 3e-3, CIA = 1e-3, coriolis = 1.4e-4, turnθ = 15*pi/180, L = 2.93e5, k = 2.14,
     t::Type{T} = Float64)
 
 Model constructor
@@ -686,7 +686,7 @@ Inputs:
         CIO         <Real> Ice-ocean drag coefficent
         CIA         <Real> Ice-Atmosphere drag coefficent
         coriolis    <Real> Ocean coriolis forcings
-        turnangle   <Real> Ekman spiral caused angle between the stress and
+        turnθ   <Real> Ekman spiral caused angle between the stress and
                             surface current - angle is positive
         L           <Real> Latent heat of freezing [Joules/kg]
         k           <Real> Thermal conductivity of surface ice
@@ -696,7 +696,7 @@ Inputs:
 Outputs:
         Model with all needed fields defined and converted to type t.        
 """
-function Model(grid, ocean, wind, domain, topos, floes, Δt::Int, newfloe_Δt::Int; ρi = 920.0, ρo = 1027, ρa = 1.2, CIO = 3e-3, CIA = 1e-3, coriolis = 1.4e-4, turnangle = 15*pi/180, L = 2.93e5, k = 2.14,
+function Model(grid, ocean, wind, domain, topos, floes, Δt::Int, newfloe_Δt::Int; ρi = 920.0, ρo = 1027, ρa = 1.2, CIO = 3e-3, CIA = 1e-3, coriolis = 1.4e-4, turnθ = 15*pi/180, L = 2.93e5, k = 2.14,
 t::Type{T} = Float64) where T
     h_new, heatflux = calc_new_iceh(ocean.temp, wind.temp, Δt,
                                     newfloe_Δt, ρi = ρi)
@@ -705,5 +705,5 @@ t::Type{T} = Float64) where T
                  convert(Matrix{T}, heatflux), convert(T, h_new),
                  convert(T, modulus), convert(T, ρi), convert(T, ρo),
                  convert(T, ρa), convert(T, CIO), convert(T, CIA),
-                 convert(T, coriolis), convert(T, turnangle))
+                 convert(T, coriolis), convert(T, turnθ))
 end
