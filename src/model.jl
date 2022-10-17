@@ -117,10 +117,12 @@ struct Ocean{FT<:AbstractFloat}
     temp::Matrix{FT}
     τx::Matrix{FT}
     τy::Matrix{FT}
+    si_frac::Matrix{FT}
 
-    Ocean(u, v, temp, τx, τy) =
-        (size(u) == size(v) == size(temp) == size(τx) == size(τy)) ?
-        new{eltype(u)}(u, v, temp, τx, τy) :
+    Ocean(u, v, temp, τx, τy, si_frac) =
+        (size(u) == size(v) == size(temp) == size(τx) == size(τy) ==
+         size(si_frac)) ?
+        new{eltype(u)}(u, v, temp, τx, τy, si_frac) :
         throw(ArgumentError("All ocean fields matricies must have the same dimensions."))
 end
 
@@ -141,7 +143,7 @@ Ocean(grid::Grid, u, v, temp, t::Type{T} = Float64) where T =
     Ocean(fill(convert(T, u), grid.dims), 
           fill(convert(T, v), grid.dims), 
           fill(convert(T, temp), grid.dims),
-          zeros(T, grid.dims), zeros(T, grid.dims))
+          zeros(T, grid.dims), zeros(T, grid.dims), zeros(T, grid.dims))
 
 # TODO: Do we want to be able to use a psi function? - Ask Mukund
 
@@ -472,13 +474,14 @@ Coordinates are vector of vector of vector of points of the form:
     ξ::FT = 0.0             # floe angular velocity
     fxOA::FT = 0.0          # force from ocean and wind in x direction
     fyOA::FT = 0.0          # force from ocean and wind in y direction
-    τOA::FT = 0.0      # torque from ocean and wind
-    p_dxdt::FT = 0.0          # previous timestep x-velocity
-    p_dydt::FT = 0.0          # previous timestep y-velocity
-    p_dudt::FT = 0.0          # previous timestep x-acceleration
-    p_dvdt::FT = 0.0          # previous timestep x-acceleration
-    p_dξdt::FT = 0.0          # previous timestep time derivative of ξ
-    p_dαdt::FT = 0.0          # previous timestep ξ
+    torqueOA::FT = 0.0      # torque from ocean and wind
+    p_dxdt::FT = 0.0        # previous timestep x-velocity
+    p_dydt::FT = 0.0        # previous timestep y-velocity
+    p_dudt::FT = 0.0        # previous timestep x-acceleration
+    p_dvdt::FT = 0.0        # previous timestep x-acceleration
+    p_dξdt::FT = 0.0        # previous timestep time derivative of ξ
+    p_dαdt::FT = 0.0        # previous timestep ξ
+    hflx::FT = 0.0          # heat flux under the floe
     alive::Bool = true      # floe is still active in simulation
 end # TODO: do we want to do any checks? Ask Mukund!
 
@@ -604,7 +607,7 @@ end
 
 """
 Model which holds grid, ocean, wind structs, each with the same underlying float type (either Float32 of Float64). It also holds an StructArray of floe structs, again each relying on the same underlying float type. Finally it holds several physical constants. These are:
-- heatflux: difference in ocean and atmosphere temperatures
+- hflx: difference in ocean and atmosphere temperatures
 - h_new: the height of new ice that forms during the simulation
 - modulus: elastic modulus used in floe interaction calculations
 - ρi: density of ice
@@ -623,7 +626,7 @@ struct Model{FT<:AbstractFloat, DT<:AbstractDomain{FT}}
     domain::DT
     topos::StructArray{Topography{FT}}
     floes::StructArray{Floe{FT}}
-    heatflux::Matrix{FT}        # ocean heat flux
+    hflx::Matrix{FT}        # ocean heat flux
     h_new::FT                   # thickness of new sea ice during model run
     modulus::FT                 # elastic modulus
     ρi::FT                      # ice density
@@ -634,11 +637,11 @@ struct Model{FT<:AbstractFloat, DT<:AbstractDomain{FT}}
     coriolis::FT                # ocean coriolis force
     turnθ::FT               # ocean turn angle
 
-    Model(grid, ocean, wind, domain, topos, floes, heatflux, h_new, modulus, ρi, ρo, ρa, CIO, CIA, coriolis, turnθ) = 
+    Model(grid, ocean, wind, domain, topos, floes, hflx, h_new, modulus, ρi, ρo, ρa, CIO, CIA, coriolis, turnθ) = 
         (grid.dims == size(ocean.u) == size(wind.u) &&
         domain_in_grid(domain, grid)) ?
         new{typeof(ρi), typeof(domain)}(grid, ocean, wind, domain, topos, floes,
-                                    heatflux, h_new, modulus, ρi, ρo, ρa, CIO, CIA, coriolis, turnθ) :
+                                    hflx, h_new, modulus, ρi, ρo, ρa, CIO, CIA, coriolis, turnθ) :
         throw(ArgumentError("Size of grid does not match size of ocean and/or wind OR domain is not within grid."))
 end
 
@@ -657,12 +660,12 @@ Inputs:
                             [Watts/(meters Kelvin)]
 Outputs:
         - the height of new ice that forms during the simulation
-        - heatflux from difference in ocean and atmosphere temperatures
+        - hflx from difference in ocean and atmosphere temperatures
 """
 function calc_new_iceh(To, Ta, Δt, newfloe_Δt; ρi = 920.0, L = 2.93e5, k = 2.14)
-    heatflux = k/(ρi*L) .* (Ta .- To)
-    h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* heatflux))) # Ask Mukund if this is right - not sure if this should even be here or in Sim
-    return mean(h0), heatflux
+    hflx = k/(ρi*L) .* (Ta .- To)
+    h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx))) # Ask Mukund if this is right - not sure if this should even be here or in Sim
+    return mean(h0), hflx
 end
 
 """
@@ -698,11 +701,11 @@ Outputs:
 """
 function Model(grid, ocean, wind, domain, topos, floes, Δt::Int, newfloe_Δt::Int; ρi = 920.0, ρo = 1027, ρa = 1.2, CIO = 3e-3, CIA = 1e-3, coriolis = 1.4e-4, turnθ = 15*pi/180, L = 2.93e5, k = 2.14,
 t::Type{T} = Float64) where T
-    h_new, heatflux = calc_new_iceh(ocean.temp, wind.temp, Δt,
+    h_new, hflx = calc_new_iceh(ocean.temp, wind.temp, Δt,
                                     newfloe_Δt, ρi = ρi)
     modulus = 1.5e3*(mean(sqrt.(floes.area)) + minimum(sqrt.(floes.area)))
     return Model(grid, ocean, wind, domain, topos, floes,
-                 convert(Matrix{T}, heatflux), convert(T, h_new),
+                 convert(Matrix{T}, hflx), convert(T, h_new),
                  convert(T, modulus), convert(T, ρi), convert(T, ρo),
                  convert(T, ρa), convert(T, CIO), convert(T, CIA),
                  convert(T, coriolis), convert(T, turnθ))

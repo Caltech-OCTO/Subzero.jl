@@ -138,6 +138,9 @@ function calc_OA_forcings!(m, i)
     area_ratios, xidx, yidx, idx = floe_area_ratio(floe, m.grid.xg, m.grid.yg)
     areas = area_ratios * (Δx * Δy)
 
+    # Floe heatflux
+    floe.hflx = mean(m.hflx[idx])
+
     # Ice velocity within each grid square
     lx = m.grid.xc[xidx] .- floe.centroid[1]
     ly = m.grid.yc[yidx] .- floe.centroid[2]
@@ -174,12 +177,15 @@ function calc_OA_forcings!(m, i)
     # Sum forces on ice floe
     floe.fxOA = sum(fx)
     floe.fyOA = sum(fy)
-    floe.τOA = sum(trq)
+    floe.torqueOA = sum(trq)
     m.floes[i] = floe
 
     # Update ocean stress fields with ice on ocean stress
     m.ocean.τx[idx] .= m.ocean.τx[idx].*(1 .- area_ratios) .- τx_ocn.*area_ratios
     m.ocean.τy[idx] .= m.ocean.τy[idx].*(1 .- area_ratios) .- τy_ocn.*area_ratios
+
+    # Update sea-ice fraction
+    m.ocean.si_frac[idx] .+= area_ratios
     return
 end
 
@@ -211,10 +217,14 @@ function timestep_floe(floe, Δt)
         # TODO: check floe interactions
     end
 
-    area = floe.area
-    mass = floe.mass
-    height = floe.height
-    intertial_moment = floe.moment
+    h = floe.height
+    # Update floe based on thermodynamic growth
+    Δh = floe.hflx * Δt/h
+    hfrac = (h-Δh)/h
+    floe.mass *= hfrac
+    floe.moment *= hfrac
+    floe.height -= Δh
+    h = floe.height
 
     # Update ice coordinates with velocities and rotation
     Δx = 1.5Δt*floe.u - 0.5Δt*floe.p_dxdt
@@ -230,17 +240,17 @@ function timestep_floe(floe, Δt)
                               sin(α)*p[1] + cos(α)p[2]], floe.coords[1])]
 
     # Update ice velocities with forces and torques
-    dudt = (floe.fxOA + collision_force[1])/mass
-    dvdt = (floe.fyOA + collision_force[2])/mass
+    dudt = (floe.fxOA + collision_force[1])/floe.mass
+    dvdt = (floe.fyOA + collision_force[2])/floe.mass
     
-    frac = if abs(Δt*dudt) > (height/2) && abs(Δt*dvdt) > (height/2)
-        frac1 = (sign(dudt)*height/2Δt)/dudt
-        frac2 = (sign(dvdt)*height/2Δt)/dvdt
+    frac = if abs(Δt*dudt) > (h/2) && abs(Δt*dvdt) > (h/2)
+        frac1 = (sign(dudt)*h/2Δt)/dudt
+        frac2 = (sign(dvdt)*h/2Δt)/dvdt
         min(frac1, frac2)
-    elseif abs(Δt*dudt) > (height/2) && abs(Δt*dvdt) < (height/2)
-        (sign(dudt)*height/2Δt)/dudt
-    elseif abs(Δt*dudt) < (height/2) && abs(Δt*dvdt) > (height/2)
-        (sign(dvdt)*height/2Δt)/dvdt
+    elseif abs(Δt*dudt) > (h/2) && abs(Δt*dvdt) < (h/2)
+        (sign(dudt)*h/2Δt)/dudt
+    elseif abs(Δt*dudt) < (h/2) && abs(Δt*dvdt) > (h/2)
+        (sign(dvdt)*h/2Δt)/dvdt
     else
         1
     end
@@ -252,7 +262,7 @@ function timestep_floe(floe, Δt)
     floe.p_dudt = dudt
     floe.p_dvdt = dvdt
 
-    dξdt = (floe.τOA + collision_torque)/intertial_moment
+    dξdt = (floe.torqueOA + collision_torque)/floe.moment
     dξdt = frac*dξdt
     ξ = floe.ξ + 1.5Δt*dξdt-0.5Δt*floe.p_dξdt
     if abs(ξ) > 1e-5
@@ -263,16 +273,8 @@ function timestep_floe(floe, Δt)
 
     return floe
 
-    # TODO: Thermodynamic growth 
-    # Questions: What to do about heat flux being a matrix vs float
-    # can we just update this at the end of this function, or does it
-    # need to happen directly before OA calculations?
-    # Calc_trajectory lines 68-73
-    # take heat flux underneith floe
-
     # TODO: Floe strain - Calc_trajectory lines 216-288
-
-    # do I need to return floe? Distributed vs not?
+    # TODO: Floe stress - Calc_trajectory lines 9-21
 end
 
 # function calc_interations(grid, floe_arr, topography_arr, coarse_nx, coarse_ny, PERIODIC)
@@ -302,11 +304,13 @@ function run!(sim)
     t = 1
     plot_sim(sim.model, plt, t)
     while t < sim.nΔt
+        fill!(sim.model.ocean.si_frac, 0.0)
         for i in eachindex(sim.model.floes)
             calc_OA_forcings!(sim.model, i)
             new_floe = timestep_floe(sim.model.floes[i], sim.Δt)
             sim.model.floes[i] = new_floe
         end
+        println(t)
         t+=1
     end
     plot_sim(sim.model, plt, t)
