@@ -71,9 +71,7 @@ function setup_plot(model::Model)
 
     # Plot Topology
     topos_coords = model.topos.coords
-    topo_centroids = model.topos.centroid
-    plot!(plt, [LG.Polygon(Subzero.translate(topos_coords[i],
-            topo_centroids[i])) for i in eachindex(topos_coords)], fill = :grey)
+    plot!(plt, [LG.Polygon(c) for c in topos_coords], fill = :grey)
     return plt
 end
 
@@ -97,11 +95,9 @@ function plot_sim(model, plt, time)
 
     # Plot Floes --> only plot "alive" floes
     floe_coords = model.floes.coords
-    floe_centroids = model.floes.centroid
     floe_alive = model.floes.alive
-    plot!(plt_new, [LG.Polygon(Subzero.translate(floe_coords[i],
-          floe_centroids[i])) for i in eachindex(floe_coords) if floe_alive[i]],
-          fill = :lightblue)
+    plot!(plt_new, [LG.Polygon(floe_coords[i]) for i in eachindex(floe_coords) 
+          if floe_alive[i]], fill = :lightblue)
           
     # Save plot
     Plots.savefig(plt_new, "figs/plot_$time.png")

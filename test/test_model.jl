@@ -174,7 +174,26 @@
     end
 
     @testset "Topography" begin
-        
+        coords = [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]]
+        poly = LibGEOS.Polygon(coords)
+        # Polygon Constructor
+        topo1 = Subzero.Topography(poly, 0.5)
+        @test topo1.coords == coords
+        @test topo1.height == 0.5
+        @test topo1.area == 1.0
+        @test topo1.rmax == sqrt(0.5^2 + 0.5^2)
+        topo32 = Subzero.Topography(poly, 0.5, Float32)
+        @test typeof(topo32) == Subzero.Topography{Float32}
+        @test typeof(topo32.coords) == Subzero.PolyVec{Float32}
+        # Coords Constructor
+        topo2 = Subzero.Topography(coords, 0.5)
+        @test topo2.height == 0.5
+        @test topo2.area == 1.0
+        # Constructor fails
+        @test_throws ArgumentError Subzero.Topography(poly, -1.0)
+        @test_throws ArgumentError Subzero.Topography(coords, 1.0, -1.0, 0.5)
+        @test_throws ArgumentError Subzero.Topography(coords, 1.0, 1.0, -0.5)
+
     end
 
     @testset "Floe" begin

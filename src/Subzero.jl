@@ -16,6 +16,7 @@ export
     RectangleDomain,
     Topography,
     Floe,
+    Constants,
     Model,
     CoarseGridData,
     Simulation,

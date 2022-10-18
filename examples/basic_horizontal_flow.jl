@@ -20,9 +20,9 @@ ocean = Ocean(grid, 1.0, 0.0, 3.0)
 wind = Wind(ones(grid.dims), zeros(grid.dims), fill(4.0, grid.dims))
 
 # Domain creation
-domain = Subzero.RectangleDomain(grid, northBC = PeriodicBC(),
-                                       southBC = PeriodicBC(),
-                                       eastBC = CollisionBC(),
+domain = Subzero.RectangleDomain(grid, northBC = OpenBC(),
+                                       southBC = OpenBC(),
+                                       eastBC = OpenBC(),
                                        westBC = OpenBC())
 
                                     
@@ -32,18 +32,18 @@ topo = Topography(poly1, h_mean)
 topo_arr = StructArray(topo for i in 1:1)
 
 # Floe instantiation
-poly2 = LG.Polygon([[[0.0, 4e4], [0.0, 1e4], [4e4, 1e4], 
-                    [4e4, 4e4], [0.0, 4e4]]])
+poly2 = LG.Polygon([[[3.2e5, 4e4], [3.2e5, 1e4], [3.7e5, 1e4], 
+                    [3.7e5, 4e4], [3.2e5, 4e4]]])
 floe = Floe(poly2, h_mean, Δh)
 floe_arr = StructArray(floe for i in 1:1)
+consts = Constants()
 
-
-model = Model(grid, ocean, wind, domain, topo_arr, floe_arr, Δt, newfloe_Δt)
+model = Model(grid, ocean, wind, domain, topo_arr, floe_arr, consts)
 
 #plt = Subzero.setup_plot(model)
 #cgrid = Grid(model.domain, (coarse_nx, coarse_ny))
 #cgrid_data = CoarseGridData(coarse_nx, coarse_ny)
 
 # Simulation set-up
-simulation = Simulation(model = model, nΔt = 2000)
+simulation = Simulation(model = model, nΔt = 4000)
 run!(simulation)

@@ -62,7 +62,7 @@ function floe_grid_bounds(g, p, rmax)
 end
 
 """
-    cell_area_ratio(cell_coords, floe_coords)
+    cell_area_ratio(cell_poly, floe_poly)
 
 Calculates the percentage of a grid square filled with a given floe.
 Inputs:
@@ -93,7 +93,7 @@ Outputs:
                                  - order matches area_ratios
 """
 function floe_area_ratio(floe, xg, yg, t::Type{T} = Float64) where T
-    floe_poly = LG.Polygon(translate(floe.αcoords, floe.centroid))
+    floe_poly = LG.Polygon(floe.coords)
     xmin_idx, xmax_idx = floe_grid_bounds(xg, floe.centroid[1], floe.rmax)
     ymin_idx, ymax_idx = floe_grid_bounds(yg, floe.centroid[2], floe.rmax)
     nx = xmax_idx - xmin_idx
@@ -112,7 +112,8 @@ function floe_area_ratio(floe, xg, yg, t::Type{T} = Float64) where T
             end
         end
     end
-    idx = CartesianIndex.(Tuple.(eachrow(hcat(xidx,yidx))))
+    # y values are rows and x values are columns
+    idx = CartesianIndex.(Tuple.(eachrow(hcat(yidx,xidx))))
     return area_ratios, xidx, yidx, idx
 end
 
@@ -130,6 +131,7 @@ Outputs:
 """
 function calc_OA_forcings!(m, i)
     floe = m.floes[i]
+    c = m.consts
     Δx = m.grid.xg[2] - m.grid.xg[1]
     Δy = m.grid.yg[2] - m.grid.yg[1]
 
@@ -150,18 +152,18 @@ function calc_OA_forcings!(m, i)
     # Force on ice from atmopshere
     uatm = m.wind.u[idx]
     vatm = m.wind.u[idx]
-    fx_atm = (m.ρa * m.CIA * sqrt.(uatm.^2 + vatm.^2) .* uatm) .* areas
-    fy_atm = (m.ρa * m.CIA * sqrt.(uatm.^2 + vatm.^2) .* vatm) .* areas
+    fx_atm = (c.ρa * c.Cd_ia * sqrt.(uatm.^2 + vatm.^2) .* uatm) .* areas
+    fy_atm = (c.ρa * c.Cd_ia * sqrt.(uatm.^2 + vatm.^2) .* vatm) .* areas
 
     # Force on ice from pressure gradient
-    fx_pressure∇ = -ma_ratio * m.coriolis .* m.ocean.v[idx] .* areas
-    fy_pressure∇ = ma_ratio * m.coriolis .* m.ocean.u[idx] .* areas
+    fx_pressure∇ = -ma_ratio * c.f .* m.ocean.v[idx] .* areas
+    fy_pressure∇ = ma_ratio * c.f .* m.ocean.u[idx] .* areas
 
     # Force on ice from ocean
     Δu_OI = m.ocean.u[idx] .- uice
     Δv_OI = m.ocean.v[idx] .- vice
-    τx_ocn = m.ρo*m.CIO*sqrt.(Δu_OI.^2 + Δv_OI.^2) .* (cos(m.turnθ) .* Δu_OI .+ sin(m.turnθ) * Δv_OI)
-    τy_ocn = m.ρo*m.CIO*sqrt.(Δu_OI.^2 + Δv_OI.^2) .* (-sin(m.turnθ) .* Δu_OI .+ cos(m.turnθ) * Δv_OI)
+    τx_ocn = c.ρo*c.Cd_io*sqrt.(Δu_OI.^2 + Δv_OI.^2) .* (cos(c.turnθ) .* Δu_OI .+ sin(c.turnθ) * Δv_OI)
+    τy_ocn = c.ρo*c.Cd_io*sqrt.(Δu_OI.^2 + Δv_OI.^2) .* (-sin(c.turnθ) .* Δu_OI .+ cos(c.turnθ) * Δv_OI)
     fx_ocn = τx_ocn .* areas
     fy_ocn = τy_ocn .* areas
 
@@ -171,8 +173,8 @@ function calc_OA_forcings!(m, i)
     trq = lx.*fy .- ly.*fx
 
     # Add coriolis force to total foces
-    fx .+= ma_ratio * m.coriolis * floe.v * areas
-    fy .-= ma_ratio * m.coriolis * floe.u * areas
+    fx .+= ma_ratio * c.f * floe.v * areas
+    fy .-= ma_ratio * c.f * floe.u * areas
 
     # Sum forces on ice floe
     floe.fxOA = sum(fx)
@@ -180,6 +182,7 @@ function calc_OA_forcings!(m, i)
     floe.torqueOA = sum(trq)
     m.floes[i] = floe
 
+    # TODO: Not thread safe
     # Update ocean stress fields with ice on ocean stress
     m.ocean.τx[idx] .= m.ocean.τx[idx].*(1 .- area_ratios) .- τx_ocn.*area_ratios
     m.ocean.τy[idx] .= m.ocean.τy[idx].*(1 .- area_ratios) .- τy_ocn.*area_ratios
@@ -230,14 +233,15 @@ function timestep_floe(floe, Δt)
     Δx = 1.5Δt*floe.u - 0.5Δt*floe.p_dxdt
     Δy = 1.5Δt*floe.v - 0.5Δt*floe.p_dydt
     floe.centroid .+= [Δx, Δy]
+    floe.coords = translate(floe.coords, [Δx, Δy])
     floe.p_dxdt = floe.u
     floe.p_dydt = floe.v
 
-    floe.α += 1.5Δt*floe.ξ - 0.5Δt*floe.p_dαdt
+    floe.Δα = 1.5Δt*floe.ξ - 0.5Δt*floe.p_dαdt
     floe.p_dξdt = floe.ξ
-    α = floe.α
-    floe.αcoords = [map(p -> [cos(α)*p[1] - sin(α)*p[2],
-                              sin(α)*p[1] + cos(α)p[2]], floe.coords[1])]
+    Δα = floe.Δα 
+    floe.coords = [map(p -> [cos(Δα)*p[1] - sin(Δα)*p[2],
+                              sin(Δα)*p[1] + cos(Δα)p[2]], floe.coords[1])]
 
     # Update ice velocities with forces and torques
     dudt = (floe.fxOA + collision_force[1])/floe.mass
@@ -285,6 +289,43 @@ end
 #     # Multiple floe interactions
 # end
 
+function floe_boundary_interaction(floe, boundary_poly, bc::OpenBC)
+    floe_poly = LG.Polygon(floe.coords)
+    if LG.intersects(floe_poly, boundary_poly)
+        floe.alive = false
+    end
+end
+
+function floe_domain_interaction(floe, domain::DT) where DT<:RectangleDomain
+    centroid = floe.centroid
+    rmax = floe.rmax
+    eastval = domain.east.val
+    westval = domain.west.val
+    northval = domain.north.val
+    southval = domain.south.val
+    if centroid[1] + rmax > domain.east.val
+        boundary_poly = LG.Polygon([[[eastval, northval], [eastval, southval], [eastval + floe.rmax, southval],
+                                     [eastval + rmax, northval], [eastval, northval]]])
+        floe_boundary_interaction(floe, boundary_poly, domain.east.bc)
+    end
+    if centroid[1] - rmax < domain.west.val
+        boundary_poly = LG.Polygon([[[westval, northval], [westval, southval], [westval - floe.rmax, southval],
+                                     [westval - rmax, northval], [westval, northval]]])
+        floe_boundary_interaction(floe, boundary_poly, domain.west.bc)
+    end
+    if centroid[2] + rmax > domain.north.val
+        boundary_poly = LG.Polygon([[[westval, northval], [westval, northval + rmax], [eastval, northval + floe.rmax],
+                                     [eastval, northval], [westval, northval]]])
+        floe_boundary_interaction(floe, boundary_poly, domain.north.bc)
+    end
+    if centroid[2] - rmax < domain.south.val
+        boundary_poly = LG.Polygon([[[westval, southval], [westval, southval - rmax], [eastval, southval - floe.rmax],
+                                     [eastval, southval], [westval, southval]]])
+        floe_boundary_interaction(floe, boundary_poly, domain.north.bc)
+    end
+
+end
+
 """
     domain_coords(domain::RectangleDomain)
 Inputs:
@@ -301,18 +342,24 @@ end
 function run!(sim)
     println("Model running!")
     plt = setup_plot(sim.model)
-    t = 1
-    plot_sim(sim.model, plt, t)
-    while t < sim.nΔt
+    tstep = 1
+    plot_sim(sim.model, plt, tstep)
+    while tstep < sim.nΔt
+        if mod(tstep, 10) == 0
+            println(tstep, " timesteps completed")
+        end
         fill!(sim.model.ocean.si_frac, 0.0)
         for i in eachindex(sim.model.floes)
             calc_OA_forcings!(sim.model, i)
             new_floe = timestep_floe(sim.model.floes[i], sim.Δt)
+            floe_domain_interaction(new_floe, sim.model.domain)
             sim.model.floes[i] = new_floe
         end
-        println(t)
-        t+=1
+        tstep+=1
     end
-    plot_sim(sim.model, plt, t)
+
+    # h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx)))
+    # mean(h0)
+    plot_sim(sim.model, plt, tstep)
     println("Model done running!")
 end

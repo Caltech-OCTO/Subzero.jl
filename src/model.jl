@@ -399,15 +399,14 @@ Coordinates are vector of vector of vector of points of the form:
  [[w1, z1], [w2, z2], ..., [wn, zn], [w1, z1]], ...] where the xy coordinates are the exterior border of the element and the wz coordinates, or any other following sets of coordinates, describe holes within it - although there should not be any. This format makes for easy conversion to and from LibGEOS Polygons. 
 """
 struct Topography{FT<:AbstractFloat}
-    centroid::Vector{FT}    # center of mass of topographical element
-    coords::PolyVec{FT}     # coordinates centered at (0,0)
+    coords::PolyVec{FT}     # coordinates of topographical element
     height::FT              # height (m)
     area::FT                # area (m^2)
     rmax::FT                # distance of vertix farthest from centroid (m)
 
-    Topography(centriod, coords, height, area, rmax) = 
+    Topography(coords, height, area, rmax) = 
         height > 0 && area > 0 && rmax > 0 ?
-        new{typeof(height)}(centriod, coords, height, area, rmax) :
+        new{typeof(height)}(coords, height, area, rmax) :
         throw(ArgumentError("Height, area, and maximum radius of a given topography element should be positive."))
 end
 
@@ -428,12 +427,11 @@ Constructor for topographic element with LibGEOS Polygon
 function Topography(poly::LG.Polygon, h, t::Type{T} = Float64) where T
     topo = rmholes(poly)
     centroid = LG.GeoInterface.coordinates(LG.centroid(topo))::Vector{Float64}
-    a = LG.area(topo)::Float64  # floe area
-    coords = translate(LG.GeoInterface.coordinates(topo)::PolyVec{Float64},
-                       -centroid)
-    rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
-    return Topography(convert(Vector{T}, centroid), convert(PolyVec{T}, coords),
-                      convert(T, h), convert(T, a), convert(T, rmax))
+    area = LG.area(topo)::Float64 
+    coords = LG.GeoInterface.coordinates(topo)::PolyVec{Float64}
+    rmax = sqrt(maximum([sum(c.^2) for c in translate(coords, -centroid)[1]]))
+    return Topography(convert(PolyVec{T}, coords),
+                      convert(T, h), convert(T, area), convert(T, rmax))
 end
 
 """
@@ -456,7 +454,10 @@ end
 Singular sea ice floe with fields describing current state. Centroid is a vector of points of the form: [x,y].
 Coordinates are vector of vector of vector of points of the form:
 [[[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]], 
- [[w1, z1], [w2, z2], ..., [wn, zn], [w1, z1]], ...] where the xy coordinates are the exterior border of the floe and the wz coordinates, or any other following sets of coordinates, describe holes within the floe. There should not be holes for the majority of the time as they will be removed, but this format makes for easy conversion to and from LibGEOS Polygons. 
+ [[w1, z1], [w2, z2], ..., [wn, zn], [w1, z1]], ...] where the xy coordinates are the exterior border of the floe
+and the wz coordinates, or any other following sets of coordinates, describe holes within the floe.
+There should not be holes for the majority of the time as they will be removed, but this format makes for easy
+conversion to and from LibGEOS Polygons. 
 """
 @kwdef mutable struct Floe{FT<:AbstractFloat}
     centroid::Vector{FT}    # center of mass of floe (might not be in floe!)
@@ -466,9 +467,8 @@ Coordinates are vector of vector of vector of points of the form:
     moment::FT              # mass moment of intertia
     #angles::Vector{T}
     rmax::FT                # distance of vertix farthest from centroid (m)
-    coords::PolyVec{FT}     # floe coordinates centered at (0,0)
-    αcoords::PolyVec{FT}    # rotated coordinates (rotated by angle alpha)
-    α::FT = 0.0             # angle rotated from starting coords
+    coords::PolyVec{FT}     # floe coordinates
+    Δα::FT = 0.0            # change in rotation α since last timestep
     u::FT = 0.0             # floe x-velocity
     v::FT = 0.0             # floe y-velocity
     ξ::FT = 0.0             # floe angular velocity
@@ -499,28 +499,27 @@ Inputs:
         ksi         <Real> angular velocity of the floe - default 0.0
         t           <Type> datatype to convert ocean fields - must be a Float!
 Output:
-        Floe with needed fields defined - all default field values used so all forcings start at 0 and floe is "alive". Velocities and the density of ice can be optionally set.
+        Floe with needed fields defined - all default field values used so all forcings start at 0 and floe is "alive".
+        Velocities and the density of ice can be optionally set.
 Note:
-        Types are specified at Float64 below as type annotations given that when written LibGEOS could exclusivley use Float64 (as of 09/29/22). When this is fixed, this annotation will need to be updated.
+        Types are specified at Float64 below as type annotations given that when written LibGEOS could exclusivley use Float64 (as of 09/29/22).
+        When this is fixed, this annotation will need to be updated.
         We should only run the model with Float64 right now or else we will be converting the Polygon back and forth all of the time. 
 """
-function Floe(poly::LG.Polygon, hmean, Δh, ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, t::Type{T} = Float64) where T
+function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, t::Type{T} = Float64) where T
     floe = rmholes(poly)
     centroid = LG.GeoInterface.coordinates(LG.centroid(floe))::Vector{Float64}
     h = hmean + (-1)^rand(0:1) * rand() * Δh  # floe height
-    a = LG.area(floe)::Float64  # floe area
-    m = a * h * ρi  # floe mass
-    mi = calc_moment_inertia(floe, h, ρi = ρi)
-    coords = translate(LG.GeoInterface.coordinates(floe)::PolyVec{Float64},
-                       -centroid)
-    αcoords = deepcopy(coords)
-    rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
+    area = LG.area(floe)::Float64  # floe area
+    mass = area * h * ρi  # floe mass
+    moment = calc_moment_inertia(floe, h, ρi = ρi)
+    coords = LG.GeoInterface.coordinates(floe)::PolyVec{Float64}
+    rmax = sqrt(maximum([sum(c.^2) for c in translate(coords, -centroid)[1]]))
 
     return Floe(centroid = convert(Vector{T}, centroid),
-                height = convert(T, h), area = convert(T, a),
-                mass = convert(T, m), moment = convert(T, mi),
-                coords = convert(PolyVec{T}, coords), rmax = convert(T, rmax), αcoords = convert(PolyVec{T}, αcoords), u = convert(T, u),
-                v = convert(T, v), ξ = convert(T, ξ))
+                height = convert(T, h), area = convert(T, area),
+                mass = convert(T, mass), moment = convert(T, moment),
+                coords = convert(PolyVec{T}, coords), rmax = convert(T, rmax), u = convert(T, u), v = convert(T, v), ξ = convert(T, ξ))
 end
 
 """
@@ -540,8 +539,7 @@ Inputs:
 Output:
         Floe with needed fields defined - all default field values used so all forcings and velocities start at 0 and floe is "alive"
 """
-Floe(coords::PolyVec{<:Real}, h_mean, Δh, ρi = 920.0, u = 0.0,
-v = 0.0, ξ = 0.0, t::Type{T} = Float64) where T =
+Floe(coords::PolyVec{<:Real}, h_mean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, t::Type{T} = Float64) where T =
     Floe(LG.Polygon(convert(PolyVec{Float64}, coords)), h_mean, Δh, ρi, u, v, ξ, T) 
     # Polygon convert is needed since LibGEOS only takes Float64 - when this is fixed convert can be removed
 
@@ -604,6 +602,20 @@ function domain_in_grid(domain::CircleDomain, grid)
     return false
 end
 
+@kwdef struct Constants{FT<:AbstractFloat}
+    ρi::FT = 920.0              # ice density
+    ρo::FT = 1027.0             # ocean density
+    ρa::FT = 1.2                # air density
+    Cd_io::FT = 3e-3            # ice-ocean drag coefficent
+    Cd_ia::FT = 1e-3            # ice-atmosphere drag coefficent
+    f::FT = 1.4e-4              # ocean coriolis parameter
+    turnθ::FT = 15*pi/180       # ocean turn angle
+    L::FT = 2.93e5              # latent heat of freezing [Joules/kg]
+    k::FT = 2.14                # Thermal conductivity of surface ice[W/(m*K)]
+    A::FT = 70.0                # Upward flux constant A (W/m2)
+    B::FT = 10.0                # Upward flux constant B (W/m2/K)
+    Q::FT = 200.0               # Solar constant (W/m2)
+end
 
 """
 Model which holds grid, ocean, wind structs, each with the same underlying float type (either Float32 of Float64). It also holds an StructArray of floe structs, again each relying on the same underlying float type. Finally it holds several physical constants. These are:
@@ -613,9 +625,9 @@ Model which holds grid, ocean, wind structs, each with the same underlying float
 - ρi: density of ice
 - ρo: density of ocean water
 - ρa: density of atmosphere
-- CIO: ice-ocean drag coefficent
-- CIA: ice-atmosphere drag coefficent
-- coriolis: ocean coriolis forcings
+- Cd_io: ice-ocean drag coefficent
+- Cd_ia: ice-atmosphere drag coefficent
+- f: ocean coriolis forcings
 - turn angle: Ekman spiral caused angle between the stress and surface current
               (angle is positive)
 """
@@ -626,52 +638,19 @@ struct Model{FT<:AbstractFloat, DT<:AbstractDomain{FT}}
     domain::DT
     topos::StructArray{Topography{FT}}
     floes::StructArray{Floe{FT}}
-    hflx::Matrix{FT}        # ocean heat flux
-    h_new::FT                   # thickness of new sea ice during model run
+    consts::Constants{FT}
+    hflx::Matrix{FT}            # ocean heat flux
     modulus::FT                 # elastic modulus
-    ρi::FT                      # ice density
-    ρo::FT                      # ocean density
-    ρa::FT                      # air density
-    CIO::FT                     # ice-ocean drag coefficent
-    CIA::FT                     # ice-atmosphere drag coefficent
-    coriolis::FT                # ocean coriolis force
-    turnθ::FT               # ocean turn angle
 
-    Model(grid, ocean, wind, domain, topos, floes, hflx, h_new, modulus, ρi, ρo, ρa, CIO, CIA, coriolis, turnθ) = 
-        (grid.dims == size(ocean.u) == size(wind.u) &&
-        domain_in_grid(domain, grid)) ?
-        new{typeof(ρi), typeof(domain)}(grid, ocean, wind, domain, topos, floes,
-                                    hflx, h_new, modulus, ρi, ρo, ρa, CIO, CIA, coriolis, turnθ) :
+    Model(grid, ocean, wind, domain, topos, floes, consts, hflx, modulus) =
+        (grid.dims == size(ocean.u) == size(wind.u) && domain_in_grid(domain, grid)) ?
+        new{typeof(modulus), typeof(domain)}(grid, ocean, wind, domain, topos, floes, consts, hflx, modulus) :
         throw(ArgumentError("Size of grid does not match size of ocean and/or wind OR domain is not within grid."))
 end
 
 """
-    calc_new_iceh(To, Ta, Δt, newfloe_Δt; ρi = 920.0, L = 2.93e5, k = 2.14)
-
-Calculate height of new floes during simulation and heat flux.
-Inputs:
-        To          <Matrix{Float}> Ocean-Ice interface temperature
-        Ta          <Matrix{Float}> Atmosphere-Ice interface temperature
-        Δt          <Int> Timestep within the model in seconds
-        newfloe_Δt  <Int> Timesteps between new floe creation
-        ρi          <Float> Density of ice
-        L           <Float> Latent heat of freezing [Joules/kg]
-        k           <Float> Thermal conductivity of surface ice
-                            [Watts/(meters Kelvin)]
-Outputs:
-        - the height of new ice that forms during the simulation
-        - hflx from difference in ocean and atmosphere temperatures
-"""
-function calc_new_iceh(To, Ta, Δt, newfloe_Δt; ρi = 920.0, L = 2.93e5, k = 2.14)
-    hflx = k/(ρi*L) .* (Ta .- To)
-    h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx))) # Ask Mukund if this is right - not sure if this should even be here or in Sim
-    return mean(h0), hflx
-end
-
-"""
     Model(grid, ocean, wind, domain, topos, floes, Δt::Int, newfloe_Δt::Int;
-    ρi = 920.0, ρo = 1027, ρa = 1.2, CIO = 3e-3, CIA = 1e-3, coriolis = 1.4e-4, turnθ = 15*pi/180, L = 2.93e5, k = 2.14,
-    t::Type{T} = Float64)
+    ρi = 920.0, t::Type{T} = Float64)
 
 Model constructor
 Inputs:
@@ -681,32 +660,15 @@ Inputs:
         domain      <AbstractDomain subtype>
         topo        <StructArray{<:Topography}>
         floes       <StructArray{<:Floe}>
-        Δt          <Int> Timestep within the model in seconds
-        newfloe_Δt  <Int> Timesteps between new floe creation
-        ρi          <Real> Density of ice
-        ρo          <Real> Density of ocean water
-        ρa          <Real> Density of atmosphere
-        CIO         <Real> Ice-ocean drag coefficent
-        CIA         <Real> Ice-Atmosphere drag coefficent
-        coriolis    <Real> Ocean coriolis forcings
-        turnθ   <Real> Ekman spiral caused angle between the stress and
-                            surface current - angle is positive
-        L           <Real> Latent heat of freezing [Joules/kg]
-        k           <Real> Thermal conductivity of surface ice
-                            [Watts/(meters Kelvin)]
+        consts      <Contants>
         t           <Type> datatype to convert ocean fields - must
                            be a Float! 
 Outputs:
         Model with all needed fields defined and converted to type t.        
 """
-function Model(grid, ocean, wind, domain, topos, floes, Δt::Int, newfloe_Δt::Int; ρi = 920.0, ρo = 1027, ρa = 1.2, CIO = 3e-3, CIA = 1e-3, coriolis = 1.4e-4, turnθ = 15*pi/180, L = 2.93e5, k = 2.14,
-t::Type{T} = Float64) where T
-    h_new, hflx = calc_new_iceh(ocean.temp, wind.temp, Δt,
-                                    newfloe_Δt, ρi = ρi)
+function Model(grid, ocean, wind, domain, topos, floes, consts, t::Type{T} = Float64) where T
+    hflx = consts.k/(consts.ρi*consts.L) .* (wind.temp .- ocean.temp)
     modulus = 1.5e3*(mean(sqrt.(floes.area)) + minimum(sqrt.(floes.area)))
-    return Model(grid, ocean, wind, domain, topos, floes,
-                 convert(Matrix{T}, hflx), convert(T, h_new),
-                 convert(T, modulus), convert(T, ρi), convert(T, ρo),
-                 convert(T, ρa), convert(T, CIO), convert(T, CIA),
-                 convert(T, coriolis), convert(T, turnθ))
+    return Model(grid, ocean, wind, domain, topos, floes, consts,
+                 convert(Matrix{T}, hflx), convert(T, modulus))
 end
