@@ -20,12 +20,12 @@ export
     Model,
     CoarseGridData,
     Simulation,
-    run!
+    run!, 
+    OutputGridData
 
 import LibGEOS as LG
 import Base.@kwdef # this is being exported as of version 1.9
-using Plots
-using StructArrays, Statistics
+using NetCDF, Plots, StructArrays, Statistics
 
 
 """
@@ -44,4 +44,5 @@ include("floe_operations.jl")
 include("model.jl")
 include("simulation.jl")
 include("plotting.jl")
+include("output.jl")
 end

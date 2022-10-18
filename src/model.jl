@@ -399,14 +399,15 @@ Coordinates are vector of vector of vector of points of the form:
  [[w1, z1], [w2, z2], ..., [wn, zn], [w1, z1]], ...] where the xy coordinates are the exterior border of the element and the wz coordinates, or any other following sets of coordinates, describe holes within it - although there should not be any. This format makes for easy conversion to and from LibGEOS Polygons. 
 """
 struct Topography{FT<:AbstractFloat}
+    centroid::Vector{FT}
     coords::PolyVec{FT}     # coordinates of topographical element
     height::FT              # height (m)
     area::FT                # area (m^2)
     rmax::FT                # distance of vertix farthest from centroid (m)
 
-    Topography(coords, height, area, rmax) = 
+    Topography(centroid, coords, height, area, rmax) = 
         height > 0 && area > 0 && rmax > 0 ?
-        new{typeof(height)}(coords, height, area, rmax) :
+        new{typeof(height)}(centroid, coords, height, area, rmax) :
         throw(ArgumentError("Height, area, and maximum radius of a given topography element should be positive."))
 end
 
@@ -430,7 +431,7 @@ function Topography(poly::LG.Polygon, h, t::Type{T} = Float64) where T
     area = LG.area(topo)::Float64 
     coords = LG.GeoInterface.coordinates(topo)::PolyVec{Float64}
     rmax = sqrt(maximum([sum(c.^2) for c in translate(coords, -centroid)[1]]))
-    return Topography(convert(PolyVec{T}, coords),
+    return Topography(convert(Vector{T}, centroid), convert(PolyVec{T}, coords),
                       convert(T, h), convert(T, area), convert(T, rmax))
 end
 

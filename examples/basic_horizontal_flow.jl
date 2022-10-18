@@ -34,16 +34,20 @@ topo_arr = StructArray(topo for i in 1:1)
 # Floe instantiation
 poly2 = LG.Polygon([[[3.2e5, 4e4], [3.2e5, 1e4], [3.7e5, 1e4], 
                     [3.7e5, 4e4], [3.2e5, 4e4]]])
-floe = Floe(poly2, h_mean, Δh)
-floe_arr = StructArray(floe for i in 1:1)
+floe1 = Floe(poly2, h_mean, Δh)
+floe2 = Floe(Subzero.translate(poly2, [-2e5, 0.0]), h_mean, Δh)
+floe_arr = StructArray([floe1, floe2])
 consts = Constants()
 
 model = Model(grid, ocean, wind, domain, topo_arr, floe_arr, consts)
+
+output_grid = Grid(model.domain, (10, 8))
+output_data = OutputGridData((10, 8))
 
 #plt = Subzero.setup_plot(model)
 #cgrid = Grid(model.domain, (coarse_nx, coarse_ny))
 #cgrid_data = CoarseGridData(coarse_nx, coarse_ny)
 
 # Simulation set-up
-simulation = Simulation(model = model, nΔt = 4000)
-run!(simulation)
+simulation = Simulation(model = model, nΔt = 400)
+run!(simulation, output_grid, output_data)

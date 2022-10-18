@@ -178,6 +178,7 @@
         poly = LibGEOS.Polygon(coords)
         # Polygon Constructor
         topo1 = Subzero.Topography(poly, 0.5)
+        @test topo1.centroid == [0.5, 0.5]
         @test topo1.coords == coords
         @test topo1.height == 0.5
         @test topo1.area == 1.0

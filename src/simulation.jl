@@ -281,14 +281,6 @@ function timestep_floe(floe, Δt)
     # TODO: Floe stress - Calc_trajectory lines 9-21
 end
 
-# function calc_interations(grid, floe_arr, topography_arr, coarse_nx, coarse_ny, PERIODIC)
-#     live_floes = filter(floe->floe.alive, floe_arr)
-#     topography_poly = LG.MultiPolygon([translate(poly.coords, poly.centroid) for
-#                                        poly in topography_arr])
-#     # Periodic section
-#     # Multiple floe interactions
-# end
-
 function floe_boundary_interaction(floe, boundary_poly, bc::OpenBC)
     floe_poly = LG.Polygon(floe.coords)
     if LG.intersects(floe_poly, boundary_poly)
@@ -339,14 +331,15 @@ function cell_coords(xmin, xmax, ymin, ymax)
              [xmin, ymax]]]
 end
 
-function run!(sim)
+function run!(sim, output_grid, output_data)
     println("Model running!")
     plt = setup_plot(sim.model)
     tstep = 1
     plot_sim(sim.model, plt, tstep)
     while tstep < sim.nΔt
-        if mod(tstep, 10) == 0
+        if mod(tstep, 50) == 0
             println(tstep, " timesteps completed")
+            calc_eulerian_data(sim.model.floes, sim.model.topos, output_grid, output_data)
         end
         fill!(sim.model.ocean.si_frac, 0.0)
         for i in eachindex(sim.model.floes)
