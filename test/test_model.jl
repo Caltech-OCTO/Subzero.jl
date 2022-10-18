@@ -176,9 +176,10 @@
     @testset "Topography" begin
         coords = [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]]
         poly = LibGEOS.Polygon(coords)
+        cent = [0.5, 0.5]
         # Polygon Constructor
         topo1 = Subzero.Topography(poly, 0.5)
-        @test topo1.centroid == [0.5, 0.5]
+        @test topo1.centroid == cent
         @test topo1.coords == coords
         @test topo1.height == 0.5
         @test topo1.area == 1.0
@@ -192,8 +193,8 @@
         @test topo2.area == 1.0
         # Constructor fails
         @test_throws ArgumentError Subzero.Topography(poly, -1.0)
-        @test_throws ArgumentError Subzero.Topography(coords, 1.0, -1.0, 0.5)
-        @test_throws ArgumentError Subzero.Topography(coords, 1.0, 1.0, -0.5)
+        @test_throws ArgumentError Subzero.Topography(cent, coords, 1., -1., .5)
+        @test_throws ArgumentError Subzero.Topography(cent, coords, 1., 1., -.5)
 
     end
 

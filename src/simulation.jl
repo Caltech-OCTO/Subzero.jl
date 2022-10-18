@@ -162,8 +162,8 @@ function calc_OA_forcings!(m, i)
     # Force on ice from ocean
     Δu_OI = m.ocean.u[idx] .- uice
     Δv_OI = m.ocean.v[idx] .- vice
-    τx_ocn = c.ρo*c.Cd_io*sqrt.(Δu_OI.^2 + Δv_OI.^2) .* (cos(c.turnθ) .* Δu_OI .+ sin(c.turnθ) * Δv_OI)
-    τy_ocn = c.ρo*c.Cd_io*sqrt.(Δu_OI.^2 + Δv_OI.^2) .* (-sin(c.turnθ) .* Δu_OI .+ cos(c.turnθ) * Δv_OI)
+    τx_ocn = c.ρo*c.Cd_io*sqrt.(Δu_OI.^2 + Δv_OI.^2) .* (cos(c.turnθ) .* Δu_OI .- sin(c.turnθ) * Δv_OI)
+    τy_ocn = c.ρo*c.Cd_io*sqrt.(Δu_OI.^2 + Δv_OI.^2) .* (sin(c.turnθ) .* Δu_OI .+ cos(c.turnθ) * Δv_OI)
     fx_ocn = τx_ocn .* areas
     fy_ocn = τy_ocn .* areas
 
@@ -279,6 +279,17 @@ function timestep_floe(floe, Δt)
 
     # TODO: Floe strain - Calc_trajectory lines 216-288
     # TODO: Floe stress - Calc_trajectory lines 9-21
+end
+
+function timestep_atm!(m)
+    c = m.constants
+    atmos = m.wind
+    ocn = m.ocean
+    # TODO: This also doesn't match how calculations are done in calc_trajectory
+    m.ocean.taux .= c.ρa*c.Cd_ao*(atmos.u .- ocn.u).*abs.(atmos.u .- ocn.u)
+    m.ocean.tauy .= c.ρa*c.Cd_ao*(atmos.v .- ocn.v).*abs.(atmos.v .- ocn.v)
+    #m.hflx .= c.Q*(1 - c.αocn) .- (c.A .+ c.B * ocn.temp)
+    # TODO: this is not how heatflux is calculated when setting up the model
 end
 
 function floe_boundary_interaction(floe, boundary_poly, bc::OpenBC)

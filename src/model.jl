@@ -609,13 +609,15 @@ end
     ρa::FT = 1.2                # air density
     Cd_io::FT = 3e-3            # ice-ocean drag coefficent
     Cd_ia::FT = 1e-3            # ice-atmosphere drag coefficent
+    Cd_ao::FT = 1.25e-3         # atmosphere-ocean momentum drag coefficient
     f::FT = 1.4e-4              # ocean coriolis parameter
     turnθ::FT = 15*pi/180       # ocean turn angle
     L::FT = 2.93e5              # latent heat of freezing [Joules/kg]
-    k::FT = 2.14                # Thermal conductivity of surface ice[W/(m*K)]
-    A::FT = 70.0                # Upward flux constant A (W/m2)
-    B::FT = 10.0                # Upward flux constant B (W/m2/K)
-    Q::FT = 200.0               # Solar constant (W/m2)
+    k::FT = 2.14                # thermal conductivity of surface ice[W/(m*K)]
+    A::FT = 70.0                # upward flux constant A (W/m2)
+    B::FT = 10.0                # upward flux constant B (W/m2/K)
+    Q::FT = 200.0               # solar constant (W/m2)
+    αocn::FT = 0.4              # ocean albedo
 end
 
 """
