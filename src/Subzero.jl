@@ -21,7 +21,10 @@ export
     CoarseGridData,
     Simulation,
     run!, 
-    OutputGridData
+    OutputGridData,
+    AbstractOutputWriter,
+    GridOutputWriter, 
+    FloeOutputWriter
 
 import LibGEOS as LG
 import Base.@kwdef # this is being exported as of version 1.9

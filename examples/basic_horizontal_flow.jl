@@ -48,6 +48,17 @@ output_data = OutputGridData((10, 8))
 #cgrid = Grid(model.domain, (coarse_nx, coarse_ny))
 #cgrid_data = CoarseGridData(coarse_nx, coarse_ny)
 
-# Simulation set-up
-simulation = Simulation(model = model, nΔt = 400)
-run!(simulation, output_grid, output_data)
+# Simulation setup
+simulation = Simulation(model = model, nΔt = 230)
+
+# Output setup - I think that these should be enums
+grid_names = ["u", "v", "du", "dv", "si_frac", "overlap", "mass", "area", "height"]
+grid_units = ["m/s", "m/s", "m/s^2", "m/s^2", "unitless", "m^2", "kg", "m^2", "m"]
+
+floe_names = ["centroid", "height", "area", "mass", "moment", "rmax", "coords", "Δα", "u", "v", "ξ", "fxOA", "fyOA", "torqueOA", "p_dxdt", "p_dydt", "p_dudt", "p_dvdt", "p_dξdt", "p_dαdt", "overarea", "alive"]
+
+floe_units = ["location", "m", "m^2", "kg", "kg m^2", "m", "location", "rad", "m/s", "m/s", "rad/s", "N", "N", "N m", "m/s", "m/s", "m/s^2", "m/s^2", "rad/s^2", "rad/s", "m^2", "unitless"]
+
+gridwriter = GridOutputWriter(150, grid_names, grid_units)
+floewriter = FloeOutputWriter(100, floe_names, floe_units)
+run!(simulation, output_grid, output_data, [gridwriter, floewriter])

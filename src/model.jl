@@ -483,6 +483,7 @@ conversion to and from LibGEOS Polygons.
     p_dξdt::FT = 0.0        # previous timestep time derivative of ξ
     p_dαdt::FT = 0.0        # previous timestep ξ
     hflx::FT = 0.0          # heat flux under the floe
+    overarea::FT = 0.0      # total overlap with other floes
     alive::Bool = true      # floe is still active in simulation
 end # TODO: do we want to do any checks? Ask Mukund!
 
@@ -614,10 +615,10 @@ end
     turnθ::FT = 15*pi/180       # ocean turn angle
     L::FT = 2.93e5              # latent heat of freezing [Joules/kg]
     k::FT = 2.14                # thermal conductivity of surface ice[W/(m*K)]
-    A::FT = 70.0                # upward flux constant A (W/m2)
-    B::FT = 10.0                # upward flux constant B (W/m2/K)
-    Q::FT = 200.0               # solar constant (W/m2)
-    αocn::FT = 0.4              # ocean albedo
+    #A::FT = 70.0                # upward flux constant A (W/m2)
+    #B::FT = 10.0                # upward flux constant B (W/m2/K)
+    #Q::FT = 200.0               # solar constant (W/m2)
+    #αocn::FT = 0.4              # ocean albedo
 end
 
 """

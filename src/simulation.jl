@@ -283,13 +283,11 @@ end
 
 function timestep_atm!(m)
     c = m.constants
-    atmos = m.wind
-    ocn = m.ocean
-    # TODO: This also doesn't match how calculations are done in calc_trajectory
-    m.ocean.taux .= c.ρa*c.Cd_ao*(atmos.u .- ocn.u).*abs.(atmos.u .- ocn.u)
-    m.ocean.tauy .= c.ρa*c.Cd_ao*(atmos.v .- ocn.v).*abs.(atmos.v .- ocn.v)
-    #m.hflx .= c.Q*(1 - c.αocn) .- (c.A .+ c.B * ocn.temp)
-    # TODO: this is not how heatflux is calculated when setting up the model
+    Δu_AO = m.wind.u .- m.ocean.u
+    Δv_AO = m.wind.v .- m.ocean.v
+    m.ocean.taux .= c.ρa  *c.Cd_ao * sqrt.(Δu_AO.^2 + Δv_OI.^2) .* Δu_AO
+    m.ocean.tauy .= c.ρa * c.Cd_ao * sqrt.(Δu_AO.^2 + Δv_OI.^2) .* Δv_AO
+    m.hflx .= c.k/(c.ρi*c.L) .* (wind.temp .- ocean.temp)
 end
 
 function floe_boundary_interaction(floe, boundary_poly, bc::OpenBC)
@@ -342,14 +340,23 @@ function cell_coords(xmin, xmax, ymin, ymax)
              [xmin, ymax]]]
 end
 
-function run!(sim, output_grid, output_data)
+function run!(sim, output_grid, output_data, writers)
+    Δtout_lst = zeros(Int, length(writers))
+    for i in eachindex(writers)
+        setup_output_file(writers[i], sim.nΔt, sim.model)
+        Δtout_lst[i] = writers[i].Δtout
+    end
+
     println("Model running!")
     plt = setup_plot(sim.model)
     tstep = 1
     plot_sim(sim.model, plt, tstep)
     while tstep < sim.nΔt
-        if mod(tstep, 50) == 0
+        # We have tstep - 1 since we want to record the starting state and then every Δtout steps after the start state
+        w_out = findall(Δtout-> mod(tstep-1, Δtout) == 0, Δtout_lst)
+        if length(w_out) > 0
             println(tstep, " timesteps completed")
+            # TODO: write save data function that dispatches on type of writer
             calc_eulerian_data(sim.model.floes, sim.model.topos, output_grid, output_data)
         end
         fill!(sim.model.ocean.si_frac, 0.0)

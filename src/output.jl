@@ -2,14 +2,25 @@
 Structs and functions to calculate and write output from the simulation
 """
 
-abstract type AbstractOutputWriter{FT <: AbstractFloat} end
+# @enum GridVars begin
+#     u
+#     v
+#     du
+# end
 
-struct GridOutputWriter{FT}<:AbstractOutputWriter{FT}
-    nΔtout::Int
+
+abstract type AbstractOutputWriter end
+
+struct GridOutputWriter{ST<:AbstractString}<:AbstractOutputWriter
+    Δtout::Int
+    names::Vector{ST}
+    units::Vector{ST}
 end
 
-struct FloeOutputWriter{FT}<:AbstractOutputWriter{FT}
-    nΔtout::Int
+struct FloeOutputWriter{ST<:AbstractString}<:AbstractOutputWriter
+    Δtout::Int
+    names::Vector{ST}
+    units::Vector{ST}
 end
 
 
@@ -147,36 +158,75 @@ function calc_eulerian_data(floes, topography, cgrid, outdata)
                     LG.difference(cell_poly, topography_poly)
                 end
                 floeidx = collect(1:length(floes))[pint .== 1]
-                overlap_polys = [LG.intersection(cell_poly, LG.Polygon(floes[idx].coords)) for idx in floeidx]
-                overlap_areas = [LG.area(poly) for poly in overlap_polys]
-                floeidx = floeidx[overlap_areas .> 0]
-                overlap_areas = overlap_areas[overlap_areas .> 0]
-                overfloes = floes[floeidx]
+                # fic -> floes in cell - entire floe that is partially within grid cell
+                # pic -> partially in cell - only includes pieces of floes that are within grid bounds
+                pic_polys = [LG.intersection(cell_poly, LG.Polygon(floes[idx].coords)) for idx in floeidx]
+                pic_area = [LG.area(poly) for poly in pic_polys]
+                floeidx = floeidx[pic_area .> 0]
+                pic_area = pic_area[pic_area .> 0]
+                fic = floes[floeidx]
 
-                floe_areas = overfloes.area
-                area_ratios = overlap_areas ./ floe_areas
-                area_tot = sum(overlap_areas)
+                floe_areas = fic.area
+                area_ratios = pic_area ./ floe_areas
+                area_tot = sum(pic_area)
 
-                floe_masses = overfloes.mass
-                mass_tot = sum(floe_masses .* area_ratios)
+                mass_tot = sum(fic.mass .* area_ratios)
                 # mass and area ratio
-                ma_ratios = area_ratios .* floe_masses ./ mass_tot
+                ma_ratios = area_ratios .* (fic.mass ./ mass_tot)
 
                 if mass_tot>0
-                    outdata.u[i, j] = sum(overfloes.u .* ma_ratios)
-                    outdata.v[i, j] = sum(overfloes.v .* ma_ratios)
-                    outdata.du[i, j] = sum(overfloes.p_dudt .* ma_ratios)
-                    outdata.dv[i, j] = sum(overfloes.p_dvdt .* ma_ratios)
-                    # need to add overlap area, stress, and strain!
+                    outdata.u[i, j] = sum(fic.u .* ma_ratios)
+                    outdata.v[i, j] = sum(fic.v .* ma_ratios)
+                    outdata.du[i, j] = sum(fic.p_dudt .* ma_ratios)
+                    outdata.dv[i, j] = sum(fic.p_dvdt .* ma_ratios)
+                    # need to add stress and strain!
                     outdata.si_frac[i, j] = area_tot/LG.area(cell_poly)
-                    outdata.over[i, j] = 
+                    outdata.over[i, j] = sum(fic.overarea)/length(pic_area)
                     outdata.mass[i, j] = mass_tot
                     outdata.area[i, j] = area_tot
-                    outdata.height[i, j] = sum(overfloes.height .* ma_ratios)
+                    outdata.height[i, j] = sum(fic.height .* ma_ratios)
                 end  
             end
         end
     end
-
 end
 
+
+function setup_output_file(writer::GridOutputWriter, nΔt, m)
+    file_path = joinpath(pwd(), "output", "grid")
+    !isdir(file_path) && mkdir(file_path)
+    outfn = joinpath(file_path, "g" * string(writer.Δtout) * ".nc")
+    isfile(outfn) && rm(outfn)
+    # Define dimensions
+    t = NcDim("time", cld(nΔt, writer.Δtout), atts=Dict("units"=>"s"),
+              values = collect(1:writer.Δtout:nΔt), unlimited = true)
+    x = NcDim("x", length(m.grid.xc), values = m.grid.xc)
+    y = NcDim("y", length(m.grid.yc), values = m.grid.yc)
+    dims = [t, x, y]
+    # Define variables
+    vars_arr = NetCDF.NcVar[]
+    for i in eachindex(writer.names)
+        push!(vars_arr, NcVar(writer.names[i], dims, atts=Dict("units"=>writer.units[i])))
+    end
+    # Create file
+    NetCDF.create(outfn, vars_arr)
+end
+
+function setup_output_file(writer::FloeOutputWriter, nΔt, m)
+    file_path = joinpath(pwd(), "output", "floe")
+    !isdir(file_path) && mkdir(file_path)
+    outfn = joinpath(file_path, "f" * string(writer.Δtout) * ".nc")
+    isfile(outfn) && rm(outfn)
+    # Define dimensions
+    t = NcDim("time", cld(nΔt, writer.Δtout), atts=Dict("units"=>"s"),
+              values = collect(1:writer.Δtout:nΔt), unlimited = true)
+    floe_IDs = NcDim("ID", length(m.floes), unlimited = true)
+    dims = [t, floe_IDs]
+    # Define variables
+    vars_arr = NetCDF.NcVar[]
+    for i in eachindex(writer.names)
+        push!(vars_arr, NcVar(writer.names[i], dims, atts=Dict("units"=>writer.units[i])))
+    end
+    # Create file
+    NetCDF.create(outfn, vars_arr)
+end
