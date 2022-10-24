@@ -3,12 +3,21 @@ Structs and functions to calculate and write output from the simulation
 """
 
 """
+    GridOutputData{FT<:AbstractFloat}
+
+Data averaged over a coarse grid covering the domain. Each slice of the array (i, j, slice) is the size of the output grid, with one value per output grid square. This data is used for plotting and is saved to be able to examine model progress and data. If all data is desired on the same resolution as the model, the coarse grid should be equal to the model grid and therefore the size of each of these fields will be the same as the model grid's dimensions.
+"""
+struct GridOutputData{FT<:AbstractFloat}
+    data::Array{FT, 3}
+    # Can add average flag and average array
+end
+
+"""
     AbstractOutputWriter
 
 An abstract type for output writers that provide data from simulation runs.
 """
 abstract type AbstractOutputWriter end
-
 
 """
     GridOutputWriter{FT<:AbstractFloat, ST<:AbstractString}<:AbstractOutputWriter
@@ -25,12 +34,15 @@ struct GridOutputWriter{FT<:AbstractFloat, ST<:AbstractString}<:AbstractOutputWr
     names::Vector{ST}
     units::Vector{ST}
     comments::Vector{ST}
+    data_arr::GridOutputData{FT}
 
-    GridOutputWriter(Δtout, fn, xg, yg, xc, yc, names, units, comments) = 
-        (length(xg) > 1 && length(yg) > 1) && length(xg) - 1 == length(xc) && length(yg) - 1 == length(yc) &&
-        (length(names) == length(units) == length(comments)) && length(fn)>0 ?
-        new{eltype(xg), eltype(names)}(Δtout, fn, xg, yg, xc, yc, names, units, comments) :
-        throw(ArgumentError("Output grid lines must have at least one grid square."))
+    GridOutputWriter(Δtout, fn, xg, yg, xc, yc, names, units, comments, data_arr) = 
+        length(xg) > 1 && length(yg) > 1 &&
+        length(xg) - 1 == length(xc) == size(data_arr.data)[2] &&
+        length(yg) - 1 == length(yc) == size(data_arr.data)[1] &&
+        (length(names) == length(units) == length(comments) == size(data_arr.data)[3]) && length(fn) > 0 ?
+        new{eltype(xg), eltype(names)}(Δtout, fn, xg, yg, xc, yc, names, units, comments, data_arr) :
+        throw(ArgumentError("Output grid lines must have at least one grid square or names, units, and comments must be the same size."))
 end
 
 
@@ -43,10 +55,11 @@ Inputs:
         fn       <String> name of file to save grid data to
         grid     <Grid> original grid, which we are re-gridding
         dims     <(Int, Int)> output grid dimensions - rows -> ny, cols -> nx
+        T        <Type> datatype to convert saved data - must be a Float!
 Output:
         GridOutputWriter that re-grids given grid to given dimensions, and number of timesteps between saving averaged output on this re-gridded grid to filename.
 """
-function GridOutputWriter(Δtout, fn, grid::Grid, dims)
+function GridOutputWriter(Δtout, fn, grid::Grid, dims, t::Type{T} = Float64) where T
     grid_names = ["u", "v", "du", "dv", "si_frac", "overlap", "mass", "area", "height"]
     grid_units = ["m/s", "m/s", "m/s^2", "m/s^2", "unitless", "m^2", "kg", "m^2", "m"]
     grid_comments = ["Average x-velocity of floes within grid cell", "Average  
@@ -64,7 +77,8 @@ function GridOutputWriter(Δtout, fn, grid::Grid, dims)
     yg = collect(ly:Δy:uy)
     xc = collect(xg[1]+Δx/2:Δx:xg[end]-Δx/2)
     yc = collect(yg[1]+Δy/2:Δy:yg[end]-Δy/2)
-    return GridOutputWriter(Δtout, fn, xg, yg, xc, yc, grid_names, grid_units, grid_comments)
+    data = GridOutputData(zeros(T, length(yc), length(xc), length(grid_names)))
+    return GridOutputWriter(Δtout, fn, xg, yg, xc, yc, grid_names, grid_units, grid_comments, data)
 end
 
 """
@@ -82,8 +96,7 @@ struct FloeOutputWriter{FT<:AbstractFloat, ST<:AbstractString}<:AbstractOutputWr
     comments::Vector{ST}
 
     FloeOutputWriter(Δtout, fn, xg, yg, names, units, comments) = 
-        length(xg) > 1 && length(yg) > 1 && (length(names) == length(units) == length(comments)) &&
-        length(fn) > 0 ?
+        length(xg) > 1 && length(yg) > 1 && (length(names) == length(units) == length(comments)) && length(fn) > 0  ?
         new{eltype(xg), eltype(names)}(Δtout, fn, xg, yg, names, units, comments) :
         throw(ArgumentError("Output grid lines must have at least one grid square."))
 end
@@ -112,189 +125,6 @@ function FloeOutputWriter(Δtout, fn, grid::Grid)
                      "Floe angular acceleration from the previous timestep", "Floe angular velocity from previous timestep", "Overlap area of floe with other floes",
                      "Flag if floe is still active in simulation"]
     return FloeOutputWriter(Δtout, fn, grid.xg, grid.yg, floe_names, floe_units, floe_comments)
-end
-
-
-"""
-    CoarseGridData{FT<:AbstractFloat}
-
-Data averaged over a coarse grid covering the domain. Each field is the size of the coarse grid, with one value per coarse grid square, which is the average of mutliple grid squares in finer resolution grid that the simulation is run using. This data is used for plotting and is saved to be able to examine model progress and data. If all data is desired on the same resolution as the model, the coarse grid should be equal to the model grid and therefore the size of each of these fields will be the same as the model grid's dimensions. Each field must have the same dimensions to be a valid struct.
-"""
-struct OutputGridData{FT<:AbstractFloat}
-    u::Matrix{FT}
-    v::Matrix{FT}
-    du::Matrix{FT}
-    dv::Matrix{FT}
-    stress::Matrix{FT}
-    stressxx::Matrix{FT}
-    stressxy::Matrix{FT}
-    stressyx::Matrix{FT}
-    stressyy::Matrix{FT}
-    strainux::Matrix{FT}
-    strainuy::Matrix{FT}
-    strainvx::Matrix{FT}
-    strainvy::Matrix{FT}
-    si_frac::Matrix{FT}
-    overlap::Matrix{FT}
-    mass::Matrix{FT}
-    area::Matrix{FT}
-    height::Matrix{FT}
-
-    OutputGridData(u, v, du, dv, stress, stressxx, stressxy, stressyx, stressyy,
-                 strainux, strainuy, strainvx, strainvy, si_frac, overlap, mtot, area, height) = 
-                 (size(u) == size(v) == size(du) == size(dv) == size(stress) == size(stressxx) == size(stressxy) == size(stressyx) == 
-                 size(stressyy) == size(strainux) ==  size(strainuy) ==
-                 size(strainvx) == size(strainvy) == size(si_frac) ==
-                 size(overlap) == size(mtot) == size(area) == size(height)) ?
-                 new{eltype(u)}(u, v, du, dv, stress, stressxx, stressxy, stressyx, stressyy, strainux, strainuy, strainvx, strainvy, si_frac, overlap, mtot, area, height) :
-                 throw(ArgumentError("Size of coarse grid data matrices are not uniform between all of the fields."))
-end
-
-"""
-    CoarseGridData(coarse_nx, coarse_ny, t::Type{T} = Float64)
-
-Initialize all fields to correct size matricies where all values are 0s.
-
-Inputs:
-        dims        <Vector{Float}> dimensions of output data grid
-        t           <Type> datatype to convert grid fields - must be a Float!
-Outputs:
-    OutputGridData where each field is a matrix of dimensions coarse_nx by coarse_ny and all elements of each matrix are 0 of type T. 
-"""
-function OutputGridData(dims, t::Type{T} = Float64) where T
-    u = zeros(T, dims[1], dims[2])
-    v = zeros(T, dims[1], dims[2])
-    du = zeros(T, dims[1], dims[2])
-    dv = zeros(T, dims[1], dims[2])
-    stress = zeros(T, dims[1], dims[2])
-    stressxx = zeros(T, dims[1], dims[2])
-    stressxy = zeros(T, dims[1], dims[2])
-    stressyx = zeros(T, dims[1], dims[2])
-    stressyy = zeros(T, dims[1], dims[2])
-    strainux = zeros(T, dims[1], dims[2])
-    strainuy = zeros(T, dims[1], dims[2])
-    strainvx = zeros(T, dims[1], dims[2])
-    strainvy = zeros(T, dims[1], dims[2])
-    si_frac = zeros(T, dims[1], dims[2])
-    overlap = zeros(T, dims[1], dims[2])
-    mass = zeros(T, dims[1], dims[2])
-    area = zeros(T, dims[1], dims[2])
-    height = zeros(T, dims[1], dims[2])
-    return OutputGridData(u, v, du, dv, stress, stressxx, stressxy, stressyx,
-                          stressyy, strainux, strainuy, strainvx, strainvy, si_frac, overlap, mass, area, height)
-end
-
-
-#AVERAGE::Bool = false           # If true, average coarse grid data in time
-
-
-function reset_output_grid!(data)
-    fill!(data.u, 0.0)
-    fill!(data.v, 0.0)
-    fill!(data.du, 0.0)
-    fill!(data.dv, 0.0)
-    fill!(data.stress, 0.0)
-    fill!(data.stressxx, 0.0)
-    fill!(data.stressxy, 0.0)
-    fill!(data.stressyx, 0.0)
-    fill!(data.stressyy, 0.0)
-    fill!(data.strainux, 0.0)
-    fill!(data.strainuy, 0.0)
-    fill!(data.strainvx, 0.0)
-    fill!(data.strainvy, 0.0)
-    fill!(data.si_frac, 0.0)
-    fill!(data.overlap, 0.0)
-    fill!(data.mass, 0.0)
-    fill!(data.area, 0.0)
-    fill!(data.height, 0.0)
-end
-
-"""
-    calc_eulerian_data!(floes, topography, writer, istep)
-
-Calculate floe data averaged on grid defined by GridOutputWriter for current timestep (istep).
-Inputs:
-        floes       <StructArray{Floe}> array of model's floes
-        topography  <StructArray{Topography} array of  model's topography
-        writer      <GridOutputWriter> 
-        istep       <Int> current simulation timestep
-Output:
-        Floe data averaged on eularian grid provided. 
-"""
-function calc_eulerian_data!(floes, topography, writer, istep)
-    # Calculate needed values
-    live_floes = filter(f -> f.alive == 1, floes)
-    Δx = writer.xg[2] - writer.xg[1]
-    Δy = writer.yg[2] - writer.yg[1]
-    cell_rmax = sqrt(Δx^2 + Δy^2)
-    #reset_output_grid!(outdata)
-    xgrid, ygrid = grids_from_lines(writer.xc, writer.yc)
-    dims = size(xgrid)
-    floe_centroids = live_floes.centroid
-    floe_rmax = live_floes.rmax
-
-    # Identify floes that potentially overlap each grid square
-    potential_interactions = zeros(dims[1], dims[2], length(floes))
-    for i in eachindex(floes)
-        pint = sqrt.((xgrid .- floe_centroids[i][1]).^2 .+ (ygrid .- floe_centroids[i][2]).^2) .- (floe_rmax[i] + cell_rmax)
-        pint[pint .> 0] .= 0
-        pint[pint .< 0] .= 1
-        potential_interactions[:,:,i] = pint
-    end
-
-    ds = NCDataset(joinpath(pwd(), "output", "grid", writer.fn), "a")
-    for j in 1:dims[2]
-        for i in 1:dims[1]
-            pint = potential_interactions[i,j,:]
-            if sum(pint) > 0
-                cell_poly = LG.Polygon(cell_coords(writer.xg[j], writer.xg[j+1], writer.yg[i], writer.yg[i+1]))
-                cell_poly = if length(topography) > 0
-                    topography_poly = LG.MultiPolygon(topography.coords)
-                    LG.difference(cell_poly, topography_poly)
-                end
-                floeidx = collect(1:length(floes))[pint .== 1]
-                # fic -> floes in cell - entire floe that is partially within grid cell
-                # pic -> partially in cell - only includes pieces of floes that are within grid bounds
-                pic_polys = [LG.intersection(cell_poly, LG.Polygon(floes[idx].coords)) for idx in floeidx]
-                pic_area = [LG.area(poly) for poly in pic_polys]
-                floeidx = floeidx[pic_area .> 0]
-                pic_area = pic_area[pic_area .> 0]
-                fic = floes[floeidx]
-
-                floe_areas = fic.area
-                area_ratios = pic_area ./ floe_areas
-                area_tot = sum(pic_area)
-                mass_tot = sum(fic.mass .* area_ratios)
-
-                ds["mass"][istep, i, j] = mass_tot
-                ds["area"][istep, i, j] = area_tot
-                ds["si_frac"][istep, i, j] = area_tot/LG.area(cell_poly)
-                # mass and area ratio
-                ma_ratios = mass_tot > 0 ? area_ratios .* (fic.mass ./ mass_tot) : 0
-
-                ds["u"][istep, i, j] = sum(fic.u .* ma_ratios)
-                ds["v"][istep, i, j] = sum(fic.v .* ma_ratios)
-                ds["du"][istep, i, j] = sum(fic.p_dudt .* ma_ratios)
-                ds["dv"][istep, i, j] = sum(fic.p_dvdt .* ma_ratios)
-                # need to add stress and strain!
-                ds["overlap"][istep, i, j] = sum(fic.overarea)/length(fic)
-                ds["height"][istep, i, j] = sum(fic.height .* ma_ratios)
-            else
-                ds["mass"][istep, i, j] = 0.0
-                ds["area"][istep, i, j] = 0.0
-                ds["si_frac"][istep, i, j] = 0.0
-                ds["u"][istep, i, j] = 0.0
-                ds["v"][istep, i, j] = 0.0
-                ds["du"][istep, i, j] = 0.0
-                ds["dv"][istep, i, j] = 0.0
-                # need to add stress and strain!
-                ds["overlap"][istep, i, j] = 0.0
-                ds["height"][istep, i, j] = 0.0
-            end
-            
-        end
-    end
-    close(ds)
 end
 
 """
@@ -394,14 +224,112 @@ function setup_output_file!(writer::FloeOutputWriter, nΔt, t::Type{T} = Float64
     return
 end
 
+
+"""
+    calc_eulerian_data!(floes, topography, writer, istep)
+
+Calculate floe data averaged on grid defined by GridOutputWriter for current timestep (istep).
+Inputs:
+        floes       <StructArray{Floe}> array of model's floes
+        topography  <StructArray{Topography} array of  model's topography
+        writer      <GridOutputWriter> 
+        istep       <Int> current simulation timestep
+Output:
+        Floe data averaged on eularian grid provided. 
+"""
+function calc_eulerian_data!(floes, topography, writer)
+    # Calculate needed values
+    live_floes = filter(f -> f.alive == 1, floes)
+    Δx = writer.xg[2] - writer.xg[1]
+    Δy = writer.yg[2] - writer.yg[1]
+    cell_rmax = sqrt(Δx^2 + Δy^2)
+    xgrid, ygrid = grids_from_lines(writer.xc, writer.yc)
+    dims = size(xgrid)
+    floe_centroids = live_floes.centroid
+    floe_rmax = live_floes.rmax
+
+    # Identify floes that potentially overlap each grid square
+    potential_interactions = zeros(dims[1], dims[2], length(floes))
+    for i in eachindex(floes)
+        pint = sqrt.((xgrid .- floe_centroids[i][1]).^2 .+ (ygrid .-
+                      floe_centroids[i][2]).^2) .- (floe_rmax[i] + cell_rmax)
+        pint[pint .> 0] .= 0
+        pint[pint .< 0] .= 1
+        potential_interactions[:,:,i] = pint
+    end
+
+    ds = NCDataset(joinpath(pwd(), "output", "grid", writer.fn), "a")
+    for j in 1:dims[2]
+        for i in 1:dims[1]
+            pint = potential_interactions[i,j,:]
+            if sum(pint) > 0
+                cell_poly = LG.Polygon(cell_coords(writer.xg[j], writer.xg[j+1], writer.yg[i], writer.yg[i+1]))
+                cell_poly = if length(topography) > 0
+                    topography_poly = LG.MultiPolygon(topography.coords)
+                    LG.difference(cell_poly, topography_poly)
+                end
+                floeidx = collect(1:length(floes))[pint .== 1]
+                # fic -> floes in cell - entire floe that is partially within grid cell
+                # pic -> partially in cell - only includes pieces of floes that are within grid bounds
+                pic_polys = [LG.intersection(cell_poly, LG.Polygon(floes[idx].coords)) for idx in floeidx]
+                pic_area = [LG.area(poly) for poly in pic_polys]
+                floeidx = floeidx[pic_area .> 0]
+                pic_area = pic_area[pic_area .> 0]
+                fic = floes[floeidx]
+
+                floe_areas = fic.area
+                area_ratios = pic_area ./ floe_areas
+                area_tot = sum(pic_area)
+                mass_tot = sum(fic.mass .* area_ratios)
+
+                if mass_tot > 0
+                    # mass and area ratios
+                    ma_ratios = area_ratios .* (fic.mass ./ mass_tot)
+
+                    writer.data_arr.data[i, j, 1] = sum(fic.u .* ma_ratios)  # u
+                    writer.data_arr.data[i, j, 2] = sum(fic.v .* ma_ratios)  # v
+                    writer.data_arr.data[i, j, 3] = sum(fic.p_dudt .* ma_ratios)  # du
+                    writer.data_arr.data[i, j, 4] = sum(fic.p_dvdt .* ma_ratios)  # dv
+                    writer.data_arr.data[i, j, 5] = area_tot/LG.area(cell_poly)  # si_f
+                    writer.data_arr.data[i, j, 6] = sum(fic.overarea)/length(fic)  #over
+                    writer.data_arr.data[i, j, 7] = mass_tot  # mass
+                    writer.data_arr.data[i, j, 8] = area_tot  # area
+                    writer.data_arr.data[i, j, 9] = sum(fic.height .* ma_ratios) #height
+                    # need to add stress and strain!
+                else
+                    fill!(writer.data_arr.data[i, j, :], 0.0)
+                end
+            else
+                fill!(writer.data_arr.data[i, j, :], 0.0)
+            end
+        end
+    end
+end
+
+
 function write_data!(writer::GridOutputWriter, tstep, model)
-    calc_eulerian_data!(model.floes, model.topos, writer, div(tstep, writer.Δtout) + 1)
+    calc_eulerian_data!(model.floes, model.topos, writer)
+
+    istep = div(tstep, writer.Δtout) + 1  # Julia indicies start at 1
+    # Open file and write data from grid writer
+    ds = NCDataset(joinpath(pwd(), "output", "grid", writer.fn), "a")
+    ds["u"][istep, :, :] = writer.data_arr.data[:, :, 1]
+    ds["v"][istep, :, :] = writer.data_arr.data[:, :, 2]
+    ds["du"][istep, :, :] = writer.data_arr.data[:, :, 3]
+    ds["dv"][istep, :, :] = writer.data_arr.data[:, :, 4]
+    ds["si_frac"][istep, :, :] = writer.data_arr.data[:, :, 5]
+    ds["overlap"][istep, :, :] = writer.data_arr.data[:, :, 6]
+    ds["mass"][istep, :, :] = writer.data_arr.data[:, :, 7]
+    ds["area"][istep, :, :] = writer.data_arr.data[:, :, 8]
+    ds["height"][istep, :, :] = writer.data_arr.data[:, :, 9]
+    # need to add stress and strain!
+    close(ds)
 end
 
 
 function write_data!(writer::FloeOutputWriter, tstep, model)
     
-    istep = div(tstep, writer.Δtout) + 1
+    istep = div(tstep, writer.Δtout) + 1  # Julia indicies start at 1
     # I should make a Macro for this
     ds = NCDataset(joinpath(pwd(), "output", "floe", writer.fn), "a")
 
@@ -411,34 +339,42 @@ function write_data!(writer::FloeOutputWriter, tstep, model)
         ds["floes"][:] = 1:nfloes
         # might need to fill in previous values with missing or NaN??
     end
+    nNaN = Δfloes < 0 ? -Δfloes : 0
 
-    ds["height"][istep, :] = model.floes.height
-    ds["area"][istep, :] = model.floes.area
-    ds["mass"][istep, :] = model.floes.mass
-    ds["moment"][istep, :] = model.floes.moment
-    ds["rmax"][istep, :] = model.floes.rmax
-    ds["α"][istep, :] = model.floes.α
-    ds["u"][istep, :] = model.floes.u
-    ds["v"][istep, :] = model.floes.v
-    ds["ξ"][istep, :] = model.floes.ξ
-    ds["fxOA"][istep, :] = model.floes.fxOA
-    ds["fyOA"][istep, :] = model.floes.fyOA
-    ds["torqueOA"][istep, :] = model.floes.torqueOA
-    ds["p_dxdt"][istep, :] = model.floes.p_dxdt
-    ds["p_dydt"][istep, :] = model.floes.p_dydt
-    ds["p_dudt"][istep, :] = model.floes.p_dudt
-    ds["p_dvdt"][istep, :] = model.floes.p_dvdt
-    ds["p_dξdt"][istep, :] = model.floes.p_dξdt
-    ds["p_dαdt"][istep, :] = model.floes.p_dαdt
-    ds["overarea"][istep, :] = model.floes.overarea
-    ds["alive"][istep, :] = model.floes.alive
+    ds["height"][istep, :] = vcat(model.floes.height, fill(NaN, nNaN))
+    ds["area"][istep, :] = vcat(model.floes.area, fill(NaN, nNaN))
+    ds["mass"][istep, :] = vcat(model.floes.mass, fill(NaN, nNaN))
+    ds["moment"][istep, :] = vcat(model.floes.moment, fill(NaN, nNaN))
+    ds["rmax"][istep, :] = vcat(model.floes.rmax, fill(NaN, nNaN))
+    ds["α"][istep, :] = vcat(model.floes.α, fill(NaN, nNaN))
+    ds["u"][istep, :] = vcat(model.floes.u, fill(NaN, nNaN))
+    ds["v"][istep, :] = vcat(model.floes.v, fill(NaN, nNaN))
+    ds["ξ"][istep, :] = vcat(model.floes.ξ, fill(NaN, nNaN))
+    ds["fxOA"][istep, :] = vcat(model.floes.fxOA, fill(NaN, nNaN))
+    ds["fyOA"][istep, :] = vcat(model.floes.fyOA, fill(NaN, nNaN))
+    ds["torqueOA"][istep, :] = vcat(model.floes.torqueOA, fill(NaN, nNaN))
+    ds["p_dxdt"][istep, :] = vcat(model.floes.p_dxdt, fill(NaN, nNaN))
+    ds["p_dydt"][istep, :] = vcat(model.floes.p_dydt, fill(NaN, nNaN))
+    ds["p_dudt"][istep, :] = vcat(model.floes.p_dudt, fill(NaN, nNaN))
+    ds["p_dvdt"][istep, :] = vcat(model.floes.p_dvdt, fill(NaN, nNaN))
+    ds["p_dξdt"][istep, :] = vcat(model.floes.p_dξdt, fill(NaN, nNaN))
+    ds["p_dαdt"][istep, :] = vcat(model.floes.p_dαdt, fill(NaN, nNaN))
+    ds["overarea"][istep, :] = vcat(model.floes.overarea, fill(NaN, nNaN))
+    ds["alive"][istep, :] = vcat(model.floes.alive, fill(NaN, nNaN))
     xcentroid, ycentroid = seperate_xy([model.floes.centroid])
-    ds["xcentroid"][istep, :] = xcentroid
-    ds["ycentroid"][istep, :] = ycentroid
+    ds["xcentroid"][istep, :] = vcat(xcentroid, fill(NaN, nNaN))
+    ds["ycentroid"][istep, :] = vcat(ycentroid, fill(NaN, nNaN))
+
     for i in eachindex(model.floes)
         xcoords, ycoords = seperate_xy(model.floes[i].coords)
-        ds["xcoords"][istep, i, 1:length(xcoords)] = xcoords
-        ds["ycoords"][istep, i, 1:length(xcoords)] = ycoords
+        npoints = length(xcoords)
+        Δpoints = npoints - ds.dim["points"]
+        if Δpoints > 0
+            ds["points"][:] = 1:npoints
+        end
+        npNaN = Δpoints < 0 ? -Δpoints : 0
+        ds["xcoords"][istep, i, :] = vcat(xcoords, fill(NaN, npNaN))
+        ds["ycoords"][istep, i, :] = vcat(ycoords, fill(NaN, npNaN))
     end
     close(ds)
 end

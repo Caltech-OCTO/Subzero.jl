@@ -18,10 +18,8 @@ export
     Floe,
     Constants,
     Model,
-    CoarseGridData,
     Simulation,
-    run!, 
-    OutputGridData,
+    run!,
     AbstractOutputWriter,
     GridOutputWriter, 
     FloeOutputWriter

@@ -42,13 +42,6 @@ consts = Constants()
 
 model = Model(grid, ocean, wind, domain, topo_arr, floe_arr, consts)
 
-output_grid = Grid(model.domain, (10, 8))
-output_data = OutputGridData((10, 8))
-
-#plt = Subzero.setup_plot(model)
-#cgrid = Grid(model.domain, (coarse_nx, coarse_ny))
-#cgrid_data = CoarseGridData(coarse_nx, coarse_ny)
-
 # Simulation setup
 simulation = Simulation(model = model, nΔt = 230)
 
