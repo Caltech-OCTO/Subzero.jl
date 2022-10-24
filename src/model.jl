@@ -469,7 +469,7 @@ conversion to and from LibGEOS Polygons.
     #angles::Vector{T}
     rmax::FT                # distance of vertix farthest from centroid (m)
     coords::PolyVec{FT}     # floe coordinates
-    Δα::FT = 0.0            # change in rotation α since last timestep
+    α::FT = 0.0             # floe rotation from starting position in radians
     u::FT = 0.0             # floe x-velocity
     v::FT = 0.0             # floe y-velocity
     ξ::FT = 0.0             # floe angular velocity
@@ -484,7 +484,7 @@ conversion to and from LibGEOS Polygons.
     p_dαdt::FT = 0.0        # previous timestep ξ
     hflx::FT = 0.0          # heat flux under the floe
     overarea::FT = 0.0      # total overlap with other floes
-    alive::Bool = true      # floe is still active in simulation
+    alive::Int = 1      # floe is still active in simulation
 end # TODO: do we want to do any checks? Ask Mukund!
 
 """

@@ -211,7 +211,7 @@ function timestep_floe(floe, Δt)
     # TODO: Make variable to user input
     if floe.mass < 100
         floe.mass = 1e3
-        floe.alive = false
+        floe.alive = 0
     end
 
     while maximum(abs.(collision_force)) > floe.mass/(5Δt)
@@ -237,9 +237,9 @@ function timestep_floe(floe, Δt)
     floe.p_dxdt = floe.u
     floe.p_dydt = floe.v
 
-    floe.Δα = 1.5Δt*floe.ξ - 0.5Δt*floe.p_dαdt
-    floe.p_dξdt = floe.ξ
-    Δα = floe.Δα 
+    Δα = 1.5Δt*floe.ξ - 0.5Δt*floe.p_dαdt
+    floe.α += Δα
+    floe.p_dαdt = floe.ξ
     floe.coords = [map(p -> [cos(Δα)*p[1] - sin(Δα)*p[2],
                               sin(Δα)*p[1] + cos(Δα)p[2]], floe.coords[1])]
 
@@ -293,7 +293,7 @@ end
 function floe_boundary_interaction(floe, boundary_poly, bc::OpenBC)
     floe_poly = LG.Polygon(floe.coords)
     if LG.intersects(floe_poly, boundary_poly)
-        floe.alive = false
+        floe.alive = 0
     end
 end
 
@@ -340,24 +340,24 @@ function cell_coords(xmin, xmax, ymin, ymax)
              [xmin, ymax]]]
 end
 
-function run!(sim, output_grid, output_data, writers)
-    Δtout_lst = zeros(Int, length(writers))
-    for i in eachindex(writers)
-        setup_output_file(writers[i], sim.nΔt, sim.model)
-        Δtout_lst[i] = writers[i].Δtout
+function run!(sim, writers, t::Type{T} = Float64) where T
+    Δtout_lst = Int[]
+    for w in writers
+        setup_output_file!(w, sim.nΔt, T)
+        push!(Δtout_lst, w.Δtout)
     end
 
     println("Model running!")
     plt = setup_plot(sim.model)
-    tstep = 1
+    tstep = 0
     plot_sim(sim.model, plt, tstep)
     while tstep < sim.nΔt
-        # We have tstep - 1 since we want to record the starting state and then every Δtout steps after the start state
-        w_out = findall(Δtout-> mod(tstep-1, Δtout) == 0, Δtout_lst)
-        if length(w_out) > 0
+        widx = findall(Δtout-> mod(tstep, Δtout) == 0, Δtout_lst)
+        if length(widx) > 0
             println(tstep, " timesteps completed")
-            # TODO: write save data function that dispatches on type of writer
-            calc_eulerian_data(sim.model.floes, sim.model.topos, output_grid, output_data)
+            for idx in widx
+                write_data!(writers[idx], tstep, sim.model)
+            end
         end
         fill!(sim.model.ocean.si_frac, 0.0)
         for i in eachindex(sim.model.floes)

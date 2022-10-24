@@ -97,7 +97,7 @@ function plot_sim(model, plt, time)
     floe_coords = model.floes.coords
     floe_alive = model.floes.alive
     plot!(plt_new, [LG.Polygon(floe_coords[i]) for i in eachindex(floe_coords) 
-          if floe_alive[i]], fill = :lightblue)
+          if floe_alive[i] == 1], fill = :lightblue)
           
     # Save plot
     Plots.savefig(plt_new, "figs/plot_$time.png")

@@ -34,8 +34,9 @@ topo_arr = StructArray(topo for i in 1:1)
 # Floe instantiation
 poly2 = LG.Polygon([[[3.2e5, 4e4], [3.2e5, 1e4], [3.7e5, 1e4], 
                     [3.7e5, 4e4], [3.2e5, 4e4]]])
+poly3 = LG.Polygon([[[2e5, 4e4], [2.5e5, 4e4], [2.5e5, 3e4], [2e5, 4e4]]])
 floe1 = Floe(poly2, h_mean, Δh)
-floe2 = Floe(Subzero.translate(poly2, [-2e5, 0.0]), h_mean, Δh)
+floe2 = Floe(poly3, h_mean, Δh)
 floe_arr = StructArray([floe1, floe2])
 consts = Constants()
 
@@ -51,14 +52,9 @@ output_data = OutputGridData((10, 8))
 # Simulation setup
 simulation = Simulation(model = model, nΔt = 230)
 
-# Output setup - I think that these should be enums
-grid_names = ["u", "v", "du", "dv", "si_frac", "overlap", "mass", "area", "height"]
-grid_units = ["m/s", "m/s", "m/s^2", "m/s^2", "unitless", "m^2", "kg", "m^2", "m"]
+# Output setup
+gridwriter = GridOutputWriter(75, "g.nc", grid, (9, 10))
+floewriter = FloeOutputWriter(100, "f.nc", grid)
 
-floe_names = ["centroid", "height", "area", "mass", "moment", "rmax", "coords", "Δα", "u", "v", "ξ", "fxOA", "fyOA", "torqueOA", "p_dxdt", "p_dydt", "p_dudt", "p_dvdt", "p_dξdt", "p_dαdt", "overarea", "alive"]
-
-floe_units = ["location", "m", "m^2", "kg", "kg m^2", "m", "location", "rad", "m/s", "m/s", "rad/s", "N", "N", "N m", "m/s", "m/s", "m/s^2", "m/s^2", "rad/s^2", "rad/s", "m^2", "unitless"]
-
-gridwriter = GridOutputWriter(150, grid_names, grid_units)
-floewriter = FloeOutputWriter(100, floe_names, floe_units)
-run!(simulation, output_grid, output_data, [gridwriter, floewriter])
+# Run simulation
+run!(simulation, [gridwriter, floewriter])
