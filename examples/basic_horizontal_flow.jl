@@ -46,8 +46,8 @@ model = Model(grid, ocean, wind, domain, topo_arr, floe_arr, consts)
 simulation = Simulation(model = model, nΔt = 230)
 
 # Output setup
-gridwriter = GridOutputWriter(75, "g.nc", grid, (9, 10))
-floewriter = FloeOutputWriter(100, "f.nc", grid)
+gridwriter = GridOutputWriter([GridOutput(i) for i in 1:9], 75, "g.nc", grid, (9, 10))
+floewriter = FloeOutputWriter([FloeOutput(i) for i in 1:24], 100, "f.nc", grid)
 
 # Run simulation
 run!(simulation, [gridwriter, floewriter])

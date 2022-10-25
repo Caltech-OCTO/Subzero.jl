@@ -22,7 +22,9 @@ export
     run!,
     AbstractOutputWriter,
     GridOutputWriter, 
-    FloeOutputWriter
+    FloeOutputWriter,
+    GridOutput,
+    FloeOutput
 
 import LibGEOS as LG
 import Base.@kwdef # this is being exported as of version 1.9

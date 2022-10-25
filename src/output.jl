@@ -2,10 +2,99 @@
 Structs and functions to calculate and write output from the simulation
 """
 
+@enum GridOutput begin
+    u_grid = 1
+    v_grid = 2
+    du_grid = 3
+    dv_grid = 4
+    si_frac_grid = 5
+    overarea_grid = 6
+    mass_grid = 7
+    area_grid = 8
+    height_grid = 9
+end
+
+@enum FloeOutput begin
+    height_floe = 1
+    area_floe = 2
+    mass_floe = 3
+    moment_floe = 4
+    rmax_floe = 5
+    α_floe = 6
+    xcentroid_floe = 7
+    ycentroid_floe = 8
+    u_floe = 9
+    v_floe = 10
+    ξ_floe = 11
+    fxOA_floe = 12
+    fyOA_floe = 13
+    torqueOA_floe = 14
+    p_dxdt_floe = 15
+    p_dydt_floe = 16
+    p_dudt_floe = 17
+    p_dvdt_floe = 18
+    p_dξdt_floe = 19
+    p_dαdt_floe = 20
+    overarea_floe = 21
+    alive = 22
+    xcoords = 23
+    ycoords = 24
+end
+
+function getattrs(output::GridOutput)
+    n = Int(output)
+    name, unit, comment = 
+        n == 1 ? ("u", "m/s", "Average x-velocity of floes within grid cell") :
+        n == 2 ? ("v", "m/s", "Average y-velocity of floes within grid cell") :
+        n == 3 ? ("du", "m/s^2", "Average x-acceleration of floes within grid cell") :
+        n == 4 ? ("dv", "m/s^2", "Average y-acceleration of floes within grid cell") :
+        n == 5 ? ("si_frac", "unitless", "Fraction of grid cell covered by ice floes") :
+        n == 6 ? ("overlap", "m^2", "Average overlap area of floes per floe within grid cell") :
+        n == 7 ? ("mass", "kg", "Total mass of floes within grid cell") :
+        n == 8 ? ("area", "m^2", "Total area of floes within grid cell") :
+        n == 9 ? ("height", "m", "Average height of floes within grid cell") :
+        throw(ArgumentError("Grid output provided is not known."))
+    return name, unit, comment
+end
+
+function getattrs(output::FloeOutput)
+    n = Int(output)
+    name, unit, comment =
+        n == 1 ? ("height", "m", "Floe height (uniform over floe)") :
+        n == 2 ? ("area", "m^2", "Floe area") :
+        n == 3 ? ("mass", "kg", "Floe mass") :
+        n == 4 ? ("moment", "kg m^2", "Floe mass moment of intertia") :
+        n == 5 ? ("rmax", "m", "Maximum radius within floe") :
+        n == 6 ? ("α", "radians", "Floe rotation since starting position") :
+        n == 7 ? ("xcentroid", "location", "X-point of centorid") :
+        n == 8 ? ("ycentroid", "location", "Y-point of centorid") :
+        n == 9 ? ("u", "m/s", "Floe x-direction velocity") :
+        n == 10 ? ("v", "m/s", "Floe y-direction velocity") :
+        n == 11 ? ("ξ", "rad/s", "Floe angular velocity") :
+        n == 12 ? ("fxOA", "N", "X-directional forces on floe from the ocean and atmosphere") :
+        n == 13 ? ("fyOA", "N", "Y-directional forces on floe from the ocean and atmosphere") :
+        n == 14 ? ("torqueOA", "N m", "Torque on floes from ocean and atmosphere") :
+        n == 15 ? ("p_dxdt", "m/s", "Floe x-velocity from previous time step") :
+        n == 16 ? ("p_dydt", "m/s", "Floe y-velocity from previous time step") :
+        n == 17 ? ("p_dudt", "m/s^2", "Floe x-acceleration from previous time step") :
+        n == 18 ? ("p_dvdt", "m/s^2", "Floe y-acceleration from previous time step") :
+        n == 19 ? ("p_dξdt", "rad/s^2", "Floe angular acceleration from the previous timestep") :
+        n == 20 ? ("p_dαdt", "rad/s", "Floe angular velocity from previous timestep") :
+        n == 21 ? ("overarea", "m^2", "Overlap area of floe with other floes") :
+        n == 22 ? ("alive", "unitless", "Flag if floe is still active in simulation") :
+        n == 23 ? ("xcoords", "location", "Floe x-coordinates") :
+        n == 24 ? ("ycoords", "location", "Floe y-coordinates") :
+        throw(ArgumentError("Floe output provided is not known."))
+    return name, unit, comment
+end
+
 """
     GridOutputData{FT<:AbstractFloat}
 
-Data averaged over a coarse grid covering the domain. Each slice of the array (i, j, slice) is the size of the output grid, with one value per output grid square. This data is used for plotting and is saved to be able to examine model progress and data. If all data is desired on the same resolution as the model, the coarse grid should be equal to the model grid and therefore the size of each of these fields will be the same as the model grid's dimensions.
+Data averaged over a coarse grid covering the domain. Each slice of the array (i, j, slice) is the size of the output grid,
+with one value per output grid square. This data is used for plotting and is saved to be able to examine model progress and data.
+If all data is desired on the same resolution as the model, the coarse grid should be equal to the model grid and therefore the size
+of each of these fields will be the same as the model grid's dimensions.
 """
 struct GridOutputData{FT<:AbstractFloat}
     data::Array{FT, 3}
@@ -22,35 +111,36 @@ abstract type AbstractOutputWriter end
 """
     GridOutputWriter{FT<:AbstractFloat, ST<:AbstractString}<:AbstractOutputWriter
 
-Grid subtype of AbstractOutputWriter that holds information for outputting Eularian data on the grid. This output does not need to be the grid defined for the model. This grid can be coarser, or more fine as defined by the xg, yg, xc, and yc fields. Output on this scale will be saved to the file defined by fn every Δtout timesteps. The output values that are recorded is defined by names, units, and comments.
+Grid subtype of AbstractOutputWriter that holds information for outputting Eularian data on the grid.
+This output does not need to be the grid defined for the model. This grid can be coarser, or more fine as defined by the
+xg, yg, xc, and yc fields. Output on this scale will be saved to the file defined by fn every Δtout timesteps.
 """
 struct GridOutputWriter{FT<:AbstractFloat, ST<:AbstractString}<:AbstractOutputWriter
+    outputs::Vector{GridOutput}
     Δtout::Int              # Number of timesteps between grid outputs
     fn::ST                  # Filename for output file
     xg::Vector{FT}          # Grid lines in x-direction for ouput calculations
     yg::Vector{FT}          # Grid lines in y-direction for ouput calculations
     xc::Vector{FT}          # Center-lines on grid cells in the x-direction
     yc::Vector{FT}          # Center-lines on grid cells in the y-direction
-    names::Vector{ST}
-    units::Vector{ST}
-    comments::Vector{ST}
     data_arr::GridOutputData{FT}
 
-    GridOutputWriter(Δtout, fn, xg, yg, xc, yc, names, units, comments, data_arr) = 
+    GridOutputWriter(outputs, Δtout, fn, xg, yg, xc, yc, data_arr) = 
         length(xg) > 1 && length(yg) > 1 &&
         length(xg) - 1 == length(xc) == size(data_arr.data)[2] &&
         length(yg) - 1 == length(yc) == size(data_arr.data)[1] &&
-        (length(names) == length(units) == length(comments) == size(data_arr.data)[3]) && length(fn) > 0 ?
-        new{eltype(xg), eltype(names)}(Δtout, fn, xg, yg, xc, yc, names, units, comments, data_arr) :
-        throw(ArgumentError("Output grid lines must have at least one grid square or names, units, and comments must be the same size."))
+        (length(outputs) == size(data_arr.data)[3]) && length(fn) > 0 ?
+        new{eltype(xg), typeof(fn)}(outputs, Δtout, fn, xg, yg, xc, yc, data_arr) :
+        throw(ArgumentError("Output grid lines must have at least one grid square and number of outputs must match data array dimensions"))
 end
 
 
 """
-    GridOutputWriter(Δtout, fn, grid::Grid, dims)
+    GridOutputWriter(outputs, Δtout, fn, grid::Grid, dims)
 
 Create GridOutputWriter for given grid, desired output dimensions to re-grid given grid, and desired number of timesteps, saved to given filename.
 Inputs:
+        outputs  <GridOutputs[]> list of GridOutputs desired for output
         Δtout    <Int> number of timesteps between output
         fn       <String> name of file to save grid data to
         grid     <Grid> original grid, which we are re-gridding
@@ -59,14 +149,8 @@ Inputs:
 Output:
         GridOutputWriter that re-grids given grid to given dimensions, and number of timesteps between saving averaged output on this re-gridded grid to filename.
 """
-function GridOutputWriter(Δtout, fn, grid::Grid, dims, t::Type{T} = Float64) where T
-    grid_names = ["u", "v", "du", "dv", "si_frac", "overlap", "mass", "area", "height"]
-    grid_units = ["m/s", "m/s", "m/s^2", "m/s^2", "unitless", "m^2", "kg", "m^2", "m"]
-    grid_comments = ["Average x-velocity of floes within grid cell", "Average  
-                y-velocity of floes within grid cell",
-                "Average x-acceleration of floes within grid cell", "Average y-acceleration of floes within grid cell",
-                "Fraction of grid cell covered by ice floes", "Average overlap area of floes per floe within grid cell",
-                "Mass of floes within grid cell", "Area of floes within grid cell", "Average height of floes within grid cell"]
+function GridOutputWriter(outputs, Δtout, fn, grid::Grid, dims, t::Type{T} = Float64) where T
+    # Define output grid
     lx = grid.xg[1]
     ux = grid.xg[end]
     ly = grid.yg[1]
@@ -77,55 +161,45 @@ function GridOutputWriter(Δtout, fn, grid::Grid, dims, t::Type{T} = Float64) wh
     yg = collect(ly:Δy:uy)
     xc = collect(xg[1]+Δx/2:Δx:xg[end]-Δx/2)
     yc = collect(yg[1]+Δy/2:Δy:yg[end]-Δy/2)
-    data = GridOutputData(zeros(T, length(yc), length(xc), length(grid_names)))
-    return GridOutputWriter(Δtout, fn, xg, yg, xc, yc, grid_names, grid_units, grid_comments, data)
+    # Data output container
+    data = GridOutputData(zeros(T, length(yc), length(xc), length(outputs)))
+    return GridOutputWriter(outputs, Δtout, fn, xg, yg, xc, yc, data)
 end
 
 """
     FloeOutputWriter{FT<:AbstractFloat, ST<:AbstractString}<:AbstractOutputWriter
 
-Floe subtype of AbstractOutputWriter that holds information for outputting floe information from model throughout simulation. The edges of the grid are defined by xg and yg (the grid lines for the model) for plotting and reconstruction purposes. Output on this scale will be saved to the file defined by fn every Δtout timesteps. The output values that are recorded is defined by names, units, and comments.
+Floe subtype of AbstractOutputWriter that holds information for outputting floe information from model throughout simulation.
+The edges of the grid are defined by xg and yg (the grid lines for the model) for plotting and reconstruction purposes. 
+Output on this scale will be saved to the file defined by fn every Δtout timesteps.
 """
 struct FloeOutputWriter{FT<:AbstractFloat, ST<:AbstractString}<:AbstractOutputWriter
+    outputs::Vector{FloeOutput}
     Δtout::Int              # Number of timesteps between grid outputs
     fn::ST                  # Filename for output file
     xg::Vector{FT}          # Grid lines in x-direction for plotting
     yg::Vector{FT}          # Grid lines in y-direction for plotting
-    names::Vector{ST}
-    units::Vector{ST}
-    comments::Vector{ST}
 
-    FloeOutputWriter(Δtout, fn, xg, yg, names, units, comments) = 
-        length(xg) > 1 && length(yg) > 1 && (length(names) == length(units) == length(comments)) && length(fn) > 0  ?
-        new{eltype(xg), eltype(names)}(Δtout, fn, xg, yg, names, units, comments) :
-        throw(ArgumentError("Output grid lines must have at least one grid square."))
+    FloeOutputWriter(outputs, Δtout, fn, xg, yg) = 
+        length(xg) > 1 && length(yg) > 1 && length(fn) > 0  ?
+        new{eltype(xg), typeof(fn)}(outputs, Δtout, fn, xg, yg) :
+        throw(ArgumentError("Output grid lines must have at least one grid square and a filename must be provided."))
 end
 
 """
-    FloeOutputWriter(Δtout, fn, grid::Grid)
+    FloeOutputWriter(outputs, Δtout, fn, grid::Grid)
 
 Create FloeOutputWriter for given grid and desired number of timesteps, saved to the given file name.
 Inputs:
+    outputs  <Vector{FloeOutputs}>
     Δtout    <Int> number of timesteps between output
     fn       <String> name of file to save grid data to
     grid     <Grid> original grid, which we are re-gridding
 Output:
-    GridOutputWriter that holds desired floe fields to save to given filename and the number of timesteps between saving this output. Grid extents is saved as metadata for plotting.
+    GridOutputWriter that holds desired floe fields to save to given filename and the number of timesteps between saving this output.
+    Grid extents is saved as metadata for plotting.
 """
-function FloeOutputWriter(Δtout, fn, grid::Grid)
-    floe_names = ["height", "area", "mass", "moment", "rmax", "α", "xcentroid", 
-                  "ycentroid", "u", "v", "ξ", "fxOA", "fyOA", "torqueOA", "p_dxdt", "p_dydt", "p_dudt", "p_dvdt", "p_dξdt", "p_dαdt", "overarea", "alive"]
-    floe_units = [ "m", "m^2", "kg", "kg m^2", "m", "rad", "location",
-                   "location", "m/s", "m/s", "rad/s", "N", "N", "N m", "m/s", "m/s", "m/s^2", "m/s^2", "rad/s^2", "rad/s", "m^2", "unitless"]
-    floe_comments = ["Uniform floe height", "Floe area", "Floe mass",
-                     "Floe mass moment of intertia", "Maximum radius within floe", "Floe rotation since starting position", "X-point of centorid", "Y-point of centroid",
-                     "Floe x-direction velocity", "Floe y-direction velocity", "Floe angular velocity", "X-directional forces on floe from the ocean and atmosphere",
-                     "Y-directional forces on floe from the ocean and atmosphere", "Forque on floes from ocean and atmosphere", "Floe x-velocity from previous time step",
-                     "Floe y-velocity from previous timestep", "Floe x-acceleration from previous timestep", "Floe y-acceleration from previous timestep",
-                     "Floe angular acceleration from the previous timestep", "Floe angular velocity from previous timestep", "Overlap area of floe with other floes",
-                     "Flag if floe is still active in simulation"]
-    return FloeOutputWriter(Δtout, fn, grid.xg, grid.yg, floe_names, floe_units, floe_comments)
-end
+FloeOutputWriter(outputs, Δtout, fn, grid::Grid) = FloeOutputWriter(outputs, Δtout, fn, grid.xg, grid.yg)
 
 """
     setup_output_file!(writer::GridOutputWriter, nΔt, t::Type{T} = Float64)
@@ -161,10 +235,11 @@ function setup_output_file!(writer::GridOutputWriter, nΔt::Int, t::Type{T} = Fl
     y[:] = writer.yc
 
     # Define variables
-    for i in eachindex(writer.names)
-        var = defVar(ds, writer.names[i], T, ("time", "y", "x"))
-        var.attrib["units"] = writer.units[i]
-        var.attrib["comments"] = writer.comments[i]
+    for output in writer.outputs
+        name, unit, comment = getattrs(output)
+        var = defVar(ds, name, T, ("time", "y", "x"))
+        var.attrib["units"] = unit
+        var.attrib["comments"] = comment
     end
     # Create file
     close(ds)
@@ -206,19 +281,16 @@ function setup_output_file!(writer::FloeOutputWriter, nΔt, t::Type{T} = Float64
     p.attrib["units"] = "coordinate points"
 
     # Define variables
-    for i in eachindex(writer.names)
-        var = defVar(ds, writer.names[i], T, ("time", "floes"))
-        var.attrib["units"] = writer.units[i]
-        var.attrib["comments"] = writer.comments[i]
+    for output in writer.outputs
+        name, unit, comment = getattrs(output)
+        if output != xcoords && output != ycoords
+            var = defVar(ds, name, T, ("time", "floes"))
+        else
+            var = defVar(ds, name, T, ("time", "floes", "points"))
+        end
+        var.attrib["units"] = unit
+        var.attrib["comments"] = comment
     end
-    # Coords are seperate due to extra dimension
-    xcoords = defVar(ds, "xcoords", T, ("time", "floes", "points"))
-    xcoords.attrib["units"] = "location"
-    xcoords.attrib["comments"] = "Floe x-coordinates"
-    ycoords = defVar(ds, "ycoords", T, ("time", "floes", "points"))
-    ycoords.attrib["units"] = "location"
-    ycoords.attrib["comments"] = "Floe y-coordinates"
-
     # Close file
     close(ds)
     return
@@ -258,7 +330,6 @@ function calc_eulerian_data!(floes, topography, writer)
         potential_interactions[:,:,i] = pint
     end
 
-    ds = NCDataset(joinpath(pwd(), "output", "grid", writer.fn), "a")
     for j in 1:dims[2]
         for i in 1:dims[1]
             pint = potential_interactions[i,j,:]
@@ -286,15 +357,15 @@ function calc_eulerian_data!(floes, topography, writer)
                     # mass and area ratios
                     ma_ratios = area_ratios .* (fic.mass ./ mass_tot)
 
-                    writer.data_arr.data[i, j, 1] = sum(fic.u .* ma_ratios)  # u
-                    writer.data_arr.data[i, j, 2] = sum(fic.v .* ma_ratios)  # v
-                    writer.data_arr.data[i, j, 3] = sum(fic.p_dudt .* ma_ratios)  # du
-                    writer.data_arr.data[i, j, 4] = sum(fic.p_dvdt .* ma_ratios)  # dv
-                    writer.data_arr.data[i, j, 5] = area_tot/LG.area(cell_poly)  # si_f
-                    writer.data_arr.data[i, j, 6] = sum(fic.overarea)/length(fic)  #over
-                    writer.data_arr.data[i, j, 7] = mass_tot  # mass
-                    writer.data_arr.data[i, j, 8] = area_tot  # area
-                    writer.data_arr.data[i, j, 9] = sum(fic.height .* ma_ratios) #height
+                    writer.data_arr.data[i, j, Int(u_grid)] = sum(fic.u .* ma_ratios)
+                    writer.data_arr.data[i, j, Int(v_grid)] = sum(fic.v .* ma_ratios)
+                    writer.data_arr.data[i, j, Int(du_grid)] = sum(fic.p_dudt .* ma_ratios)
+                    writer.data_arr.data[i, j, Int(dv_grid)] = sum(fic.p_dvdt .* ma_ratios)
+                    writer.data_arr.data[i, j, Int(si_frac_grid)] = area_tot/LG.area(cell_poly)
+                    writer.data_arr.data[i, j, Int(overarea_grid)] = sum(fic.overarea)/length(fic)
+                    writer.data_arr.data[i, j, Int(mass_grid)] = mass_tot
+                    writer.data_arr.data[i, j, Int(area_grid)] = area_tot
+                    writer.data_arr.data[i, j, Int(height_grid)] = sum(fic.height .* ma_ratios)
                     # need to add stress and strain!
                 else
                     fill!(writer.data_arr.data[i, j, :], 0.0)
@@ -309,30 +380,28 @@ end
 
 function write_data!(writer::GridOutputWriter, tstep, model)
     calc_eulerian_data!(model.floes, model.topos, writer)
-
     istep = div(tstep, writer.Δtout) + 1  # Julia indicies start at 1
     # Open file and write data from grid writer
     ds = NCDataset(joinpath(pwd(), "output", "grid", writer.fn), "a")
-    ds["u"][istep, :, :] = writer.data_arr.data[:, :, 1]
-    ds["v"][istep, :, :] = writer.data_arr.data[:, :, 2]
-    ds["du"][istep, :, :] = writer.data_arr.data[:, :, 3]
-    ds["dv"][istep, :, :] = writer.data_arr.data[:, :, 4]
-    ds["si_frac"][istep, :, :] = writer.data_arr.data[:, :, 5]
-    ds["overlap"][istep, :, :] = writer.data_arr.data[:, :, 6]
-    ds["mass"][istep, :, :] = writer.data_arr.data[:, :, 7]
-    ds["area"][istep, :, :] = writer.data_arr.data[:, :, 8]
-    ds["height"][istep, :, :] = writer.data_arr.data[:, :, 9]
+    ds["u"][istep, :, :] = writer.data_arr.data[:, :, Int(u_grid)]
+    ds["v"][istep, :, :] = writer.data_arr.data[:, :, Int(v_grid)]
+    ds["du"][istep, :, :] = writer.data_arr.data[:, :, Int(du_grid)]
+    ds["dv"][istep, :, :] = writer.data_arr.data[:, :, Int(dv_grid)]
+    ds["si_frac"][istep, :, :] = writer.data_arr.data[:, :, Int(si_frac_grid)]
+    ds["overlap"][istep, :, :] = writer.data_arr.data[:, :, Int(overarea_grid)]
+    ds["mass"][istep, :, :] = writer.data_arr.data[:, :, Int(mass_grid)]
+    ds["area"][istep, :, :] = writer.data_arr.data[:, :, Int(area_grid)]
+    ds["height"][istep, :, :] = writer.data_arr.data[:, :, Int(height_grid)]
     # need to add stress and strain!
     close(ds)
 end
 
 
 function write_data!(writer::FloeOutputWriter, tstep, model)
-    
     istep = div(tstep, writer.Δtout) + 1  # Julia indicies start at 1
-    # I should make a Macro for this
+    # Open file and write data from floes
     ds = NCDataset(joinpath(pwd(), "output", "floe", writer.fn), "a")
-
+    # Change in number of floes
     nfloes = length(model.floes)
     Δfloes = nfloes - ds.dim["floes"]
     if Δfloes > 0
