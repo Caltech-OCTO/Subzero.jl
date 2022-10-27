@@ -351,7 +351,7 @@ function run!(sim, writers, t::Type{T} = Float64) where T
     plt = setup_plot(sim.model)
     tstep = 0
     plot_sim(sim.model, plt, tstep)
-    while tstep < sim.nΔt
+    while tstep <= sim.nΔt
         widx = findall(Δtout-> mod(tstep, Δtout) == 0, Δtout_lst)
         if length(widx) > 0
             println(tstep, " timesteps completed")
@@ -367,6 +367,7 @@ function run!(sim, writers, t::Type{T} = Float64) where T
             sim.model.floes[i] = new_floe
         end
         tstep+=1
+        println(tstep)
     end
 
     # h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx)))
