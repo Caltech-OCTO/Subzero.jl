@@ -448,17 +448,30 @@ function calc_eulerian_data!(floes, topography, writer)
                 if mass_tot > 0
                     # mass and area ratios
                     ma_ratios = area_ratios .* (fic.mass ./ mass_tot)
-                    # write data
-                    writer.data[i, j, Int(u_grid)] = sum(fic.u .* ma_ratios)
-                    writer.data[i, j, Int(v_grid)] = sum(fic.v .* ma_ratios)
-                    writer.data[i, j, Int(du_grid)] = sum(fic.p_dudt .* ma_ratios)
-                    writer.data[i, j, Int(dv_grid)] = sum(fic.p_dvdt .* ma_ratios)
-                    writer.data[i, j, Int(si_frac_grid)] = area_tot/LG.area(cell_poly)
-                    writer.data[i, j, Int(overarea_grid)] = sum(fic.overarea)/length(fic)
-                    writer.data[i, j, Int(mass_grid)] = mass_tot
-                    writer.data[i, j, Int(area_grid)] = area_tot
-                    writer.data[i, j, Int(height_grid)] = sum(fic.height .* ma_ratios)
-                    # need to add stress and strain!
+                    outputs = writer.outputs
+                    for k in eachindex(outputs)
+                        data = if outputs[k] == u_grid
+                            sum(fic.u .* ma_ratios)
+                        elseif outputs[k] == v_grid
+                            sum(fic.v .* ma_ratios)
+                        elseif outputs[k] == du_grid
+                            sum(fic.p_dudt .* ma_ratios)
+                        elseif outputs[k] == dv_grid
+                            sum(fic.p_dvdt .* ma_ratios)
+                        elseif outputs[k] == si_frac_grid
+                            area_tot/LG.area(cell_poly)
+                        elseif outputs[k] == overarea_grid
+                            sum(fic.overarea)/length(fic)
+                        elseif outputs[k] == mass_grid
+                            mass_tot
+                        elseif outputs[k] == area_grid
+                            area_tot
+                        elseif outputs[k] == height_grid
+                            sum(fic.height .* ma_ratios)
+                        end
+                        # need to add stress and strain!
+                        writer.data[i, j, k] = data
+                    end
                 else
                     writer.data[i, j, :] .= 0.0
                 end
@@ -486,11 +499,10 @@ function write_data!(writer::GridOutputWriter, tstep, model)
     istep = div(tstep, writer.Δtout) + 1  # Julia indicies start at 1
     # Open file and write data from grid writer
     ds = NCDataset(joinpath(pwd(), "output", "grid", writer.fn), "a")
-    for o in writer.outputs
-        name = getname(o)
-        ds[name][istep, :, :] = writer.data[:, :, Int(o)]
+    for i in eachindex(writer.outputs)
+        name = getname(writer.outputs[i])
+        ds[name][istep, :, :] = writer.data[:, :, i]
     end
-    # Add stress and strain
     close(ds)
     return
 end
