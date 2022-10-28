@@ -70,8 +70,10 @@ function setup_plot(model::Model)
             fillalpha = 0.0, lw = 2, legend=false)
 
     # Plot Topology
-    topos_coords = model.topos.coords
-    plot!(plt, [LG.Polygon(c) for c in topos_coords], fill = :grey)
+    if length(size(model.topos)) > 0
+        topos_coords = model.topos.coords
+        plot!(plt, [LG.Polygon(c) for c in topos_coords], fill = :grey)
+    end
     return plt
 end
 

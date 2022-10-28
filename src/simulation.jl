@@ -359,7 +359,7 @@ function run!(sim, writers, t::Type{T} = Float64) where T
                 write_data!(writers[idx], tstep, sim.model)
             end
         end
-        fill!(sim.model.ocean.si_frac, 0.0)
+        sim.model.ocean.si_frac .= 0.0
         for i in eachindex(sim.model.floes)
             calc_OA_forcings!(sim.model, i)
             new_floe = timestep_floe(sim.model.floes[i], sim.Δt)
@@ -367,7 +367,6 @@ function run!(sim, writers, t::Type{T} = Float64) where T
             sim.model.floes[i] = new_floe
         end
         tstep+=1
-        println(tstep)
     end
 
     # h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx)))
