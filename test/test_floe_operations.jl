@@ -17,6 +17,12 @@
     invalid_coords = [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0]],
                       [[0.2, 0.3], [0.2, 0.2], [0.3, 0.2], [0.3, 0.3]]]
     @test Subzero.valid_polyvec!(invalid_coords) == [ext, hole1]
+    duplicate_invalid_ext = [[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 0.0], [1.0, 1.0]]
+    @test Subzero.valid_ringvec!(duplicate_invalid_ext) == ext
+    @test Subzero.valid_ringvec!([[0.0, 1.0], [0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]) == ext
+    @test Subzero.valid_ringvec!([[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [1.0, 1.0]]) == ext
+    @test_throws AssertionError Subzero.valid_ringvec!([[0.0, 1.0], [0.0, 0.0], [0.0, 0.0]])
+    @test_throws AssertionError Subzero.valid_polyvec!([[Float64[]]])
 
     # Test predicate hashole for coords, polygons and multipolygons
     @test !Subzero.hashole([ext])
@@ -77,4 +83,12 @@
     tri_coords = [[[0, 1], [0, 0], [1, 0], [0, 1]]] .* 6.67
     tri_moment = Subzero.calc_moment_inertia(tri_coords, 0.5)
     @test isapprox(tri_moment, 151743.437, atol = 0.001)
+
+    # Test polygon angles - some basic shapes and then compared to values from MATLAB
+    rect_coords = [[[1.0, 1.0], [1.0, 2.0], [2.0, 2.0], [2.0, 1.0]]]
+    @test Subzero.calc_poly_angles(rect_coords) == [90.0, 90.0, 90.0, 90.0]
+    tri_coords = [[[0.0, 0.0], [0.0, 4.0], [3.0, 0.0]]]
+    @test prod(isapprox.(Subzero.calc_poly_angles(tri_coords), [90.0, 36.8699, 53.1301], atol = 0.001))
+    concave_tri_coords = [[[-3.0, -2.0], [0.0,0.0], [5.0, 0.0]]]
+    @test prod(isapprox.(Subzero.calc_poly_angles(concave_tri_coords), [19.6538, 146.3099, 14.0362], atol = 0.001))
 end
