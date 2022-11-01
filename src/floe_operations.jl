@@ -355,6 +355,101 @@ function calc_poly_angles(coords::PolyVec{T}, t::Type{T} = Float64) where {T<:Ab
     return angles
 end
 
-function calc_poly_dist(coords::PolyVec{T}) where {T<:AbstractFloat}
-    return
+"""
+    calc_point_poly_dist(vec_points = Vector{T}, vec_poly::PolyVec{T})
+
+Compute the distances from each one of a set of np points in vec_points on a 2D plane to a polygon.
+Distance from point j to an edge k is defined as a distance from this point to a straight line passing
+through vertices v(k) and v(k+1), when the projection of point j on this line falls INSIDE segment k;
+and to the closest of v(k) or v(k+1) vertices, when the projection falls OUTSIDE segment k.
+Inputs:
+        vec_points  <Vector{Vector{Float}}> points to find distance in [x, y] floe_domain_interaction
+        vec_poly    <PolyVec{Float}> coordinates of polygon
+        t           <AbstractFloat> datatype to run model with - must be a Float
+Outputs:
+        List of distances from each point to the polygon. If the point is inside of the polygon the
+        value will be negative.
+
+Note - Translated into Julia from the following program (including helper functions):
+p_poly_dist by Michael Yoshpe - last updated in 2006.
+We mimic version 1 functionality with 4 inputs and 1 output.
+Only needed code was translated.
+"""
+function calc_point_poly_dist(vec_points::Vector{Vector{T}}, vec_poly::PolyVec{T}) where {T<:AbstractFloat}
+    dmin = if !isempty(vec_points[1])
+        # Vertices in polygon and given points
+        Pv = reduce(hcat, valid_polyvec!(vec_poly)[1])'
+        Pp = reduce(hcat, vec_points)'
+        np = length(vec_points)
+        nv = length(vec_poly[1])
+        # Distances between all points and vertices in x and y
+        x_dist = repeat(Pv[:, 1], 1, np)' .- repeat(Pp[:, 1], 1, nv)
+        y_dist = repeat(Pv[:, 2], 1, np)' .- repeat(Pp[:, 2], 1, nv)
+        p2c_dist = hypot.(x_dist, y_dist)
+        min_dist, min_idx = findmin(p2c_dist, dims = 2)  # minimum distance to vertices
+        # Coordinates of consecutive vertices
+        V1 = Pv[1:end-1, :]
+        V2 = Pv[2:end, :]
+        Δv = V2 .-  V1
+        # Vector of distances between each pair of consecutive vertices
+        vds = hypot.(Δv[:, 1], Δv[:, 2])
+
+        if (cumsum(vds)[end-1] - vds[end]) < 10eps(T)
+            throw(ArgumentError("Polygon vertices should not lie on a straight line"))
+        end
+
+        # Each pair of consecutive vertices V1[j], V2[j] defines a rotated coordinate system
+        # with origin at V1[j], and x axis along the vector V2[j]-V1[j].
+        # Build the rotation matrix Cer from original to rotated system
+        cθ = Δv[:, 1] ./ vds
+        sθ = Δv[:, 2] ./  vds
+        Cer = zeros(T, 2, 2, nv-1)
+        Cer[1, 1, :] .= cθ
+        Cer[1, 2, :] .= sθ
+        Cer[2, 1, :] .= -sθ
+        Cer[2, 2, :] .= cθ
+
+        # Build the origin translation vector P1r in rotated frame by rotating the V1 vector
+        V1r = hcat(cθ .* V1[:, 1] .+ sθ .* V1[:, 2],
+                -sθ .* V1[:, 1] .+ cθ .* V1[:, 2])
+
+        # Ppr is a 3D array of size 2*np*(nv-1). Ppr(1,j,k) is an X coordinate of point
+        # j in coordinate systems defined by segment k. Ppr(2,j,k) is its Y coordinate.
+        Ppr = zeros(T, 2, np, nv-1)
+        # Rotation and Translation
+        Ppr[1, :, :] .= Pp * Cer[1, :, :] .-
+                        permutedims(repeat(V1r[:, 1], 1, 1, np), [2, 3, 1])[1, :, :]
+        Ppr[2, :, :] .= Pp * Cer[2, :, :] .-
+                        permutedims(repeat(V1r[:, 2], 1, 1, np), [2, 3, 1])[1, :, :]
+
+        # x and y coordinates of the projected (cross-over) points in original
+        # coordinate
+        r = Ppr[1, :, :]
+        cr = Ppr[2, :, :]
+        B = fill(convert(T, Inf), np, nv-1)
+        # For the projections that fall inside the segments, find the minimum distances from points to
+        # their projections (note, that for some points these might not exist)
+        for i in eachindex(r)
+            if r[i] > 0 && r[i] < vds[cld(i, np)]
+                B[i] = cr[i]
+            end
+        end
+        cr_min, cr_min_idx = findmin(abs.(B), dims = 2)
+        # For projections that fall outside segments, closest point is a vertex
+        # These points have a negative value if point is actually outside of polygon
+        in_poly = inpoly2(Pp, Pv)
+        dmin = cr_min
+        for i in eachindex(dmin)
+            if isinf(dmin[i]) || (cr_min_idx[i] != min_idx[i] && cr_min[i] > min_dist[i])
+                dmin[i] = min_dist[i]
+            end
+            if in_poly[i, 1] ||  in_poly[i, 2]
+                dmin[i] *= -1
+            end
+        end
+        dmin[:, 1]
+    else
+        T[]
+    end
+    return dmin
 end

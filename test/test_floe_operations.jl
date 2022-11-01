@@ -91,4 +91,11 @@
     @test prod(isapprox.(Subzero.calc_poly_angles(tri_coords), [90.0, 36.8699, 53.1301], atol = 0.001))
     concave_tri_coords = [[[-3.0, -2.0], [0.0,0.0], [5.0, 0.0]]]
     @test prod(isapprox.(Subzero.calc_poly_angles(concave_tri_coords), [19.6538, 146.3099, 14.0362], atol = 0.001))
+
+    # Test calc_point_poly_dist - some basic shapes and compared to values from MATLAB
+    rect_coor = [[[1.0, 1.0], [1.0, 2.0], [2.0, 2.0], [2.0, 1.0]]]
+    point_vec = [[0.0, 0.0], [1.1, 1.0], [1.1, 1.1], [2.0, 2.0]]
+    @test prod(isapprox(Subzero.calc_point_poly_dist(point_vec, rect_coor), [sqrt(2); 0; -0.1; 0.0], atol = 0.001))
+    @test_throws AssertionError Subzero.calc_point_poly_dist(point_vec, [[[1.0, 1.0], [1.0, 2.0]]])
+    @test Subzero.calc_point_poly_dist([Float64[]], rect_coor) == Float64[]
 end
