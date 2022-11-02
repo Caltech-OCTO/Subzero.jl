@@ -370,7 +370,7 @@ Outputs:
         List of distances from each point to the polygon. If the point is inside of the polygon the
         value will be negative.
 
-Note - Translated into Julia from the following program (including helper functions):
+Note - Translated into Julia from the following program:
 p_poly_dist by Michael Yoshpe - last updated in 2006.
 We mimic version 1 functionality with 4 inputs and 1 output.
 Only needed code was translated.
@@ -452,4 +452,60 @@ function calc_point_poly_dist(vec_points::Vector{Vector{T}}, vec_poly::PolyVec{T
         T[]
     end
     return dmin
+end
+
+"""
+    intersect_lines(l1, l2)
+
+Finds the intersection points of two curves l1 and l2. The curves l1, l2 can be either closed or open. In this version, l1 and l2 must be distinct. If no intersections are found, the returned P is empty.
+Inputs:
+        l1 <PolyVec{Float}> line/polygon coordinates
+        l2 <PolyVec{Float}> line/polygon coordinates
+Outputs:
+        N intersection points in a Nx2 matrix where column 1 is the x-coordinates and column 2 is the y-coordinates and each intersection point is a row.
+
+Note - Translated into Julia from the following program:
+NS (2022). Curve intersections (https://www.mathworks.com/matlabcentral/fileexchange/22441-curve-intersections), MATLAB Central File Exchange. Retrieved November 2, 2022.
+Only translated for the case where l1 and l2 are distinct. 
+"""
+function intersect_lines(l1, l2)
+    x1, y1 = seperate_xy(l1)
+    x2, y2 = seperate_xy(l2)
+    x2t = x2'
+    y2t = y2'
+    Δx1 = diff(x1)
+    Δx2 = diff(x2t, dims = 2)
+    Δy1 = diff(y1)
+    Δy2 = diff(y2t, dims = 2)
+
+    # Determine 'signed distances' 
+    S1 = Δx1 .* y1[1:end-1] - Δy1 .* x1[1:end-1]
+    s1 = (Δx1 .* y2t .- Δy1 .*x2t)  # Needed for S1 calculation
+    C1 = (s1[:, 1:end-1] .- S1) .* (s1[:, 2:end] .- S1) .<= 0
+
+    S2 = Δx2 .* y2t[:, 1:end-1] - Δy2 .* x2t[:, 1:end-1]
+    s2 = (y1 .* Δx2 .- x1 .* Δy2)'  # Needed for S2 calculation
+    C2 = ((s2[:, 1:end-1] .- S2') .* (s2[:, 2:end] .- S2') .<= 0)'
+
+    # Obtain the segments where an intersection is expected
+    idx = findall(C1 .& C2)
+
+    P = if isempty(idx)
+        zeros(eltype(x1), 2,0)
+    else
+        # Transpose and prepare for output
+        i = getindex.(idx, 1)
+        j = getindex.(idx, 2)[:, :]
+        Δx2t = Δx2'
+        Δy2t = Δy2'
+        S2t = S2'
+        L = Δy2t[j] .* Δx1[i] - Δy1[i] .* Δx2t[j]
+        i = i[:, :][L .!= 0]
+        j = j[L .!= 0]
+        L = L[L .!= 0]
+        # Solve system of eqs to get the common points
+        unique(hcat((Δx2t[j] .* S1[i] - Δx1[i] .* S2t[j]) ./ L,
+                     Δy2t[j] .* S1[i] - Δy1[i] .* S2t[j] ./ L), dims = 1)
+    end
+    return P
 end

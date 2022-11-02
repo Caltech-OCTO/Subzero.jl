@@ -59,20 +59,25 @@ Output:
 """
 function setup_plot(model::Model)
     # Plot Grid Lines and set image ratio
-    xmax = model.grid.xg[end]
-    ymax = model.grid.yg[end]
+    xmax = model.grid.xg[end]/1000  # kilometers
+    ymax = model.grid.yg[end]/1000 # kilometers
     ratio = ymax/xmax
-    plt = Plots.plot(xlims = (model.grid.xg[1], xmax),
-                     ylims = (model.grid.yg[1], ymax), size = (1200, 1200), aspect_ratio=ratio)
+    plt = Plots.plot(xlims = (model.grid.xg[1]/1000, xmax),
+                     ylims = (model.grid.yg[1]/1000, ymax),
+                     size = (1500, 1200),
+                     aspect_ratio=ratio,
+                     xlabel = "[km]",
+                     ylabel = "[km]")
     # Plot Domain Border
     domainx, domainy = domain_xycoords(model.domain)
-    plot!(plt, domainx, domainy, seriestype = [:shape], linecolor = :black, 
-            fillalpha = 0.0, lw = 2, legend=false)
+    plot!(plt, domainx./1000, domainy./1000 , seriestype = [:shape],
+          linecolor = :black, fillalpha = 0.0, lw = 2, legend=false)
 
     # Plot Topology
     if length(size(model.topos)) > 0
         topos_coords = model.topos.coords
-        plot!(plt, [LG.Polygon(c) for c in topos_coords], fill = :grey)
+        plot!(plt, [LG.Polygon([c[1] ./ 1000]) for c in topos_coords],
+              fill = :grey)
     end
     return plt
 end
@@ -92,14 +97,14 @@ Outpits:
 function plot_sim(model, plt, time)
     # Plot Ocean Vector Field - also clears previous plot
     xgrid, ygrid = Subzero.grids_from_lines(model.grid.xc, model.grid.xc)
-    plt_new = quiver(plt, vec(xgrid), vec(ygrid),
-            quiver=(vec(model.ocean.u), vec(model.ocean.v)), color = :lightgrey)
+    plt_new = quiver(plt, vec(xgrid ./ 1000), vec(ygrid ./ 1000),
+            quiver=(vec(model.ocean.u), vec(model.ocean.v)), color = :lightgrey,
+            title = string("Time: ", round(time/6, digits = 2), " minutes"))
 
     # Plot Floes --> only plot "alive" floes
     floe_coords = model.floes.coords
     floe_alive = model.floes.alive
-    plot!(plt_new, [LG.Polygon(floe_coords[i]) for i in eachindex(floe_coords) 
-          if floe_alive[i] == 1], fill = :lightblue)
+    plot!(plt_new, [LG.Polygon([floe_coords[i][1] ./ 1000]) for i in eachindex(floe_coords) if floe_alive[i] == 1], fill = :lightblue)
           
     # Save plot
     Plots.savefig(plt_new, "figs/plot_$time.png")

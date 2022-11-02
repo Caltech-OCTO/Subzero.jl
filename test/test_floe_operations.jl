@@ -98,4 +98,14 @@
     @test prod(isapprox(Subzero.calc_point_poly_dist(point_vec, rect_coor), [sqrt(2); 0; -0.1; 0.0], atol = 0.001))
     @test_throws AssertionError Subzero.calc_point_poly_dist(point_vec, [[[1.0, 1.0], [1.0, 2.0]]])
     @test Subzero.calc_point_poly_dist([Float64[]], rect_coor) == Float64[]
+
+    # Test intersection of lines
+    l1 = [[[0.0, 0.0], [2.5, 0.0], [5.0, 0.0]]]
+    l2 = [[[2.0, -3.0], [3.0, 0.0], [4.0, 3.0]]]
+    @test Subzero.intersect_lines(l1, l2) == [3.0 0.0]
+    l1 = [[[0., -1], [1, 1], [2, -1], [3, 1]]]
+    l2 = [[[0., 0], [1, 0], [3, 0]]]
+    @test Subzero.intersect_lines(l1, l2) == [0.5 0; 1.5 0; 2.5 0]
+    l2 = [[[10., 10]]]
+    @test Subzero.intersect_lines(l1, l2) == zeros(2,0)
 end

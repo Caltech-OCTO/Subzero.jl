@@ -290,14 +290,41 @@ function timestep_atm!(m)
     m.hflx .= c.k/(c.ρi*c.L) .* (wind.temp .- ocean.temp)
 end
 
-function floe_boundary_interaction(floe, boundary_poly, bc::OpenBC)
+function floe_boundary_interaction(floe, boundary_poly, bc::OpenBC, consts)
     floe_poly = LG.Polygon(floe.coords)
+    # Check if the floe and boundary actually overlap
     if LG.intersects(floe_poly, boundary_poly)
         floe.alive = 0
     end
 end
 
-function floe_domain_interaction(floe, domain::DT) where DT<:RectangleDomain
+function floe_boundary_interaction(floe, boundary_poly, bc::CollisionBC,
+consts,  t::Type{T} = Float64) where T
+    # Check if the floe and boundary actually overlap
+    floe_poly = LG.Polygon(floe.coords)
+    inter_floe = LG.intersection(floe_poly, boundary_poly)
+    inter_regions = sortregions(inter_floe)
+    if isempty(inter_regions)
+        return [0, 0], [0, 0]
+    else
+        region_areas = [LG.area(poly) for poly in inter_regions]
+        if region_areas[1]/floe.area > 0.75
+            return [0, 0], [0, 0], Inf
+        end
+        
+
+
+
+        force_factor = consts.modulus * floe.height / sqrt(floe.area)
+        ν = 0.3  # Ask Brandon
+        μ = 0.2  # static coefficent of friction
+        γ = 0
+        G = consts.modulus/(2*(1+ν))  # Sheer modulus
+        return
+    end
+end
+
+function floe_domain_interaction(floe, domain::DT, consts) where DT<:RectangleDomain
     centroid = floe.centroid
     rmax = floe.rmax
     eastval = domain.east.val
@@ -305,27 +332,33 @@ function floe_domain_interaction(floe, domain::DT) where DT<:RectangleDomain
     northval = domain.north.val
     southval = domain.south.val
     if centroid[1] + rmax > domain.east.val
-        boundary_poly = LG.Polygon([[[eastval, northval], [eastval, southval], [eastval + floe.rmax, southval],
+        boundary_poly = LG.Polygon([[[eastval, northval], [eastval, southval],
+                                     [eastval + floe.rmax, southval],
                                      [eastval + rmax, northval], [eastval, northval]]])
-        floe_boundary_interaction(floe, boundary_poly, domain.east.bc)
+        floe_boundary_interaction(floe, boundary_poly, domain.east.bc, consts)
     end
     if centroid[1] - rmax < domain.west.val
-        boundary_poly = LG.Polygon([[[westval, northval], [westval, southval], [westval - floe.rmax, southval],
+        boundary_poly = LG.Polygon([[[westval, northval], [westval, southval],
+                                     [westval - floe.rmax, southval],
                                      [westval - rmax, northval], [westval, northval]]])
-        floe_boundary_interaction(floe, boundary_poly, domain.west.bc)
+        floe_boundary_interaction(floe, boundary_poly, domain.west.bc, consts)
     end
     if centroid[2] + rmax > domain.north.val
-        boundary_poly = LG.Polygon([[[westval, northval], [westval, northval + rmax], [eastval, northval + floe.rmax],
+        boundary_poly = LG.Polygon([[[westval, northval], [westval, northval + rmax],
+                                     [eastval, northval + floe.rmax],
                                      [eastval, northval], [westval, northval]]])
-        floe_boundary_interaction(floe, boundary_poly, domain.north.bc)
+        floe_boundary_interaction(floe, boundary_poly, domain.north.bc, consts)
     end
     if centroid[2] - rmax < domain.south.val
-        boundary_poly = LG.Polygon([[[westval, southval], [westval, southval - rmax], [eastval, southval - floe.rmax],
+        boundary_poly = LG.Polygon([[[westval, southval], [westval, southval - rmax],
+                                     [eastval, southval - floe.rmax],
                                      [eastval, southval], [westval, southval]]])
-        floe_boundary_interaction(floe, boundary_poly, domain.north.bc)
+        floe_boundary_interaction(floe, boundary_poly, domain.north.bc, consts)
     end
 
 end
+
+
 
 """
     domain_coords(domain::RectangleDomain)
@@ -363,7 +396,7 @@ function run!(sim, writers, t::Type{T} = Float64) where T
         for i in eachindex(sim.model.floes)
             calc_OA_forcings!(sim.model, i)
             new_floe = timestep_floe(sim.model.floes[i], sim.Δt)
-            floe_domain_interaction(new_floe, sim.model.domain)
+            floe_domain_interaction(new_floe, sim.model.domain, sim.model.consts)
             sim.model.floes[i] = new_floe
         end
         tstep+=1
