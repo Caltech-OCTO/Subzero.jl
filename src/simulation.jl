@@ -127,7 +127,8 @@ Inputs:
         m <Model> given model
         i <Int> floe i within the model's floes field
 Outputs:
-        None. Both floe and ocean fields are updated in-place. 
+        None. Both floe and ocean fields are updated in-place.
+Note: For floes that are completly out of the Grid, simulation will error. 
 """
 function calc_OA_forcings!(m, i)
     floe = m.floes[i]
@@ -219,7 +220,6 @@ function timestep_floe(floe, Δt)
         collision_torque /= 10
         # TODO: check floe interactions
     end
-
     h = floe.height
     # Update floe based on thermodynamic growth
     Δh = floe.hflx * Δt/h
@@ -260,7 +260,6 @@ function timestep_floe(floe, Δt)
     end
     dudt = frac*dudt
     dvdt = frac*dvdt
-
     floe.u += 1.5Δt*dudt-0.5Δt*floe.p_dudt
     floe.v += 1.5Δt*dvdt-0.5Δt*floe.p_dvdt
     floe.p_dudt = dudt
@@ -290,36 +289,90 @@ function timestep_atm!(m)
     m.hflx .= c.k/(c.ρi*c.L) .* (wind.temp .- ocean.temp)
 end
 
-function floe_boundary_interaction(floe, boundary_poly, bc::OpenBC, consts)
+function floe_boundary_interaction(floe, boundary_coords, bc::OpenBC, consts)
     floe_poly = LG.Polygon(floe.coords)
+    bounds_poly = LG.Polygon(boundary_coords)
     # Check if the floe and boundary actually overlap
-    if LG.intersects(floe_poly, boundary_poly)
+    if LG.intersects(floe_poly, bounds_poly)
         floe.alive = 0
     end
 end
 
-function floe_boundary_interaction(floe, boundary_poly, bc::CollisionBC,
+function floe_boundary_interaction(floe, boundary_coords, bc::CollisionBC,
 consts,  t::Type{T} = Float64) where T
     # Check if the floe and boundary actually overlap
-    floe_poly = LG.Polygon(floe.coords)
-    inter_floe = LG.intersection(floe_poly, boundary_poly)
+    c1 = floe.coords
+    c2 = boundary_coords
+    floe_poly = LG.Polygon(c1)
+    bounds_poly = LG.Polygon(c2)
+    inter_floe = LG.intersection(floe_poly, bounds_poly)
     inter_regions = sortregions(inter_floe)
-    if isempty(inter_regions)
-        return [0, 0], [0, 0]
+    if isempty(inter_regions)  # No interactions
+        return [0, 0], [0, 0], 0
     else
-        region_areas = [LG.area(poly) for poly in inter_regions]
-        if region_areas[1]/floe.area > 0.75
+        region_areas = [LG.area(poly) for poly in inter_regions]::Vector{Float64}
+        if region_areas[1]/floe.area > 0.75  # Regions overlap too much
             return [0, 0], [0, 0], Inf
         end
-        
+        ipoints = intersect_lines(c1, c2)  # Intersection points
+        if isempty(P) || size(P,2) < 2  # No overlap points
+            return [0, 0], [0, 0], 0
+        end
 
-
-
+        # Constants needed for below calculations
         force_factor = consts.modulus * floe.height / sqrt(floe.area)
         ν = 0.3  # Ask Brandon
         μ = 0.2  # static coefficent of friction
         γ = 0
         G = consts.modulus/(2*(1+ν))  # Sheer modulus
+
+        # Find number of overlapping regions greater than minumum area
+        n1 = length(c1[1]) - 1
+        n2 = length(c2[1]) - 1
+        min_area = min(n1, n2) * 100 / 1.75
+        inter_regions = inter_regions[region_areas .> min_area]
+        region_areas = region_areas[region_areas .> min_area]
+        ncontact = length(inter_regions)
+
+        force = zeros(ncontact, 2)
+        pcontact = zeros(ncontact, 2)
+        force_dir = [0; 0]
+        dl = 0
+        for i in eachindex(ncontact)
+            if region_areas[i] == 0
+                pcontact[k, :] = [0, 0]
+            else
+                coords = LG.GeoInterface.coordinates(inter_regions[i])::PolyVec{Float64}
+                cx, cy = LG.GeoInterface.coordinates(LG.centroid(inter_regions[i]))::Vector{Float64}
+                verts = zeros(ncontact)
+                dists = zeros(ncontact)
+                for i in 1:ncontact
+                    pi = repeat(ipoints[i], ncontact)
+                    dists[i], verts[i] = findmind([sum((c - pi).^2) for c in coords])
+                end
+                dists = sqrt.(dists)
+                p = coords[1][verts[findall(d -> d<1, dists)]]
+                m, ~ = size(p)
+                if m == 0
+                    pcontact[k, :] = [cx, cy]
+                elseif m == 2
+                    pcontact[k, :] = [cx, cy]
+                    Δx = p[2,1] - p[1,1]
+                    Δy = p[2,2] - p[1,2]
+                    b = sqrt(Δx^2 + Δy^2)
+                    force_dir = [-Δy/b; Δx/b]
+                    dl = b 
+                else
+
+                end
+
+
+                
+            end
+
+
+        end
+        
         return
     end
 end
@@ -332,28 +385,28 @@ function floe_domain_interaction(floe, domain::DT, consts) where DT<:RectangleDo
     northval = domain.north.val
     southval = domain.south.val
     if centroid[1] + rmax > domain.east.val
-        boundary_poly = LG.Polygon([[[eastval, northval], [eastval, southval],
-                                     [eastval + floe.rmax, southval],
-                                     [eastval + rmax, northval], [eastval, northval]]])
-        floe_boundary_interaction(floe, boundary_poly, domain.east.bc, consts)
+        boundary_coords = [[[eastval, northval], [eastval, southval],
+                            [eastval + floe.rmax, southval],
+                            [eastval + rmax, northval], [eastval, northval]]]
+        floe_boundary_interaction(floe, boundary_coords, domain.east.bc, consts)
     end
     if centroid[1] - rmax < domain.west.val
-        boundary_poly = LG.Polygon([[[westval, northval], [westval, southval],
-                                     [westval - floe.rmax, southval],
-                                     [westval - rmax, northval], [westval, northval]]])
-        floe_boundary_interaction(floe, boundary_poly, domain.west.bc, consts)
+        boundary_coords = [[[westval, northval], [westval, southval],
+                            [westval - floe.rmax, southval],
+                            [westval - rmax, northval], [westval, northval]]]
+        floe_boundary_interaction(floe, boundary_coords, domain.west.bc, consts)
     end
     if centroid[2] + rmax > domain.north.val
-        boundary_poly = LG.Polygon([[[westval, northval], [westval, northval + rmax],
-                                     [eastval, northval + floe.rmax],
-                                     [eastval, northval], [westval, northval]]])
-        floe_boundary_interaction(floe, boundary_poly, domain.north.bc, consts)
+        boundary_coords = [[[westval, northval], [westval, northval + rmax],
+                            [eastval, northval + floe.rmax],
+                            [eastval, northval], [westval, northval]]]
+        floe_boundary_interaction(floe, boundary_coords, domain.north.bc, consts)
     end
     if centroid[2] - rmax < domain.south.val
-        boundary_poly = LG.Polygon([[[westval, southval], [westval, southval - rmax],
-                                     [eastval, southval - floe.rmax],
-                                     [eastval, southval], [westval, southval]]])
-        floe_boundary_interaction(floe, boundary_poly, domain.north.bc, consts)
+        boundary_coords = [[[westval, southval], [westval, southval - rmax],
+                            [eastval, southval - floe.rmax],
+                            [eastval, southval], [westval, southval]]]
+        floe_boundary_interaction(floe, boundary_coords, domain.north.bc, consts)
     end
 
 end
@@ -399,6 +452,12 @@ function run!(sim, writers, t::Type{T} = Float64) where T
             floe_domain_interaction(new_floe, sim.model.domain, sim.model.consts)
             sim.model.floes[i] = new_floe
         end
+
+        remove_idx = findall(f -> f.alive == 0, sim.model.floes)
+        for idx in remove_idx
+            StructArrays.foreachfield(f -> deleteat!(f, idx), sim.model.floes)
+        end
+
         tstep+=1
     end
 

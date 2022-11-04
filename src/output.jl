@@ -399,9 +399,8 @@ Inputs:
 Output:
         Floe data averaged on eularian grid provided and saved in writer.data field 
 """
-function calc_eulerian_data!(floes, topography, writer)
+function calc_eulerian_data!(live_floes, topography, writer)
     # Calculate/collect needed values
-    live_floes = filter(f -> f.alive == 1, floes)
     Δx = writer.xg[2] - writer.xg[1]
     Δy = writer.yg[2] - writer.yg[1]
     cell_rmax = sqrt(Δx^2 + Δy^2)
@@ -495,15 +494,19 @@ Output:
         Writes desired fields writer.outputs to file with name writer.fn for current timestep
 """
 function write_data!(writer::GridOutputWriter, tstep, model)
-    calc_eulerian_data!(model.floes, model.topos, writer)
-    istep = div(tstep, writer.Δtout) + 1  # Julia indicies start at 1
-    # Open file and write data from grid writer
-    ds = NCDataset(joinpath(pwd(), "output", "grid", writer.fn), "a")
-    for i in eachindex(writer.outputs)
-        name = getname(writer.outputs[i])
-        ds[name][istep, :, :] = writer.data[:, :, i]
+    live_floes = filter(f -> f.alive == 1, model.floes)
+    if length(live_floes) > 0
+        calc_eulerian_data!(live_floes, model.topos, writer)
+        istep = div(tstep, writer.Δtout) + 1  # Julia indicies start at 1
+        
+        # Open file and write data from grid writer
+        ds = NCDataset(joinpath(pwd(), "output", "grid", writer.fn), "a")
+        for i in eachindex(writer.outputs)
+            name = getname(writer.outputs[i])
+            ds[name][istep, :, :] = writer.data[:, :, i]
+        end
+        close(ds)
     end
-    close(ds)
     return
 end
 
@@ -520,119 +523,121 @@ Output:
 """
 function write_data!(writer::FloeOutputWriter, tstep, model)
     live_floes = filter(f -> f.alive == 1, model.floes)
-    istep = div(tstep, writer.Δtout) + 1  # Julia indicies start at 1
-    # Open file 
-    ds = NCDataset(joinpath(pwd(), "output", "floe", writer.fn), "a")
-
-    # Change in number of floes
     nfloes = length(live_floes)
-    Δfloes = nfloes - ds.dim["floes"]
+    if nfloes > 0
+        istep = div(tstep, writer.Δtout) + 1  # Julia indicies start at 1
+        # Open file 
+        ds = NCDataset(joinpath(pwd(), "output", "floe", writer.fn), "a")
 
-    # If less floes, add NaN values to make data square with previous data
-    nfloeNaN = Δfloes < 0 ? -Δfloes : 0
+        # Change in number of floes
+        Δfloes = nfloes - ds.dim["floes"]
 
-    # If more floes, increase floes dimension
-    if Δfloes > 0
-        ds["floes"][:] = 1:nfloes
-    end
+        # If less floes, add NaN values to make data square with previous data
+        nfloeNaN = Δfloes < 0 ? -Δfloes : 0
 
-    # Get data from all floes in Floe StructArray and transform if needed
-    for o in writer.outputs
-        data =
-            if o == height_floe
-                live_floes.height
-            elseif o == area_floe
-                live_floes.area
-            elseif o == mass_floe
-                live_floes.mass
-            elseif o == moment_floe
-                live_floes.moment
-            elseif o == rmax_floe
-                live_floes.rmax
-            elseif o == α_floe
-                live_floes.α
-            elseif o == u_floe
-                live_floes.u
-            elseif o == v_floe
-                live_floes.v
-            elseif o == ξ_floe
-                live_floes.ξ
-            elseif o == fxOA_floe
-                live_floes.fxOA
-            elseif o == fyOA_floe
-                live_floes.fyOA
-            elseif o == torqueOA_floe
-                live_floes.torqueOA
-            elseif o == p_dxdt_floe
-                live_floes.p_dxdt
-            elseif o == p_dydt_floe
-                live_floes.p_dydt
-            elseif o == p_dudt_floe
-                live_floes.p_dudt
-            elseif o == p_dvdt_floe
-                live_floes.p_dvdt
-            elseif o == p_dξdt_floe
-                live_floes.p_dξdt
-            elseif o == p_dαdt_floe
-                live_floes.p_dαdt
-            elseif o == overarea_floe
-                live_floes.overarea
-            elseif o == alive_floe
-                live_floes.alive
-            elseif o == xcentroid_floe
-                # Seperate x centroid data
-                xcentroid, ycentroid = seperate_xy([live_floes.centroid])
-                xcentroid
-            elseif o == ycentroid_floe
-                # Seperate y centroid data
-                xcentroid, ycentroid = seperate_xy([live_floes.centroid])
-                ycentroid
-            elseif o == xcoords_floe
-                # Seperate x-coordinate data and square coordinate length between floes by adding NaNs
-                xcoords = [Subzero.seperate_xy(f.coords)[1] for f in live_floes]
-                # If more points, increase point dimensions and square data
-                npoints = [length(c) for c in xcoords]
-                maxpoints = maximum(npoints)
-                Δpoints = maxpoints - ds.dim["points"]
-                if Δpoints > 0
-                    ds["points"][:] = 1:maxpoints
-                end
-                npointsNaN = [n < 0 ? -n : 0 for n in npoints .- ds.dim["points"]]
-                square_xcoords = [vcat(xcoords[i], fill(NaN, npointsNaN[i])) for i in eachindex(xcoords)]
-                # Rectangular matrix of floes by x-coordinate points
-                hcat(square_xcoords...)'
-            elseif o == ycoords_floe
-                # Seperate y-coordinate data and square coordinate length between floes by adding NaNs
-                ycoords = [Subzero.seperate_xy(f.coords)[2] for f in live_floes]
-                # If more points, increase point dimensions and square data
-                npoints = [length(c) for c in ycoords]
-                maxpoints = maximum(npoints)
-                Δpoints = maximum(npoints) - ds.dim["points"]
-                if Δpoints > 0
-                    ds["points"][:] = 1:maxpoints
-                end
-                npointsNaN = [n < 0 ? -n : 0 for n in npoints .- ds.dim["points"]]
-                square_ycoords = [vcat(ycoords[i], fill(NaN, npointsNaN[i])) for i in eachindex(ycoords)]
-                # Rectangular matrix of floes by y-coordinate points
-                hcat(square_ycoords...)'
-            end
-        
-        name = getname(o)
-        if length(size(data)) == 1  # if 1D (not coords)
-            if Δfloes > 0
-                ds[name][1:istep-1, (nfloes-Δfloes+1):nfloes] = fill(NaN, istep-1, Δfloes)
-            end
-            ds[name][istep, :] = vcat(data, fill(NaN, nfloeNaN))
-        elseif length(size(data)) == 2  # if 2D (coords)
-            if Δfloes > 0
-                ds[name][1:istep-1, (nfloes-Δfloes+1):nfloes, 1:ds.dim["points"]] =
-                    fill(NaN, istep-1, Δfloes, ds.dim["points"])
-            end
-            ds[name][istep, :, :] = vcat(data, fill(NaN, nfloeNaN, ds.dim["points"]))
+        # If more floes, increase floes dimension
+        if Δfloes > 0
+            ds["floes"][:] = 1:nfloes
         end
-        
+
+        # Get data from all floes in Floe StructArray and transform if needed
+        for o in writer.outputs
+            data =
+                if o == height_floe
+                    live_floes.height
+                elseif o == area_floe
+                    live_floes.area
+                elseif o == mass_floe
+                    live_floes.mass
+                elseif o == moment_floe
+                    live_floes.moment
+                elseif o == rmax_floe
+                    live_floes.rmax
+                elseif o == α_floe
+                    live_floes.α
+                elseif o == u_floe
+                    live_floes.u
+                elseif o == v_floe
+                    live_floes.v
+                elseif o == ξ_floe
+                    live_floes.ξ
+                elseif o == fxOA_floe
+                    live_floes.fxOA
+                elseif o == fyOA_floe
+                    live_floes.fyOA
+                elseif o == torqueOA_floe
+                    live_floes.torqueOA
+                elseif o == p_dxdt_floe
+                    live_floes.p_dxdt
+                elseif o == p_dydt_floe
+                    live_floes.p_dydt
+                elseif o == p_dudt_floe
+                    live_floes.p_dudt
+                elseif o == p_dvdt_floe
+                    live_floes.p_dvdt
+                elseif o == p_dξdt_floe
+                    live_floes.p_dξdt
+                elseif o == p_dαdt_floe
+                    live_floes.p_dαdt
+                elseif o == overarea_floe
+                    live_floes.overarea
+                elseif o == alive_floe
+                    live_floes.alive
+                elseif o == xcentroid_floe
+                    # Seperate x centroid data
+                    xcentroid, ycentroid = seperate_xy([live_floes.centroid])
+                    xcentroid
+                elseif o == ycentroid_floe
+                    # Seperate y centroid data
+                    xcentroid, ycentroid = seperate_xy([live_floes.centroid])
+                    ycentroid
+                elseif o == xcoords_floe
+                    # Seperate x-coordinate data and square coordinate length between floes by adding NaNs
+                    xcoords = [Subzero.seperate_xy(f.coords)[1] for f in live_floes]
+                    # If more points, increase point dimensions and square data
+                    npoints = [length(c) for c in xcoords]
+                    maxpoints = maximum(npoints)
+                    Δpoints = maxpoints - ds.dim["points"]
+                    if Δpoints > 0
+                        ds["points"][:] = 1:maxpoints
+                    end
+                    npointsNaN = [n < 0 ? -n : 0 for n in npoints .- ds.dim["points"]]
+                    square_xcoords = [vcat(xcoords[i], fill(NaN, npointsNaN[i])) for i in eachindex(xcoords)]
+                    # Rectangular matrix of floes by x-coordinate points
+                    hcat(square_xcoords...)'
+                elseif o == ycoords_floe
+                    # Seperate y-coordinate data and square coordinate length between floes by adding NaNs
+                    ycoords = [Subzero.seperate_xy(f.coords)[2] for f in live_floes]
+                    # If more points, increase point dimensions and square data
+                    npoints = [length(c) for c in ycoords]
+                    maxpoints = maximum(npoints)
+                    Δpoints = maximum(npoints) - ds.dim["points"]
+                    if Δpoints > 0
+                        ds["points"][:] = 1:maxpoints
+                    end
+                    npointsNaN = [n < 0 ? -n : 0 for n in npoints .- ds.dim["points"]]
+                    square_ycoords = [vcat(ycoords[i], fill(NaN, npointsNaN[i])) for i in eachindex(ycoords)]
+                    # Rectangular matrix of floes by y-coordinate points
+                    hcat(square_ycoords...)'
+                end
+            
+            name = getname(o)
+            if length(size(data)) == 1  # if 1D (not coords)
+                if Δfloes > 0
+                    ds[name][1:istep-1, (nfloes-Δfloes+1):nfloes] = fill(NaN, istep-1, Δfloes)
+                end
+                ds[name][istep, :] = vcat(data, fill(NaN, nfloeNaN))
+            elseif length(size(data)) == 2  # if 2D (coords)
+                if Δfloes > 0
+                    ds[name][1:istep-1, (nfloes-Δfloes+1):nfloes, 1:ds.dim["points"]] =
+                        fill(NaN, istep-1, Δfloes, ds.dim["points"])
+                end
+                ds[name][istep, :, :] = vcat(data, fill(NaN, nfloeNaN, ds.dim["points"]))
+            end
+            
+        end
+        close(ds)
     end
-    close(ds)
     return
 end
 
