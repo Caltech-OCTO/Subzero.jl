@@ -1,4 +1,4 @@
-using Subzero, StructArrays
+using Subzero, StructArrays, Statistics
 import LibGEOS as LG
 
 # User Inputs
@@ -35,12 +35,14 @@ floe_poly = LG.Polygon([[[-0.5e4, 1e4], [-0.5e4, -1e4], [0.5e4, -1e4],
                     [0.5e4, 1e4], [-0.5e4, 1e4]]])
 floe1 = Floe(floe_poly, h_mean, Δh)
 floe_arr = StructArray([floe1 for i in 1:1])
-consts = Constants()
+
+modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
+consts = Constants(E = modulus)
 
 model = Model(grid, ocean, wind, domain, topo_arr, floe_arr, consts)
 
 # Simulation setup
-simulation = Simulation(model = model, nΔt = 30000)
+simulation = Simulation(model = model, nΔt = 3000)
 
 # Output setup
 gridwriter = GridOutputWriter([GridOutput(i) for i in 1:9], 10, "g.nc", grid, (10, 10))

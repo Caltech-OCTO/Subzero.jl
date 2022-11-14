@@ -605,16 +605,19 @@ function domain_in_grid(domain::CircleDomain, grid)
 end
 
 @kwdef struct Constants{FT<:AbstractFloat}
-    ρi::FT = 920.0              # ice density
-    ρo::FT = 1027.0             # ocean density
-    ρa::FT = 1.2                # air density
-    Cd_io::FT = 3e-3            # ice-ocean drag coefficent
-    Cd_ia::FT = 1e-3            # ice-atmosphere drag coefficent
-    Cd_ao::FT = 1.25e-3         # atmosphere-ocean momentum drag coefficient
-    f::FT = 1.4e-4              # ocean coriolis parameter
-    turnθ::FT = 15*pi/180       # ocean turn angle
-    L::FT = 2.93e5              # latent heat of freezing [Joules/kg]
-    k::FT = 2.14                # thermal conductivity of surface ice[W/(m*K)]
+    ρi::FT = 920.0              # Ice density
+    ρo::FT = 1027.0             # Ocean density
+    ρa::FT = 1.2                # Air density
+    Cd_io::FT = 3e-3            # Ice-ocean drag coefficent
+    Cd_ia::FT = 1e-3            # Ice-atmosphere drag coefficent
+    Cd_ao::FT = 1.25e-3         # Atmosphere-ocean momentum drag coefficient
+    f::FT = 1.4e-4              # Ocean coriolis parameter
+    turnθ::FT = 15*pi/180       # Ocean turn angle
+    L::FT = 2.93e5              # Latent heat of freezing [Joules/kg]
+    k::FT = 2.14                # Thermal conductivity of surface ice[W/(m*K)]
+    ν::FT = 0.3                 # Poisson's ratio
+    μ::FT = 0.2                 # Coefficent of friction
+    E::FT = 6e6                 # Young's Modulus
     #A::FT = 70.0                # upward flux constant A (W/m2)
     #B::FT = 10.0                # upward flux constant B (W/m2/K)
     #Q::FT = 200.0               # solar constant (W/m2)
@@ -644,11 +647,10 @@ struct Model{FT<:AbstractFloat, DT<:AbstractDomain{FT}}
     floes::StructArray{Floe{FT}}
     consts::Constants{FT}
     hflx::Matrix{FT}            # ocean heat flux
-    modulus::FT                 # elastic modulus
 
-    Model(grid, ocean, wind, domain, topos, floes, consts, hflx, modulus) =
+    Model(grid, ocean, wind, domain, topos, floes, consts, hflx) =
         (grid.dims == size(ocean.u) == size(wind.u) && domain_in_grid(domain, grid)) ?
-        new{typeof(modulus), typeof(domain)}(grid, ocean, wind, domain, topos, floes, consts, hflx, modulus) :
+        new{typeof(consts.ρi), typeof(domain)}(grid, ocean, wind, domain, topos, floes, consts, hflx) :
         throw(ArgumentError("Size of grid does not match size of ocean and/or wind OR domain is not within grid."))
 end
 
@@ -672,7 +674,6 @@ Outputs:
 """
 function Model(grid, ocean, wind, domain, topos, floes, consts, t::Type{T} = Float64) where T
     hflx = consts.k/(consts.ρi*consts.L) .* (wind.temp .- ocean.temp)
-    modulus = 1.5e3*(mean(sqrt.(floes.area)) + minimum(sqrt.(floes.area)))
     return Model(grid, ocean, wind, domain, topos, floes, consts,
-                 convert(Matrix{T}, hflx), convert(T, modulus))
+                 convert(Matrix{T}, hflx))
 end
