@@ -16,8 +16,8 @@ const coarse_ny = 10
 
 # Model instantiation
 grid = Grid(-Lx, Lx, -Ly, Ly, Δgrid, Δgrid)
-ocean = Ocean(grid, 0.5, 0.5, 0.0)
-wind = Wind(zeros(grid.dims), zeros(grid.dims), fill(-20.0, grid.dims))
+ocean = Ocean(grid, 0.0, 0.0, 0.0)
+wind = Wind(10*ones(grid.dims), zeros(grid.dims), fill(-20.0, grid.dims))
 
 # Domain creation
 domain = Subzero.RectangleDomain(grid, northBC = OpenBC(),
@@ -40,7 +40,7 @@ consts = Constants()
 model = Model(grid, ocean, wind, domain, topo_arr, floe_arr, consts)
 
 # Simulation setup
-simulation = Simulation(model = model, nΔt = 7200)
+simulation = Simulation(model = model, nΔt = 30000)
 
 # Output setup
 gridwriter = GridOutputWriter([GridOutput(i) for i in 1:9], 10, "g.nc", grid, (10, 10))

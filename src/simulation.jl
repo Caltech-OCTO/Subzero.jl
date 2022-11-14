@@ -148,11 +148,11 @@ function calc_OA_forcings!(m, i)
     lx = m.grid.xc[xidx] .- floe.centroid[1]
     ly = m.grid.yc[yidx] .- floe.centroid[2]
     uice = floe.u .- ly*floe.ξ
-    vice = floe.v .- lx*floe.ξ
+    vice = floe.v .+ lx*floe.ξ
 
     # Force on ice from atmopshere
     uatm = m.wind.u[idx]
-    vatm = m.wind.u[idx]
+    vatm = m.wind.v[idx]
     fx_atm = (c.ρa * c.Cd_ia * sqrt.(uatm.^2 + vatm.^2) .* uatm) .* areas
     fy_atm = (c.ρa * c.Cd_ia * sqrt.(uatm.^2 + vatm.^2) .* vatm) .* areas
 
@@ -171,7 +171,7 @@ function calc_OA_forcings!(m, i)
     # Sum above forces and find torque
     fx = fx_atm .+ fx_pressure∇ .+ fx_ocn
     fy = fy_atm .+ fy_pressure∇ .+ fy_ocn
-    trq = lx.*fy .- ly.*fx
+    trq = lx.*fy .- ly.*fx  # are these signs right?
 
     # Add coriolis force to total foces
     fx .+= ma_ratio * c.f * floe.v * areas
@@ -246,7 +246,7 @@ function timestep_floe(floe, Δt)
     # Update ice velocities with forces and torques
     dudt = (floe.fxOA + collision_force[1])/floe.mass
     dvdt = (floe.fyOA + collision_force[2])/floe.mass
-    
+
     frac = if abs(Δt*dudt) > (h/2) && abs(Δt*dvdt) > (h/2)
         frac1 = (sign(dudt)*h/2Δt)/dudt
         frac2 = (sign(dvdt)*h/2Δt)/dvdt
@@ -308,15 +308,15 @@ consts,  t::Type{T} = Float64) where T
     inter_floe = LG.intersection(floe_poly, bounds_poly)
     inter_regions = sortregions(inter_floe)
     if isempty(inter_regions)  # No interactions
-        return [0, 0], [0, 0], 0
+        return [0, 0], [0, 0], [0]
     else
         region_areas = [LG.area(poly) for poly in inter_regions]::Vector{Float64}
         if region_areas[1]/floe.area > 0.75  # Regions overlap too much
-            return [0, 0], [0, 0], Inf
+            return [0, 0], [0, 0], [Inf]
         end
         ipoints = intersect_lines(c1, c2)  # Intersection points
-        if isempty(P) || size(P,2) < 2  # No overlap points
-            return [0, 0], [0, 0], 0
+        if isempty(ipoints) || size(ipoints,2) < 2  # No overlap points
+            return [0, 0], [0, 0], [0]
         end
 
         # Constants needed for below calculations
@@ -332,48 +332,90 @@ consts,  t::Type{T} = Float64) where T
         min_area = min(n1, n2) * 100 / 1.75
         inter_regions = inter_regions[region_areas .> min_area]
         region_areas = region_areas[region_areas .> min_area]
+        overlap = region_areas
         ncontact = length(inter_regions)
-
         force = zeros(ncontact, 2)
         pcontact = zeros(ncontact, 2)
-        force_dir = [0; 0]
-        dl = 0
-        for i in eachindex(ncontact)
-            if region_areas[i] == 0
+        for k in eachindex(ncontact)
+            force_dir = [0.0; 0.0]
+            Δl = 0
+            if region_areas[k] == 0
                 pcontact[k, :] = [0, 0]
             else
-                coords = LG.GeoInterface.coordinates(inter_regions[i])::PolyVec{Float64}
-                cx, cy = LG.GeoInterface.coordinates(LG.centroid(inter_regions[i]))::Vector{Float64}
-                verts = zeros(ncontact)
-                dists = zeros(ncontact)
-                for i in 1:ncontact
-                    pi = repeat(ipoints[i], ncontact)
-                    dists[i], verts[i] = findmind([sum((c - pi).^2) for c in coords])
+                coords = LG.GeoInterface.coordinates(inter_regions[k])::PolyVec{Float64}
+                cx, cy = LG.GeoInterface.coordinates(LG.centroid(inter_regions[k]))::Vector{Float64}
+                n_ipoints = size(ipoints, 1)
+                verts = zeros(Int64, n_ipoints)
+                dists = zeros(n_ipoints)
+                for i in 1:n_ipoints
+                    p_i = repeat(ipoints[i, :], length(coords)) # this might be wrong
+                    dists[i], verts[i] = findmin([sum((c .- p_i).^2) for c in coords[1]])
                 end
                 dists = sqrt.(dists)
-                p = coords[1][verts[findall(d -> d<1, dists)]]
-                m, ~ = size(p)
+                p = coords[1][verts[findall(d -> d<1, dists)]] # maybe do rmax/1000
+                m = length(p)
+
+                # Calculate normal forces
                 if m == 0
                     pcontact[k, :] = [cx, cy]
                 elseif m == 2
                     pcontact[k, :] = [cx, cy]
-                    Δx = p[2,1] - p[1,1]
-                    Δy = p[2,2] - p[1,2]
-                    b = sqrt(Δx^2 + Δy^2)
-                    force_dir = [-Δy/b; Δx/b]
-                    dl = b 
-                else
-
+                    Δx = p[2][1] - p[1][1]
+                    Δy = p[2][2] - p[1][2]
+                    mag = sqrt(Δx^2 + Δy^2)
+                    Δl = mag
+                    if Δl > 0.1  # should match our scale
+                        force_dir = [-Δy/mag; Δx/mag]
+                    end
+                else  # Unusual number of contact points
+                    pcontact[k, :] = [cx, cy]
+                    x, y = seperate_xy(coords)
+                    Δx = diff(x)
+                    xmid = (x[2:end] .+ x[1:end-1]) ./ 2
+                    Δy = diff(y)
+                    ymid = (y[2:end] .+ y[1:end-1]) ./ 2
+                    mag = sqrt.(Δx.^2 .+ Δy.^2)  # vector magniture
+                    uvec = [-Δy./mag Δx./mag]  # unit vector
+                    xt = xmid.+uvec[:, 1]./100
+                    yt = ymid+uvec[:, 1]./100 #  maybe we need to scale?
+                    in_idx = inpoly2(hcat(xt, yt), hcat(x, y))
+                    uvec[in_idx[:, 1] .|  in_idx[:, 2], :] *= -1
+                    Fn = -force_factor * (mag * ones(1, 2)) .* uvec
+                    dmin_lst = calc_point_poly_dist(xmid, ymid, c1)
+                    on_idx = findall(d->abs(d)<1e-8, dmin_lst)
+                    if 0 < length(on_idx) < length(dmin_lst)
+                        Δl = mean(mag[on_idx])
+                        if Δl > 0.1
+                            Fn_tot = sum(Fn[on_idx, :], dims = 1)
+                            force_dir = Fn_tot'/sqrt(Fn_tot*Fn_tot')
+                        end
+                    end
                 end
 
-
+                # Find the direction of the force
+                c1new = if Δl < 0.1
+                    c1
+                else
+                    [[c .+ vec(force_dir) for c in c1[1]]]
+                end
+                # Floe/boudary intersection after being moved in force direction
+                new_inter_floe = LG.intersection(LG.Polygon(c1new), bounds_poly)
+                # Need to find which new overlap region corresponds to region k
+                new_region_overlaps = LG.getGeometries(LG.intersection(new_inter_floe, inter_regions[k]))
+                if !isempty(new_region_overlaps)
+                    ~, max_idx = findmax(LG.area, new_region_overlaps)
+                    new_overlap_area = LG.area(LG.getGeometries(new_inter_floe)[max_idx])
+                    if new_overlap_area/region_areas[k] > 1  # Force increased overlap
+                       force_dir *= -1 
+                    end
+                end
                 
             end
-
-
+            # TODO add tangential forces
+            force_t = [0.0 0.0]
+            force[k, :] = (force_dir * region_areas[k] * force_factor)' .+ force_t
         end
-        
-        return
+        return force, pcontact, overlap
     end
 end
 
@@ -457,7 +499,6 @@ function run!(sim, writers, t::Type{T} = Float64) where T
         for idx in remove_idx
             StructArrays.foreachfield(f -> deleteat!(f, idx), sim.model.floes)
         end
-
         tstep+=1
     end
 

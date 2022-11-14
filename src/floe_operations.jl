@@ -334,7 +334,7 @@ Revision: 1.6 Date: 2003/11/21 14:44:06
 function calc_poly_angles(coords::PolyVec{T}, t::Type{T} = Float64) where {T<:AbstractFloat}
     ext = valid_polyvec!(coords)[1]
     # Calculate needed vectors
-    pdiff = ext[2:end] .- ext[1:end-1]
+    pdiff = diff(ext)
     npoints = length(pdiff)
     v1 = -pdiff
     v2 = vcat(pdiff[2:end], pdiff[1:1])
@@ -348,24 +348,24 @@ function calc_poly_angles(coords::PolyVec{T}, t::Type{T} = Float64) where {T<:Ab
 
     # The first angle computed was for the second vertex, and the last was for the first vertex.
     # Scroll one position down to make the last vertex be the first.
-    circshift!(angles, -1)
+    sangles = circshift(angles, 1)
     # Now determine if any vertices are concave and adjust the angles accordingly.
     sgn = convex_angle_test(ext, T)
-    angles = [sgn[i] == -1 ? 360 - angles[i] : angles[i] for i in collect(1:length(angles))]
-    return angles
+    sangles = [sgn[i] == -1 ? 360 - sangles[i] : sangles[i] for i in collect(1:length(sangles))]
+    return sangles
 end
 
 """
-    calc_point_poly_dist(vec_points = Vector{T}, vec_poly::PolyVec{T})
+    calc_point_poly_dist(xp::Vector{T},yp::Vector{T}, vec_poly::PolyVec{T})
 
-Compute the distances from each one of a set of np points in vec_points on a 2D plane to a polygon.
+Compute the distances from each one of a set of np points on a 2D plane to a polygon.
 Distance from point j to an edge k is defined as a distance from this point to a straight line passing
 through vertices v(k) and v(k+1), when the projection of point j on this line falls INSIDE segment k;
 and to the closest of v(k) or v(k+1) vertices, when the projection falls OUTSIDE segment k.
 Inputs:
-        vec_points  <Vector{Vector{Float}}> points to find distance in [x, y] floe_domain_interaction
+        xp  <Vector{Float}> x-coordinates of points to find distance from vec_poly
+        yp  <Vector{Float}> y-coordiantes of points to find distance from vec_poly
         vec_poly    <PolyVec{Float}> coordinates of polygon
-        t           <AbstractFloat> datatype to run model with - must be a Float
 Outputs:
         List of distances from each point to the polygon. If the point is inside of the polygon the
         value will be negative.
@@ -375,12 +375,13 @@ p_poly_dist by Michael Yoshpe - last updated in 2006.
 We mimic version 1 functionality with 4 inputs and 1 output.
 Only needed code was translated.
 """
-function calc_point_poly_dist(vec_points::Vector{Vector{T}}, vec_poly::PolyVec{T}) where {T<:AbstractFloat}
-    dmin = if !isempty(vec_points[1])
+function calc_point_poly_dist(xp::Vector{T},yp::Vector{T}, vec_poly::PolyVec{T}) where {T<:AbstractFloat}
+    @assert length(xp) == length(yp)
+    min_lst = if !isempty(xp)
         # Vertices in polygon and given points
         Pv = reduce(hcat, valid_polyvec!(vec_poly)[1])'
-        Pp = reduce(hcat, vec_points)'
-        np = length(vec_points)
+        Pp = hcat(xp, yp)
+        np = length(xp)
         nv = length(vec_poly[1])
         # Distances between all points and vertices in x and y
         x_dist = repeat(Pv[:, 1], 1, np)' .- repeat(Pp[:, 1], 1, nv)
@@ -447,11 +448,11 @@ function calc_point_poly_dist(vec_points::Vector{Vector{T}}, vec_poly::PolyVec{T
                 dmin[i] *= -1
             end
         end
-        dmin[:, 1]
+        dmin[:, 1]  # Turn array into a vector
     else
         T[]
     end
-    return dmin
+    return min_lst
 end
 
 """
@@ -505,7 +506,7 @@ function intersect_lines(l1, l2)
         L = L[L .!= 0]
         # Solve system of eqs to get the common points
         unique(hcat((Δx2t[j] .* S1[i] - Δx1[i] .* S2t[j]) ./ L,
-                     Δy2t[j] .* S1[i] - Δy1[i] .* S2t[j] ./ L), dims = 1)
+                    (Δy2t[j] .* S1[i] - Δy1[i] .* S2t[j]) ./ L), dims = 1)
     end
     return P
 end

@@ -31,4 +31,15 @@
         @test area_ratio4[2] == 0.36
         @test area_ratio4[3] == 0.18
     end
+
+    @testset "Collisions" begin
+        coords1 = [[[0.0, 0.0], [0.0, 10000.0], [5000, 10000], [5000, 0], [0, 0]]]
+        coords2 = [[[4998.0, 4000.0], [4998.0, 8000.0], [10000, 8000], [10000, 4000], [4998.0, 4000]]]
+        floe1 = Subzero.Floe(LibGEOS.Polygon(coords1), 0.25, 0.0)
+        floe2 = Subzero.Floe(LibGEOS.Polygon(coords2), 0.25, 0.0)
+
+        coords1 = [[[0., -1000], [0, 0], [1000, 0], [0, -1000]]]
+        coords2 = [[[925., -700], [900, 10], [950, 20], [975, -600], [925, -700]]]
+    end
+
 end
