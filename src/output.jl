@@ -51,6 +51,9 @@ FloeOutputWriter constructor to determine which are saved during the model run.
     alive_floe = 22
     xcoords_floe = 23
     ycoords_floe = 24
+    xcollision_force = 25
+    ycollision_force = 26
+    collision_torque = 27
 end
 
 """
@@ -114,6 +117,9 @@ function getname(output::FloeOutput)
         n == 22 ? "alive" :
         n == 23 ? "xcoords" :
         n == 24 ? "ycoords" :
+        n == 25 ? "xcollision_force" :
+        n == 26 ? "ycollision_force" :
+        n == 27 ? "collision_forque" :
         throw(ArgumentError("Floe output provided is not known."))
     return name
 end
@@ -179,6 +185,9 @@ function getattrs(output::FloeOutput)
         n == 22 ? ("unitless", "Flag if floe is still active in simulation") :
         n == 23 ? ("location", "Floe x-coordinates") :
         n == 24 ? ("location", "Floe y-coordinates") :
+        n == 25 ? ("N", "Total xcollision force from floes/topography/border") :
+        n == 26 ? ("N", "Total ycollision force from floes/topography/border") :
+        n == 27 ? ("N", "Total collision torque from floes/topography/border") :
         throw(ArgumentError("Floe output provided is not known."))
     return unit, comment
 end
@@ -619,6 +628,12 @@ function write_data!(writer::FloeOutputWriter, tstep, model)
                     square_ycoords = [vcat(ycoords[i], fill(NaN, npointsNaN[i])) for i in eachindex(ycoords)]
                     # Rectangular matrix of floes by y-coordinate points
                     hcat(square_ycoords...)'
+                elseif o == xcollision_force
+                    first.(live_floes.collision_force)
+                elseif o == ycollision_force
+                    last.(live_floes.collision_force)
+                elseif o == collision_torque
+                    live_floes.collision_torque
                 end
             
             name = getname(o)

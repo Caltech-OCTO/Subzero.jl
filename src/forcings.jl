@@ -93,14 +93,13 @@ Calculate the effects on the ocean and atmpshere on floe i within the given mode
 and the effects of the ice floe on the ocean.
 
 Inputs:
-        m <Model> given model
-        i <Int> floe i within the model's floes field
+        floe    <Floe> floe
+        m       <Model> given model
 Outputs:
         None. Both floe and ocean fields are updated in-place.
 Note: For floes that are completly out of the Grid, simulation will error. 
 """
-function calc_OA_forcings!(m, i)
-    floe = m.floes[i]
+function calc_OA_forcings!(floe, m)
     c = m.consts
     Δx = m.grid.xg[2] - m.grid.xg[1]
     Δy = m.grid.yg[2] - m.grid.yg[1]
@@ -150,7 +149,6 @@ function calc_OA_forcings!(m, i)
     floe.fxOA = sum(fx)
     floe.fyOA = sum(fy)
     floe.torqueOA = sum(trq)
-    m.floes[i] = floe
 
     # TODO: Not thread safe
     # Update ocean stress fields with ice on ocean stress
@@ -229,7 +227,7 @@ function collision_normal_force(c1, c2, region, area, ipoints, force_factor, T)
     return (force_dir * area * force_factor)'
 end
 
-function collision_all_forces(c1, c2, regions, region_areas, force_factor, consts, T)
+function calc_collision_forces(c1, c2, regions, region_areas, force_factor, consts, T)
     ipoints = intersect_lines(c1, c2)  # Intersection points
     if isempty(ipoints) || size(ipoints,2) < 2  # No overlap points
         return zeros(T, 1, 2), zeros(T, 1, 2), zeros(T, 1)  # Force, contact points, overlap area

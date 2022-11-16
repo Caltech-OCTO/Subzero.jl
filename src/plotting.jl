@@ -82,6 +82,20 @@ function setup_plot(model::Model)
     return plt
 end
 
+function setup_plot(sim_data, xg, yg)
+    xmax = xg[end]/1000  # kilometers
+    ymax = yg[end]/1000
+    ratio = ymax/xmax
+    plt = Plots.plot(xlims = (xg[1]/1000, xmax),
+                     ylims = (yg[1]/1000, ymax),
+                     size = (1500, 1200),
+                     aspect_ratio=ratio,
+                     xlabel = "[km]",
+                     ylabel = "[km]")
+    # TODO: add in topography and domain once we figure out how we want to save this meta data
+    return plt
+end
+
 """
     plot_sim(model, plt)
 
@@ -107,5 +121,19 @@ function plot_sim(model, plt, time)
     plot!(plt_new, [LG.Polygon([floe_coords[i][1] ./ 1000]) for i in eachindex(floe_coords) if floe_alive[i] == 1], fill = :lightblue)
           
     # Save plot
-    Plots.savefig(plt_new, "figs/plot_$time.png")
+    Plots.savefig(plt_new, "figs/collisions/plot_$time.png")
+end
+
+function create_sim_gif(floes_fn, xg, yg)
+    sim_data = NCDataset(floes_fn)  # TODO: Change this if we don't want NetCDFs
+    plt = setup_plot(sim_data, xg, yg)
+
+    xcoords = sim_data["xcoords"][:, :]
+    ycoords = sim_data["xcoords"][:, :]
+    alive = sim_data["alive"][:, :]
+    anim = @animate for tstep in eachindex(sim_data["time"][:])
+        plt_new = plot(plt)
+        plot!(plt_new, [LG.Polygon([floe_coords[i][1] ./ 1000]) for i in 
+            eachindex(floe_coords) if floe_alive[i] == 1], fill = :lightblue)
+    end
 end

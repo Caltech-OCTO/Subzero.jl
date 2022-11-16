@@ -484,7 +484,12 @@ conversion to and from LibGEOS Polygons.
     p_dαdt::FT = 0.0        # previous timestep ξ
     hflx::FT = 0.0          # heat flux under the floe
     overarea::FT = 0.0      # total overlap with other floes
-    alive::Int = 1      # floe is still active in simulation
+    alive::Int = 1          # floe is still active in simulation
+                            # floe interactions with other floes/boundaries
+    interactions::NamedMatrix{FT} = NamedArray(zeros(7),
+        (["floeidx", "xforce", "yforce", "xpoint", "ypoint", "torque", "overlap"]))'
+    collision_force::Matrix{FT} = [0.0 0.0] 
+    collision_torque::FT = 0.0
 end # TODO: do we want to do any checks? Ask Mukund!
 
 """
@@ -517,11 +522,11 @@ function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 
     moment = calc_moment_inertia(floe, h, ρi = ρi)
     coords = LG.GeoInterface.coordinates(floe)::PolyVec{Float64}
     rmax = sqrt(maximum([sum(c.^2) for c in translate(coords, -centroid)[1]]))
+    
 
-    return Floe(centroid = convert(Vector{T}, centroid),
-                height = convert(T, h), area = convert(T, area),
-                mass = convert(T, mass), moment = convert(T, moment),
-                coords = convert(PolyVec{T}, coords), rmax = convert(T, rmax), u = convert(T, u), v = convert(T, v), ξ = convert(T, ξ))
+    return Floe(centroid = convert(Vector{T}, centroid), height = convert(T, h), area = convert(T, area),
+                mass = convert(T, mass), moment = convert(T, moment), coords = convert(PolyVec{T}, coords),
+                rmax = convert(T, rmax), u = convert(T, u), v = convert(T, v), ξ = convert(T, ξ))
 end
 
 """

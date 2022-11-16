@@ -38,7 +38,14 @@ Input:
 Output:
         floe with updated fields
 """
-function timestep_floe(floe, Δt, collision_force, collision_torque)
+function timestep_floe!(floe, Δt)
+    floe.collision_force[1] += sum(floe.interactions[:, "xforce"])
+    floe.collision_force[2] += sum(floe.interactions[:, "yforce"])
+    floe.collision_torque += sum(floe.interactions[:, "torque"])
+
+    cforce = floe.collision_force
+    ctorque = floe.collision_torque
+
     if floe.height > 10
         floe.height = 10
     end
@@ -48,9 +55,9 @@ function timestep_floe(floe, Δt, collision_force, collision_torque)
         floe.alive = 0
     end
 
-    while maximum(abs.(collision_force)) > floe.mass/(5Δt)
-        collision_force /= 10
-        collision_torque /= 10
+    while maximum(abs.(cforce)) > floe.mass/(5Δt)
+        cforce = cforce ./ 10
+        ctorque = ctorque ./ 10
         # TODO: check floe interactions
     end
     h = floe.height
@@ -77,8 +84,8 @@ function timestep_floe(floe, Δt, collision_force, collision_torque)
                               sin(Δα)*p[1] + cos(Δα)p[2]], floe.coords[1])]
 
     # Update ice velocities with forces and torques
-    dudt = (floe.fxOA + collision_force[1])/floe.mass
-    dvdt = (floe.fyOA + collision_force[2])/floe.mass
+    dudt = (floe.fxOA + cforce[1])/floe.mass
+    dvdt = (floe.fyOA + cforce[2])/floe.mass
 
     frac = if abs(Δt*dudt) > (h/2) && abs(Δt*dvdt) > (h/2)
         frac1 = (sign(dudt)*h/2Δt)/dudt
@@ -91,6 +98,7 @@ function timestep_floe(floe, Δt, collision_force, collision_torque)
     else
         1
     end
+
     dudt = frac*dudt
     dvdt = frac*dvdt
     floe.u += 1.5Δt*dudt-0.5Δt*floe.p_dudt
@@ -98,7 +106,7 @@ function timestep_floe(floe, Δt, collision_force, collision_torque)
     floe.p_dudt = dudt
     floe.p_dvdt = dvdt
 
-    dξdt = (floe.torqueOA + collision_torque)/floe.moment
+    dξdt = (floe.torqueOA + ctorque)/floe.moment
     dξdt = frac*dξdt
     ξ = floe.ξ + 1.5Δt*dξdt-0.5Δt*floe.p_dξdt
     if abs(ξ) > 1e-5
@@ -106,9 +114,7 @@ function timestep_floe(floe, Δt, collision_force, collision_torque)
     end
     floe.ξ = ξ
     floe.p_dξdt = dξdt
-
-    return floe
-
+    return
     # TODO: Floe strain - Calc_trajectory lines 216-288
     # TODO: Floe stress - Calc_trajectory lines 9-21
 end
@@ -123,7 +129,7 @@ function timestep_atm!(m)
 end
 
 
-function floe_boundary_interaction(floe, boundary_coords, bc::OpenBC, consts)
+function floe_boundary_interaction!(floe, boundary_coords, bc::OpenBC, consts)
     floe_poly = LG.Polygon(floe.coords)
     bounds_poly = LG.Polygon(boundary_coords)
     # Check if the floe and boundary actually overlap
@@ -132,17 +138,11 @@ function floe_boundary_interaction(floe, boundary_coords, bc::OpenBC, consts)
     end
 end
 
-function floe_boundary_interaction(floe, boundary_coords, bc::CollisionBC,
+function floe_boundary_interaction!(floe, boundary_coords, bc::CollisionBC,
 consts,  t::Type{T} = Float64) where T
-    
-    # Constant needed for force calculations
-    force_factor = consts.E * floe.height / sqrt(floe.area)
-
     # Check if the floe and boundary actually overlap
-    c1 = floe.coords
-    c2 = boundary_coords
-    floe_poly = LG.Polygon(c1)
-    bounds_poly = LG.Polygon(c2) 
+    floe_poly = LG.Polygon(floe.coords)
+    bounds_poly = LG.Polygon(boundary_coords)
     inter_floe = LG.intersection(floe_poly, bounds_poly)
     inter_regions = LG.getGeometries(inter_floe)
     if isempty(inter_regions)  # No interactions
@@ -150,14 +150,25 @@ consts,  t::Type{T} = Float64) where T
     else
         region_areas = [LG.area(poly) for poly in inter_regions]::Vector{Float64}
         if maximum(region_areas)/floe.area > 0.75  # Regions overlap too much
-            return zeros(T, 1, 2), zeros(T, 1, 2), fill(T, Inf, 1)
+            return zeros(T, 1, 2), zeros(T, 1, 2), fill(T(Inf), 1)
         end
-
-        return collision_all_forces(c1, c2, inter_regions, region_areas, force_factor, consts, T)
+        # Constant needed for force calculations
+        force_factor = consts.E * floe.height / sqrt(floe.area)
+        # Total collision forces
+        forces, pcontacts, overlaps =  calc_collision_forces(floe.coords, boundary_coords,
+                                        inter_regions, region_areas, force_factor, consts, T)
+        # Add back once I figure out what I am doing about Lx/Ly
+        # if sum(abs.(forces)) != 0
+        #     forces[pcontacts[:, 2] .== Ly, 1] .= zeros(T, 1)
+        #     forces[pcontacts[:, 1] .== Lx, 2] .= zeros(T, 1)
+        # end
+        nint = size(forces, 1)
+        floe.interactions = [floe.interactions; fill(Inf, nint) forces pcontacts zeros(nint) overlaps']
+        floe.overarea += sum(overlaps)
     end
 end
 
-function floe_domain_interaction(floe, domain::DT, consts) where DT<:RectangleDomain
+function floe_domain_interaction!(floe, domain::DT, consts) where DT<:RectangleDomain
     centroid = floe.centroid
     rmax = floe.rmax
     eastval = domain.east.val
@@ -165,33 +176,38 @@ function floe_domain_interaction(floe, domain::DT, consts) where DT<:RectangleDo
     northval = domain.north.val
     southval = domain.south.val
 
+    if centroid[1] > eastval || centroid[1] < westval || centroid[2] > northval || centroid[2] < southval
+        floe.alive = 0
+        return
+    else
+
+    end
     #TODO: Reorganize so that all collision are together, all open together, eastBC
-    #TODO: Check if floe is within boundary before doing collision calculations
-    if centroid[1] + rmax > domain.east.val
+    if centroid[1] + rmax > eastval
         boundary_coords = [[[eastval, northval], [eastval, southval],
                             [eastval + floe.rmax, southval],
                             [eastval + rmax, northval], [eastval, northval]]]
-        floe_boundary_interaction(floe, boundary_coords, domain.east.bc, consts)
+        floe_boundary_interaction!(floe, boundary_coords, domain.east.bc, consts)
     end
-    if centroid[1] - rmax < domain.west.val
+    if centroid[1] - rmax < westval
         boundary_coords = [[[westval, northval], [westval, southval],
                             [westval - floe.rmax, southval],
                             [westval - rmax, northval], [westval, northval]]]
-        floe_boundary_interaction(floe, boundary_coords, domain.west.bc, consts)
+        floe_boundary_interaction!(floe, boundary_coords, domain.west.bc, consts)
     end
-    if centroid[2] + rmax > domain.north.val
+    if centroid[2] + rmax > northval
         boundary_coords = [[[westval, northval], [westval, northval + rmax],
                             [eastval, northval + floe.rmax],
                             [eastval, northval], [westval, northval]]]
-        floe_boundary_interaction(floe, boundary_coords, domain.north.bc, consts)
+        floe_boundary_interaction!(floe, boundary_coords, domain.north.bc, consts)
     end
-    if centroid[2] - rmax < domain.south.val
+    if centroid[2] - rmax < southval
         boundary_coords = [[[westval, southval], [westval, southval - rmax],
                             [eastval, southval - floe.rmax],
                             [eastval, southval], [westval, southval]]]
-        floe_boundary_interaction(floe, boundary_coords, domain.north.bc, consts)
+        floe_boundary_interaction!(floe, boundary_coords, domain.north.bc, consts)
     end
-
+    return
 end
 
 """
@@ -225,15 +241,18 @@ function run!(sim, writers, t::Type{T} = Float64) where T
             for idx in widx
                 write_data!(writers[idx], tstep, sim.model)
             end
+            plot_sim(sim.model, plt, tstep)
         end
         sim.model.ocean.si_frac .= zeros(T, 1)
         for i in eachindex(sim.model.floes)
-            calc_OA_forcings!(sim.model, i)
-            collision_force = zeros(T, 1, 2)
-            collision_torque = zeros(T, 1)
-            new_floe = timestep_floe(sim.model.floes[i], sim.Δt, collision_force, collision_torque)
-            floe_domain_interaction(new_floe, sim.model.domain, sim.model.consts)
-            sim.model.floes[i] = new_floe
+            floe = sim.model.floes[i]
+            floe.collision_force = zeros(T, 1, 2)
+            floe.collision_torque = T(0.0)
+            floe.interactions = floe.interactions[1:1, :]
+            floe_domain_interaction!(floe, sim.model.domain, sim.model.consts)
+            calc_OA_forcings!(floe, sim.model)
+            timestep_floe!(floe, sim.Δt)
+            sim.model.floes[i] = floe
         end
 
         remove_idx = findall(f -> f.alive == 0, sim.model.floes)
