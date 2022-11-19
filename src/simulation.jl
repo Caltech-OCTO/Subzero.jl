@@ -129,25 +129,24 @@ function timestep_atm!(m)
 end
 
 
-function floe_boundary_interaction!(floe, boundary_coords, bc::OpenBC, consts)
+function floe_boundary_interaction!(floe, boundary_coords, ::OpenBC, _)
     floe_poly = LG.Polygon(floe.coords)
     bounds_poly = LG.Polygon(boundary_coords)
     # Check if the floe and boundary actually overlap
     if LG.intersects(floe_poly, bounds_poly)
         floe.alive = 0
     end
+    return
 end
 
-function floe_boundary_interaction!(floe, boundary_coords, bc::CollisionBC,
-consts,  t::Type{T} = Float64) where T
+function floe_boundary_interaction!(floe, boundary_coords, ::CollisionBC,
+consts, t::Type{T} = Float64) where T
     # Check if the floe and boundary actually overlap
     floe_poly = LG.Polygon(floe.coords)
     bounds_poly = LG.Polygon(boundary_coords)
-    inter_floe = LG.intersection(floe_poly, bounds_poly)
-    inter_regions = LG.getGeometries(inter_floe)
-    if isempty(inter_regions)  # No interactions
-        return zeros(T, 1, 2), zeros(T, 1, 2), zeros(T, 1)
-    else
+    if LG.intersects(floe_poly, bounds_poly)
+        inter_floe = LG.intersection(floe_poly, bounds_poly)
+        inter_regions = LG.getGeometries(inter_floe)
         region_areas = [LG.area(poly) for poly in inter_regions]::Vector{Float64}
         if maximum(region_areas)/floe.area > 0.75  # Regions overlap too much
             return zeros(T, 1, 2), zeros(T, 1, 2), fill(T(Inf), 1)
@@ -157,18 +156,19 @@ consts,  t::Type{T} = Float64) where T
         # Total collision forces
         forces, pcontacts, overlaps =  calc_collision_forces(floe.coords, boundary_coords,
                                         inter_regions, region_areas, force_factor, consts, T)
-        # Add back once I figure out what I am doing about Lx/Ly
-        # if sum(abs.(forces)) != 0
-        #     forces[pcontacts[:, 2] .== Ly, 1] .= zeros(T, 1)
-        #     forces[pcontacts[:, 1] .== Lx, 2] .= zeros(T, 1)
-        # end
-        nint = size(forces, 1)
-        floe.interactions = [floe.interactions; fill(Inf, nint) forces pcontacts zeros(nint) overlaps']
-        floe.overarea += sum(overlaps)
+        # Add this back in once we figure out Ly, Lx --> should we just use poly2 to check if ON
+        if sum(abs.(forces)) != 0
+        #   forces[pcontacts[:, 2] .== Ly, 1] .= T(0.0)
+        #   forces[pcontacts[:, 1] .== Lx, 2] .= T(0.0)
+            nint = size(forces, 1)
+            floe.interactions = [floe.interactions; fill(Inf, nint) forces pcontacts zeros(nint) overlaps']
+            floe.overarea += sum(overlaps)
+        end
     end
+    return
 end
 
-function floe_domain_interaction!(floe, domain::DT, consts) where DT<:RectangleDomain
+function floe_domain_interaction!(floe, domain::DT, consts, t::Type{T} = Float64) where {DT<:RectangleDomain, T}
     centroid = floe.centroid
     rmax = floe.rmax
     eastval = domain.east.val
@@ -176,13 +176,14 @@ function floe_domain_interaction!(floe, domain::DT, consts) where DT<:RectangleD
     northval = domain.north.val
     southval = domain.south.val
 
+    # unless periodic
     if centroid[1] > eastval || centroid[1] < westval || centroid[2] > northval || centroid[2] < southval
         floe.alive = 0
         return
     else
 
     end
-    #TODO: Reorganize so that all collision are together, all open together, eastBC
+   
     if centroid[1] + rmax > eastval
         boundary_coords = [[[eastval, northval], [eastval, southval],
                             [eastval + floe.rmax, southval],
@@ -210,6 +211,52 @@ function floe_domain_interaction!(floe, domain::DT, consts) where DT<:RectangleD
     return
 end
 
+function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, t::Type{T} = Float64) where T
+    remove = T(0.0)
+    transfer = T(0.0)
+    ifloe_poly = LG.Polygon(ifloe.coords)
+    jfloe_poly = LG.Polygon(jfloe.coords)
+    if LG.intersects(ifloe_poly, jfloe_poly)  # Interactions
+        inter_floe = LG.intersection(ifloe_poly, jfloe_poly)
+        inter_regions = LG.getGeometries(inter_floe)
+        region_areas = [LG.area(poly) for poly in inter_regions]::Vector{Float64}
+        total_area = sum(region_areas)
+        # Floes overlap too much - remove floe or transfer floe mass to other floe
+        if total_area/ifloe.area > 0.55
+            if i <= nfloes
+                remove = i
+                transfer = j
+            elseif j <= nfloes
+                remove = j  # Will transfer mass to ifloe 
+            end
+        elseif total_area/jfloe.area > 0.55
+            if j <= nfloes
+                remove = j  # Will transfer mass to ifloe
+            end
+        else
+            # Calculate force force
+            ih = ifloe.height
+            ir = sqrt(ifloe.area)
+            jh = jfloe.height
+            jr = sqrt(jfloe.area)
+            force_factor = if ir>1e5 || jr>1e5
+                consts.E*min(ih, jh)/min(ir, jr)
+            else
+                consts.E*(ih*jh)/(ih*jr+jh*ir)
+            end
+            # Calculate forces, force points, and overlap areas
+            forces, pcontacts, overlaps = calc_collision_forces(ifloe.coords, jfloe.coords,
+                                        inter_regions, region_areas, force_factor, consts, T)
+            if sum(abs.(forces)) != 0
+                nint = size(forces, 1)
+                ifloe.interactions = [ifloe.interactions; fill(j, nint) forces pcontacts zeros(nint) overlaps']
+                ifloe.overarea += sum(overlaps)
+            end
+        end
+    end
+    return remove, transfer
+end
+
 """
     domain_coords(domain::RectangleDomain)
 Inputs:
@@ -231,39 +278,76 @@ function run!(sim, writers, t::Type{T} = Float64) where T
     end
 
     println("Model running!")
-    plt = setup_plot(sim.model)
+    m = sim.model
+    plt = setup_plot(m)
     tstep = 0
-    plot_sim(sim.model, plt, tstep)
+    plot_sim(m, plt, tstep)
     while tstep <= sim.nΔt
         widx = findall(Δtout-> mod(tstep, Δtout) == 0, Δtout_lst)
         if length(widx) > 0
             println(tstep, " timesteps completed")
             for idx in widx
-                write_data!(writers[idx], tstep, sim.model)
+                write_data!(writers[idx], tstep, m)
             end
-            plot_sim(sim.model, plt, tstep)
+            plot_sim(m, plt, tstep)
         end
-        sim.model.ocean.si_frac .= zeros(T, 1)
-        for i in eachindex(sim.model.floes)
-            floe = sim.model.floes[i]
-            floe.collision_force = zeros(T, 1, 2)
-            floe.collision_torque = T(0.0)
-            floe.interactions = floe.interactions[1:1, :]
-            floe_domain_interaction!(floe, sim.model.domain, sim.model.consts)
-            calc_OA_forcings!(floe, sim.model)
-            timestep_floe!(floe, sim.Δt)
-            sim.model.floes[i] = floe
+        m.ocean.si_frac .= zeros(T, 1)
+        nfloes = length(m.floes) # number of floes before ghost floes
+        remove = zeros(Int, nfloes)
+        transfer = zeros(Int, nfloes)
+        for i in 1:nfloes # floe-floe collisions for floes i and j where i<j
+            ifloe = m.floes[i]
+            ifloe.collision_force = zeros(T, 1, 2)
+            ifloe.collision_torque = T(0.0)
+            ifloe.interactions = ifloe.interactions[1:1, :]
+            if sim.COLLISION
+                for j in i+1:nfloes
+                    if sum((ifloe.centroid .- m.floes[j].centroid).^2) < (ifloe.rmax + m.floes[j].rmax)^2
+                        ikill, itransfer = floe_floe_interaction!(ifloe, i, m.floes[j], j, nfloes, m.consts)
+                        remove[i] = ikill
+                        transfer[i] = itransfer
+                    end
+                end
+            end
+            m.floes[i] = ifloe
         end
+        for i in 1:length(m.floes)  # Update floes not directly calculated above where i>j
+            if i <= nfloes && remove[i] > 0 && remove[i] != i
+                transfer[remove[i]] = j
+            end
+            ij_inters = m.floes[i].interactions
+            if size(ij_inters, 1) > 1
+                for j in ij_inters[:, "floeidx"]
+                    if j <= length(m.floes) && j > i
+                        jidx = Int(j)
+                        jfloe = m.floes[jidx]
+                        jfloe.interactions = [jfloe.interactions; i -ij_inters[jidx, "xforce"] -ij_inters[jidx, "yforce"] #=
+                                           =# ij_inters[jidx, "xpoint"] ij_inters[jidx, "ypoint"] T(0.0) ij_inters[jidx, "overlap"]]
+                        jfloe.overarea += ij_inters[jidx, "overlap"]
+                        m.floes[jidx] = jfloe
+                    end
+                end
+            end
+        end
+        for i in 1:nfloes
+            ifloe = m.floes[i]
+            floe_domain_interaction!(ifloe, m.domain, m.consts)
+            floe_OA_forcings!(ifloe, m)
+            #calc_torque!(ifloe)
+            timestep_floe!(ifloe, sim.Δt)
+            m.floes[i] = ifloe
+        end
+        
 
-        remove_idx = findall(f -> f.alive == 0, sim.model.floes)
+        remove_idx = findall(f -> f.alive == 0, m.floes)
         for idx in remove_idx
-            StructArrays.foreachfield(f -> deleteat!(f, idx), sim.model.floes)
+            StructArrays.foreachfield(f -> deleteat!(f, idx), m.floes)
         end
         tstep+=1
     end
 
     # h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx)))
     # mean(h0)
-    plot_sim(sim.model, plt, tstep)
+    plot_sim(m, plt, tstep)
     println("Model done running!")
 end

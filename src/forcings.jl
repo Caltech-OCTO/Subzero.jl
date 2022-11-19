@@ -99,7 +99,7 @@ Outputs:
         None. Both floe and ocean fields are updated in-place.
 Note: For floes that are completly out of the Grid, simulation will error. 
 """
-function calc_OA_forcings!(floe, m)
+function floe_OA_forcings!(floe, m)
     c = m.consts
     Δx = m.grid.xg[2] - m.grid.xg[1]
     Δy = m.grid.yg[2] - m.grid.yg[1]
@@ -160,7 +160,7 @@ function calc_OA_forcings!(floe, m)
     return
 end
 
-function collision_normal_force(c1, c2, region, area, ipoints, force_factor, T)
+function collision_normal_force(c1, c2, region, area, ipoints, force_factor, t::Type{T} = Float64) where T
     force_dir = zeros(T, 2)
     coords = LG.GeoInterface.coordinates(region)::PolyVec{Float64}
     n_ipoints = size(ipoints, 1)
@@ -227,7 +227,7 @@ function collision_normal_force(c1, c2, region, area, ipoints, force_factor, T)
     return (force_dir * area * force_factor)'
 end
 
-function calc_collision_forces(c1, c2, regions, region_areas, force_factor, consts, T)
+function calc_collision_forces(c1, c2, regions, region_areas, force_factor, consts, t::Type{T} = Float64) where T
     ipoints = intersect_lines(c1, c2)  # Intersection points
     if isempty(ipoints) || size(ipoints,2) < 2  # No overlap points
         return zeros(T, 1, 2), zeros(T, 1, 2), zeros(T, 1)  # Force, contact points, overlap area
@@ -258,5 +258,15 @@ function calc_collision_forces(c1, c2, regions, region_areas, force_factor, cons
             force[k, :] = normal_force .+ friction_force
         end
         return force, pcontact, overlap
+    end
+end
+
+function calc_torque!(floe, t::Type{T} = Float64) where T
+    inters = floe.interactions
+    dir = [inters[:, "xpoint"] .- floe.centroid[1] inters[:, "ypoint"] .- floe.centroid[2] zeros(T, size(inters, 1))]
+    frc = [inters[:, "xforce"] inters[:, "yforce"] zeros(T, size(inters, 1))]
+    for i in eachindex(dir)
+        itorque = cross(dir[i, :], frc[i, :])
+        floe.interactions[i, "torque"] .= itorque
     end
 end
