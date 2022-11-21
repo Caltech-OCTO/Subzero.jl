@@ -243,11 +243,9 @@ function calc_collision_forces(c1, c2, regions, region_areas, force_factor, cons
         # Calculate forces for each remaining region
         force = zeros(T, ncontact, 2)  # Add type
         pcontact = zeros(T, ncontact, 2)
-        for k in eachindex(ncontact)
+        for k in 1:ncontact
             normal_force = zeros(T, 1, 2)
-            if region_areas[k] == 0
-                pcontact[k, :] = zeros(T, 2)
-            else
+            if region_areas[k] != 0
                 cx, cy = LG.GeoInterface.coordinates(LG.centroid(regions[k]))::Vector{Float64}
                 pcontact[k, :] = [cx, cy]
                 normal_force = collision_normal_force(c1, c2, regions[k], region_areas[k], ipoints, force_factor, T)
@@ -265,8 +263,10 @@ function calc_torque!(floe, t::Type{T} = Float64) where T
     inters = floe.interactions
     dir = [inters[:, "xpoint"] .- floe.centroid[1] inters[:, "ypoint"] .- floe.centroid[2] zeros(T, size(inters, 1))]
     frc = [inters[:, "xforce"] inters[:, "yforce"] zeros(T, size(inters, 1))]
-    for i in eachindex(dir)
-        itorque = cross(dir[i, :], frc[i, :])
-        floe.interactions[i, "torque"] .= itorque
+    for i in axes(dir, 1)
+        idir = vec(dir[i, :])
+        ifrc = vec(frc[i, :])
+        itorque = cross(idir, ifrc)
+        floe.interactions[i, "torque"] = itorque[3]
     end
 end

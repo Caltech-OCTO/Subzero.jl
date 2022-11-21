@@ -333,7 +333,7 @@ function run!(sim, writers, t::Type{T} = Float64) where T
             ifloe = m.floes[i]
             floe_domain_interaction!(ifloe, m.domain, m.consts)
             floe_OA_forcings!(ifloe, m)
-            #calc_torque!(ifloe)
+            calc_torque!(ifloe)
             timestep_floe!(ifloe, sim.Δt)
             m.floes[i] = ifloe
         end
