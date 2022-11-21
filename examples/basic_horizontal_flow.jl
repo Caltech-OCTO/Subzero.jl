@@ -45,11 +45,11 @@ consts = Constants(E = modulus, Cd_io = 0.0, Cd_ia = 0.0, Cd_ao = 0.0, f = 0.0)
 model = Model(grid, ocean, wind, domain, topo_arr, floe_arr, consts)
 
 # Simulation setup
-simulation = Simulation(model = model, Δt = Δt, nΔt = 800, COLLISION = true)
+simulation = Simulation(model = model, Δt = Δt, nΔt = 2000, COLLISION = true)
 
 # Output setup
 gridwriter = GridOutputWriter([GridOutput(i) for i in 1:9], 10, "g.nc", grid, (10, 10))
-floewriter = FloeOutputWriter([FloeOutput(i) for i in [9; 22:26]], 100, "f.nc", grid)
+floewriter = FloeOutputWriter([FloeOutput(i) for i in [9; 22:26]], 25, "f.nc", grid)
 
 # Run simulation
 run!(simulation, [floewriter])

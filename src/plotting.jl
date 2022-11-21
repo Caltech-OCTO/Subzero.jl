@@ -83,11 +83,11 @@ function setup_plot(model::Model)
 end
 
 function setup_plot(sim_data, xg, yg)
-    xmax = xg[end]/1000  # kilometers
-    ymax = yg[end]/1000
+    xmax = xg[end]  # kilometers
+    ymax = yg[end]
     ratio = ymax/xmax
-    plt = Plots.plot(xlims = (xg[1]/1000, xmax),
-                     ylims = (yg[1]/1000, ymax),
+    plt = Plots.plot(xlims = (xg[1], xmax),
+                     ylims = (yg[1], ymax),
                      size = (1500, 1200),
                      aspect_ratio=ratio,
                      xlabel = "[km]",
@@ -128,12 +128,17 @@ function create_sim_gif(floes_fn, xg, yg)
     sim_data = NCDataset(floes_fn)  # TODO: Change this if we don't want NetCDFs
     plt = setup_plot(sim_data, xg, yg)
 
-    xcoords = sim_data["xcoords"][:, :]
-    ycoords = sim_data["xcoords"][:, :]
+    xcoords = sim_data["xcoords"][:, :, :]
+    ycoords = sim_data["ycoords"][:, :, :]
     alive = sim_data["alive"][:, :]
     anim = @animate for tstep in eachindex(sim_data["time"][:])
         plt_new = plot(plt)
-        plot!(plt_new, [LG.Polygon([floe_coords[i][1] ./ 1000]) for i in 
-            eachindex(floe_coords) if floe_alive[i] == 1], fill = :lightblue)
+        for i in eachindex(sim_data["floes"][:])
+            if alive[tstep, i] == 1
+            plot!(plt_new, xcoords[tstep, i, :], ycoords[tstep, i, :],
+                           seriestype = [:shape,], fill = :lightblue, legend=false)
+            end
+        end
     end
+    gif(anim, string("figs/collisions/f.gif"), fps = 15)
 end
