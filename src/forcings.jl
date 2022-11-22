@@ -227,6 +227,20 @@ function collision_normal_force(c1, c2, region, area, ipoints, force_factor, t::
     return (force_dir * area * force_factor)'
 end
 
+function collision_friction_force(floe1, floe2, pcontact, nforce, Δl, consts)
+    v1 = [floe1.u floe1.v] .+ floe1.ξ*(pcontact .- floe1.centroid)
+    v2 = [floe2.u floe2.v] .+ floe2.ξ*(pcontact .- floe2.centroid)
+    vdiff = v1 .- v2
+    norm_vdiff = vecnorm(vdiff)
+    force_dir = max(abs.(vdiff)) == 0 ? zeros(T, 2) : vdiff/norm_vdiff
+    G = consts.E/(2*(1+consts.ν))  # Sheer modulus
+    force = -dot(force_dir, vdiff) * Δl * G * norm_vdiff * force_dir * Δt
+    if vecnorm(force) > consts.μ*vecnorm(nforce)
+        force = consts.μ*vecnorm(nforce)*force_dir
+    end
+    return force
+end
+
 function calc_collision_forces(c1, c2, regions, region_areas, force_factor, consts, t::Type{T} = Float64) where T
     ipoints = intersect_lines(c1, c2)  # Intersection points
     if isempty(ipoints) || size(ipoints,2) < 2  # No overlap points
@@ -251,7 +265,6 @@ function calc_collision_forces(c1, c2, regions, region_areas, force_factor, cons
                 normal_force = collision_normal_force(c1, c2, regions[k], region_areas[k], ipoints, force_factor, T)
             end
             # TODO add frictional forces
-            G = consts.E/(2*(1+consts.ν))  # Sheer modulus
             friction_force = zeros(T, 1, 2)
             force[k, :] = normal_force .+ friction_force
         end
@@ -261,12 +274,14 @@ end
 
 function calc_torque!(floe, t::Type{T} = Float64) where T
     inters = floe.interactions
-    dir = [inters[:, "xpoint"] .- floe.centroid[1] inters[:, "ypoint"] .- floe.centroid[2] zeros(T, size(inters, 1))]
-    frc = [inters[:, "xforce"] inters[:, "yforce"] zeros(T, size(inters, 1))]
-    for i in axes(dir, 1)
-        idir = vec(dir[i, :])
-        ifrc = vec(frc[i, :])
-        itorque = cross(idir, ifrc)
-        floe.interactions[i, "torque"] = itorque[3]
+    if size(inters, 1) > 1
+        dir = [inters[:, "xpoint"] .- floe.centroid[1] inters[:, "ypoint"] .- floe.centroid[2] zeros(T, size(inters, 1))]
+        frc = [inters[:, "xforce"] inters[:, "yforce"] zeros(T, size(inters, 1))]
+        for i in axes(dir, 1)
+            idir = vec(dir[i, :])
+            ifrc = vec(frc[i, :])
+            itorque = cross(idir, ifrc)
+            floe.interactions[i, "torque"] = itorque[3]
+        end
     end
 end

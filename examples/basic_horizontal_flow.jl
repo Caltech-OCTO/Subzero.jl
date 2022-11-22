@@ -33,11 +33,11 @@ topo_arr = StructVector([topo for i in 1:1])
 # Floe instantiation
 floe1_poly = LG.Polygon([[[9.25e4, 8e4], [9.25e4, 6e4], [9.75e4, 6e4], 
                     [9.75e4, 8e4], [9.25e4, 8e4]]])
-floe1 = Floe(floe1_poly, h_mean, Δh, u = -2.0)
-floe2_poly = LG.Polygon([[[8.25e4, 7e4], [8.25e4, 6e4], [8.75e4, 6e4], 
-                    [8.75e4, 7e4], [8.25e4, 7e4]]])
-floe2 = Floe(floe2_poly, h_mean, Δh, u = 3.0)
-floe_arr = StructArray([floe1, floe2])
+floe1 = Floe(floe1_poly, h_mean, Δh, u = 2.0)
+floe2_poly = LG.Polygon([[[-1.25e4, 8e4], [-1.25e4, 6e4], [-1.75e4, 6e4], 
+                    [-1.75e4, 8e4], [-1.25e4, 8e4]]])
+floe2 = Floe(floe2_poly, h_mean, Δh, u = 2.0)
+floe_arr = StructArray([floe1])
 
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 consts = Constants(E = modulus, Cd_io = 0.0, Cd_ia = 0.0, Cd_ao = 0.0, f = 0.0)
@@ -45,11 +45,11 @@ consts = Constants(E = modulus, Cd_io = 0.0, Cd_ia = 0.0, Cd_ao = 0.0, f = 0.0)
 model = Model(grid, ocean, wind, domain, topo_arr, floe_arr, consts)
 
 # Simulation setup
-simulation = Simulation(model = model, Δt = Δt, nΔt = 2000, COLLISION = true)
+simulation = Simulation(model = model, Δt = Δt, nΔt = 3000, COLLISION = true)
 
 # Output setup
 gridwriter = GridOutputWriter([GridOutput(i) for i in 1:9], 10, "g.nc", grid, (10, 10))
-floewriter = FloeOutputWriter([FloeOutput(i) for i in [9; 22:26]], 25, "f.nc", grid)
+floewriter = FloeOutputWriter([FloeOutput(i) for i in [3:4; 6; 9:11; 22:26]], 10, "f.nc", grid)
 
 # Run simulation
 run!(simulation, [floewriter])

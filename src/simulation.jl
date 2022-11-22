@@ -63,6 +63,7 @@ function timestep_floe!(floe, Δt)
     h = floe.height
     # Update floe based on thermodynamic growth
     Δh = floe.hflx * Δt/h
+    Δh = 0 # for collision testing
     hfrac = (h-Δh)/h
     floe.mass *= hfrac
     floe.moment *= hfrac
