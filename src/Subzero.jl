@@ -49,5 +49,6 @@ include("model.jl")
 include("simulation.jl")
 include("plotting.jl")
 include("output.jl")
-include("forcings.jl")
+include("collisions.jl")
+include("coupling.jl")
 end
