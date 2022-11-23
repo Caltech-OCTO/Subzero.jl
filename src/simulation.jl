@@ -140,9 +140,9 @@ function timestep_atm!(m)
 end
 
 """
-    domain_coords(domain::RectangleDomain)
+    domain_coords(domain::Domain)
 Inputs:
-        domain<RectangleDomain>
+        domain<Domain>
 Output:
         RingVec coordinates for edges of rectangular domain based off of boundary values
 """

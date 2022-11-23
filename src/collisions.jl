@@ -333,14 +333,14 @@ end
 If the floe interacts with the domain, update the floe accordingly. Dispatches on different boudnary types within the domain.
 Inputs:
         floe        <Floe> floe interacting with boundary
-        domain      <RectangleDomain> model domain
+        domain      <Domain> model domain
         consts      <Constants> model constants needed for calculations
         Δt          <Int> current simulation timestep
         t           <Type> Float type model is running on (Float64 or Float32)
 Outputs:
         None. Floe is updated according to which boundaries it interacts with the the types of those boundaries. 
 """
-function floe_domain_interaction!(floe, domain::DT, consts, Δt, t::Type{T} = Float64) where {DT<:RectangleDomain, T}
+function floe_domain_interaction!(floe, domain::Domain, consts, Δt, t::Type{T} = Float64) where {T}
     centroid = floe.centroid
     rmax = floe.rmax
     eastval = domain.east.val

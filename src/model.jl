@@ -5,9 +5,13 @@ Structs and functions used to define a Subzero model
 """
     Grid{FT<:AbstractFloat}
 
-Grid splitting the model into distinct rectanglular grid cells where xg are the grid lines in the x-direction (1xn vector) and yg are the grid lines in the y-direction (mx1 vector). xc and cy are the mid-lines on grid cells in the x and y-direction. These have dimensions n-1x1 and m-1x1 respectively. The dimension field holds the number of rows (m-1) and columns (n-1) in the grid. The dimensions of each of the fields must match according to the above definitions.
+Grid splitting the model into distinct rectanglular grid cells where xg are the grid lines in the x-direction (1xn vector)
+and yg are the grid lines in the y-direction (mx1 vector). xc and cy are the mid-lines on grid cells in the x and y-direction.
+These have dimensions n-1x1 and m-1x1 respectively. The dimension field holds the number of rows (m-1) and columns (n-1) in the grid.
+The dimensions of each of the fields must match according to the above definitions.
 
-This struct is also used to create a coarse grid of the model domain. Ocean and floe data is averaged over this coarse grid and then saved as model output.
+This struct is also used to create a coarse grid of the model domain.
+Ocean and floe data is averaged over this coarse grid and then saved as model output.
 """
 struct Grid{FT<:AbstractFloat}
     dims::Tuple{Int, Int}
@@ -38,7 +42,8 @@ Inputs:
 Output: 
         Grid from lx to ux and height from ly to uy with grid squares of size Δx by Δy
 Warning: If Δx doesn't evenly divide x length (lu-lx) or Δy doesn't evenly 
-         divide y length (uy-ly) you won't get full size grid. The grid will be "trimmed" to the nearest full grid square in both directions.
+         divide y length (uy-ly) you won't get full size grid. The grid will be "trimmed" to the nearest
+         full grid square in both directions.
 """
 function Grid(lx, ux, ly, uy, Δx, Δy, t::Type{T} = Float64) where T
     xg = collect(T, lx:Δx:ux) 
@@ -73,7 +78,8 @@ end
 """
     Grid(Lx, Ly, Δx, Δy, t::Type{T} = Float64)
 
-Construct a rectanglular grid for model given upper and lower bounds for x and y and the number of grid cells in both the x and y direction.
+Construct a rectanglular grid for model given upper and lower bounds for x and y and the number of grid cells
+in both the x and y direction.
 Inputs: 
         lx       <Real> lower bound of grid x-direction
         ux       <Real> upper bound of grid x-direction
@@ -109,7 +115,10 @@ function Grid(Lx, Ly, dims::Tuple{Int, Int}, t::Type{T} = Float64) where T
 end
 
 """
-Ocean velocities in the x-direction (u) and y-direction (v). u and v should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Ocean also needs temperature at the ocean/ice interface in each grid cell. Ocean fields must all be matricies with the same dimensions. Model cannot be constructed if size of ocean and grid do not match.
+Ocean velocities in the x-direction (u) and y-direction (v). u and v should match the size of the corresponding
+model grid so that there is one x and y velocity value for each grid cell. Ocean also needs temperature at the
+ocean/ice interface in each grid cell. Ocean fields must all be matricies with the same dimensions.
+Model cannot be constructed if size of ocean and grid do not match.
 """
 struct Ocean{FT<:AbstractFloat}
     u::Matrix{FT}
@@ -148,7 +157,9 @@ Ocean(grid::Grid, u, v, temp, t::Type{T} = Float64) where T =
 # TODO: Do we want to be able to use a psi function? - Ask Mukund
 
 """
-Wind velocities in the x-direction (u) and y-direction (v). u and v should match the size of the corresponding model grid so that there is one x and y velocity value for each grid cell. Wind also needs temperature at the atmosphere/ice interface in each grid cell. Model cannot be constructed if size of wind and grid do not match.
+Wind velocities in the x-direction (u) and y-direction (v). u and v should match the size of the corresponding
+model grid so that there is one x and y velocity value for each grid cell. Wind also needs temperature at the
+atmosphere/ice interface in each grid cell. Model cannot be constructed if size of wind and grid do not match.
 """
 struct Wind{FT<:AbstractFloat}
     u::Matrix{FT}
@@ -179,214 +190,164 @@ Wind(grid, u, v, temp, t::Type{T} = Float64) where T =
          fill(convert(T, v), grid.dims),
          fill(convert(T, temp), grid.dims))
 
-"""
-    AbstractBC
 
-An abstract type for types of boundary conditions for edges of model domain. Boundary conditions will control behavior of sea ice floes at edges of domain.
+abstract type AbstractDirection end
+
+struct North<:AbstractDirection end
+
+struct South<:AbstractDirection end
+
+struct East<:AbstractDirection end
+
+struct West<:AbstractDirection end
+
+function boundary_coords(grid::Grid, direction::North) 
+    return 
+end
+
+function boundary_coords(grid::Grid, direction::South)
+    return
+end
+
+function boundary_coords(grid::Grid, direction::East)
+    return
+end
+
+function boundary_coords(grid::Grid, direction::West)
+    return
+end
 """
-abstract type AbstractBC end
+    AbstractBoundary{FT<:AbstractFloat}
+
+An abstract type for the types of boundaries at the edges of the model domain.
+Boundary conditions will control behavior of sea ice floes at edges of domain.
+
+Note that the boundary coordinates must include the corner of the boundary as can be seen in the diagram below.
+ ________________
+|__|____val___|__| <- North coordinates must include corners
+|  |          |  |
+|  |          |  | <- East coordinates must ALSO include corners
+|  |          |  |
+Val field holds value that defines the line y = val such that if the floe crosses that line it would be
+partially within the boundary. 
+"""
+abstract type AbstractBoundary{FT<:AbstractFloat} end
 
 """
-    OpenBC <: AbstractBC
+    OpenBoundary <: AbstractBoundary
 
-A simple concrete type of boundary condition, which allows a floe to pass out of the domain edge without any effects on the floe.
+A simple concrete type of boundary, which allows a floe to pass out of the domain edge without any effects on the floe.
 """
-struct OpenBC<:AbstractBC end
+struct OpenBoundary{D<:AbstractDirection, FT}<:AbstractBoundary{FT}
+    coords::PolyVec{FT}
+    val::FT
+end
+
+function OpenBoundary(coords, val, direction<:AbstractDirection)
+    return OpenBoundary{typeof(direction), typeof(val)}(coords, val)
+end
+
+OpenBoundary(grid::Grid, direction) = 
+    OpenBoundary(boundary_coords(grid, direction), grid.yg[end], direction)
 
 """
-    PeriodicBC <: AbstractBC
+    PeriodicBoundary <: AbstractBoundary
 
-A simple concrete type of boundary condition, which moves a floe from one side of the domain to the opposite side of the domain, bringing the floe back into the grid.
+A simple concrete type of boundary, which moves a floe from one side of the domain to the opposite
+side of the domain, bringing the floe back into the grid.
 
 NOTE: Not implemented yet!
 """
-struct PeriodicBC<:AbstractBC end 
+struct PeriodicBoundary{D<:AbstractDirection, FT}<:AbstractBoundary{FT}
+    coords::PolyVec{FT}
+    val::FT
+end
+
+function PeriodicBoundary(coords, val, direction<:AbstractDirection)
+    return PeriodicBoundary{typeof(direction), typeof(val)}(coords, val)
+end
+
+PeriodicBoundary(grid::Grid, direction) = 
+    PeriodicBoundary(boundary_coords(grid, direction), grid.yg[end], direction)
 
 """
-    CollisionBC <: AbstractBC
+    CollisionBoundary <: AbstractBoundary
 
-A simple concrete type of boundary condition, which stops a floe from exiting the domain. If the COLLISION flag is on within the simulation, this will exert a potentially breaking force on the floe, else it will just stop the floe from leaving the domain.
-
-NOTE: Not implemented yet!
+A simple concrete type of boundary, which stops a floe from exiting the domain by having the floe collide with the boundary.
 """
-struct CollisionBC<:AbstractBC end
+struct CollisionBoundary{D<:AbstractDirection, FT}<:AbstractBoundary{FT}
+    coords::PolyVec{FT}
+    val::FT
+end
+
+function CollisionBoundary(coords, val, direction<:AbstractDirection)
+    return CollisionBoundary{typeof(direction), typeof(val)}(coords, val)
+end
+
+CollisionBoundary(grid::Grid, direction) = 
+    CollisionBoundary(boundary_coords(grid, direction), grid.yg[end], direction)
 
 """
     CompressionBC <: AbstractBC
 
-A simple concrete type of boundary condition, which creates a floe along the boundary that moves from the boundary towards the center of the domain, compressing the ice within the dominan.
+A simple concrete type of boundary, which creates a floe along the boundary that moves from the boundary towards
+the center of the domain as the given velocity, compressing the ice within the dominan.
 
 NOTE: Not implemented yet!
 """
-struct CompressionBC<:AbstractBC end
-
-"""
-    Boundary{BC<:AbstractBC, FT<:AbstractFloat}
-
-One straight edge of a rectangular domian. Holds the boundary condition for the edge and a value that represents the constant x or y-value that the boundary is located at. This value is assigned as an x or a y value based on if the boundary is a north/south "wall" of a rectangular domain (y-value) or a east/west "wall" of the domain (x-value). 
-
-For example, if a boundary has a condition of "open" and a value of 5.0 and is then the "north" edge of a rectangular domain it will be the top of the rectangle at y = 5.0 and floes will pass through the top of the domain without being acted on by any forces.
-"""
-struct Boundary{BC<:AbstractBC, FT<:AbstractFloat}
-    bc::BC
-    val::FT 
+struct CompressionBoundary{D<:AbstractDirection, FT}<:AbstractBoundary{FT}
+    coords::PolyVec{FT}
+    val::FT
+    velocity::FT
 end
 
-"""
-    Boundary(bc, val, t::Type{T} = Float64)
-
-Creates a boundary with given boundary condition and value and converts the value to desired Float type.
-Inputs:
-        bc      <AbstractBC subtype>
-        val     <Real>
-        t       <Type> datatype to convert ocean fields - must be a Float! 
-Output:
-        Boundary of type bc with value of given Float type.
-"""
-function Boundary(bc, val, t::Type{T} = Float64) where T
-    return Boundary(bc, convert(T, val))
+function CompressionBoundary(coords, val, velocity, direction<:AbstractDirection)
+    return CompressionBoundary{typeof(direction), typeof(val)}(coords, val, velocity)
 end
-"""
-    AbstractDomain{FT <: AbstractFloat}
 
-An abstract type for shapes of domains that contain the model.
-"""
-abstract type AbstractDomain{FT <: AbstractFloat} end
+CompressionBoundary(grid::Grid, velocity, direction) = 
+    CompressionBoundary(boundary_coords(grid, direction), grid.yg[end], velocity, direction)
 
 """
     periodic_compat(b1::B, b2::B)
 
-Checks if two boundaries with the same boundary condition B are compatible as opposites. They are by definition, given that if both floes are periodic they work as a north/south pair or a east/west pair and otherwise there are no restrictions on "matching" boundaries.
+Checks if two boundaries with the same boundary condition B are compatible as opposites.
 """
-function periodic_compat(b1::B, b2::B) where B<:Boundary
+function periodic_compat(::PeriodicBoundary, ::PeriodicBoundary)
+    return true
+end
+
+function periodic_compat(::PeriodicBoundary, _)
+    return false
+end
+
+function periodic_compat(_, ::PeriodicBoundary)
+    return false
+end
+
+function periodic_compat(_, _)
     return true
 end
 
 """
-    periodic_compat(b1::B1, b2::B2)
+Domain that holds 4 Boundary elements, forming a rectangle bounding the model during the simulation. 
 
-Checks if two boundaries with the different boundary conditions (B2 and B2) are compatible as opposites. If either is periodic they are not compatible, otherwise there are no restrictions on "matching" boundaries.  
+In order to create a Domain, three conditions need to be met. First, if needs to be periodically compatible.
+This means that pairs of opposite boundaries both need to be periodic if one of them is periodic.
+Next, the value in the north boundary must be greater than the south boundary and the value in the east boundary
+must be greater than the west in order to form a valid rectangle.
 """
-function periodic_compat(b1::B1, b2::B2) where {B1<:Boundary, B2<:Boundary}
-    return !(b1.bc isa PeriodicBC || b2.bc isa PeriodicBC)
-end
+struct Domain{NB<:AbstractBoundary, SB<:AbstractBoundary, EB<:AbstractBoundary, WB<:AbstractBoundary, FT<:AbstractFloat}
+    north::NB{North, FT}
+    south::SB{South, FT}
+    east::EB{East, FT}
+    west::WB{West, FT}
 
-"""
-    RectangleDomain{FT}<:AbstractDomain{FT}
-
-Rectangular subtype of AbstractDomain that holds 4 Boundaries and coordinates to form a polygon out of the boundaries. The coordinates field is a RingVec for easy conversion to a linear ring using LibGEOS so that is can be the interior hole of a polygon around the domain. 
-
-In order to create a RectangleDomain, three conditions need to be met. First, if needs to be periodically compatible. This means that pairs of opposite boundaries both need to be periodic if one of them is periodic. Next, the value in the north boundary must be greater than the south boundary and the value in the east boundary must be greater than the west in order to form a valid rectangle. Finally, the last point in coords should match the first one for ease of making into a polygon.
-"""
-struct RectangleDomain{FT, NBC<:AbstractBC, SBC<:AbstractBC, EBC<:AbstractBC, WBC<:AbstractBC}<:AbstractDomain{FT}
-    north::Boundary{NBC, FT}
-    south::Boundary{SBC, FT}
-    east::Boundary{EBC, FT}
-    west::Boundary{WBC, FT}
-
-    RectangleDomain(north, south, east, west) = 
+    Domain(north, south, east, west) = 
         (periodic_compat(north, south) && periodic_compat(east, west)) &&
         (north.val > south.val && east.val > west.val) ?
-        new{typeof(north.val),typeof(north.bc),typeof(south.bc), typeof(east.bc),typeof(west.bc)}(north, south, east, west) : 
+        new{typeof(north), typeof(south), typeof(east),typeof(west), typeof(north.val)}(north, south, east, west) : 
         throw(ArgumentError("Periodic boundary must have matching opposite boundary and/or North value must be greater then South and East must be greater than West."))
-end
-
-"""
-    RectangleDomain(grid, northBC = Open(), southBC = Open(),
-    eastBC = Open(), westBC = Open())
-
-Create a maximum rectangular domain from a grid and 4 boundary conditions 
-Inputs:
-        grid      <Grid>
-        southBC   <AbstractBC subtype>
-        eastBC    <AbstractBC subtype>
-        westBC    <AbstractBC subtype>
-        westBC    <AbstractBC subtype>
-Output:
-        Rectangular Domain with boundaries along the edges of the grid with each boundary having given boundary conditions. 
-"""
-function RectangleDomain(grid::Grid; northBC = OpenBC(), southBC = OpenBC(),
-eastBC = OpenBC(), westBC = OpenBC())
-    north = Boundary(northBC, grid.yg[end])
-    south = Boundary(southBC, grid.yg[1])
-    east = Boundary(eastBC, grid.xg[end])
-    west = Boundary(westBC, grid.xg[1])
-    return RectangleDomain(north, south, east, west)
-end
-
-"""
-    CircleDomain{FT}<:AbstractDomain{FT}
-
-Circle subtype of AbstractDomain holds one boundary condition and a Float centroid and radius. The entire domain boundary has the given boundary condition.
-"""
-struct CircleDomain{FT, BC<:AbstractBC}<:AbstractDomain{FT}
-    radius::FT
-    centroid::Vector{FT}
-    bc::BC
-
-    CircleDomain(radius, centroid, bc) = radius > 0.0 ?
-        new{typeof(radius), typeof(bc)}(radius, centroid, bc) :
-        throw(ArgumentError("Circle domain radius should be positive."))
-end
-
-"""
-    CircleDomain(grid::Grid, bc = Open())
-
-Creates a maximum circular domain from a grid and a boundary condition
-Inputs:
-        grid      <Grid>
-        bc        <AbstractBC subtype> 
-Output:
-        Circular Domain that has a centroid in the center of the grid and a radius of half of the shorter side of the grid. Whole domain has the given boundary condition. 
-"""
-function CircleDomain(grid::Grid; bc = OpenBC())
-    xmin = grid.xg[1]
-    ymin = grid.yg[1]
-    xrad = (grid.xg[end] - xmin)/2
-    yrad = (grid.yg[end] - ymin)/2
-    radius = min(xrad, yrad)
-    centroid = [xmin + xrad, ymin + yrad]
-    return CircleDomain(radius, centroid, bc)
-end
-
-"""
-    Grid(domain::CircleDomain, nx::Int, ny::Int, t::Type{T} = Float64)
-
-Minimum grid that contains the given CircleDomain with the given number of grid cells in the x and y direction.
-
-Inputs: 
-        domain   <CircleDomain>
-        dims     <(Int, Int)> grid dimensions - rows -> ny, cols -> nx
-        t        <Type> datatype to convert grid fields - must be a Float!
-Outputs:
-        Square grid where the height and width are equal to domain diameter and centered on circle centroid, with nx grid cells in the x-direction and ny grid cells in the y-direction.
-"""
-function Grid(domain::CircleDomain, dims::Tuple{Int, Int}, t::Type{T} = Float64) where T
-    northval = domain.centroid[2] + domain.radius
-    southval = domain.centroid[2] - domain.radius
-    eastval = domain.centroid[1] + domain.radius
-    westval = domain.centroid[1] - domain.radius
-    return Grid(westval, eastval, southval, northval, dims, T)
-end
-
-"""
-    Grid(domain::RectangleDomain, nx::Int, ny::Int, t::Type{T} = Float64)
-
-Minimum grid that contains the given RecangleDomain with the given number of grid cells in the x and y direction.
-
-Inputs: 
-        domain   <RectangleDomain>
-        dims     <(Int, Int)> grid dimensions - rows -> ny, cols -> nx
-        t        <Type> datatype to convert grid fields - must be a Float!
-Outputs:
-        Rectangle grid that is exactly the side of the domain with nx grid cells in the x-direction and ny grid cells in the y-direction.
-"""
-function Grid(domain::RectangleDomain, dims::Tuple{Int, Int},  t::Type{T} = Float64) where T
-    northval = domain.north.val
-    southval = domain.south.val
-    eastval = domain.east.val
-    westval = domain.west.val
-    return Grid(westval, eastval, southval, northval, dims, T)
 end
 
 """
@@ -551,7 +512,7 @@ Floe(coords::PolyVec{<:Real}, h_mean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0
     # Polygon convert is needed since LibGEOS only takes Float64 - when this is fixed convert can be removed
 
 """
-    domain_in_grid(domain::RectangleDomain, grid)
+    domain_in_grid(domain::Domain, grid)
 
 Checks if given rectangular domain is within given grid and gives user a warning if domain is not of maximum possible size given grid dimensions.
 
@@ -561,7 +522,7 @@ Inputs:
 Outputs:
         <Boolean> true if domain is within grid bounds, else false
 """
-function domain_in_grid(domain::RectangleDomain, grid)
+function domain_in_grid(domain::Domain, grid)
     northval = domain.north.val
     southval = domain.south.val
     eastval = domain.east.val
@@ -576,34 +537,6 @@ function domain_in_grid(domain::RectangleDomain, grid)
             westval != grid.xg[1])
             @warn "At least one wall of domain is smaller than grid. This could lead to unneeded computation. Consider making grid smaller or domain larger."
         end 
-        return true
-    end
-    return false
-end
-
-"""
-    domain_in_grid(domain::CircleDomain, grid)
-
-Checks if given circular domain is within given grid and gives user a warning if domain is not of maximum possible size given grid dimensions.
-
-Inputs:
-        domain      <CircularDomain>
-        grid        <Grid>
-Outputs:
-        <Boolean> true if domain is within grid bounds, else false
-"""
-function domain_in_grid(domain::CircleDomain, grid)
-    x, y = domain.centroid
-    r = domain.radius
-    gridheight = grid.yg[end] - grid.yg[1]
-    gridwidth = grid.xg[end] - grid.xg[1]
-    if (x + r <=  grid.xg[end] &&
-        x - r >=  grid.xg[1] &&
-        y + r <=  grid.yg[end] &&
-        y - r >=  grid.yg[1])
-        if 2r != min(gridheight, gridwidth)
-            @warn "Circle domain does not have maximum possible radius within grid. This could lead to unneeded computation. Consider making the grid smaller of the domain larger."
-        end
         return true
     end
     return false
