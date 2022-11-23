@@ -170,9 +170,85 @@ function calc_friction_forces(v1, v2, normal, Δl, consts, Δt, t::Type{T} = Flo
 end
 
 """
-    floe_boundary_interaction!(floe, boundary_coords, ::OpenBC, _, _)
+    floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, t::Type{T} = Float64)
 
-If given floe insersects with boundary, the floe is set to be removed from the simulation.
+If the two floes interact, update floe i's interactions accordingly. Floe j is not update here so that the function can be parallelized.
+Inputs:
+        ifloe   <Floe> first floe in potential interaction
+        i       <Int> index of ifloe in model's list of floes 
+        jfloe   <Floe> second floe in potential interaction
+        j       <Int> index of jfloe in model's list of floes 
+        nfloes  <Int> number of non-ghost floes in the simulation this timestep
+        consts  <Constants> model constants needed for calculations
+        Δt      <Int> Simulation's current timestep
+        t       <Type> Float type model is running on (Float64 or Float32)
+Outputs:
+        remove   <Int> index of floe to remove from simulation due to overlap (will be transfered to over floe in collision)
+                        - if 0 then no floes to be removed from this collision
+        transfer <Int> index of floe to transfer mass to if the other floe is to be removed.
+                        - if 0 then no floes to be transfered from this collision
+        If ifloe interacts with jfloe, only ifloe's interactions field is updated with the details of each region of overlap.
+        The interactions field will have the following form for each region of overlap with the boundary:
+            [Inf, xforce, yforce, xfpoints, yfpoints, overlaps] where the xforce and yforce are the forces,
+            xfpoints and yfpoints are the location of the force and overlaps is the overlap between the floe and boundary.
+        The overlaps field is also added to the floe's overarea field that describes the total overlapping area at any timestep. 
+"""
+function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, t::Type{T} = Float64) where T
+    remove = Int(0)
+    transfer = Int(0)
+    ifloe_poly = LG.Polygon(ifloe.coords)
+    jfloe_poly = LG.Polygon(jfloe.coords)
+    if LG.intersects(ifloe_poly, jfloe_poly)  # Check if floes intersect
+        inter_floe = LG.intersection(ifloe_poly, jfloe_poly)
+        inter_regions = LG.getGeometries(inter_floe)
+        region_areas = [LG.area(poly) for poly in inter_regions]::Vector{Float64}
+        total_area = sum(region_areas)
+        # Floes overlap too much - remove floe or transfer floe mass to other floe
+        if total_area/ifloe.area > 0.55
+            if i <= nfloes
+                remove = i
+                transfer = j
+            elseif j <= nfloes
+                remove = j  # Will transfer mass to ifloe - can't be updated here due to parallelization
+            end
+        elseif total_area/jfloe.area > 0.55
+            if j <= nfloes
+                remove = j  # Will transfer mass to ifloe - can't be updated here due to parallelization
+            end
+        else
+            # Constant needed to calculate force
+            ih = ifloe.height
+            ir = sqrt(ifloe.area)
+            jh = jfloe.height
+            jr = sqrt(jfloe.area)
+            force_factor = if ir>1e5 || jr>1e5
+                consts.E*min(ih, jh)/min(ir, jr)
+            else
+                consts.E*(ih*jh)/(ih*jr+jh*ir)
+            end
+            # Calculate normal forces, force points, and overlap areas
+            normal_forces, fpoints, overlaps, Δl = calc_elastic_forces(ifloe.coords, jfloe.coords,
+                                        inter_regions, region_areas, force_factor, consts, T)
+            # Calculate frictional forces at each force point - based on velocities at force points
+            np = size(fpoints, 1)
+            iv = repeat([ifloe.u ifloe.v], outer = np) .+ ifloe.ξ*(fpoints .- repeat(ifloe.centroid', outer = np)) 
+            jv = repeat([jfloe.u jfloe.v], outer = np) .+ jfloe.ξ*(fpoints .- repeat(jfloe.centroid', outer = np))
+            friction_forces = calc_friction_forces(iv, jv, normal_forces, Δl, consts, Δt, T)
+            # Calculate total forces and update ifloe's interactions
+            forces = normal_forces .+ friction_forces
+            if sum(abs.(forces)) != 0
+                ifloe.interactions = [ifloe.interactions; fill(j, np) forces fpoints zeros(np) overlaps']
+                ifloe.overarea += sum(overlaps)
+            end
+        end
+    end
+    return remove, transfer
+end
+
+"""
+    floe_boundary_interaction!(floe, boundary_coords, ::OpenBC, _, _, _)
+
+If given floe insersects with an open boundary, the floe is set to be removed from the simulation.
 Inputs:
         floe            <Floe> floe interacting with boundary
         boundary_coords <PolyVec{Float}> coordinates of boundary
@@ -194,7 +270,7 @@ function floe_boundary_interaction!(floe, boundary_coords, ::OpenBC, _, _, _)
 end
 
 """
-    floe_boundary_interaction!(floe, boundary_coords, ::CollisionBC, consts, t::Type{T} = Float64)
+    floe_boundary_interaction!(floe, boundary_coords, ::CollisionBC, consts, Δt, t::Type{T} = Float64)
 
 If floe intersects with given boundary, floe interactions field and overare field are updated.
 Inputs:
@@ -212,28 +288,31 @@ Outputs:
         The overlaps field is also added to the floe's overarea field that describes the total overlapping area at any timestep.
 """
 function floe_boundary_interaction!(floe, boundary_coords, ::CollisionBC, consts, Δt, t::Type{T} = Float64) where T
-    # Check if the floe and boundary actually overlap
     floe_poly = LG.Polygon(floe.coords)
     bounds_poly = LG.Polygon(boundary_coords)
+    # Check if the floe and boundary actually overlap
     if LG.intersects(floe_poly, bounds_poly)
         inter_floe = LG.intersection(floe_poly, bounds_poly)
         inter_regions = LG.getGeometries(inter_floe)
         region_areas = [LG.area(poly) for poly in inter_regions]::Vector{Float64}
-        if maximum(region_areas)/floe.area > 0.75  # Regions overlap too much
+        # Regions overlap too much
+        if maximum(region_areas)/floe.area > 0.75
             return zeros(T, 1, 2), zeros(T, 1, 2), fill(T(Inf), 1)
         end
         # Constant needed for force calculations
         force_factor = consts.E * floe.height / sqrt(floe.area)
-        # Total collision forces, location of force, and overlap area between floes during collision
+        # Calculate normal forces, force points, and overlap areas
         normal_forces, fpoints, overlaps =  calc_elastic_forces(floe.coords, boundary_coords,
                                         inter_regions, region_areas, force_factor, consts, T)
+        # Calculate frictional forces at each force point - based on velocities at force points
         np = size(fpoints, 1)
         vfloe = repeat([floe.u ifloe.v], outer = np) .+ floe.ξ*(fpoints .- repeat(floe.centroid', outer = np)) 
         vbound = repeat(zeros(T, 1, 2), outer = np)
         friction_forces = calc_friction_forces(vfloe, vbound, normal_forces, Δl, consts, Δt, T)
+        # Calculate total forces and update ifloe's interactions
         forces = normal_forces .+ friction_forces
-        # Add this back in once we figure out Ly, Lx --> should we just use poly2 to check if ON
         if sum(abs.(forces)) != 0
+        # Add this back in once we figure out Ly, Lx --> should we just use poly2 to check if ON
         #   forces[fpoints[:, 2] .== Ly, 1] .= T(0.0)
         #   forces[fpoints[:, 1] .== Lx, 2] .= T(0.0)
             nint = size(forces, 1)
@@ -241,6 +320,10 @@ function floe_boundary_interaction!(floe, boundary_coords, ::CollisionBC, consts
             floe.overarea += sum(overlaps)
         end
     end
+    return
+end
+
+function floe_boundary_interaction!(floe, boundary_coords, ::PeriodicBC, consts, Δt, t::Type{T} = Float64) where T
     return
 end
 
@@ -298,80 +381,6 @@ function floe_domain_interaction!(floe, domain::DT, consts, Δt, t::Type{T} = Fl
         floe_boundary_interaction!(floe, boundary_coords, domain.north.bc, consts, Δt)
     end
     return
-end
-
-"""
-    floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, t::Type{T} = Float64)
-
-If the two floes interact, update floe i's interactions accordingly. Floe j is not update here so that the function can be parallelized.
-Inputs:
-        ifloe   <Floe> first floe in potential interaction
-        i       <Int> index of ifloe in model's list of floes 
-        jfloe   <Floe> second floe in potential interaction
-        j       <Int> index of jfloe in model's list of floes 
-        nfloes  <Int> number of non-ghost floes in the simulation this timestep
-        consts          <Constants> model constants needed for calculations
-        t               <Type> Float type model is running on (Float64 or Float32)
-Outputs:
-        remove   <Int> index of floe to remove from simulation due to overlap (will be transfered to over floe in collision)
-                        - if 0 then no floes to be removed from this collision
-        transfer <Int> index of floe to transfer mass to if the other floe is to be removed.
-                        - if 0 then no floes to be transfered from this collision
-        ifloe's interactions and overarea fields updated - see floe_boundary_interaction! dispatched on ::CollisionBC documentation for details. 
-"""
-function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, t::Type{T} = Float64) where T
-    remove = Int(0)
-    transfer = Int(0)
-    ifloe_poly = LG.Polygon(ifloe.coords)
-    jfloe_poly = LG.Polygon(jfloe.coords)
-    if LG.intersects(ifloe_poly, jfloe_poly)  # Check if floes intersect
-        inter_floe = LG.intersection(ifloe_poly, jfloe_poly)
-        inter_regions = LG.getGeometries(inter_floe)
-        region_areas = [LG.area(poly) for poly in inter_regions]::Vector{Float64}
-        total_area = sum(region_areas)
-        # Floes overlap too much - remove floe or transfer floe mass to other floe
-        if total_area/ifloe.area > 0.55
-            if i <= nfloes
-                remove = i
-                transfer = j
-            elseif j <= nfloes
-                remove = j  # Will transfer mass to ifloe - can't be updated here due to parallelization
-            end
-        elseif total_area/jfloe.area > 0.55
-            if j <= nfloes
-                remove = j  # Will transfer mass to ifloe
-            end
-        else
-            # Constant needed to calculate force
-            ih = ifloe.height
-            ir = sqrt(ifloe.area)
-            jh = jfloe.height
-            jr = sqrt(jfloe.area)
-            force_factor = if ir>1e5 || jr>1e5
-                consts.E*min(ih, jh)/min(ir, jr)
-            else
-                consts.E*(ih*jh)/(ih*jr+jh*ir)
-            end
-            # Calculate forces, force points, and overlap areas
-            normal_forces, fpoints, overlaps, Δl = calc_elastic_forces(ifloe.coords, jfloe.coords,
-                                        inter_regions, region_areas, force_factor, consts, T)
-
-
-            np = size(fpoints, 1)
-            iv = repeat([ifloe.u ifloe.v], outer = np) .+ ifloe.ξ*(fpoints .- repeat(ifloe.centroid', outer = np)) 
-            jv = repeat([jfloe.u jfloe.v], outer = np) .+ jfloe.ξ*(fpoints .- repeat(jfloe.centroid', outer = np))
-            friction_forces = calc_friction_forces(iv, jv, normal_forces, Δl, consts, Δt, T)
-            println(friction_forces)
-
-            forces = normal_forces .+ friction_forces
-            if sum(abs.(forces)) != 0
-                nint = size(forces, 1)
-                ifloe.interactions = [ifloe.interactions; fill(j, nint) forces fpoints zeros(nint) overlaps']
-                ifloe.overarea += sum(overlaps)
-            end
-        end
-    end
-    return remove, transfer
 end
 
 """
