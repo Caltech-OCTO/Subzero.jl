@@ -268,21 +268,65 @@ function floe_boundary_interaction!(floe, boundary::OpenBoundary, consts, Δt, :
     return
 end
 
+"""
+    normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{North, <:AbstractFloat}, ::Type{T} = Float64)
+
+Zero-out forces that point in direction not perpendicular to North boundary wall.
+Inputs:
+        force       <Array{Float, n, 2}> normal forces on each of the n regions greater than a minimum area
+        fpoint      <Array{Float, n, 2}> point force is applied on each of the n regions greater than a minimum area
+        boundary    <AbstractBoundary{North, <:AbstractFloat}> domain's northern boundary 
+                    <Type> Float type model is running on (Float64 or Float32) - not needed here
+Outputs: None. All forces in the x direction set to 0 if the point the force is applied is the northern boundary value.
+"""
 function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{North, <:AbstractFloat}, ::Type{T} = Float64) where T
     forces[fpoints[:, 2] .== boundary.val, 1] .= T(0.0)
     return
 end
 
+"""
+    normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{South, <:AbstractFloat}, ::Type{T} = Float64)
+
+Zero-out forces that point in direction not perpendicular to South boundary wall.
+Inputs:
+        force       <Array{Float, n, 2}> normal forces on each of the n regions greater than a minimum area
+        fpoint      <Array{Float, n, 2}> point force is applied on each of the n regions greater than a minimum area
+        boundary    <AbstractBoundary{South, <:AbstractFloat}> domain's southern boundary 
+                    <Type> Float type model is running on (Float64 or Float32) - not needed here
+Outputs: None. All forces in the x direction set to 0 if the point the force is applied is the southern boundary value.
+"""
 function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{South, <:AbstractFloat}, ::Type{T} = Float64) where T
     forces[fpoints[:, 2] .== boundary.val, 1] .= T(0.0)
     return
 end
 
+"""
+    normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{East, <:AbstractFloat}, ::Type{T} = Float64)
+
+Zero-out forces that point in direction not perpendicular to East boundary wall.
+Inputs:
+        force       <Array{Float, n, 2}> normal forces on each of the n regions greater than a minimum area
+        fpoint      <Array{Float, n, 2}> point force is applied on each of the n regions greater than a minimum area
+        boundary    <AbstractBoundary{East, <:AbstractFloat}> domain's southern boundary 
+                    <Type> Float type model is running on (Float64 or Float32) - not needed here
+Outputs: None. All forces in the y direction set to 0 if the point the force is applied is the eastern boundary value.
+"""
 function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{East, <:AbstractFloat}, ::Type{T} = Float64) where T
     forces[fpoints[:, 1] .== boundary.val, 2] .= T(0.0)
     return
 end
 
+"""
+    normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{West, <:AbstractFloat}, ::Type{T} = Float64)
+
+Zero-out forces that point in direction not perpendicular to West boundary wall.
+Inputs:
+        force       <Array{Float, n, 2}> normal forces on each of the n regions greater than a minimum area
+        fpoint      <Array{Float, n, 2}> point force is applied on each of the n regions greater than a minimum area
+        boundary    <AbstractBoundary{West, <:AbstractFloat}> domain's southern boundary 
+                    <Type> Float type model is running on (Float64 or Float32) - not needed here
+Outputs: None. All forces in the x direction set to 0 if the point the force is applied is the western boundary value.
+"""
 function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{West, <:AbstractFloat}, ::Type{T} = Float64) where T
     forces[fpoints[:, 1] .== boundary.val, 2] .= T(0.0)
     return
@@ -295,10 +339,9 @@ If floe intersects with given boundary, floe interactions field and overare fiel
 Inputs:
         floe            <Floe> floe interacting with boundary
         boundary        <CollisionBoundary> coordinates of boundary
-                        <::CollisionBC> type of boundary used for dispatch
         consts          <Constants> model constants needed for calculations
         Δt              <Int> current simulation timestep
-        t               <Type> Float type model is running on (Float64 or Float32)
+                        <Type> Float type model is running on (Float64 or Float32)
 Outputs:
         None. If floe interacts, the floe's interactions field is updated with the details of each region of overlap.
         The interactions field will have the following form for each region of overlap with the boundary:
@@ -339,14 +382,10 @@ function floe_boundary_interaction!(floe, boundary::CollisionBoundary, consts, �
     return
 end
 
-function floe_boundary_interaction!(floe, boundary::PeriodicBoundary, consts, Δt, t::Type{T} = Float64) where T
-    return
-end
-
 """
     floe_domain_interaction!(floe, domain::DT, consts, t::Type{T} = Float64)
 
-If the floe interacts with the domain, update the floe accordingly. Dispatches on different boudnary types within the domain.
+If the floe interacts with the domain, update the floe accordingly. Dispatches on different boundary types within the domain.
 Inputs:
         floe        <Floe> floe interacting with boundary
         domain      <Domain> model domain
@@ -354,9 +393,9 @@ Inputs:
         Δt          <Int> current simulation timestep
         t           <Type> Float type model is running on (Float64 or Float32)
 Outputs:
-        None. Floe is updated according to which boundaries it interacts with the the types of those boundaries. 
+        None. Floe is updated according to which boundaries it interacts with and the types of those boundaries. 
 """
-function floe_domain_interaction!(floe, domain::Domain, consts, Δt, t::Type{T} = Float64) where {T}
+function floe_domain_interaction!(floe, domain::Domain, consts, Δt, ::Type{T} = Float64) where {T}
     centroid = floe.centroid
     rmax = floe.rmax
     nbound = domain.north
@@ -364,13 +403,6 @@ function floe_domain_interaction!(floe, domain::Domain, consts, Δt, t::Type{T} 
     ebound = domain.east
     wbound = domain.west
 
-    # unless periodic --> Need to update.
-    if centroid[1] > ebound.val || centroid[1] < wbound.val || centroid[2] > nbound.val || centroid[2] < sbound.val
-        floe.alive = 0
-        return
-    else
-
-    end
     if centroid[2] + rmax > nbound.val
         floe_boundary_interaction!(floe, nbound, consts, Δt)
     end
@@ -384,6 +416,10 @@ function floe_domain_interaction!(floe, domain::Domain, consts, Δt, t::Type{T} 
         floe_boundary_interaction!(floe, wbound, consts, Δt)
     end
 
+    if centroid[1] > ebound.val || centroid[1] < wbound.val || centroid[2] > nbound.val || centroid[2] < sbound.val
+        floe.alive = 0
+    end
+
     return
 end
 
@@ -393,11 +429,11 @@ end
 Calculate a floe's torque based on the interactions.
 Inputs:
         floe  <Floe> floe in model
-        t     <Type> Float type model is running on (Float64 or Float32)
+              <Type> Float type model is running on (Float64 or Float32)
 Outputs:
         None. Floe's interactions field is updated with calculated torque.
 """
-function calc_torque!(floe, t::Type{T} = Float64) where T
+function calc_torque!(floe, ::Type{T} = Float64) where T
     inters = floe.interactions
     if size(inters, 1) > 1
         dir = [inters[:, "xpoint"] .- floe.centroid[1] inters[:, "ypoint"] .- floe.centroid[2] zeros(T, size(inters, 1))]

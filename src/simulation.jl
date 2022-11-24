@@ -5,7 +5,13 @@ Structs and functions to create and run a Subzero simulation
 """
     Simulation{FT<:AbstractFloat, DT<:Domain{FT}}
 
-Simulation which holds a model and parameters needed for running the simulation. Simulation requires a model, a coarse grid, a coarse grid data struct, and a figure. The figure can be initialized using setup_plot. The rest of the simulation values are optional. These fields and their default values are as follows:  the size of a timestep in seconds Δt (10), the total number of timesteps in the simulation nΔt (7500), the output frequency of floe and data on the coarse grid in timesteps nΔtout (150),  timesteps between saving images Δtpics (150),  timesteps between floe simplicaiton  Δtsimp (20), timesteps betwen thermodynamic floe creation Δtpack (500), timesteps between updating ocean forcing  Δtocn (10). There are also flags that control simulation behavior. These flags are AVERAGE (average coarse grid data in time), COLLISION (enable floe collisions), CORNERS (floe corners can break), FRACTURES (floes can fracture), KEEPMIN (small floes don't dissolve), PACKING (floe packing enabled), RAFTING (floe rafting enabled), RIDGING (floe ridging enabled), and WELDING (floe welding enabled). All are false by default.
+Simulation which holds a model and parameters needed for running the simulation. Simulation requires a model, a coarse grid, a coarse grid data struct, and a figure.
+    The figure can be initialized using setup_plot. The rest of the simulation values are optional. These fields and their default values are as follows:
+    the size of a timestep in seconds Δt (10), the total number of timesteps in the simulation nΔt (7500), the output frequency of floe and data on the coarse grid in
+    timesteps nΔtout (150),  timesteps between saving images Δtpics (150),  timesteps between floe simplicaiton  Δtsimp (20), timesteps betwen thermodynamic floe creation Δtpack (500),
+    timesteps between updating ocean forcing  Δtocn (10). There are also flags that control simulation behavior. These flags are AVERAGE (average coarse grid data in time),
+    COLLISION (enable floe collisions), CORNERS (floe corners can break), FRACTURES (floes can fracture), KEEPMIN (small floes don't dissolve), PACKING (floe packing enabled),
+    RAFTING (floe rafting enabled), RIDGING (floe ridging enabled), and WELDING (floe welding enabled). All are false by default.
 """
 @kwdef struct Simulation{FT<:AbstractFloat, DT<:Domain}
     # Objects ------------------------------------------------------------------
@@ -139,6 +145,68 @@ function timestep_atm!(m)
     m.hflx .= c.k/(c.ρi*c.L) .* (wind.temp .- ocean.temp)
 end
 
+function timestep_sim!(sim, ::Type{T} = Float64) where T
+    m = sim.model
+    m.ocean.si_frac .= zeros(T, 1)
+    nfloes = length(m.floes) # number of floes before ghost floes
+    remove = zeros(Int, nfloes)
+    transfer = zeros(Int, nfloes)
+    for i in 1:nfloes # floe-floe collisions for floes i and j where i<j
+        ifloe = m.floes[i]
+        ifloe.collision_force = zeros(T, 1, 2)
+        ifloe.collision_torque = T(0.0)
+        ifloe.interactions = ifloe.interactions[1:1, :]
+        if sim.COLLISION
+            for j in i+1:nfloes
+                if sum((ifloe.centroid .- m.floes[j].centroid).^2) < (ifloe.rmax + m.floes[j].rmax)^2
+                    ikill, itransfer = floe_floe_interaction!(ifloe, i, m.floes[j], j, nfloes, m.consts, sim.Δt)
+                    remove[i] = ikill
+                    transfer[i] = itransfer
+                end
+            end
+        end
+        m.floes[i] = ifloe
+    end
+    for i in 1:length(m.floes)  # Update floes not directly calculated above where i>j
+        if i <= nfloes && remove[i] > 0 && remove[i] != i
+            transfer[remove[i]] = j
+        end
+        ij_inters = m.floes[i].interactions
+        if size(ij_inters, 1) > 1
+            for j in ij_inters[:, "floeidx"]
+                if j <= length(m.floes) && j > i
+                    jidx = Int(j)
+                    jfloe = m.floes[jidx]
+                    jfloe.interactions = [jfloe.interactions; i -ij_inters[jidx, "xforce"] -ij_inters[jidx, "yforce"] #=
+                                        =# ij_inters[jidx, "xpoint"] ij_inters[jidx, "ypoint"] T(0.0) ij_inters[jidx, "overlap"]]
+                    jfloe.overarea += ij_inters[jidx, "overlap"]
+                    m.floes[jidx] = jfloe
+                end
+            end
+        end
+    end
+    for i in 1:nfloes
+        ifloe = m.floes[i]
+        floe_domain_interaction!(ifloe, m.domain, m.consts, sim.Δt)
+        floe_OA_forcings!(ifloe, m)
+        calc_torque!(ifloe)
+        timestep_floe!(ifloe, sim.Δt)
+        m.floes[i] = ifloe
+    end
+    
+
+    remove_idx = findall(f -> f.alive == 0, m.floes)
+    for idx in remove_idx
+        StructArrays.foreachfield(f -> deleteat!(f, idx), m.floes)
+    end
+
+    # h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx)))
+    # mean(h0)
+
+    #TODO: Add dissolved mass
+    return 
+end
+
 """
     run!(sim, writers, t::Type{T} = Float64)
 
@@ -152,86 +220,24 @@ Inputs:
 Outputs:
         None. The simulation will be run and outputs will be saved in the output folder. 
 """
-function run!(sim, writers, t::Type{T} = Float64) where T
+function run!(sim, writers, ::Type{T} = Float64) where T
     Δtout_lst = Int[]
     for w in writers
         setup_output_file!(w, sim.nΔt, T)
         push!(Δtout_lst, w.Δtout)
     end
-
     println("Model running!")
-    m = sim.model
-    plt = setup_plot(m)
     tstep = 0
-    plot_sim(m, plt, tstep)
     while tstep <= sim.nΔt
         widx = findall(Δtout-> mod(tstep, Δtout) == 0, Δtout_lst)
         if length(widx) > 0
             println(tstep, " timesteps completed")
             for idx in widx
-                write_data!(writers[idx], tstep, m)
-            end
-            plot_sim(m, plt, tstep)
-        end
-        m.ocean.si_frac .= zeros(T, 1)
-        nfloes = length(m.floes) # number of floes before ghost floes
-        remove = zeros(Int, nfloes)
-        transfer = zeros(Int, nfloes)
-        for i in 1:nfloes # floe-floe collisions for floes i and j where i<j
-            ifloe = m.floes[i]
-            ifloe.collision_force = zeros(T, 1, 2)
-            ifloe.collision_torque = T(0.0)
-            ifloe.interactions = ifloe.interactions[1:1, :]
-            if sim.COLLISION
-                for j in i+1:nfloes
-                    if sum((ifloe.centroid .- m.floes[j].centroid).^2) < (ifloe.rmax + m.floes[j].rmax)^2
-                        ikill, itransfer = floe_floe_interaction!(ifloe, i, m.floes[j], j, nfloes, m.consts, sim.Δt)
-                        remove[i] = ikill
-                        transfer[i] = itransfer
-                    end
-                end
-            end
-            m.floes[i] = ifloe
-        end
-        for i in 1:length(m.floes)  # Update floes not directly calculated above where i>j
-            if i <= nfloes && remove[i] > 0 && remove[i] != i
-                transfer[remove[i]] = j
-            end
-            ij_inters = m.floes[i].interactions
-            if size(ij_inters, 1) > 1
-                for j in ij_inters[:, "floeidx"]
-                    if j <= length(m.floes) && j > i
-                        jidx = Int(j)
-                        jfloe = m.floes[jidx]
-                        jfloe.interactions = [jfloe.interactions; i -ij_inters[jidx, "xforce"] -ij_inters[jidx, "yforce"] #=
-                                           =# ij_inters[jidx, "xpoint"] ij_inters[jidx, "ypoint"] T(0.0) ij_inters[jidx, "overlap"]]
-                        jfloe.overarea += ij_inters[jidx, "overlap"]
-                        m.floes[jidx] = jfloe
-                    end
-                end
+                write_data!(writers[idx], tstep, sim.model)
             end
         end
-        for i in 1:nfloes
-            ifloe = m.floes[i]
-            floe_domain_interaction!(ifloe, m.domain, m.consts, sim.Δt)
-            floe_OA_forcings!(ifloe, m)
-            calc_torque!(ifloe)
-            timestep_floe!(ifloe, sim.Δt)
-            m.floes[i] = ifloe
-        end
-        
-
-        remove_idx = findall(f -> f.alive == 0, m.floes)
-        for idx in remove_idx
-            StructArrays.foreachfield(f -> deleteat!(f, idx), m.floes)
-        end
+        timestep_sim!(sim, T)
         tstep+=1
     end
-
-    # h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx)))
-    # mean(h0)
-
-    #TODO: Add dissolved mass
-    plot_sim(m, plt, tstep)
     println("Model done running!")
 end
