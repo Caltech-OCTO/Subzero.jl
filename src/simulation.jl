@@ -3,11 +3,11 @@ Structs and functions to create and run a Subzero simulation
 """
 
 """
-    Simulation{FT<:AbstractFloat, DT<:AbstractDomain{FT}}
+    Simulation{FT<:AbstractFloat, DT<:Domain{FT}}
 
 Simulation which holds a model and parameters needed for running the simulation. Simulation requires a model, a coarse grid, a coarse grid data struct, and a figure. The figure can be initialized using setup_plot. The rest of the simulation values are optional. These fields and their default values are as follows:  the size of a timestep in seconds Δt (10), the total number of timesteps in the simulation nΔt (7500), the output frequency of floe and data on the coarse grid in timesteps nΔtout (150),  timesteps between saving images Δtpics (150),  timesteps between floe simplicaiton  Δtsimp (20), timesteps betwen thermodynamic floe creation Δtpack (500), timesteps between updating ocean forcing  Δtocn (10). There are also flags that control simulation behavior. These flags are AVERAGE (average coarse grid data in time), COLLISION (enable floe collisions), CORNERS (floe corners can break), FRACTURES (floes can fracture), KEEPMIN (small floes don't dissolve), PACKING (floe packing enabled), RAFTING (floe rafting enabled), RIDGING (floe ridging enabled), and WELDING (floe welding enabled). All are false by default.
 """
-@kwdef struct Simulation{FT<:AbstractFloat, DT<:AbstractDomain{FT}}
+@kwdef struct Simulation{FT<:AbstractFloat, DT<:Domain}
     # Objects ------------------------------------------------------------------
     model::Model{FT, DT}            # Model to simulate
     # Timesteps ----------------------------------------------------------------
@@ -137,19 +137,6 @@ function timestep_atm!(m)
     m.ocean.taux .= c.ρa  *c.Cd_ao * sqrt.(Δu_AO.^2 + Δv_OI.^2) .* Δu_AO
     m.ocean.tauy .= c.ρa * c.Cd_ao * sqrt.(Δu_AO.^2 + Δv_OI.^2) .* Δv_AO
     m.hflx .= c.k/(c.ρi*c.L) .* (wind.temp .- ocean.temp)
-end
-
-"""
-    domain_coords(domain::Domain)
-Inputs:
-        domain<Domain>
-Output:
-        RingVec coordinates for edges of rectangular domain based off of boundary values
-"""
-function cell_coords(xmin, xmax, ymin, ymax)
-    return [[[xmin, ymax], [xmin, ymin],
-             [xmax, ymin], [xmax, ymax],
-             [xmin, ymax]]]
 end
 
 """

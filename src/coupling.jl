@@ -46,6 +46,19 @@ function cell_area_ratio(cell_poly, floe_poly)
 end
 
 """
+    domain_coords(domain::Domain)
+Inputs:
+        domain<Domain>
+Output:
+        RingVec coordinates for edges of rectangular domain based off of boundary values
+"""
+function cell_coords(xmin, xmax, ymin, ymax)
+    return [[[xmin, ymax], [xmin, ymin],
+             [xmax, ymin], [xmax, ymax],
+             [xmin, ymax]]]
+end
+
+"""
     floe_area_ratio(floe, xg, yg)
 
 Calculates the cell area ratio of grid squares surrounding given floe and the indicies of those grid squares within the grid defined by gridlines xg and yg.

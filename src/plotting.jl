@@ -14,32 +14,16 @@ function grids_from_lines(xlines, ylines)
 end
 
 """
-    domain_xycoords(domain::CircleDomain)
-
-X-y coordinates for a rough circle in shape of given domain to be used for plotting.
-Inputs:
-        domain <CircleDomain>
-Outputs:
-        x-coordinates <Float Vector>
-        y-coordinates <Float Vector>
-"""
-function domain_xycoords(domain::CircleDomain)
-    Θ = LinRange(0, 2π, 500)
-    return domain.centroid[1] .+ domain.radius*sin.(Θ),
-           domain.centroid[2] .+ domain.radius*cos.(Θ)
-end
-
-"""
-    domain_xycoords(domain::RectangleDomain)
+    domain_xycoords(domain::Domain)
 
 X-y coordinates for a rectangle in shape of given domain to be used for plotting.
 Inputs:
-        domain <RectangleDomain>
+        domain <Domain>
 Outputs:
         x-coordinates <Float Vector>
         y-coordinates <Float Vector>
 """
-function domain_xycoords(domain::RectangleDomain)
+function domain_xycoords(domain::Domain)
     north = domain.north.val
     south = domain.south.val
     east = domain.east.val

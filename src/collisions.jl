@@ -246,22 +246,21 @@ function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, t::Type
 end
 
 """
-    floe_boundary_interaction!(floe, boundary_coords, ::OpenBC, _, _, _)
+    floe_boundary_interaction!(floe, boundary, _, _, _)
 
 If given floe insersects with an open boundary, the floe is set to be removed from the simulation.
 Inputs:
         floe            <Floe> floe interacting with boundary
-        boundary_coords <PolyVec{Float}> coordinates of boundary
-                        <::OpenBC> type of boundary used for dispatch
+        boundary        <OpenBoundary> coordinates of boundary
         _               <Constants> model constants needed in other methods of this function - not needed here
-        _               <Type> datatype needed in other methods of this function - not needed here
         _               <Int> current simulation timestep 
+        _               <Type> Float type model is running on (Float64 or Float32) - not needed here
 Output:
         None. If floe is interacting with the boundary, floe.alive field is set to 0. Else, nothing is changed. 
 """
-function floe_boundary_interaction!(floe, boundary_coords, ::OpenBC, _, _, _)
+function floe_boundary_interaction!(floe, boundary::OpenBoundary, consts, Δt, ::Type{T} = Float64) where T
     floe_poly = LG.Polygon(floe.coords)
-    bounds_poly = LG.Polygon(boundary_coords)
+    bounds_poly = LG.Polygon(boundary.coords)
     # Check if the floe and boundary actually overlap
     if LG.intersects(floe_poly, bounds_poly)
         floe.alive = 0
@@ -269,13 +268,33 @@ function floe_boundary_interaction!(floe, boundary_coords, ::OpenBC, _, _, _)
     return
 end
 
+function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{North, <:AbstractFloat}, ::Type{T} = Float64) where T
+    forces[fpoints[:, 2] .== boundary.val, 1] .= T(0.0)
+    return
+end
+
+function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{South, <:AbstractFloat}, ::Type{T} = Float64) where T
+    forces[fpoints[:, 2] .== boundary.val, 1] .= T(0.0)
+    return
+end
+
+function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{East, <:AbstractFloat}, ::Type{T} = Float64) where T
+    forces[fpoints[:, 1] .== boundary.val, 2] .= T(0.0)
+    return
+end
+
+function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{West, <:AbstractFloat}, ::Type{T} = Float64) where T
+    forces[fpoints[:, 1] .== boundary.val, 2] .= T(0.0)
+    return
+end
+
 """
-    floe_boundary_interaction!(floe, boundary_coords, ::CollisionBC, consts, Δt, t::Type{T} = Float64)
+    floe_boundary_interaction!(floe, boundary, consts, Δt, t::Type{T} = Float64)
 
 If floe intersects with given boundary, floe interactions field and overare field are updated.
 Inputs:
         floe            <Floe> floe interacting with boundary
-        boundary_coords <PolyVec{Float}> coordinates of boundary
+        boundary        <CollisionBoundary> coordinates of boundary
                         <::CollisionBC> type of boundary used for dispatch
         consts          <Constants> model constants needed for calculations
         Δt              <Int> current simulation timestep
@@ -287,9 +306,9 @@ Outputs:
             xfpoints and yfpoints are the location of the force and overlaps is the overlap between the floe and boundary.
         The overlaps field is also added to the floe's overarea field that describes the total overlapping area at any timestep.
 """
-function floe_boundary_interaction!(floe, boundary_coords, ::CollisionBC, consts, Δt, t::Type{T} = Float64) where T
+function floe_boundary_interaction!(floe, boundary::CollisionBoundary, consts, Δt, ::Type{T} = Float64) where T
     floe_poly = LG.Polygon(floe.coords)
-    bounds_poly = LG.Polygon(boundary_coords)
+    bounds_poly = LG.Polygon(boundary.coords)
     # Check if the floe and boundary actually overlap
     if LG.intersects(floe_poly, bounds_poly)
         inter_floe = LG.intersection(floe_poly, bounds_poly)
@@ -302,28 +321,25 @@ function floe_boundary_interaction!(floe, boundary_coords, ::CollisionBC, consts
         # Constant needed for force calculations
         force_factor = consts.E * floe.height / sqrt(floe.area)
         # Calculate normal forces, force points, and overlap areas
-        normal_forces, fpoints, overlaps =  calc_elastic_forces(floe.coords, boundary_coords,
+        normal_forces, fpoints, overlaps, Δl =  calc_elastic_forces(floe.coords, boundary.coords,
                                         inter_regions, region_areas, force_factor, consts, T)
         # Calculate frictional forces at each force point - based on velocities at force points
         np = size(fpoints, 1)
-        vfloe = repeat([floe.u ifloe.v], outer = np) .+ floe.ξ*(fpoints .- repeat(floe.centroid', outer = np)) 
+        vfloe = repeat([floe.u floe.v], outer = np) .+ floe.ξ*(fpoints .- repeat(floe.centroid', outer = np)) 
         vbound = repeat(zeros(T, 1, 2), outer = np)
         friction_forces = calc_friction_forces(vfloe, vbound, normal_forces, Δl, consts, Δt, T)
         # Calculate total forces and update ifloe's interactions
         forces = normal_forces .+ friction_forces
         if sum(abs.(forces)) != 0
-        # Add this back in once we figure out Ly, Lx --> should we just use poly2 to check if ON
-        #   forces[fpoints[:, 2] .== Ly, 1] .= T(0.0)
-        #   forces[fpoints[:, 1] .== Lx, 2] .= T(0.0)
-            nint = size(forces, 1)
-            floe.interactions = [floe.interactions; fill(Inf, nint) forces fpoints zeros(nint) overlaps']
+            normal_direction_correct!(forces, fpoints, boundary, T)
+            floe.interactions = [floe.interactions; fill(Inf, np) forces fpoints zeros(np) overlaps']
             floe.overarea += sum(overlaps)
         end
     end
     return
 end
 
-function floe_boundary_interaction!(floe, boundary_coords, ::PeriodicBC, consts, Δt, t::Type{T} = Float64) where T
+function floe_boundary_interaction!(floe, boundary::PeriodicBoundary, consts, Δt, t::Type{T} = Float64) where T
     return
 end
 
@@ -343,43 +359,31 @@ Outputs:
 function floe_domain_interaction!(floe, domain::Domain, consts, Δt, t::Type{T} = Float64) where {T}
     centroid = floe.centroid
     rmax = floe.rmax
-    eastval = domain.east.val
-    westval = domain.west.val
-    northval = domain.north.val
-    southval = domain.south.val
+    nbound = domain.north
+    sbound = domain.south
+    ebound = domain.east
+    wbound = domain.west
 
     # unless periodic --> Need to update.
-    if centroid[1] > eastval || centroid[1] < westval || centroid[2] > northval || centroid[2] < southval
+    if centroid[1] > ebound.val || centroid[1] < wbound.val || centroid[2] > nbound.val || centroid[2] < sbound.val
         floe.alive = 0
         return
     else
 
     end
-   
-    if centroid[1] + rmax > eastval
-        boundary_coords = [[[eastval, northval], [eastval, southval],
-                            [eastval + floe.rmax, southval],
-                            [eastval + rmax, northval], [eastval, northval]]]
-        floe_boundary_interaction!(floe, boundary_coords, domain.east.bc, consts, Δt)
+    if centroid[2] + rmax > nbound.val
+        floe_boundary_interaction!(floe, nbound, consts, Δt)
     end
-    if centroid[1] - rmax < westval
-        boundary_coords = [[[westval, northval], [westval, southval],
-                            [westval - floe.rmax, southval],
-                            [westval - rmax, northval], [westval, northval]]]
-        floe_boundary_interaction!(floe, boundary_coords, domain.west.bc, consts, Δt)
+    if centroid[2] - rmax < sbound.val
+        floe_boundary_interaction!(floe, sbound, consts, Δt)
     end
-    if centroid[2] + rmax > northval
-        boundary_coords = [[[westval, northval], [westval, northval + rmax],
-                            [eastval, northval + floe.rmax],
-                            [eastval, northval], [westval, northval]]]
-        floe_boundary_interaction!(floe, boundary_coords, domain.north.bc, consts, Δt)
+    if centroid[1] + rmax > ebound.val
+        floe_boundary_interaction!(floe, ebound, consts, Δt)
     end
-    if centroid[2] - rmax < southval
-        boundary_coords = [[[westval, southval], [westval, southval - rmax],
-                            [eastval, southval - floe.rmax],
-                            [eastval, southval], [westval, southval]]]
-        floe_boundary_interaction!(floe, boundary_coords, domain.north.bc, consts, Δt)
+    if centroid[1] - rmax < wbound.val
+        floe_boundary_interaction!(floe, wbound, consts, Δt)
     end
+
     return
 end
 

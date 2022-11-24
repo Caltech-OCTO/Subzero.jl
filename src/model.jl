@@ -201,20 +201,48 @@ struct East<:AbstractDirection end
 
 struct West<:AbstractDirection end
 
-function boundary_coords(grid::Grid, direction::North) 
-    return 
+function boundary_coords(grid::Grid, ::North)
+    Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
+    Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
+    return grid.yg[end],  # val
+        [[[grid.xg[1] - Δx, grid.yg[end]],  # coords
+          [grid.xg[1] - Δx, grid.yg[end] + Δy],
+          [grid.xg[end] + Δx, grid.yg[end] + Δy], 
+          [grid.xg[end] + Δx, grid.yg[end]], 
+          [grid.xg[1] - Δx, grid.yg[end]]]]
 end
 
-function boundary_coords(grid::Grid, direction::South)
-    return
+function boundary_coords(grid::Grid, ::South)
+    Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
+    Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
+    return grid.yg[1],  # val
+        [[[grid.xg[1] - Δx, grid.yg[1] - Δy],  # coords
+          [grid.xg[1] - Δx, grid.yg[1]],
+          [grid.xg[end] + Δx, grid.yg[1]], 
+          [grid.xg[end] + Δx, grid.yg[1] - Δy], 
+          [grid.xg[1] - Δx, grid.yg[1] - Δy]]]
 end
 
-function boundary_coords(grid::Grid, direction::East)
-    return
+function boundary_coords(grid::Grid, ::East)
+    Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
+    Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
+    return grid.xg[end],  # val
+        [[[grid.xg[end], grid.yg[1] - Δy],  # coords
+          [grid.xg[end], grid.yg[end] + Δy],
+          [grid.xg[end] + Δx, grid.yg[end] + Δy], 
+          [grid.xg[end] + Δx, grid.yg[1] - Δy], 
+          [grid.xg[end], grid.yg[1] - Δy]]]
 end
 
-function boundary_coords(grid::Grid, direction::West)
-    return
+function boundary_coords(grid::Grid, ::West)
+    Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
+    Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
+    return grid.xg[1],  # val
+        [[[grid.xg[1] - Δx, grid.yg[1] - Δy],  # coords
+          [grid.xg[1] - Δx, grid.yg[end] + Δy],
+          [grid.xg[1], grid.yg[end] + Δy], 
+          [grid.xg[1], grid.yg[1] - Δy], 
+          [grid.xg[1] - Δx, grid.yg[1] - Δy]]]
 end
 """
     AbstractBoundary{FT<:AbstractFloat}
@@ -231,24 +259,26 @@ Note that the boundary coordinates must include the corner of the boundary as ca
 Val field holds value that defines the line y = val such that if the floe crosses that line it would be
 partially within the boundary. 
 """
-abstract type AbstractBoundary{FT<:AbstractFloat} end
+abstract type AbstractBoundary{D<:AbstractDirection, FT<:AbstractFloat} end
 
 """
     OpenBoundary <: AbstractBoundary
 
 A simple concrete type of boundary, which allows a floe to pass out of the domain edge without any effects on the floe.
 """
-struct OpenBoundary{D<:AbstractDirection, FT}<:AbstractBoundary{FT}
+struct OpenBoundary{D, FT}<:AbstractBoundary{D, FT}
     coords::PolyVec{FT}
     val::FT
 end
 
-function OpenBoundary(coords, val, direction<:AbstractDirection)
+function OpenBoundary(coords, val, direction::AbstractDirection)
     return OpenBoundary{typeof(direction), typeof(val)}(coords, val)
 end
 
-OpenBoundary(grid::Grid, direction) = 
-    OpenBoundary(boundary_coords(grid, direction), grid.yg[end], direction)
+function OpenBoundary(grid::Grid, direction)
+    val, coords = boundary_coords(grid, direction)
+    OpenBoundary(coords, val, direction)
+end
 
 """
     PeriodicBoundary <: AbstractBoundary
@@ -258,35 +288,38 @@ side of the domain, bringing the floe back into the grid.
 
 NOTE: Not implemented yet!
 """
-struct PeriodicBoundary{D<:AbstractDirection, FT}<:AbstractBoundary{FT}
+struct PeriodicBoundary{D, FT}<:AbstractBoundary{D, FT}
     coords::PolyVec{FT}
     val::FT
 end
 
-function PeriodicBoundary(coords, val, direction<:AbstractDirection)
+function PeriodicBoundary(coords, val, direction::AbstractDirection)
     return PeriodicBoundary{typeof(direction), typeof(val)}(coords, val)
 end
 
-PeriodicBoundary(grid::Grid, direction) = 
-    PeriodicBoundary(boundary_coords(grid, direction), grid.yg[end], direction)
+function PeriodicBoundary(grid::Grid, direction)
+    val, coords = boundary_coords(grid, direction)
+    PeriodicBoundary(coords, val, direction)
+end
 
 """
     CollisionBoundary <: AbstractBoundary
 
 A simple concrete type of boundary, which stops a floe from exiting the domain by having the floe collide with the boundary.
 """
-struct CollisionBoundary{D<:AbstractDirection, FT}<:AbstractBoundary{FT}
+struct CollisionBoundary{D, FT}<:AbstractBoundary{D, FT}
     coords::PolyVec{FT}
     val::FT
 end
 
-function CollisionBoundary(coords, val, direction<:AbstractDirection)
+function CollisionBoundary(coords, val, direction::AbstractDirection)
     return CollisionBoundary{typeof(direction), typeof(val)}(coords, val)
 end
 
-CollisionBoundary(grid::Grid, direction) = 
-    CollisionBoundary(boundary_coords(grid, direction), grid.yg[end], direction)
-
+function CollisionBoundary(grid::Grid, direction)
+    val, coords = boundary_coords(grid, direction)
+    CollisionBoundary(coords, val, direction)
+end
 """
     CompressionBC <: AbstractBC
 
@@ -295,19 +328,20 @@ the center of the domain as the given velocity, compressing the ice within the d
 
 NOTE: Not implemented yet!
 """
-struct CompressionBoundary{D<:AbstractDirection, FT}<:AbstractBoundary{FT}
+mutable struct CompressionBoundary{D, FT}<:AbstractBoundary{D, FT}
     coords::PolyVec{FT}
     val::FT
     velocity::FT
 end
 
-function CompressionBoundary(coords, val, velocity, direction<:AbstractDirection)
+function CompressionBoundary(coords, val, velocity, direction::AbstractDirection)
     return CompressionBoundary{typeof(direction), typeof(val)}(coords, val, velocity)
 end
 
-CompressionBoundary(grid::Grid, velocity, direction) = 
-    CompressionBoundary(boundary_coords(grid, direction), grid.yg[end], velocity, direction)
-
+function CompressionBoundary(grid::Grid, direction)
+    val, coords = boundary_coords(grid, direction)
+    CompressionBoundary(coords, val, direction)
+end
 """
     periodic_compat(b1::B, b2::B)
 
@@ -337,27 +371,32 @@ This means that pairs of opposite boundaries both need to be periodic if one of 
 Next, the value in the north boundary must be greater than the south boundary and the value in the east boundary
 must be greater than the west in order to form a valid rectangle.
 """
-struct Domain{NB<:AbstractBoundary, SB<:AbstractBoundary, EB<:AbstractBoundary, WB<:AbstractBoundary, FT<:AbstractFloat}
-    north::NB{North, FT}
-    south::SB{South, FT}
-    east::EB{East, FT}
-    west::WB{West, FT}
+struct Domain{FT<:AbstractFloat, NB<:AbstractBoundary{North, FT}, SB<:AbstractBoundary{South, FT},
+EB<:AbstractBoundary{East, FT}, WB<:AbstractBoundary{West, FT}}
+    north::NB
+    south::SB
+    east::EB
+    west::WB
 
     Domain(north, south, east, west) = 
         (periodic_compat(north, south) && periodic_compat(east, west)) &&
         (north.val > south.val && east.val > west.val) ?
-        new{typeof(north), typeof(south), typeof(east),typeof(west), typeof(north.val)}(north, south, east, west) : 
+        new{typeof(north.val), typeof(north), typeof(south), typeof(east), typeof(west)}(north, south, east, west) : 
         throw(ArgumentError("Periodic boundary must have matching opposite boundary and/or North value must be greater then South and East must be greater than West."))
 end
 
 """
     Topography{FT<:AbstractFloat}
 
-Singular topographic element with fields describing current state. These are used to create the desired topography within the simulation and will be treated as "islands" within the model in that they will not move or break due to floe interactions, but they will affect floes. 
+Singular topographic element with fields describing current state.
+These are used to create the desired topography within the simulation and will be treated as "islands" within the model
+in that they will not move or break due to floe interactions, but they will affect floes. 
 
 Coordinates are vector of vector of vector of points of the form:
 [[[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]], 
- [[w1, z1], [w2, z2], ..., [wn, zn], [w1, z1]], ...] where the xy coordinates are the exterior border of the element and the wz coordinates, or any other following sets of coordinates, describe holes within it - although there should not be any. This format makes for easy conversion to and from LibGEOS Polygons. 
+ [[w1, z1], [w2, z2], ..., [wn, zn], [w1, z1]], ...] where the xy coordinates are the exterior border of the element
+ and the wz coordinates, or any other following sets of coordinates, describe holes within it - although there should not be any.
+ This format makes for easy conversion to and from LibGEOS Polygons. 
 """
 struct Topography{FT<:AbstractFloat}
     centroid::Vector{FT}
@@ -576,7 +615,7 @@ Model which holds grid, ocean, wind structs, each with the same underlying float
 - turn angle: Ekman spiral caused angle between the stress and surface current
               (angle is positive)
 """
-struct Model{FT<:AbstractFloat, DT<:AbstractDomain{FT}}
+struct Model{FT<:AbstractFloat, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}}
     grid::Grid{FT}
     ocean::Ocean{FT}
     wind::Wind{FT}
