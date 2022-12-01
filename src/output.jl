@@ -40,7 +40,7 @@ FloeOutputWriter constructor to determine which are saved during the model run.
     ξ_floe = 11
     fxOA_floe = 12
     fyOA_floe = 13
-    torqueOA_floe = 14
+    trqOA_floe = 14
     p_dxdt_floe = 15
     p_dydt_floe = 16
     p_dudt_floe = 17
@@ -53,7 +53,7 @@ FloeOutputWriter constructor to determine which are saved during the model run.
     ycoords_floe = 24
     xcollision_force = 25
     ycollision_force = 26
-    collision_torque = 27
+    collision_trq = 27
 end
 
 """
@@ -106,7 +106,7 @@ function getname(output::FloeOutput)
         n == 11 ? "ξ" :
         n == 12 ? "fxOA" :
         n == 13 ? "fyOA" :
-        n == 14 ? "torqueOA" :
+        n == 14 ? "trqOA" :
         n == 15 ? "p_dxdt" :
         n == 16 ? "p_dydt" :
         n == 17 ? "p_dudt" :
@@ -574,8 +574,8 @@ function write_data!(writer::FloeOutputWriter, tstep, model)
                     live_floes.fxOA
                 elseif o == fyOA_floe
                     live_floes.fyOA
-                elseif o == torqueOA_floe
-                    live_floes.torqueOA
+                elseif o == trqOA_floe
+                    live_floes.trqOA
                 elseif o == p_dxdt_floe
                     live_floes.p_dxdt
                 elseif o == p_dydt_floe
@@ -632,8 +632,8 @@ function write_data!(writer::FloeOutputWriter, tstep, model)
                     first.(live_floes.collision_force)
                 elseif o == ycollision_force
                     last.(live_floes.collision_force)
-                elseif o == collision_torque
-                    live_floes.collision_torque
+                elseif o == collision_trq
+                    live_floes.collision_trq
                 end
             
             name = getname(o)

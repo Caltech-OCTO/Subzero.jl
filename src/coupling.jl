@@ -104,58 +104,75 @@ function floe_OA_forcings!(floe, m)
     Δx = m.grid.xg[2] - m.grid.xg[1]
     Δy = m.grid.yg[2] - m.grid.yg[1]
 
-    # Grid squares under ice floe and ice area per cell
-    ma_ratio = floe.mass/floe.area
-    area_ratios, xidx, yidx, idx = floe_area_ratio(floe, m.grid.xg, m.grid.yg)
-    areas = area_ratios * (Δx * Δy)
+    xi = floe.centroid[1]
+    yi = floe.centroid[2]
+    α_rot = [cos(floe.α) -sin(α); sin(α) cos(α)]
+    # Rotate and translate Monte Carlo points to current floe location
+    mc_p = α_rot * [floe.mc_x'; floe.mc_y']
+    mc_xr = mc_p[1, :] .+ xi
+    mc_xr = mc_p[2, :] .+ yi
+
+    # Find total velocity at each monte carlo point
+    mc_rad = sqrt.(mc_p[1, :]^2 .+ mc_p[1, :]^2)
+    mc_θ = atan.(mc_p[1, :], mc_p[2, :])
+    mc_u = floe.u .- floe.ξ * mc_rad .* sin(mc_θ)
+    mc_v = floe.v .+ floe.ξ * mc_rad .* cos(mc_θ)
+    mc_xidx = cld(mc_xr .- m.grid.xg[1], Δx)
+    mc_yidx = cld(mc_yr .- m.grid.yg[1], Δy)
+
+    # Find grid indicies surrounding floe --> can we use the mc indicies for this??
+    rbound = sqrt(2) * floe.rmax
+    xbound = rbound + 2Δx
+    ybound = rbound + 2Δy
+    xbound_idx = -xbound .<= m.grid.xg .- xi .<= xbound
+    ybound_idx = -ybound .<= m.grid.yg .- yi .<= ybound
+    xg_idx = m.grid.xg[xbound_idx]
+    yg_idx = m.grid.xg[ybound_idx]
+    # TODO: Interp ocean and wind
 
     # Floe heatflux
-    floe.hflx = mean(m.hflx[idx])
-
-    # Ice velocity within each grid square
-    lx = m.grid.xc[xidx] .- floe.centroid[1]
-    ly = m.grid.yc[yidx] .- floe.centroid[2]
-    uice = floe.u .- ly*floe.ξ
-    vice = floe.v .+ lx*floe.ξ
+    #floe.hflx = mean(m.hflx[idx])
 
     # Force on ice from atmopshere
+    # TODO: Replace with Interp mean
     uatm = m.wind.u[idx]
     vatm = m.wind.v[idx]
-    fx_atm = (c.ρa * c.Cd_ia * sqrt.(uatm.^2 + vatm.^2) .* uatm) .* areas
-    fy_atm = (c.ρa * c.Cd_ia * sqrt.(uatm.^2 + vatm.^2) .* vatm) .* areas
+    τx_atm = (c.ρa * c.Cd_ia * sqrt(uatm^2 + vatm^2) * uatm)
+    τy_atm = (c.ρa * c.Cd_ia * sqrt(uatm^2 + vatm^2) * vatm)
 
     # Force on ice from pressure gradient
-    fx_pressure∇ = -ma_ratio * c.f .* m.ocean.v[idx] .* areas
-    fy_pressure∇ = ma_ratio * c.f .* m.ocean.u[idx] .* areas
+    # TODO: Replace with Interp 
+    uocn = m.ocean.u[idx]
+    vocn = m.ocean.v[idx]
+    τx_pressure∇ = -ma_ratio * c.f .* vocn
+    τy_pressure∇ = ma_ratio * c.f .* uocn
 
     # Force on ice from ocean
-    Δu_OI = m.ocean.u[idx] .- uice
-    Δv_OI = m.ocean.v[idx] .- vice
+    Δu_OI = uocn .- mc_u
+    Δv_OI = vocn .- mc_v
     τx_ocn = c.ρo*c.Cd_io*sqrt.(Δu_OI.^2 + Δv_OI.^2) .* (cos(c.turnθ) .* Δu_OI .- sin(c.turnθ) * Δv_OI)
     τy_ocn = c.ρo*c.Cd_io*sqrt.(Δu_OI.^2 + Δv_OI.^2) .* (sin(c.turnθ) .* Δu_OI .+ cos(c.turnθ) * Δv_OI)
-    fx_ocn = τx_ocn .* areas
-    fy_ocn = τy_ocn .* areas
+
+    # Save ocean stress fields to update ocean
+    floe.mc_xocnτ[mc_xidx, mc_yidx] .= τx_ocn
+    floe.mc_yocnτ[mc_xidx, mc_yidx] .= τy_ocn
 
     # Sum above forces and find torque
-    fx = fx_atm .+ fx_pressure∇ .+ fx_ocn
-    fy = fy_atm .+ fy_pressure∇ .+ fy_ocn
-    trq = lx.*fy .- ly.*fx  # are these signs right?
+    τx = τx_atm .+ τx_pressure∇ .+ τx_ocn
+    τy = τy_atm .+ τy_pressure∇ .+ τy_ocn
+    τtrq = (-τx .* sin.(mc_θ) .+ τy .*cos(mc_θ)) .* mc_rad
 
     # Add coriolis force to total foces
-    fx .+= ma_ratio * c.f * floe.v * areas
-    fy .-= ma_ratio * c.f * floe.u * areas
+    τx .+= ma_ratio * c.f * floe.v
+    τy .-= ma_ratio * c.f * floe.u
 
     # Sum forces on ice floe
-    floe.fxOA = sum(fx)
-    floe.fyOA = sum(fy)
-    floe.torqueOA = sum(trq)
-
-    # TODO: Not thread safe
-    # Update ocean stress fields with ice on ocean stress
-    m.ocean.τx[idx] .= m.ocean.τx[idx].*(1 .- area_ratios) .- τx_ocn.*area_ratios
-    m.ocean.τy[idx] .= m.ocean.τy[idx].*(1 .- area_ratios) .- τy_ocn.*area_ratios
-
-    # Update sea-ice fraction
-    m.ocean.si_frac[idx] .+= area_ratios
+    floe.fxOA = mean(τx) * floe.area
+    floe.fyOA = mean(τy) * floe.area
+    floe.trqOA = mean(τtrq) * floe.area
     return
+end
+
+function update_ocean_stress(ocean)
+
 end

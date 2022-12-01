@@ -469,13 +469,17 @@ conversion to and from LibGEOS Polygons.
     #angles::Vector{T}
     rmax::FT                # distance of vertix farthest from centroid (m)
     coords::PolyVec{FT}     # floe coordinates
+    mc_x::Vector{FT}        # x points for monte-carlo integration
+    mc_y::Vector{FT}        # y points for monte-carlo integration
+    mc_xocnτ::Matrix{FT}    # ocean x-stress field on the grid calculated with monte carlo points
+    mc_yocnτ::Matrix{FT}    # ocean y-stress field on the grid calculated with monte carlo points
     α::FT = 0.0             # floe rotation from starting position in radians
     u::FT = 0.0             # floe x-velocity
     v::FT = 0.0             # floe y-velocity
     ξ::FT = 0.0             # floe angular velocity
     fxOA::FT = 0.0          # force from ocean and wind in x direction
     fyOA::FT = 0.0          # force from ocean and wind in y direction
-    torqueOA::FT = 0.0      # torque from ocean and wind
+    trqOA::FT = 0.0      # torque from ocean and wind
     p_dxdt::FT = 0.0        # previous timestep x-velocity
     p_dydt::FT = 0.0        # previous timestep y-velocity
     p_dudt::FT = 0.0        # previous timestep x-acceleration
@@ -489,7 +493,7 @@ conversion to and from LibGEOS Polygons.
     interactions::NamedMatrix{FT} = NamedArray(zeros(7),
         (["floeidx", "xforce", "yforce", "xpoint", "ypoint", "torque", "overlap"]))'
     collision_force::Matrix{FT} = [0.0 0.0] 
-    collision_torque::FT = 0.0
+    collision_trq::FT = 0.0
 end # TODO: do we want to do any checks? Ask Mukund!
 
 """
@@ -500,10 +504,12 @@ Inputs:
         poly        <LibGEOS.Polygon> 
         h_mean      <Real> mean height for floes
         Δh          <Real> variability in height for floes
+        grid        <Grid>
         ρi          <Real> ice density kg/m3 - default 920
         u           <Real> x-velocity of the floe - default 0.0
         v           <Real> y-velcoity of the floe - default 0.0
         ksi         <Real> angular velocity of the floe - default 0.0
+        mc_n        <Real> number of monte carlo points
         t           <Type> datatype to convert ocean fields - must be a Float!
 Output:
         Floe with needed fields defined - all default field values used so all forcings start at 0 and floe is "alive".
@@ -513,7 +519,7 @@ Note:
         When this is fixed, this annotation will need to be updated.
         We should only run the model with Float64 right now or else we will be converting the Polygon back and forth all of the time. 
 """
-function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, t::Type{T} = Float64) where T
+function Floe(poly::LG.Polygon, hmean, Δh, grid; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n = 100.0, t::Type{T} = Float64) where T
     floe = rmholes(poly)
     centroid = LG.GeoInterface.coordinates(LG.centroid(floe))::Vector{Float64}
     h = hmean + (-1)^rand(0:1) * rand() * Δh  # floe height
@@ -521,12 +527,32 @@ function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 
     mass = area * h * ρi  # floe mass
     moment = calc_moment_inertia(floe, h, ρi = ρi)
     coords = LG.GeoInterface.coordinates(floe)::PolyVec{Float64}
-    rmax = sqrt(maximum([sum(c.^2) for c in translate(coords, -centroid)[1]]))
-    
+    origin_coords = translate(coords, -centroid)
+    ox, oy = seperate_xy(origin_coords)
+    rmax = sqrt(maximum([sum(c.^2) for c in origin_coords[1]]))
+    err = 1
+    count = 1
+    alive = 1
+    while err > 0.1
+        mc_x = rmax * (2rand(T, mc_n) .- 1)
+        mc_y = rmax * (2rand(T, mc_n) .- 1)
+        mc_in = inpoly2(hcat(mc_x, mc_y), hcat(ox, oy))
+        err = abs(sum(mc_in)/mc_n * 4 * rmax^2 - area)/area
+        count += 1
+        if count > 10
+            err = 0.0
+            alive = 0
+        end
+    end
+    mc_x = mc_x[in_idx[:, 1] .|  in_idx[:, 2]]
+    mc_y = mc_y[in_idx[:, 1] .|  in_idx[:, 2]]
+    mc_xocnτ = zeros(T, grid.dims, 2)
+    mc_yocnτ = zeros(T, grid.dims, 2)
 
     return Floe(centroid = convert(Vector{T}, centroid), height = convert(T, h), area = convert(T, area),
                 mass = convert(T, mass), moment = convert(T, moment), coords = convert(PolyVec{T}, coords),
-                rmax = convert(T, rmax), u = convert(T, u), v = convert(T, v), ξ = convert(T, ξ))
+                rmax = convert(T, rmax), u = convert(T, u), v = convert(T, v), ξ = convert(T, ξ),
+                mc_x = mc_x, mc_y = mc_y, mc_xocnτ = mc_xocnτ, mc_yocnτ = mc_yocnτ, alive = alive)
 end
 
 """
@@ -537,7 +563,8 @@ Floe constructor with PolyVec{Float64}(i.e. Vector{Vector{Vector{Float64}}}) coo
 Inputs:
         coords      <Vector{Vector{Vector{Float64}}}> floe coordinates
         h_mean      <Real> mean height for floes
-        h_delta     <Real> variability in height for floes
+        Δh          <Real> variability in height for floes
+        grid        <Grid>
         rho_ice     <Real> ice density kg/m3
         u           <Real> x-velocity of the floe - default 0.0
         v           <Real> y-velcoity of the floe - default 0.0
@@ -546,8 +573,8 @@ Inputs:
 Output:
         Floe with needed fields defined - all default field values used so all forcings and velocities start at 0 and floe is "alive"
 """
-Floe(coords::PolyVec{<:Real}, h_mean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, t::Type{T} = Float64) where T =
-    Floe(LG.Polygon(convert(PolyVec{Float64}, coords)), h_mean, Δh, ρi, u, v, ξ, T) 
+Floe(coords::PolyVec{<:Real}, h_mean, Δh, grid; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n = 100.0, t::Type{T} = Float64) where T =
+    Floe(LG.Polygon(convert(PolyVec{Float64}, coords)), h_mean, Δh, grid, ρi, u, v, ξ, mc_n, T) 
     # Polygon convert is needed since LibGEOS only takes Float64 - when this is fixed convert can be removed
 
 """
