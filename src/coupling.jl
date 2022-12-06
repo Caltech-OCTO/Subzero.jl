@@ -86,8 +86,24 @@ function floe_area_ratio(floe, xg, yg, t::Type{T} = Float64) where T
     return area_ratios, xidx, yidx, idx
 end
 
-function find_bounding_idx(point_idx, Δd, len_idx)
+"""
+    find_bounding_idx(point_idx, Δd, len_idx)
+
+Find indicies in list of grid lines that surround points with indicies 'point_idx'
+with a buffer of Δd indices on each side of the points. 
+Inputs:
+        point_idx <Vector{Int}> vector of indices representing indices of a list of points on the grid
+        Δd        <Int> number of buffer grid cells to include on either side of the provided indicies
+        len_idx   <Int> number of grid lines 
+Outputs:
+        List of indices that include, and surround the given indices with a buffer of Δd on each side.
+        Assumes that domain is periodic, so if the buffer causes the indices to be larger or smaller
+        than the number of grid lines, the indices will wrap around to the other side of the grid. 
+"""
+function find_bounding_idx(point_idx, Δd::Int, len_idx::Int)
     imin, imax = extrema(point_idx)
+    # This is not true for periodic as the edge of the domain could go off the edge...
+    # For non-periodic we shouldn't get the ocean on the other side of the domain
     bounding = collect(imin:imax)
     if (imax+Δd) < len_idx
         bounding = [bounding; imax+1:imax+2]
@@ -104,7 +120,7 @@ function find_bounding_idx(point_idx, Δd, len_idx)
 end
 
 """
-    calc_OA_forcings!(m, i)
+    floe_OA_forcings!(floe, m, t::Type{T} = Float64)
 
 Calculate the effects on the ocean and atmpshere on floe i within the given model
 and the effects of the ice floe on the ocean.
