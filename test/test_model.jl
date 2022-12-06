@@ -55,17 +55,17 @@
         tempocn = fill(-2.0, g.dims)
         τx = fill(0.0, g.dims)
         τy = τx
-        si_frac = τx
-        ocn = Subzero.Ocean(uocn, vocn, tempocn, τx, τy, si_frac)
+        si_area = τx
+        ocn = Subzero.Ocean(uocn, vocn, tempocn, τx, τy, si_area)
         @test ocn.u == uocn
         @test ocn.v == vocn
         @test ocn.temp == tempocn
-        @test ocn.τx == τx == ocn.τy == ocn.si_frac
+        @test ocn.τx == τx == ocn.τy == ocn.si_area
         # Default constructor fails for non-matching dimensions
-        @test_throws ArgumentError Subzero.Ocean(Float64[0.0], vocn, tempocn, τx, τy, si_frac)
-        @test_throws ArgumentError Subzero.Ocean(uocn, Float64[0.0], tempocn, τx, τy, si_frac)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, Float64[0.0], τx, τy, si_frac)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, Float64[0.0], τy, si_frac)
+        @test_throws ArgumentError Subzero.Ocean(Float64[0.0], vocn, tempocn, τx, τy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, Float64[0.0], tempocn, τx, τy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, Float64[0.0], τx, τy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, Float64[0.0], τy, si_area)
         @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, τx, τy, Float64[0.0])
         # Custom constructor
         ocn2 = Subzero.Ocean(g, 3.0, 4.0, -2.0)
@@ -73,7 +73,7 @@
         @test ocn.v == ocn2.v
         @test ocn.temp == ocn2.temp
         @test ocn.τx == ocn2.τx
-        @test ocn.si_frac == ocn2.si_frac
+        @test ocn.si_area == ocn2.si_area
         # Custom constructor Float32
         @test typeof(Subzero.Ocean(g, 3.0, 4.0, -2.0, Float32)) ==
               Subzero.Ocean{Float32}

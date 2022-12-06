@@ -190,17 +190,56 @@ Wind(grid, u, v, temp, t::Type{T} = Float64) where T =
          fill(convert(T, v), grid.dims),
          fill(convert(T, temp), grid.dims))
 
+"""
+    AbstractDirection
 
+An abstract type for the boundary cardinal directions within model domain.
+Boundary direction will control behavior of sea ice floes at edges of domain.
+"""
 abstract type AbstractDirection end
 
+"""
+    North<:AbstractDirection
+
+A simple direction type representing if a boundary is the northern boundary in a rectangular domain.
+"""
 struct North<:AbstractDirection end
 
+"""
+    South<:AbstractDirection
+
+A simple direction type representing if a boundary is the souther boundary in a rectangular domain.
+"""
 struct South<:AbstractDirection end
 
+"""
+    East<:AbstractDirection
+
+A simple direction type representing if a boundary is the eastern boundary in a rectangular domain.
+"""
 struct East<:AbstractDirection end
 
+"""
+    West<:AbstractDirection
+
+A simple direction type representing if a boundary is the western boundary in a rectangular domain.
+"""
 struct West<:AbstractDirection end
 
+"""
+    boundary_coords(grid::Grid, ::North)
+
+Determine coordinates of northen-most boundary of domain if around the edge of the grid.
+Inputs:
+        grid    <Grid> model grid
+                <North> boundary direction
+Output:
+        PolyVec of boundary coordinates. These coordinates describe a rectangle that has a length 2-times
+        the length of the grid in the x-direction, centered on the grid so that there is a buffer of half 
+        of the grid on either side. The height is half of the grid in the y-direction. This buffer prevents
+        pieces of floes from passing outside the boundary before the next timestep - possibly too cautious.
+        If boundary_coords methods are used for each direction, corners will be shared between adjacent boundaries. 
+"""
 function boundary_coords(grid::Grid, ::North)
     Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
     Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
@@ -212,6 +251,16 @@ function boundary_coords(grid::Grid, ::North)
           [grid.xg[1] - Δx, grid.yg[end]]]]
 end
 
+"""
+    boundary_coords(grid::Grid, ::South)
+
+Determine coordinates of southern-most boundary of domain if around the edge of the grid.
+Inputs:
+        grid    <Grid> model grid
+                <South> boundary direction
+Output:
+        PolyVec of boundary coordinates. See documentation of North method of this function for more details. 
+"""
 function boundary_coords(grid::Grid, ::South)
     Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
     Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
@@ -223,6 +272,16 @@ function boundary_coords(grid::Grid, ::South)
           [grid.xg[1] - Δx, grid.yg[1] - Δy]]]
 end
 
+"""
+    boundary_coords(grid::Grid, ::East)
+
+Determine coordinates of eastern-most boundary of domain if around the edge of the grid.
+Inputs:
+        grid    <Grid> model grid
+                <East> boundary direction
+Output:
+        PolyVec of boundary coordinates. See documentation of North method of this function for more details. 
+"""
 function boundary_coords(grid::Grid, ::East)
     Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
     Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
@@ -234,6 +293,16 @@ function boundary_coords(grid::Grid, ::East)
           [grid.xg[end], grid.yg[1] - Δy]]]
 end
 
+"""
+    boundary_coords(grid::Grid, ::West)
+
+Determine coordinates of western-most boundary of domain if around the edge of the grid.
+Inputs:
+        grid    <Grid> model grid
+                <West> boundary direction
+Output:
+        PolyVec of boundary coordinates. See documentation of North method of this function for more details. 
+"""
 function boundary_coords(grid::Grid, ::West)
     Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
     Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
@@ -245,10 +314,11 @@ function boundary_coords(grid::Grid, ::West)
           [grid.xg[1] - Δx, grid.yg[1] - Δy]]]
 end
 """
-    AbstractBoundary{FT<:AbstractFloat}
+    AbstractBoundary{D<:AbstractDirection, FT<:AbstractFloat}
 
 An abstract type for the types of boundaries at the edges of the model domain.
-Boundary conditions will control behavior of sea ice floes at edges of domain.
+Boundary types will control behavior of sea ice floes at edges of domain.
+The direction given by type D denotes which edge of a domain this boundary could be.
 
 Note that the boundary coordinates must include the corner of the boundary as can be seen in the diagram below.
  ________________
@@ -256,25 +326,47 @@ Note that the boundary coordinates must include the corner of the boundary as ca
 |  |          |  |
 |  |          |  | <- East coordinates must ALSO include corners
 |  |          |  |
-Val field holds value that defines the line y = val such that if the floe crosses that line it would be
-partially within the boundary. 
+Val field holds value that defines the line y = val or x = val (depending on boundary direction) such that if the
+floe crosses that line it would be partially within the boundary. 
 """
 abstract type AbstractBoundary{D<:AbstractDirection, FT<:AbstractFloat} end
 
 """
     OpenBoundary <: AbstractBoundary
 
-A simple concrete type of boundary, which allows a floe to pass out of the domain edge without any effects on the floe.
+A sub-type of AbstractBoundary that allows a floe to pass out of the domain edge without any effects on the floe.
 """
 struct OpenBoundary{D, FT}<:AbstractBoundary{D, FT}
     coords::PolyVec{FT}
     val::FT
 end
 
+"""
+    OpenBoundary(coords, val, direction::AbstractDirection)
+
+Creates open boundary with given coords and val, and with the direction as a type.
+Inputs:
+        coords      <PolyVec{AbstractFloat}> coordinates of boundary
+        val         <AbstractFloat> value defining line that marks edge of domain
+        direction   <AbstractDirection> direction of boundary wall
+Output:
+        Open Boundary of type given by direction and defined by given coordinates and edge value
+"""
 function OpenBoundary(coords, val, direction::AbstractDirection)
     return OpenBoundary{typeof(direction), typeof(val)}(coords, val)
 end
 
+"""
+    OpenBoundary(grid::Grid, direction)
+
+Creates open boundary on the edge of the grid, and with the direction as a type.
+Edge is determined by direction.
+Inputs:
+        grid        <Grid> model grid
+        direction   <AbstractDirection> direction of boundary wall
+Outputs:
+        Open Boundary on edge of grid given by direction. 
+"""
 function OpenBoundary(grid::Grid, direction)
     val, coords = boundary_coords(grid, direction)
     OpenBoundary(coords, val, direction)
@@ -283,7 +375,7 @@ end
 """
     PeriodicBoundary <: AbstractBoundary
 
-A simple concrete type of boundary, which moves a floe from one side of the domain to the opposite
+A sub-type of AbstractBoundary that moves a floe from one side of the domain to the opposite
 side of the domain, bringing the floe back into the grid.
 
 NOTE: Not implemented yet!
@@ -293,10 +385,32 @@ struct PeriodicBoundary{D, FT}<:AbstractBoundary{D, FT}
     val::FT
 end
 
+"""
+    PeriodicBoundary(coords, val, direction::AbstractDirection)
+
+Creates periodic boundary with given coords and val, and with the direction as a type.
+Inputs:
+        coords      <PolyVec{AbstractFloat}> coordinates of boundary
+        val         <AbstractFloat> value defining line that marks edge of domain
+        direction   <AbstractDirection> direction of boundary wall
+Output:
+        Periodic Boundary of type given by direction and defined by given coordinates and edge value
+"""
 function PeriodicBoundary(coords, val, direction::AbstractDirection)
     return PeriodicBoundary{typeof(direction), typeof(val)}(coords, val)
 end
 
+"""
+    PeriodicBoundary(grid::Grid, direction)
+
+Creates periodic boundary on the edge of the grid, and with the direction as a type.
+Edge is determined by direction.
+Inputs:
+        grid        <Grid> model grid
+        direction   <AbstractDirection> direction of boundary wall
+Outputs:
+        Periodic Boundary on edge of grid given by direction. 
+"""
 function PeriodicBoundary(grid::Grid, direction)
     val, coords = boundary_coords(grid, direction)
     PeriodicBoundary(coords, val, direction)
@@ -305,17 +419,40 @@ end
 """
     CollisionBoundary <: AbstractBoundary
 
-A simple concrete type of boundary, which stops a floe from exiting the domain by having the floe collide with the boundary.
+A sub-type of AbstractBoundary that stops a floe from exiting the domain by having the floe collide with the boundary.
+The boundary acts as an immovable, unbreakable ice floe in the collision. 
 """
 struct CollisionBoundary{D, FT}<:AbstractBoundary{D, FT}
     coords::PolyVec{FT}
     val::FT
 end
 
+"""
+    CollisionBoundary(coords, val, direction::AbstractDirection)
+
+Creates collision boundary with given coords and val, and with the direction as a type.
+Inputs:
+        coords      <PolyVec{AbstractFloat}> coordinates of boundary
+        val         <AbstractFloat> value defining line that marks edge of domain
+        direction   <AbstractDirection> direction of boundary wall
+Output:
+        Collision Boundary of type given by direction and defined by given coordinates and edge value
+"""
 function CollisionBoundary(coords, val, direction::AbstractDirection)
     return CollisionBoundary{typeof(direction), typeof(val)}(coords, val)
 end
 
+"""
+    CollisionBoundary(grid::Grid, direction)
+
+Creates collision boundary on the edge of the grid, and with the direction as a type.
+Edge is determined by direction.
+Inputs:
+        grid        <Grid> model grid
+        direction   <AbstractDirection> direction of boundary wall
+Outputs:
+        Collision Boundary on edge of grid given by direction. 
+"""
 function CollisionBoundary(grid::Grid, direction)
     val, coords = boundary_coords(grid, direction)
     CollisionBoundary(coords, val, direction)
@@ -323,8 +460,10 @@ end
 """
     CompressionBC <: AbstractBC
 
-A simple concrete type of boundary, which creates a floe along the boundary that moves from the boundary towards
-the center of the domain as the given velocity, compressing the ice within the dominan.
+A sub-type of AbstractBoundary that creates a floe along the boundary that moves from the boundary towards
+the center of the domain as the given velocity, compressing the ice within the dominan. This subtype is
+a mutable struct so that the coordinates and val can be changed as the floe is moves with the given velocity.
+The velocity is in [m/s].
 
 NOTE: Not implemented yet!
 """
@@ -334,18 +473,42 @@ mutable struct CompressionBoundary{D, FT}<:AbstractBoundary{D, FT}
     velocity::FT
 end
 
+"""
+    CompressionBoundary(coords, val, direction::AbstractDirection)
+
+Creates compression boundary with given coords and val, and with the direction as a type.
+Inputs:
+        coords      <PolyVec{AbstractFloat}> coordinates of boundary
+        val         <AbstractFloat> value defining line that marks edge of domain
+        direction   <AbstractDirection> direction of boundary wall
+Output:
+        Compression Boundary of type given by direction and defined by given coordinates and edge value
+"""
 function CompressionBoundary(coords, val, velocity, direction::AbstractDirection)
     return CompressionBoundary{typeof(direction), typeof(val)}(coords, val, velocity)
 end
 
-function CompressionBoundary(grid::Grid, direction)
+"""
+    CompressionBoundary(grid::Grid, direction)
+
+Creates compression boundary on the edge of the grid, and with the direction as a type.
+Edge is determined by direction.
+Inputs:
+        grid        <Grid> model grid
+        direction   <AbstractDirection> direction of boundary wall
+Outputs:
+        Open Boundary on edge of grid given by direction. 
+"""
+function CompressionBoundary(grid::Grid, direction, velocity)
     val, coords = boundary_coords(grid, direction)
-    CompressionBoundary(coords, val, direction)
+    CompressionBoundary(coords, val, velocity, direction)
 end
+
 """
     periodic_compat(b1::B, b2::B)
 
-Checks if two boundaries with the same boundary condition B are compatible as opposites.
+Checks if two boundaries are compatible as a periodic pair. This is true if they are both periodic,
+or if neither are periodic. Otherwise, it is false. 
 """
 function periodic_compat(::PeriodicBoundary, ::PeriodicBoundary)
     return true
