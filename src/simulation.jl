@@ -186,7 +186,7 @@ function run!(sim, writers, t::Type{T} = Float64) where T
             end
             plot_sim(m, plt, tstep)
         end
-        m.ocean.si_frac .= zeros(T, 1)
+
         nfloes = length(m.floes) # number of floes before ghost floes
         remove = zeros(Int, nfloes)
         transfer = zeros(Int, nfloes)
@@ -224,6 +224,9 @@ function run!(sim, writers, t::Type{T} = Float64) where T
                 end
             end
         end
+        m.ocean.si_area .= zeros(T, m.grid.dims)
+        m.ocean.τx .= zeros(T, m.grid.dims)
+        m.ocean.τy .= zeros(T, m.grid.dims)
         for i in 1:nfloes
             ifloe = m.floes[i]
             floe_domain_interaction!(ifloe, m.domain, m.consts, sim.Δt)
@@ -232,6 +235,10 @@ function run!(sim, writers, t::Type{T} = Float64) where T
             timestep_floe!(ifloe, sim.Δt)
             m.floes[i] = ifloe
         end
+        m.ocean.τx .=  m.ocean.τx ./ m.ocean.si_area
+        m.ocean.τy .=  m.ocean.τx ./ m.ocean.si_area
+        replace!(m.ocean.τx, NaN=>0.0)
+        replace!(m.ocean.τy, NaN=>0.0)
         
 
         remove_idx = findall(f -> f.alive == 0, m.floes)

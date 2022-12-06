@@ -86,6 +86,23 @@ function floe_area_ratio(floe, xg, yg, t::Type{T} = Float64) where T
     return area_ratios, xidx, yidx, idx
 end
 
+function find_bounding_idx(point_idx, Δd, len_idx)
+    imin, imax = extrema(point_idx)
+    bounding = collect(imin:imax)
+    if (imax+Δd) < len_idx
+        bounding = [bounding; imax+1:imax+2]
+    else
+        bounding = [1:(imax+Δd - len_idx); bounding; (imax+1):len_idx]
+    end
+
+    if (imin-2) > 0
+        bounding = [(imin-Δd):(imin-1); bounding]
+    else
+        bounding = [(1:imin-1); bounding; (len_idx + imin-Δd):len_idx]
+    end
+    return unique(bounding)
+end
+
 """
     calc_OA_forcings!(m, i)
 
@@ -99,53 +116,54 @@ Outputs:
         None. Both floe and ocean fields are updated in-place.
 Note: For floes that are completly out of the Grid, simulation will error. 
 """
-function floe_OA_forcings!(floe, m)
+function floe_OA_forcings!(floe, m, t::Type{T} = Float64) where T
     c = m.consts
-    Δx = m.grid.xg[2] - m.grid.xg[1]
-    Δy = m.grid.yg[2] - m.grid.yg[1]
-
-    xi = floe.centroid[1]
-    yi = floe.centroid[2]
-    α_rot = [cos(floe.α) -sin(α); sin(α) cos(α)]
+    nrows, ncols = m.grid.dims
+    ma_ratio = floe.mass/floe.area
+    α = floe.α
     # Rotate and translate Monte Carlo points to current floe location
+    α_rot = [cos(α) -sin(α); sin(α) cos(α)]
     mc_p = α_rot * [floe.mc_x'; floe.mc_y']
-    mc_xr = mc_p[1, :] .+ xi
-    mc_xr = mc_p[2, :] .+ yi
+    mc_xr = mc_p[1, :] .+ floe.centroid[1]
+    mc_yr = mc_p[2, :] .+ floe.centroid[2]
 
-    # Find total velocity at each monte carlo point
-    mc_rad = sqrt.(mc_p[1, :]^2 .+ mc_p[1, :]^2)
-    mc_θ = atan.(mc_p[1, :], mc_p[2, :])
-    mc_u = floe.u .- floe.ξ * mc_rad .* sin(mc_θ)
-    mc_v = floe.v .+ floe.ξ * mc_rad .* cos(mc_θ)
-    mc_xidx = cld(mc_xr .- m.grid.xg[1], Δx)
-    mc_yidx = cld(mc_yr .- m.grid.yg[1], Δy)
+    # Find grid cell that each point is in
+    mc_xidx = Int.(cld.(mc_xr .- m.grid.xg[1], m.grid.xg[2] - m.grid.xg[1]))
+    mc_yidx = Int.(cld.(mc_yr .- m.grid.yg[1], m.grid.yg[2] - m.grid.yg[1]))
 
-    # Find grid indicies surrounding floe --> can we use the mc indicies for this??
-    rbound = sqrt(2) * floe.rmax
-    xbound = rbound + 2Δx
-    ybound = rbound + 2Δy
-    xbound_idx = -xbound .<= m.grid.xg .- xi .<= xbound
-    ybound_idx = -ybound .<= m.grid.yg .- yi .<= ybound
-    xg_idx = m.grid.xg[xbound_idx]
-    yg_idx = m.grid.xg[ybound_idx]
-    # TODO: Interp ocean and wind
+    # Find grid indicies surrounding floe with buffer
+    xbound_idx = find_bounding_idx(mc_xidx, 2, ncols)
+    ybound_idx = find_bounding_idx(mc_yidx, 2, nrows)
+    xg_interp = m.grid.xg[xbound_idx]
+    yg_interp = m.grid.yg[ybound_idx]
 
     # Floe heatflux
-    #floe.hflx = mean(m.hflx[idx])
+    floe.hflx = mean(m.hflx[mc_xidx, mc_yidx])
+
+    # Wind Interpolation for Monte Carlo Points
+    uatm_interp = linear_interpolation((xg_interp, yg_interp), m.wind.u[xbound_idx, ybound_idx])
+    vatm_interp = linear_interpolation((xg_interp, yg_interp), m.wind.v[xbound_idx, ybound_idx])
+    uatm = mean([uatm_interp(mc_xr[i], mc_yr[i]) for i in eachindex(mc_xr)])
+    vatm = mean([vatm_interp(mc_xr[i], mc_yr[i]) for i in eachindex(mc_xr)])
+    # Ocean Interpolation for Monte Carlo Points
+    uocn_interp = linear_interpolation((xg_interp, yg_interp), m.ocean.u[xbound_idx, ybound_idx])
+    vocn_interp = linear_interpolation((xg_interp, yg_interp), m.ocean.v[xbound_idx, ybound_idx])
+    uocn = [uocn_interp(mc_xr[i], mc_yr[i]) for i in eachindex(mc_xr)]
+    vocn = [vocn_interp(mc_xr[i], mc_yr[i]) for i in eachindex(mc_xr)]
 
     # Force on ice from atmopshere
-    # TODO: Replace with Interp mean
-    uatm = m.wind.u[idx]
-    vatm = m.wind.v[idx]
     τx_atm = (c.ρa * c.Cd_ia * sqrt(uatm^2 + vatm^2) * uatm)
     τy_atm = (c.ρa * c.Cd_ia * sqrt(uatm^2 + vatm^2) * vatm)
 
     # Force on ice from pressure gradient
-    # TODO: Replace with Interp 
-    uocn = m.ocean.u[idx]
-    vocn = m.ocean.v[idx]
     τx_pressure∇ = -ma_ratio * c.f .* vocn
     τy_pressure∇ = ma_ratio * c.f .* uocn
+
+    # Find total velocity at each monte carlo point
+    mc_rad = sqrt.(mc_p[1, :].^2 .+ mc_p[1, :].^2)
+    mc_θ = atan.(mc_p[1, :], mc_p[2, :])
+    mc_u = floe.u .- floe.ξ * mc_rad .* sin.(mc_θ)
+    mc_v = floe.v .+ floe.ξ * mc_rad .* cos.(mc_θ)
 
     # Force on ice from ocean
     Δu_OI = uocn .- mc_u
@@ -154,25 +172,44 @@ function floe_OA_forcings!(floe, m)
     τy_ocn = c.ρo*c.Cd_io*sqrt.(Δu_OI.^2 + Δv_OI.^2) .* (sin(c.turnθ) .* Δu_OI .+ cos(c.turnθ) * Δv_OI)
 
     # Save ocean stress fields to update ocean
-    floe.mc_xocnτ[mc_xidx, mc_yidx] .= τx_ocn
-    floe.mc_yocnτ[mc_xidx, mc_yidx] .= τy_ocn
+    τx_group = Dict{Tuple{Int64, Int64}, Vector{T}}()
+    τy_group = Dict{Tuple{Int64, Int64}, Vector{T}}()
+    for i in eachindex(mc_xidx)
+        idx = (mc_xidx[i], mc_yidx[i])
+        if haskey(τx_group, idx)
+            push!(τx_group[idx], τx_ocn[i])
+            push!(τy_group[idx], τy_ocn[i])
+        else
+            τx_group[idx] = [τx_ocn[i]]
+            τy_group[idx] = [τy_ocn[i]]
+        end
+    end
+
+    floe_poly = LG.Polygon(floe.coords)
+    for key in keys(τx_group)
+        grid_poly = LG.Polygon(cell_coords(m.grid.xg[key[1]], m.grid.xg[key[1] + 1], m.grid.yg[key[2]], m.grid.yg[key[2] + 1]))
+        floe_area_in_cell = LG.area(LG.intersection(grid_poly, floe_poly))
+        fx_mean = mean(τx_group[key]) * floe_area_in_cell
+        fy_mean = mean(τy_group[key]) * floe_area_in_cell
+        # Need to add a lock here...
+        m.ocean.τx[key[1], key[2]] += fx_mean
+        m.ocean.τy[key[1], key[2]] += fy_mean
+        m.ocean.si_area[key[1], key[2]] += floe_area_in_cell
+    end
+
 
     # Sum above forces and find torque
     τx = τx_atm .+ τx_pressure∇ .+ τx_ocn
     τy = τy_atm .+ τy_pressure∇ .+ τy_ocn
-    τtrq = (-τx .* sin.(mc_θ) .+ τy .*cos(mc_θ)) .* mc_rad
+    τtrq = (-τx .* sin.(mc_θ) .+ τy .* cos.(mc_θ)) .* mc_rad
 
-    # Add coriolis force to total foces
+    # Add coriolis force to total foces - does not contribute to torque
     τx .+= ma_ratio * c.f * floe.v
     τy .-= ma_ratio * c.f * floe.u
 
     # Sum forces on ice floe
     floe.fxOA = mean(τx) * floe.area
     floe.fyOA = mean(τy) * floe.area
-    floe.trqOA = mean(τtrq) * floe.area
+    floe.trqOA = mean(τtrq) * floe.area # what symbol is the stress of a torque? 
     return
-end
-
-function update_ocean_stress(ocean)
-
 end
