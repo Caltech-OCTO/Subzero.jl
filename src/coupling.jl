@@ -102,8 +102,10 @@ Outputs:
 """
 function find_bounding_idx(point_idx, Δd::Int, len_idx::Int)
     imin, imax = extrema(point_idx)
+    print(imax)
     # This is not true for periodic as the edge of the domain could go off the edge...
     # For non-periodic we shouldn't get the ocean on the other side of the domain
+    # Error when floe is off of the edge due to not being sorted
     bounding = collect(imin:imax)
     if (imax+Δd) < len_idx
         bounding = [bounding; imax+1:imax+2]

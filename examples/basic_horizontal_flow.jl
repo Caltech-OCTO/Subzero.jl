@@ -16,8 +16,8 @@ const coarse_ny = 10
 
 # Model instantiation
 grid = Grid(-Lx, Lx, -Ly, Ly, Δgrid, Δgrid)
-ocean = Ocean(grid, 1.0, 0.0, 0.0)
-wind = Wind(zeros(grid.dims), zeros(grid.dims), fill(-20.0, grid.dims))
+ocean = Ocean(grid, 0.0, 0.0, 0.0)
+wind = Wind(3*ones(grid.dims), zeros(grid.dims), fill(-20.0, grid.dims))
 
 # Domain creation
 domain = Subzero.RectangleDomain(grid, northBC = CollisionBC(),
@@ -30,17 +30,17 @@ poly1 = LG.Polygon([[[0.0, -0.75e5], [5e3, -0.75e5], [5e3, -1e5],[0.0, -1e5], [0
 topo = Topography(poly1, h_mean)
 topo_arr = StructVector([topo for i in 1:1])
 # Floe instantiation
-floe1_poly = LG.Polygon([[[1.25e4, 9e4], [1.25e4, -9e4], [3.75e4, -9e4], 
-                    [3.75e4, 9e4], [1.25e4, 9e4]]])
+floe1_poly =  LG.Polygon([[[7.25e4, 7e4], [7.25e4, 5e4], [7.75e4, 5e4], 
+[7.75e4, 7e4], [7.25e4, 7e4]]])
 floe1 = Floe(floe1_poly, h_mean, Δh, u = 0.0)
-floe2_poly = LG.Polygon([[[0.7e4, 8e4], [0.7e4, 6e4], [1.2e4, 6e4], 
-                    [1.2e4, 8e4], [0.7e4, 8e4]]])
-floe2 = Floe(floe2_poly, h_mean, Δh, u = 0.0)
-floe_arr = StructArray([floe2])
+#floe2_poly = LG.Polygon([[[0.7e4, 8e4], [0.7e4, 6e4], [1.2e4, 6e4], 
+#                    [1.2e4, 8e4], [0.7e4, 8e4]]])
+#floe2 = Floe(floe2_poly, h_mean, Δh, u = 0.0)
+floe_arr = StructArray([floe1])
 
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 #consts = Constants(E = modulus, Cd_io = 0.0, Cd_ia = 0.0, Cd_ao = 0.0, f = 0.0, μ = 0.0)  # collisions without friction 
-consts = Constants(E = modulus)
+consts = Constants(E = modulus, Cd_io = 0.0)
 model = Model(grid, ocean, wind, domain, topo_arr, floe_arr, consts)
 
 # Simulation setup
