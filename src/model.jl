@@ -124,14 +124,15 @@ struct Ocean{FT<:AbstractFloat}
     u::Matrix{FT}
     v::Matrix{FT}
     temp::Matrix{FT}
+    hflx::Matrix{FT} 
     τx::Matrix{FT}
     τy::Matrix{FT}
     si_frac::Matrix{FT}
 
-    Ocean(u, v, temp, τx, τy, si_frac) =
-        (size(u) == size(v) == size(temp) == size(τx) == size(τy) ==
+    Ocean(u, v, temp, hflx, τx, τy, si_frac) =
+        (size(u) == size(v) == size(temp) == size(hflx) == size(τx) == size(τy) ==
          size(si_frac)) ?
-        new{eltype(u)}(u, v, temp, τx, τy, si_frac) :
+        new{eltype(u)}(u, v, temp, hflx, τx, τy, si_frac) :
         throw(ArgumentError("All ocean fields matricies must have the same dimensions."))
 end
 
@@ -152,9 +153,8 @@ Ocean(grid::Grid, u, v, temp, t::Type{T} = Float64) where T =
     Ocean(fill(convert(T, u), grid.dims), 
           fill(convert(T, v), grid.dims), 
           fill(convert(T, temp), grid.dims),
-          zeros(T, grid.dims), zeros(T, grid.dims), zeros(T, grid.dims))
-
-# TODO: Do we want to be able to use a psi function? - Ask Mukund
+          zeros(T, grid.dims), zeros(T, grid.dims), 
+          zeros(T, grid.dims), zeros(T, grid.dims))
 
 """
 Wind velocities in the x-direction (u) and y-direction (v). u and v should match the size of the corresponding
@@ -723,39 +723,10 @@ function domain_in_grid(domain::Domain, grid)
     return false
 end
 
-@kwdef struct Constants{FT<:AbstractFloat}
-    ρi::FT = 920.0              # Ice density
-    ρo::FT = 1027.0             # Ocean density
-    ρa::FT = 1.2                # Air density
-    Cd_io::FT = 3e-3            # Ice-ocean drag coefficent
-    Cd_ia::FT = 1e-3            # Ice-atmosphere drag coefficent
-    Cd_ao::FT = 1.25e-3         # Atmosphere-ocean momentum drag coefficient
-    f::FT = 1.4e-4              # Ocean coriolis parameter
-    turnθ::FT = 15*pi/180       # Ocean turn angle
-    L::FT = 2.93e5              # Latent heat of freezing [Joules/kg]
-    k::FT = 2.14                # Thermal conductivity of surface ice[W/(m*K)]
-    ν::FT = 0.3                 # Poisson's ratio
-    μ::FT = 0.2                 # Coefficent of friction
-    E::FT = 6e6                 # Young's Modulus
-    #A::FT = 70.0                # upward flux constant A (W/m2)
-    #B::FT = 10.0                # upward flux constant B (W/m2/K)
-    #Q::FT = 200.0               # solar constant (W/m2)
-    #αocn::FT = 0.4              # ocean albedo
-end
-
 """
-Model which holds grid, ocean, wind structs, each with the same underlying float type (either Float32 of Float64). It also holds an StructArray of floe structs, again each relying on the same underlying float type. Finally it holds several physical constants. These are:
-- hflx: difference in ocean and atmosphere temperatures
-- h_new: the height of new ice that forms during the simulation
-- modulus: elastic modulus used in floe interaction calculations
-- ρi: density of ice
-- ρo: density of ocean water
-- ρa: density of atmosphere
-- Cd_io: ice-ocean drag coefficent
-- Cd_ia: ice-atmosphere drag coefficent
-- f: ocean coriolis forcings
-- turn angle: Ekman spiral caused angle between the stress and surface current
-              (angle is positive)
+Model which holds grid, ocean, wind structs, each with the same underlying float type (either Float32 of Float64) and size.
+It also holds the domain information, which includes the topography and the boundaries.
+Finally, it holds an StructArray of floe structs, again each relying on the same underlying float type.
 """
 struct Model{FT<:AbstractFloat, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}}
     grid::Grid{FT}
@@ -763,35 +734,9 @@ struct Model{FT<:AbstractFloat, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBou
     wind::Wind{FT}
     domain::DT
     floes::StructArray{Floe{FT}}
-    consts::Constants{FT}
-    hflx::Matrix{FT}            # ocean heat flux
 
-    Model(grid, ocean, wind, domain, topos, floes, consts, hflx) =
+    Model(grid, ocean, wind, domain, topos, floes) =
         (grid.dims == size(ocean.u) == size(wind.u) && domain_in_grid(domain, grid)) ?
-        new{typeof(consts.ρi), typeof(domain)}(grid, ocean, wind, domain, topos, floes, consts, hflx) :
+        new{eltype(ocean.u), typeof(domain)}(grid, ocean, wind, domain, floes) :
         throw(ArgumentError("Size of grid does not match size of ocean and/or wind OR domain is not within grid."))
-end
-
-"""
-    Model(grid, ocean, wind, domain, topos, floes, Δt::Int, newfloe_Δt::Int;
-    ρi = 920.0, t::Type{T} = Float64)
-
-Model constructor
-Inputs:
-        grid        <Grid>
-        ocean       <Ocean>
-        wind        <Wind>
-        domain      <AbstractDomain subtype>
-        topo        <StructArray{<:Topography}>
-        floes       <StructArray{<:Floe}>
-        consts      <Contants>
-        t           <Type> datatype to convert ocean fields - must
-                           be a Float! 
-Outputs:
-        Model with all needed fields defined and converted to type t.        
-"""
-function Model(grid, ocean, wind, domain, floes, consts, t::Type{T} = Float64) where T
-    hflx = consts.k/(consts.ρi*consts.L) .* (wind.temp .- ocean.temp)
-    return Model(grid, ocean, wind, domain, floes, consts,
-                 convert(Matrix{T}, hflx))
 end

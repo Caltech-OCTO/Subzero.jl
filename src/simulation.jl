@@ -2,6 +2,23 @@
 Structs and functions to create and run a Subzero simulation
 """
 
+@kwdef struct Constants{FT<:AbstractFloat}
+    ρi::FT = 920.0              # Ice density
+    ρo::FT = 1027.0             # Ocean density
+    ρa::FT = 1.2                # Air density
+    Cd_io::FT = 3e-3            # Ice-ocean drag coefficent
+    Cd_ia::FT = 1e-3            # Ice-atmosphere drag coefficent
+    Cd_ao::FT = 1.25e-3         # Atmosphere-ocean momentum drag coefficient
+    f::FT = 1.4e-4              # Ocean coriolis parameter
+    turnθ::FT = 15*pi/180       # Ocean turn angle
+    L::FT = 2.93e5              # Latent heat of freezing [Joules/kg]
+    k::FT = 2.14                # Thermal conductivity of surface ice[W/(m*K)]
+    ν::FT = 0.3                 # Poisson's ratio
+    μ::FT = 0.2                 # Coefficent of friction
+    E::FT = 6e6                 # Young's Modulus
+end
+
+
 """
     Simulation{FT<:AbstractFloat, DT<:Domain{FT}}
 
@@ -16,6 +33,7 @@ Simulation which holds a model and parameters needed for running the simulation.
 @kwdef struct Simulation{FT<:AbstractFloat, DT<:Domain}
     # Objects ------------------------------------------------------------------
     model::Model{FT, DT}            # Model to simulate
+    consts::Constants{FT}
     # Timesteps ----------------------------------------------------------------
     Δt::Int = 10                    # Simulation timestep (seconds)
     nΔt::Int = 7500                 # Total timesteps simulation runs for
@@ -136,8 +154,7 @@ Outputs:
         None. The ocean stress fields are updated from wind stress.
         Heatflux is also updated with ocean and wind temperatures. 
 """
-function timestep_atm!(m)
-    c = m.constants
+function timestep_atm!(m, c)
     Δu_AO = m.wind.u .- m.ocean.u
     Δv_AO = m.wind.v .- m.ocean.v
     m.ocean.taux .= c.ρa  *c.Cd_ao * sqrt.(Δu_AO.^2 + Δv_OI.^2) .* Δu_AO
@@ -159,7 +176,7 @@ function timestep_sim!(sim, ::Type{T} = Float64) where T
         if sim.COLLISION
             for j in i+1:nfloes
                 if sum((ifloe.centroid .- m.floes[j].centroid).^2) < (ifloe.rmax + m.floes[j].rmax)^2
-                    ikill, itransfer = floe_floe_interaction!(ifloe, i, m.floes[j], j, nfloes, m.consts, sim.Δt)
+                    ikill, itransfer = floe_floe_interaction!(ifloe, i, m.floes[j], j, nfloes, sim.consts, sim.Δt)
                     remove[i] = ikill
                     transfer[i] = itransfer
                 end
@@ -187,8 +204,8 @@ function timestep_sim!(sim, ::Type{T} = Float64) where T
     end
     for i in 1:nfloes
         ifloe = m.floes[i]
-        floe_domain_interaction!(ifloe, m.domain, m.consts, sim.Δt)
-        floe_OA_forcings!(ifloe, m)
+        floe_domain_interaction!(ifloe, m.domain, sim.consts, sim.Δt)
+        floe_OA_forcings!(ifloe, m, sim.consts)
         calc_torque!(ifloe)
         timestep_floe!(ifloe, sim.Δt)
         m.floes[i] = ifloe
@@ -199,7 +216,7 @@ function timestep_sim!(sim, ::Type{T} = Float64) where T
     for idx in remove_idx
         StructArrays.foreachfield(f -> deleteat!(f, idx), m.floes)
     end
-
+    m.ocean.hflx = sim.consts.k/(sim.consts.ρi*sim.consts.L) .* (m.wind.temp .- m.ocean.temp)
     # h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx)))
     # mean(h0)
 

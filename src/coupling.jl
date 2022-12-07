@@ -112,8 +112,7 @@ Outputs:
         None. Both floe and ocean fields are updated in-place.
 Note: For floes that are completly out of the Grid, simulation will error. 
 """
-function floe_OA_forcings!(floe, m)
-    c = m.consts
+function floe_OA_forcings!(floe, m, c)
     Δx = m.grid.xg[2] - m.grid.xg[1]
     Δy = m.grid.yg[2] - m.grid.yg[1]
 
