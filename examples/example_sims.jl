@@ -17,3 +17,9 @@ floe2_poly = LG.Polygon([[[0.7e4, 8e4], [0.7e4, 6e4], [1.2e4, 6e4],
                     [1.2e4, 8e4], [0.7e4, 8e4]]])
 floe2 = Floe(floe2_poly, h_mean, Δh, u = 1.0)
 floe_arr = StructArray([floe1 floe2])
+
+# Floe hitting the boundary - zero ocean, zero wind, needs friction
+floe1_poly = LG.Polygon([[[9.25e4, 7e4], [9.25e4, 5e4], [9.75e4, 5e4], 
+                    [9.75e4, 7e4], [9.25e4, 7e4]]])
+floe1 = Floe(floe1_poly, h_mean, Δh, u = 1.0)
+floe_arr = StructArray([floe1])

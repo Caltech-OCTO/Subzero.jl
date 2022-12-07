@@ -132,6 +132,10 @@ function timestep_floe!(floe, Δt)
     floe.p_dvdt = dvdt
 
     dξdt = (floe.torqueOA + ctorque)/floe.moment
+    #println("Timestep")
+    #println(floe.torqueOA)
+    #println(dξdt)
+    #println(floe.moment)
     dξdt = frac*dξdt
     ξ = floe.ξ + 1.5Δt*dξdt-0.5Δt*floe.p_dξdt
     if abs(ξ) > 1e-5
@@ -216,7 +220,7 @@ function timestep_sim!(sim, ::Type{T} = Float64) where T
     for idx in remove_idx
         StructArrays.foreachfield(f -> deleteat!(f, idx), m.floes)
     end
-    m.ocean.hflx = sim.consts.k/(sim.consts.ρi*sim.consts.L) .* (m.wind.temp .- m.ocean.temp)
+    m.ocean.hflx .= sim.consts.k/(sim.consts.ρi*sim.consts.L) .* (m.wind.temp .- m.ocean.temp)
     # h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx)))
     # mean(h0)
 

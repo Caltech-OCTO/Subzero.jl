@@ -735,7 +735,7 @@ struct Model{FT<:AbstractFloat, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBou
     domain::DT
     floes::StructArray{Floe{FT}}
 
-    Model(grid, ocean, wind, domain, topos, floes) =
+    Model(grid, ocean, wind, domain, floes) =
         (grid.dims == size(ocean.u) == size(wind.u) && domain_in_grid(domain, grid)) ?
         new{eltype(ocean.u), typeof(domain)}(grid, ocean, wind, domain, floes) :
         throw(ArgumentError("Size of grid does not match size of ocean and/or wind OR domain is not within grid."))

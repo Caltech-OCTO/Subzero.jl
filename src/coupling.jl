@@ -122,7 +122,7 @@ function floe_OA_forcings!(floe, m, c)
     areas = area_ratios * (Δx * Δy)
 
     # Floe heatflux
-    floe.hflx = mean(m.hflx[idx])
+    floe.hflx = mean(m.ocean.hflx[idx])
 
     # Ice velocity within each grid square
     lx = m.grid.xc[xidx] .- floe.centroid[1]
