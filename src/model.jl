@@ -313,6 +313,11 @@ function boundary_coords(grid::Grid, ::West)
           [grid.xg[1], grid.yg[1] - Δy], 
           [grid.xg[1] - Δx, grid.yg[1] - Δy]]]
 end
+
+
+abstract type AbstractDomainElement{FT<:AbstractFloat} end
+
+
 """
     AbstractBoundary{D<:AbstractDirection, FT<:AbstractFloat}
 
@@ -329,7 +334,7 @@ Note that the boundary coordinates must include the corner of the boundary as ca
 Val field holds value that defines the line y = val or x = val (depending on boundary direction) such that if the
 floe crosses that line it would be partially within the boundary. 
 """
-abstract type AbstractBoundary{D<:AbstractDirection, FT<:AbstractFloat} end
+abstract type AbstractBoundary{D<:AbstractDirection, FT}<:AbstractDomainElement{FT} end
 
 """
     OpenBoundary <: AbstractBoundary
@@ -504,8 +509,46 @@ function CompressionBoundary(grid::Grid, direction, velocity)
     CompressionBoundary(coords, val, velocity, direction)
 end
 
+
 """
-    periodic_compat(b1::B, b2::B)
+    TopographyE{FT}<:AbstractDomainElement{FT}
+
+Singular topographic element with field of coordinates
+These are used to create the desired topography within the simulation and will be treated as islands or coastline
+within the model in that they will not move or break due to floe interactions, but they will affect floes. 
+
+Coordinates are vector of vector of vector of points of the form:
+[[[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]], 
+ [[w1, z1], [w2, z2], ..., [wn, zn], [w1, z1]], ...] where the xy coordinates are the exterior border of the element
+ and the wz coordinates, or any other following sets of coordinates, describe holes within it - although there should not be any.
+ This format makes for easy conversion to and from LibGEOS Polygons. 
+"""
+struct Topography{FT}<:AbstractDomainElement{FT}
+    coords::PolyVec{FT}
+end
+
+"""
+    Topography(poly::LG.Polygon, h, t::Type{T} = Float64)
+
+Constructor for topographic element with LibGEOS Polygon
+    Inputs:
+            poly    <LibGEOS.Polygon> 
+            h       <Real> height of element
+            t       <Type> datatype to convert ocean fields - must be a Float!
+    Output:
+            Topographic element with needed fields defined
+    Note:
+            Types are specified at Float64 below as type annotations given that when written LibGEOS could exclusivley use Float64 (as of 09/29/22). When this is fixed, this annotation will need to be updated.
+            We should only run the model with Float64 right now or else we will be converting the Polygon back and forth all of the time. 
+"""
+function Topography(poly::LG.Polygon, t::Type{T} = Float64) where T
+    topo = rmholes(poly)
+    coords = LG.GeoInterface.coordinates(topo)::PolyVec{T}
+    return Topography(coords)
+end
+
+"""
+    periodic_compat(b1, b2)
 
 Checks if two boundaries are compatible as a periodic pair. This is true if they are both periodic,
 or if neither are periodic. Otherwise, it is false. 
@@ -540,79 +583,15 @@ EB<:AbstractBoundary{East, FT}, WB<:AbstractBoundary{West, FT}}
     south::SB
     east::EB
     west::WB
+    coastline::StructArray{Topography{FT}}
 
-    Domain(north, south, east, west) = 
+    Domain(north, south, east, west, coastline) = 
         (periodic_compat(north, south) && periodic_compat(east, west)) &&
         (north.val > south.val && east.val > west.val) ?
-        new{typeof(north.val), typeof(north), typeof(south), typeof(east), typeof(west)}(north, south, east, west) : 
+        new{typeof(north.val), typeof(north), typeof(south), typeof(east), typeof(west)}(north, south, east, west, coastline) : 
         throw(ArgumentError("Periodic boundary must have matching opposite boundary and/or North value must be greater then South and East must be greater than West."))
 end
 
-"""
-    Topography{FT<:AbstractFloat}
-
-Singular topographic element with fields describing current state.
-These are used to create the desired topography within the simulation and will be treated as "islands" within the model
-in that they will not move or break due to floe interactions, but they will affect floes. 
-
-Coordinates are vector of vector of vector of points of the form:
-[[[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]], 
- [[w1, z1], [w2, z2], ..., [wn, zn], [w1, z1]], ...] where the xy coordinates are the exterior border of the element
- and the wz coordinates, or any other following sets of coordinates, describe holes within it - although there should not be any.
- This format makes for easy conversion to and from LibGEOS Polygons. 
-"""
-struct Topography{FT<:AbstractFloat}
-    centroid::Vector{FT}
-    coords::PolyVec{FT}     # coordinates of topographical element
-    height::FT              # height (m)
-    area::FT                # area (m^2)
-    rmax::FT                # distance of vertix farthest from centroid (m)
-
-    Topography(centroid, coords, height, area, rmax) = 
-        height > 0 && area > 0 && rmax > 0 ?
-        new{typeof(height)}(centroid, coords, height, area, rmax) :
-        throw(ArgumentError("Height, area, and maximum radius of a given topography element should be positive."))
-end
-
-"""
-    Topography(poly::LG.Polygon, h, t::Type{T} = Float64)
-
-Constructor for topographic element with LibGEOS Polygon
-    Inputs:
-            poly    <LibGEOS.Polygon> 
-            h       <Real> height of element
-            t       <Type> datatype to convert ocean fields - must be a Float!
-    Output:
-            Topographic element with needed fields defined
-    Note:
-            Types are specified at Float64 below as type annotations given that when written LibGEOS could exclusivley use Float64 (as of 09/29/22). When this is fixed, this annotation will need to be updated.
-            We should only run the model with Float64 right now or else we will be converting the Polygon back and forth all of the time. 
-"""
-function Topography(poly::LG.Polygon, h, t::Type{T} = Float64) where T
-    topo = rmholes(poly)
-    centroid = LG.GeoInterface.coordinates(LG.centroid(topo))::Vector{Float64}
-    area = LG.area(topo)::Float64 
-    coords = LG.GeoInterface.coordinates(topo)::PolyVec{Float64}
-    rmax = sqrt(maximum([sum(c.^2) for c in translate(coords, -centroid)[1]]))
-    return Topography(convert(Vector{T}, centroid), convert(PolyVec{T}, coords),
-                      convert(T, h), convert(T, area), convert(T, rmax))
-end
-
-"""
-    Topography(coords::PolyVec{T}, h, t::Type{T} = Float64)
-
-Topogrpahic element constructor with PolyVec{Float64}(i.e. Vector{Vector{Vector{Float64}}}) coordinates
-Inputs:
-poly    <LibGEOS.Polygon> 
-h       <Real> height of element
-t       <Type> datatype to convert ocean fields - must be a Float!
-Output:
-        Topographic element with needed fields defined
-"""
-function Topography(coords::PolyVec{<:Real}, h, t::Type{T} = Float64) where T
-    return Topography(LG.Polygon(convert(PolyVec{Float64}, coords)), h, T)
-    # Polygon convert is needed since LibGEOS only takes Float64 - when this is fixed convert can be removed
-end
 
 """
 Singular sea ice floe with fields describing current state. Centroid is a vector of points of the form: [x,y].
@@ -783,7 +762,6 @@ struct Model{FT<:AbstractFloat, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBou
     ocean::Ocean{FT}
     wind::Wind{FT}
     domain::DT
-    topos::StructArray{Topography{FT}}
     floes::StructArray{Floe{FT}}
     consts::Constants{FT}
     hflx::Matrix{FT}            # ocean heat flux
@@ -812,8 +790,8 @@ Inputs:
 Outputs:
         Model with all needed fields defined and converted to type t.        
 """
-function Model(grid, ocean, wind, domain, topos, floes, consts, t::Type{T} = Float64) where T
+function Model(grid, ocean, wind, domain, floes, consts, t::Type{T} = Float64) where T
     hflx = consts.k/(consts.ρi*consts.L) .* (wind.temp .- ocean.temp)
-    return Model(grid, ocean, wind, domain, topos, floes, consts,
+    return Model(grid, ocean, wind, domain, floes, consts,
                  convert(Matrix{T}, hflx))
 end
