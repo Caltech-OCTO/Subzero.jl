@@ -56,17 +56,19 @@
         τx = fill(0.0, g.dims)
         τy = τx
         si_area = τx
-        ocn = Subzero.Ocean(uocn, vocn, tempocn, τx, τy, si_area)
+        hflx = τx
+        ocn = Subzero.Ocean(uocn, vocn, tempocn, hflx, τx, τy, si_area)
         @test ocn.u == uocn
         @test ocn.v == vocn
         @test ocn.temp == tempocn
-        @test ocn.τx == τx == ocn.τy == ocn.si_area
+        @test ocn.τx == τx == ocn.τy == ocn.si_area == ocn.hflx
         # Default constructor fails for non-matching dimensions
-        @test_throws ArgumentError Subzero.Ocean(Float64[0.0], vocn, tempocn, τx, τy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, Float64[0.0], tempocn, τx, τy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, Float64[0.0], τx, τy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, Float64[0.0], τy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, τx, τy, Float64[0.0])
+        @test_throws ArgumentError Subzero.Ocean(Float64[0.0], vocn, tempocn, hflx, τx, τy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, Float64[0.0], tempocn, hflx, τx, τy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, Float64[0.0], hflx, τx, τy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, Float64[0.0], τx, τy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, Float64[0.0], τy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, τx, τy, Float64[0.0])
         # Custom constructor
         ocn2 = Subzero.Ocean(g, 3.0, 4.0, -2.0)
         @test ocn.u == ocn2.u
@@ -74,6 +76,7 @@
         @test ocn.temp == ocn2.temp
         @test ocn.τx == ocn2.τx
         @test ocn.si_area == ocn2.si_area
+        @test ocn.hflx == ocn2.hflx
         # Custom constructor Float32
         @test typeof(Subzero.Ocean(g, 3.0, 4.0, -2.0, Float32)) ==
               Subzero.Ocean{Float32}
@@ -149,26 +152,12 @@
     @testset "Topography" begin
         coords = [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]]
         poly = LibGEOS.Polygon(coords)
-        cent = [0.5, 0.5]
         # Polygon Constructor
-        topo1 = Subzero.Topography(poly, 0.5)
-        @test topo1.centroid == cent
+        topo1 = Subzero.Topography(poly)
         @test topo1.coords == coords
-        @test topo1.height == 0.5
-        @test topo1.area == 1.0
-        @test topo1.rmax == sqrt(0.5^2 + 0.5^2)
-        topo32 = Subzero.Topography(poly, 0.5, Float32)
-        @test typeof(topo32) == Subzero.Topography{Float32}
-        @test typeof(topo32.coords) == Subzero.PolyVec{Float32}
         # Coords Constructor
-        topo2 = Subzero.Topography(coords, 0.5)
-        @test topo2.height == 0.5
-        @test topo2.area == 1.0
-        # Constructor fails
-        @test_throws ArgumentError Subzero.Topography(poly, -1.0)
-        @test_throws ArgumentError Subzero.Topography(cent, coords, 1., -1., .5)
-        @test_throws ArgumentError Subzero.Topography(cent, coords, 1., 1., -.5)
-
+        topo2 = Subzero.Topography(coords)
+        @test topo2.coords == coords
     end
 
     @testset "Floe" begin
