@@ -525,6 +525,13 @@ Coordinates are vector of vector of vector of points of the form:
 """
 struct Topography{FT}<:AbstractDomainElement{FT}
     coords::PolyVec{FT}
+
+    function Topography{FT}(coords::PolyVec{FT}) where {FT <: AbstractFloat}
+        new{FT}(valid_polyvec!(rmholes(coords)))
+    end
+
+    Topography(coords::PolyVec{FT}) where {FT <: AbstractFloat} =
+        Topography{FT}(coords)
 end
 
 """
@@ -541,10 +548,9 @@ Constructor for topographic element with LibGEOS Polygon
             Types are specified at Float64 below as type annotations given that when written LibGEOS could exclusivley use Float64 (as of 09/29/22). When this is fixed, this annotation will need to be updated.
             We should only run the model with Float64 right now or else we will be converting the Polygon back and forth all of the time. 
 """
-function Topography(poly::LG.Polygon, t::Type{T} = Float64) where T
-    topo = rmholes(poly)
-    coords = LG.GeoInterface.coordinates(topo)::PolyVec{T}
-    return Topography(coords)
+function Topography(poly::LG.Polygon, ::Type{T} = Float64) where T
+    coords = convert(PolyVec{T}, LG.GeoInterface.coordinates(poly)::PolyVec{Float64})
+    return Topography(rmholes(coords))
 end
 
 """
@@ -591,6 +597,10 @@ EB<:AbstractBoundary{East, FT}, WB<:AbstractBoundary{West, FT}}
         new{typeof(north.val), typeof(north), typeof(south), typeof(east), typeof(west)}(north, south, east, west, coastline) : 
         throw(ArgumentError("Periodic boundary must have matching opposite boundary and/or North value must be greater then South and East must be greater than West."))
 end
+
+
+Domain(north, south, east, west, ::Type{T} = Float64) where T =
+    Domain(north, south, east, west, StructArray{Topography{T}}(undef, 0, 0))
 
 
 """
