@@ -22,7 +22,7 @@ struct Grid{FT<:AbstractFloat}
 
     Grid(dims, xg, yg, xc, yc) =
         (length(xg) == dims[2]+1 && length(yg) == dims[1]+1 &&
-        length(xc) == dims[2] && length(yc) == dims[1]) ?
+         length(xc) == dims[2] && length(yc) == dims[1]) ?
         new{eltype(xg)}(dims, xg, yg, xc, yc) :
         throw(ArgumentError("Dimension field doesn't match grid dimensions."))
 end
@@ -149,7 +149,7 @@ Inputs:
 Output: 
         Ocean with constant velocity and temperature in each grid cell.
 """
-Ocean(grid::Grid, u, v, temp, t::Type{T} = Float64) where T =
+Ocean(grid::Grid, u, v, temp, ::Type{T} = Float64) where T =
     Ocean(fill(convert(T, u), grid.dims), 
           fill(convert(T, v), grid.dims), 
           fill(convert(T, temp), grid.dims),
@@ -314,24 +314,33 @@ function boundary_coords(grid::Grid, ::West)
           [grid.xg[1] - Δx, grid.yg[1] - Δy]]]
 end
 
+"""
+    AbstractDomainElement{FT<:AbstractFloat}
 
+An abstract type for all of the element that create the shape of the domain:
+the 4 boundary walls that make up the rectangular domain and the topography
+within the domain. 
+"""
 abstract type AbstractDomainElement{FT<:AbstractFloat} end
 
 
 """
-    AbstractBoundary{D<:AbstractDirection, FT<:AbstractFloat}
+    AbstractBoundary{D<:AbstractDirection, FT}<:AbstractDomainElement{FT}
 
 An abstract type for the types of boundaries at the edges of the model domain.
 Boundary types will control behavior of sea ice floes at edges of domain.
 The direction given by type D denotes which edge of a domain this boundary could be.
 
-Note that the boundary coordinates must include the corner of the boundary as can be seen in the diagram below.
+Each boundary type has the coordinates of the boudnary as a field. These should
+be shapes that completely seal the domain, and should overlap on the corners as
+seen  in the example below:
  ________________
 |__|____val___|__| <- North coordinates must include corners
 |  |          |  |
 |  |          |  | <- East coordinates must ALSO include corners
 |  |          |  |
-Val field holds value that defines the line y = val or x = val (depending on boundary direction) such that if the
+Each bounday type also has a field called "val" that holds value that defines
+the line y = val or x = val (depending on boundary direction), such that if the
 floe crosses that line it would be partially within the boundary. 
 """
 abstract type AbstractBoundary{D<:AbstractDirection, FT}<:AbstractDomainElement{FT} end
@@ -381,7 +390,7 @@ end
     PeriodicBoundary <: AbstractBoundary
 
 A sub-type of AbstractBoundary that moves a floe from one side of the domain to the opposite
-side of the domain, bringing the floe back into the grid.
+side of the domain when it crosses the boundary, bringing the floe back into the domain.
 
 NOTE: Not implemented yet!
 """
@@ -465,9 +474,9 @@ end
 """
     CompressionBC <: AbstractBC
 
-A sub-type of AbstractBoundary that creates a floe along the boundary that moves from the boundary towards
-the center of the domain as the given velocity, compressing the ice within the dominan. This subtype is
-a mutable struct so that the coordinates and val can be changed as the floe is moves with the given velocity.
+A sub-type of AbstractBoundary that creates a floe along the boundary that moves towards
+the center of the domain at the given velocity, compressing the ice within the domain. This subtype is
+a mutable struct so that the coordinates and val can be changed as the boundary moves.
 The velocity is in [m/s].
 
 NOTE: Not implemented yet!
@@ -513,15 +522,10 @@ end
 """
     TopographyE{FT}<:AbstractDomainElement{FT}
 
-Singular topographic element with field of coordinates
-These are used to create the desired topography within the simulation and will be treated as islands or coastline
-within the model in that they will not move or break due to floe interactions, but they will affect floes. 
-
-Coordinates are vector of vector of vector of points of the form:
-[[[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]], 
- [[w1, z1], [w2, z2], ..., [wn, zn], [w1, z1]], ...] where the xy coordinates are the exterior border of the element
- and the wz coordinates, or any other following sets of coordinates, describe holes within it - although there should not be any.
- This format makes for easy conversion to and from LibGEOS Polygons. 
+Singular topographic element with coordinates field storing where the element is
+within the grid. These are used to create the desired topography within the
+simulation and will be treated as islands or coastline within the model
+in that they will not move or break due to floe interactions, but they will affect floes.
 """
 struct Topography{FT}<:AbstractDomainElement{FT}
     coords::PolyVec{FT}
@@ -535,15 +539,28 @@ struct Topography{FT}<:AbstractDomainElement{FT}
 end
 
 """
-    Topography(poly::LG.Polygon, h, t::Type{T} = Float64)
+    Topography(coords::PolyVec{T}, ::Type{T} = Float64)
+
+Constructor for topographic element with PolyVec coordinates
+    Inputs:
+            poly    <LibGEOS.Polygon> 
+            _       <Type> datatype used to run model (Float32 or Float64)
+    Output:
+            Topographic element coordinates of type PolyVec{T} with any holes removed
+"""
+function Topography(coords::PolyVec{T}, ::Type{T} = Float64) where {T} 
+    return Topography(convert(PolyVec{T}, rmholes(coords)))
+end
+
+"""
+    Topography(poly::LG.Polygon, t::Type{T} = Float64)
 
 Constructor for topographic element with LibGEOS Polygon
     Inputs:
             poly    <LibGEOS.Polygon> 
-            h       <Real> height of element
-            t       <Type> datatype to convert ocean fields - must be a Float!
+            _       <Type> datatype used to run model (Float32 or Float64)
     Output:
-            Topographic element with needed fields defined
+            Topographic element coordinates of type PolyVec{T} with any holes removed
     Note:
             Types are specified at Float64 below as type annotations given that when written LibGEOS could exclusivley use Float64 (as of 09/29/22). When this is fixed, this annotation will need to be updated.
             We should only run the model with Float64 right now or else we will be converting the Polygon back and forth all of the time. 
@@ -582,6 +599,9 @@ In order to create a Domain, three conditions need to be met. First, if needs to
 This means that pairs of opposite boundaries both need to be periodic if one of them is periodic.
 Next, the value in the north boundary must be greater than the south boundary and the value in the east boundary
 must be greater than the west in order to form a valid rectangle.
+
+Note: The code depends on the boundaries forming a rectangle oriented along the
+cartesian grid. Other shapes/orientations are not supported at this time. 
 """
 struct Domain{FT<:AbstractFloat, NB<:AbstractBoundary{North, FT}, SB<:AbstractBoundary{South, FT},
 EB<:AbstractBoundary{East, FT}, WB<:AbstractBoundary{West, FT}}
@@ -604,45 +624,43 @@ Domain(north, south, east, west, ::Type{T} = Float64) where T =
 
 
 """
-Singular sea ice floe with fields describing current state. Centroid is a vector of points of the form: [x,y].
-Coordinates are vector of vector of vector of points of the form:
-[[[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]], 
- [[w1, z1], [w2, z2], ..., [wn, zn], [w1, z1]], ...] where the xy coordinates are the exterior border of the floe
-and the wz coordinates, or any other following sets of coordinates, describe holes within the floe.
-There should not be holes for the majority of the time as they will be removed, but this format makes for easy
-conversion to and from LibGEOS Polygons. 
+Singular sea ice floe with fields describing current state.
 """
 @kwdef mutable struct Floe{FT<:AbstractFloat}
+    # Physical Properties
     centroid::Vector{FT}    # center of mass of floe (might not be in floe!)
+    coords::PolyVec{FT}     # floe coordinates
     height::FT              # floe height (m)
     area::FT                # floe area (m^2)
     mass::FT                # floe mass (kg)
-    moment::FT              # mass moment of intertia
-    #angles::Vector{T}
     rmax::FT                # distance of vertix farthest from centroid (m)
-    coords::PolyVec{FT}     # floe coordinates
+    moment::FT              # mass moment of intertia
+    angles::Vector{FT}       # interior angles of floe
+    # Velocity/Orientation
     α::FT = 0.0             # floe rotation from starting position in radians
     u::FT = 0.0             # floe x-velocity
     v::FT = 0.0             # floe y-velocity
     ξ::FT = 0.0             # floe angular velocity
+    # Status
+    alive::Int = 1          # floe is still active in simulation
+    # Forces/Collisions
     fxOA::FT = 0.0          # force from ocean and wind in x direction
     fyOA::FT = 0.0          # force from ocean and wind in y direction
     torqueOA::FT = 0.0      # torque from ocean and wind
+    hflx::FT = 0.0          # heat flux under the floe
+    overarea::FT = 0.0      # total overlap with other floe
+    collision_force::Matrix{FT} = [0.0 0.0] 
+    collision_torque::FT = 0.0
+    interactions::NamedMatrix{FT} = NamedArray(zeros(7),
+    (["floeidx", "xforce", "yforce", "xpoint", "ypoint", "torque", "overlap"]))'
+    # Previous values for timestepping
     p_dxdt::FT = 0.0        # previous timestep x-velocity
     p_dydt::FT = 0.0        # previous timestep y-velocity
     p_dudt::FT = 0.0        # previous timestep x-acceleration
     p_dvdt::FT = 0.0        # previous timestep x-acceleration
     p_dξdt::FT = 0.0        # previous timestep time derivative of ξ
     p_dαdt::FT = 0.0        # previous timestep ξ
-    hflx::FT = 0.0          # heat flux under the floe
-    overarea::FT = 0.0      # total overlap with other floes
-    alive::Int = 1          # floe is still active in simulation
-                            # floe interactions with other floes/boundaries
-    interactions::NamedMatrix{FT} = NamedArray(zeros(7),
-        (["floeidx", "xforce", "yforce", "xpoint", "ypoint", "torque", "overlap"]))'
-    collision_force::Matrix{FT} = [0.0 0.0] 
-    collision_torque::FT = 0.0
-end # TODO: do we want to do any checks? Ask Mukund!
+end
 
 """
     Floe(poly::LG.Polygon, hmean, Δh, ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, t::Type{T} = Float64)
@@ -674,11 +692,12 @@ function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 
     moment = calc_moment_inertia(floe, h, ρi = ρi)
     coords = LG.GeoInterface.coordinates(floe)::PolyVec{Float64}
     rmax = sqrt(maximum([sum(c.^2) for c in translate(coords, -centroid)[1]]))
-    
+    angles = calc_poly_angles(coords, T)
 
-    return Floe(centroid = convert(Vector{T}, centroid), height = convert(T, h), area = convert(T, area),
-                mass = convert(T, mass), moment = convert(T, moment), coords = convert(PolyVec{T}, coords),
-                rmax = convert(T, rmax), u = convert(T, u), v = convert(T, v), ξ = convert(T, ξ))
+    return Floe(centroid = convert(Vector{T}, centroid), coords = convert(PolyVec{T}, coords),
+                height = convert(T, h), area = convert(T, area), mass = convert(T, mass),
+                rmax = convert(T, rmax), moment = convert(T, moment), angles = angles,
+                u = convert(T, u), v = convert(T, v), ξ = convert(T, ξ))
 end
 
 """
@@ -698,7 +717,7 @@ Inputs:
 Output:
         Floe with needed fields defined - all default field values used so all forcings and velocities start at 0 and floe is "alive"
 """
-Floe(coords::PolyVec{<:Real}, h_mean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, t::Type{T} = Float64) where T =
+Floe(coords::PolyVec{<:Real}, h_mean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, t::Type{T} = Float64) where T = 
     Floe(LG.Polygon(convert(PolyVec{Float64}, coords)), h_mean, Δh, ρi, u, v, ξ, T) 
     # Polygon convert is needed since LibGEOS only takes Float64 - when this is fixed convert can be removed
 

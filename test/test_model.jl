@@ -55,18 +55,19 @@
         tempocn = fill(-2.0, g.dims)
         τx = fill(0.0, g.dims)
         τy = τx
-        si_frac = τx
+        si_area = τx
         hflx = τx
-        ocn = Subzero.Ocean(uocn, vocn, tempocn, hflx, τx, τy, si_frac)
+        ocn = Subzero.Ocean(uocn, vocn, tempocn, hflx, τx, τy, si_area)
         @test ocn.u == uocn
         @test ocn.v == vocn
         @test ocn.temp == tempocn
-        @test ocn.τx == τx == ocn.τy == ocn.si_frac == ocn.hflx
+        @test ocn.τx == τx == ocn.τy == ocn.si_area == ocn.hflx
         # Default constructor fails for non-matching dimensions
-        @test_throws ArgumentError Subzero.Ocean(Float64[0.0], vocn, tempocn, hflx,  τx, τy, si_frac)
-        @test_throws ArgumentError Subzero.Ocean(uocn, Float64[0.0], tempocn, hflx, τx, τy, si_frac)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, Float64[0.0], hflx, τx,τy, si_frac)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, Float64[0.0], τx, τy, si_frac)
+        @test_throws ArgumentError Subzero.Ocean(Float64[0.0], vocn, tempocn, hflx, τx, τy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, Float64[0.0], tempocn, hflx, τx, τy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, Float64[0.0], hflx, τx, τy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, Float64[0.0], τx, τy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, Float64[0.0], τy, si_area)
         @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, τx, τy, Float64[0.0])
         # Custom constructor
         ocn2 = Subzero.Ocean(g, 3.0, 4.0, -2.0)
@@ -152,6 +153,7 @@
         @test typeof(topo32.coords) == Subzero.PolyVec{Float32}
         # Coords Constructor
         topo2 = Subzero.Topography(coords)
+        @test topo2.coords == coords
     end
 
     @testset "Floe" begin
