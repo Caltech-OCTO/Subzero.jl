@@ -55,18 +55,20 @@
         tempocn = fill(-2.0, g.dims)
         τx = fill(0.0, g.dims)
         τy = τx
-        si_frac = τx
-        ocn = Subzero.Ocean(uocn, vocn, tempocn, τx, τy, si_frac)
+        si_area = τx
+        hflx = τx
+        ocn = Subzero.Ocean(uocn, vocn, tempocn, hflx, τx, τy, si_area)
         @test ocn.u == uocn
         @test ocn.v == vocn
         @test ocn.temp == tempocn
-        @test ocn.τx == τx == ocn.τy == ocn.si_frac
+        @test ocn.τx == τx == ocn.τy == ocn.si_area == ocn.hflx
         # Default constructor fails for non-matching dimensions
-        @test_throws ArgumentError Subzero.Ocean(Float64[0.0], vocn, tempocn, τx, τy, si_frac)
-        @test_throws ArgumentError Subzero.Ocean(uocn, Float64[0.0], tempocn, τx, τy, si_frac)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, Float64[0.0], τx, τy, si_frac)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, Float64[0.0], τy, si_frac)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, τx, τy, Float64[0.0])
+        @test_throws ArgumentError Subzero.Ocean(Float64[0.0], vocn, tempocn, hflx, τx, τy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, Float64[0.0], tempocn, hflx, τx, τy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, Float64[0.0], hflx, τx, τy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, Float64[0.0], τx, τy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, Float64[0.0], τy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, τx, τy, Float64[0.0])
         # Custom constructor
         ocn2 = Subzero.Ocean(g, 3.0, 4.0, -2.0)
         @test ocn.u == ocn2.u
@@ -74,6 +76,7 @@
         @test ocn.temp == ocn2.temp
         @test ocn.τx == ocn2.τx
         @test ocn.si_frac == ocn2.si_frac
+        @test ocn.hflx == ocn2.hflx
         # Custom constructor Float32
         @test typeof(Subzero.Ocean(g, 3.0, 4.0, -2.0, Float32)) ==
               Subzero.Ocean{Float32}
@@ -105,14 +108,23 @@
 
     @testset "Boundary and Domain" begin
         # Boundary
-        b1 = Subzero.Boundary(Subzero.PeriodicBC(), 0.0)
-        b2 = Subzero.Boundary(Subzero.OpenBC(), 1.0)
-        b3 = Subzero.Boundary(Subzero.CollisionBC(), 2.0)
-        b4 = Subzero.Boundary(Subzero.PeriodicBC(), 5.0)
-        @test b1.bc == Subzero.PeriodicBC()
-        @test b1.val == 0.0
-        b32 = Subzero.Boundary(Subzero.OpenBC(), 1, Float32)
-        @test typeof(b32.val) == Float32
+        g = Subzero.Grid(4e5, 3e5, 1e4, 1e4)
+        b1 = Subzero.PeriodicBoundary(g, Subzero.North())
+        b2 = Subzero.OpenBoundary(g, Subzero.East())
+        b3 = Subzero.CollisionBoundary(g, Subzero.West())
+        b4 = Subzero.PeriodicBoundary(g, Subzero.South())
+        b5 = Subzero.CompressionBoundary(g, Subzero.South(), 1.0)
+        @test b1.val == 3e5
+        @test typeof(b1) == Subzero.PeriodicBoundary{Subzero.North, Float64}
+        @test b1.coords == [[[-2e5, 3e5], [-2e5, 4.5e5], [6e5, 4.5e5], [6e5, 3e5], [-2e5, 3e5]]]
+        @test b3.val == 0.0
+        @test typeof(b3) == Subzero.CollisionBoundary{Subzero.West, Float64}
+        @test b3.coords == [[[-2e5, -1.5e5], [-2e5, 4.5e5], [0.0, 4.5e5], [0.0, -1.5e5], [-2e5, -1.5e5]]]
+        @test b5.velocity == 1.0
+
+        # Need to add in ability to run with Float32
+        #b32 = Subzero.OpenBoundary(Subzero.OpenBC(), 1, Float32)
+        #@test typeof(b32.val) == Float32
 
         # Periodic Compat
         @test !Subzero.periodic_compat(b1, b2)
@@ -121,81 +133,27 @@
         @test Subzero.periodic_compat(b2, b3)
 
         # RectangularDomain default constructor
-        rdomain1 = Subzero.RectangleDomain(b4, b1, b3, b2)
-        @test rdomain1.north == b4
-        @test rdomain1.south == b1
-        @test rdomain1.east == b3
+        rdomain1 = Subzero.Domain(b1, b4, b2, b3)
+        @test rdomain1.north == b1
 
         # RectangularDomain fails
-        @test_throws ArgumentError Subzero.RectangleDomain(b1, b4, b3, b2)
-        @test_throws ArgumentError Subzero.RectangleDomain(b4, b1, b2, b3)
-        @test_throws ArgumentError Subzero.RectangleDomain(b4, b1, b2, b2)
-        @test_throws ArgumentError Subzero.RectangleDomain(b4, b2, b2, b3)
-        @test_throws MethodError Subzero.RectangleDomain(b4, b1, b3, b32)
-
-        # RectangularDomain Grid constructor
-        g = Subzero.Grid(4e5, 3e5, 1e4, 1e4)
-        g32 = Subzero.Grid(4e5, 3e5, 1e4, 1e4, Float32)
-        rdomain2 = Subzero.RectangleDomain(g)
-        @test rdomain2.north == Subzero.Boundary(Subzero.OpenBC(), 3e5)
-        @test rdomain2.south == Subzero.Boundary(Subzero.OpenBC(), 0.0)
-        rdomain3 = Subzero.RectangleDomain(g, northBC = Subzero.CollisionBC(),
-                                           eastBC = Subzero.CompressionBC())
-        @test rdomain3.north.bc == Subzero.CollisionBC()
-        @test rdomain3.east.bc == Subzero.CompressionBC()
-        @test typeof(Subzero.RectangleDomain(g32).north.val) == Float32
-
-        # CircleDomain default constructor
-        cdomain1 = Subzero.CircleDomain(5.0, [1.0, 1.0], Subzero.OpenBC())
-        @test cdomain1.radius == 5.0
-        @test cdomain1.centroid == [1.0, 1.0]
-        @test cdomain1.bc == Subzero.OpenBC()
-
-        # CircleDomain fails
-        @test_throws ArgumentError Subzero.CircleDomain(-5.0, [1.0, 1.0],
-                                                        Subzero.OpenBC())
-        # CircleDomain Grid constructor
-        cdomain2 = Subzero.CircleDomain(g)
-        @test cdomain2.radius == 3e5/2
-        @test cdomain2.centroid == [2e5, 1.5e5]
-        @test cdomain2.bc == Subzero.OpenBC()
-        cdomain3 = Subzero.CircleDomain(g, bc = Subzero.CollisionBC())
-        @test cdomain3.bc == Subzero.CollisionBC()
-
-        # Grid from domains
-        rdomain_grid = Subzero.Grid(rdomain2, (30, 40))
-        @test rdomain_grid.dims == g.dims
-        @test rdomain_grid.xg == g.xg
-        @test rdomain_grid.xc == g.xc
-        cdomain_grid = Subzero.Grid(cdomain2, (30, 40))
-        @test cdomain_grid.dims == g.dims
-        @test cdomain_grid.xg == collect(5e4:7.5e3:3.5e5)
-        @test cdomain_grid.xc == collect(5.375e4:7.5e3:3.4625e5)
+        # need checks for val not being correct
+        @test_throws ArgumentError Subzero.Domain(b4, b2, b2, b3)
+        #@test_throws MethodError Subzero.Domain(b4, b1, b3, b32)
     end
 
     @testset "Topography" begin
         coords = [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]]
         poly = LibGEOS.Polygon(coords)
-        cent = [0.5, 0.5]
         # Polygon Constructor
-        topo1 = Subzero.Topography(poly, 0.5)
-        @test topo1.centroid == cent
+        topo1 = Subzero.Topography(poly)
         @test topo1.coords == coords
-        @test topo1.height == 0.5
-        @test topo1.area == 1.0
-        @test topo1.rmax == sqrt(0.5^2 + 0.5^2)
-        topo32 = Subzero.Topography(poly, 0.5, Float32)
+        topo32 = Subzero.Topography(poly, Float32)
         @test typeof(topo32) == Subzero.Topography{Float32}
         @test typeof(topo32.coords) == Subzero.PolyVec{Float32}
         # Coords Constructor
-        topo2 = Subzero.Topography(coords, 0.5)
-        @test topo2.height == 0.5
-        @test topo2.area == 1.0
-        # Constructor fails
-        @test_throws ArgumentError Subzero.Topography(poly, -1.0)
-        @test_throws ArgumentError Subzero.Topography(cent, coords, 1., -1., .5)
-        @test_throws ArgumentError Subzero.Topography(cent, coords, 1., 1., -.5)
-
+        topo2 = Subzero.Topography(coords)
+        @test topo2.coords == coords
     end
 
     @testset "Floe" begin

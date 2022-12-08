@@ -46,6 +46,19 @@ function cell_area_ratio(cell_poly, floe_poly)
 end
 
 """
+    domain_coords(domain::Domain)
+Inputs:
+        domain<Domain>
+Output:
+        RingVec coordinates for edges of rectangular domain based off of boundary values
+"""
+function cell_coords(xmin, xmax, ymin, ymax)
+    return [[[xmin, ymax], [xmin, ymin],
+             [xmax, ymin], [xmax, ymax],
+             [xmin, ymax]]]
+end
+
+"""
     floe_area_ratio(floe, xg, yg)
 
 Calculates the cell area ratio of grid squares surrounding given floe and the indicies of those grid squares within the grid defined by gridlines xg and yg.
@@ -99,8 +112,7 @@ Outputs:
         None. Both floe and ocean fields are updated in-place.
 Note: For floes that are completly out of the Grid, simulation will error. 
 """
-function floe_OA_forcings!(floe, m)
-    c = m.consts
+function floe_OA_forcings!(floe, m, c)
     Δx = m.grid.xg[2] - m.grid.xg[1]
     Δy = m.grid.yg[2] - m.grid.yg[1]
 
@@ -110,7 +122,7 @@ function floe_OA_forcings!(floe, m)
     areas = area_ratios * (Δx * Δy)
 
     # Floe heatflux
-    floe.hflx = mean(m.hflx[idx])
+    floe.hflx = mean(m.ocean.hflx[idx])
 
     # Ice velocity within each grid square
     lx = m.grid.xc[xidx] .- floe.centroid[1]
