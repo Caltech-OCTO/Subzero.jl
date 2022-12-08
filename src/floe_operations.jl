@@ -316,7 +316,7 @@ function convex_angle_test(coords::RingVec{T}, t::Type{T} = Float64) where T
 end
 
 """
-    calc_poly_angles(coords::PolyVec{T})
+    calc_poly_angles(coords::PolyVec{T}, ::Type{T} = Float64))
 
 Computes internal polygon angles (in degrees) of an arbitrary polygon given the coordinates ordered in a clockwise manner.
 The program eliminates duplicate points, except that the first row must equal the last, so that the polygon is closed.
@@ -331,7 +331,7 @@ Copyright 2002-2004 R. C. Gonzalez, R. E. Woods, & S. L. Eddins
 Digital Image Processing Using MATLAB, Prentice-Hall, 2004
 Revision: 1.6 Date: 2003/11/21 14:44:06
 """
-function calc_poly_angles(coords::PolyVec{T}, t::Type{T} = Float64) where {T<:AbstractFloat}
+function calc_poly_angles(coords::PolyVec{T}, ::Type{T} = Float64) where {T<:AbstractFloat}
     ext = valid_polyvec!(coords)[1]
     # Calculate needed vectors
     pdiff = diff(ext)

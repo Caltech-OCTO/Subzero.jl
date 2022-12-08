@@ -46,6 +46,19 @@ function cell_area_ratio(cell_poly, floe_poly)
 end
 
 """
+    domain_coords(domain::Domain)
+Inputs:
+        domain<Domain>
+Output:
+        RingVec coordinates for edges of rectangular domain based off of boundary values
+"""
+function cell_coords(xmin, xmax, ymin, ymax)
+    return [[[xmin, ymax], [xmin, ymin],
+             [xmax, ymin], [xmax, ymax],
+             [xmin, ymax]]]
+end
+
+"""
     floe_area_ratio(floe, xg, yg)
 
 Calculates the cell area ratio of grid squares surrounding given floe and the indicies of those grid squares within the grid defined by gridlines xg and yg.
@@ -134,9 +147,10 @@ Outputs:
         None. Both floe and ocean fields are updated in-place.
 Note: For floes that are completly out of the Grid, simulation will error. 
 """
-function floe_OA_forcings!(floe, m, t::Type{T} = Float64) where T
-    c = m.consts
+function floe_OA_forcings!(floe, m, c, t::Type{T} = Float64) where T
     nrows, ncols = m.grid.dims
+
+    # Grid squares under ice floe and ice area per cell
     ma_ratio = floe.mass/floe.area
     α = floe.α
     # Rotate and translate Monte Carlo points to current floe location
@@ -156,7 +170,7 @@ function floe_OA_forcings!(floe, m, t::Type{T} = Float64) where T
     yg_interp = m.grid.yg[ybound_idx]
 
     # Floe heatflux
-    floe.hflx = mean(m.hflx[mc_xidx, mc_yidx])
+    floe.hflx = mean(m.ocean.hflx[mc_xidx, mc_yidx])
 
     # Wind Interpolation for Monte Carlo Points
     uatm_interp = linear_interpolation((xg_interp, yg_interp), m.wind.u[xbound_idx, ybound_idx])
