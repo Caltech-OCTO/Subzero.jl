@@ -149,12 +149,14 @@ Inputs:
 Output: 
         Ocean with constant velocity and temperature in each grid cell.
 """
-Ocean(grid::Grid, u, v, temp, ::Type{T} = Float64) where T =
-    Ocean(fill(convert(T, u), grid.dims), 
-          fill(convert(T, v), grid.dims), 
-          fill(convert(T, temp), grid.dims),
-          zeros(T, grid.dims), zeros(T, grid.dims), 
-          zeros(T, grid.dims), zeros(T, grid.dims))
+function Ocean(grid::Grid, u, v, temp, ::Type{T} = Float64) where T
+    nvals = grid.dims .+ 1  # one value per grid line - not grid cell 
+    return Ocean(fill(convert(T, u), nvals), 
+                 fill(convert(T, v), nvals), 
+                 fill(convert(T, temp), nvals),
+                 zeros(T, nvals), zeros(T, nvals), 
+                 zeros(T, nvals), zeros(T, nvals))
+end
 
 """
 Wind velocities in the x-direction (u) and y-direction (v). u and v should match the size of the corresponding
@@ -185,10 +187,12 @@ Inputs:
 Output: 
         Ocean with constant velocity and temperature in each grid cell.
 """
-Wind(grid, u, v, temp, t::Type{T} = Float64) where T = 
-    Wind(fill(convert(T, u), grid.dims),
-         fill(convert(T, v), grid.dims),
-         fill(convert(T, temp), grid.dims))
+function Wind(grid, u, v, temp, ::Type{T} = Float64) where T
+    nvals = grid.dims .+ 1  # one value per grid line - not grid cell 
+    return Wind(fill(convert(T, u), nvals),
+                fill(convert(T, v), nvals),
+                fill(convert(T, temp), nvals))
+end
 
 """
     AbstractDirection
@@ -796,7 +800,7 @@ struct Model{FT<:AbstractFloat, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBou
     floes::StructArray{Floe{FT}}
 
     Model(grid, ocean, wind, domain, floes) =
-        (grid.dims == size(ocean.u) == size(wind.u) && domain_in_grid(domain, grid)) ?
+        ((grid.dims .+ 1) == size(ocean.u) == size(wind.u) && domain_in_grid(domain, grid)) ?
         new{eltype(ocean.u), typeof(domain)}(grid, ocean, wind, domain, floes) :
         throw(ArgumentError("Size of grid does not match size of ocean and/or wind OR domain is not within grid."))
 end
