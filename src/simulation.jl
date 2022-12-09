@@ -65,10 +65,10 @@ Output:
 function timestep_floe!(floe, Δt)
     floe.collision_force[1] += sum(floe.interactions[:, "xforce"])
     floe.collision_force[2] += sum(floe.interactions[:, "yforce"])
-    floe.collision_torque += sum(floe.interactions[:, "torque"])
+    floe.collision_trq += sum(floe.interactions[:, "torque"])
 
     cforce = floe.collision_force
-    ctorque = floe.collision_torque
+    ctrq = floe.collision_trq
 
     if floe.height > 10
         floe.height = 10
@@ -81,7 +81,7 @@ function timestep_floe!(floe, Δt)
 
     while maximum(abs.(cforce)) > floe.mass/(5Δt)
         cforce = cforce ./ 10
-        ctorque = ctorque ./ 10
+        ctrq = ctrq ./ 10
         # TODO: check floe interactions
     end
     h = floe.height
@@ -131,11 +131,7 @@ function timestep_floe!(floe, Δt)
     floe.p_dudt = dudt
     floe.p_dvdt = dvdt
 
-    dξdt = (floe.torqueOA + ctorque)/floe.moment
-    #println("Timestep")
-    #println(floe.torqueOA)
-    #println(dξdt)
-    #println(floe.moment)
+    dξdt = (floe.trqOA + ctrq)/floe.moment
     dξdt = frac*dξdt
     ξ = floe.ξ + 1.5Δt*dξdt-0.5Δt*floe.p_dξdt
     if abs(ξ) > 1e-5
@@ -168,14 +164,14 @@ end
 
 function timestep_sim!(sim, ::Type{T} = Float64) where T
     m = sim.model
-    m.ocean.si_frac .= zeros(T, 1)
+    m.ocean.si_area .= zeros(T, 1)
     nfloes = length(m.floes) # number of floes before ghost floes
     remove = zeros(Int, nfloes)
     transfer = zeros(Int, nfloes)
     for i in 1:nfloes # floe-floe collisions for floes i and j where i<j
         ifloe = m.floes[i]
         ifloe.collision_force = zeros(T, 1, 2)
-        ifloe.collision_torque = T(0.0)
+        ifloe.collision_trq = T(0.0)
         ifloe.interactions = ifloe.interactions[1:1, :]
         if sim.COLLISION
             for j in i+1:nfloes

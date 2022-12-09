@@ -127,7 +127,7 @@ struct Ocean{FT<:AbstractFloat}
     hflx::Matrix{FT} 
     τx::Matrix{FT}
     τy::Matrix{FT}
-    si_frac::Matrix{FT}
+    si_area::Matrix{FT}
 
     Ocean(u, v, temp, hflx, τx, τy, si_frac) =
         (size(u) == size(v) == size(temp) == size(hflx) == size(τx) == size(τy) ==
@@ -149,12 +149,14 @@ Inputs:
 Output: 
         Ocean with constant velocity and temperature in each grid cell.
 """
-Ocean(grid::Grid, u, v, temp, ::Type{T} = Float64) where T =
-    Ocean(fill(convert(T, u), grid.dims), 
-          fill(convert(T, v), grid.dims), 
-          fill(convert(T, temp), grid.dims),
-          zeros(T, grid.dims), zeros(T, grid.dims), 
-          zeros(T, grid.dims), zeros(T, grid.dims))
+function Ocean(grid::Grid, u, v, temp, ::Type{T} = Float64) where T
+    nvals = grid.dims .+ 1  # one value per grid line - not grid cell 
+    return Ocean(fill(convert(T, u), nvals), 
+                 fill(convert(T, v), nvals), 
+                 fill(convert(T, temp), nvals),
+                 zeros(T, nvals), zeros(T, nvals), 
+                 zeros(T, nvals), zeros(T, nvals))
+end
 
 """
 Wind velocities in the x-direction (u) and y-direction (v). u and v should match the size of the corresponding
@@ -185,10 +187,12 @@ Inputs:
 Output: 
         Ocean with constant velocity and temperature in each grid cell.
 """
-Wind(grid, u, v, temp, t::Type{T} = Float64) where T = 
-    Wind(fill(convert(T, u), grid.dims),
-         fill(convert(T, v), grid.dims),
-         fill(convert(T, temp), grid.dims))
+function Wind(grid, u, v, temp, ::Type{T} = Float64) where T
+    nvals = grid.dims .+ 1  # one value per grid line - not grid cell 
+    return Wind(fill(convert(T, u), nvals),
+                fill(convert(T, v), nvals),
+                fill(convert(T, temp), nvals))
+end
 
 """
     AbstractDirection
@@ -635,7 +639,10 @@ Singular sea ice floe with fields describing current state.
     mass::FT                # floe mass (kg)
     rmax::FT                # distance of vertix farthest from centroid (m)
     moment::FT              # mass moment of intertia
-    angles::Vector{FT}       # interior angles of floe
+    angles::Vector{FT}      # interior angles of floe
+    # Monte Carlo Points
+    mc_x::Vector{FT}        # x-coordinates for monte carlo integration
+    mc_y::Vector{FT}        # y-coordinates for monte carlo integration
     # Velocity/Orientation
     α::FT = 0.0             # floe rotation from starting position in radians
     u::FT = 0.0             # floe x-velocity
@@ -646,11 +653,11 @@ Singular sea ice floe with fields describing current state.
     # Forces/Collisions
     fxOA::FT = 0.0          # force from ocean and wind in x direction
     fyOA::FT = 0.0          # force from ocean and wind in y direction
-    torqueOA::FT = 0.0      # torque from ocean and wind
+    trqOA::FT = 0.0      # torque from ocean and wind
     hflx::FT = 0.0          # heat flux under the floe
     overarea::FT = 0.0      # total overlap with other floe
     collision_force::Matrix{FT} = [0.0 0.0] 
-    collision_torque::FT = 0.0
+    collision_trq::FT = 0.0
     interactions::NamedMatrix{FT} = NamedArray(zeros(7),
     (["floeidx", "xforce", "yforce", "xpoint", "ypoint", "torque", "overlap"]))'
     # Previous values for timestepping
@@ -662,6 +669,14 @@ Singular sea ice floe with fields describing current state.
     p_dαdt::FT = 0.0        # previous timestep ξ
 end
 
+function generate_mc_points(npoints, xfloe, yfloe, rmax, area, t::Type{T} = Float64) where T
+    mc_x = rmax * (2rand(T, Int(npoints)) .- 1)
+    mc_y = rmax * (2rand(T, Int(npoints)) .- 1)
+    mc_in = inpoly2(hcat(mc_x, mc_y), hcat(xfloe, yfloe))
+    err = abs(sum(mc_in)/npoints * 4 * rmax^2 - area)/area
+    return mc_x, mc_y, mc_in, err
+end
+
 """
     Floe(poly::LG.Polygon, hmean, Δh, ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, t::Type{T} = Float64)
 
@@ -670,10 +685,12 @@ Inputs:
         poly        <LibGEOS.Polygon> 
         h_mean      <Real> mean height for floes
         Δh          <Real> variability in height for floes
+        grid        <Grid>
         ρi          <Real> ice density kg/m3 - default 920
         u           <Real> x-velocity of the floe - default 0.0
         v           <Real> y-velcoity of the floe - default 0.0
         ksi         <Real> angular velocity of the floe - default 0.0
+        mc_n        <Real> number of monte carlo points
         t           <Type> datatype to convert ocean fields - must be a Float!
 Output:
         Floe with needed fields defined - all default field values used so all forcings start at 0 and floe is "alive".
@@ -683,7 +700,7 @@ Note:
         When this is fixed, this annotation will need to be updated.
         We should only run the model with Float64 right now or else we will be converting the Polygon back and forth all of the time. 
 """
-function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, t::Type{T} = Float64) where T
+function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n = 1000.0, t::Type{T} = Float64) where T
     floe = rmholes(poly)
     centroid = LG.GeoInterface.coordinates(LG.centroid(floe))::Vector{Float64}
     h = hmean + (-1)^rand(0:1) * rand() * Δh  # floe height
@@ -691,13 +708,30 @@ function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 
     mass = area * h * ρi  # floe mass
     moment = calc_moment_inertia(floe, h, ρi = ρi)
     coords = LG.GeoInterface.coordinates(floe)::PolyVec{Float64}
-    rmax = sqrt(maximum([sum(c.^2) for c in translate(coords, -centroid)[1]]))
+    origin_coords = translate(coords, -centroid)
+    ox, oy = seperate_xy(origin_coords)
+    rmax = sqrt(maximum([sum(c.^2) for c in origin_coords[1]]))
     angles = calc_poly_angles(coords, T)
+    # Generate Monte Carlo Points
+    count = 1
+    alive = 1
+    mc_x, mc_y, mc_in, err = generate_mc_points(mc_n, ox, oy, rmax, area, T)
+    while err > 0.1
+        mc_x, mc_y, mc_in, err = generate_mc_points(mc_n, ox, oy, rmax, area, T)
+        count += 1
+        if count > 10
+            err = 0.0
+            alive = 0
+        end
+    end
+    mc_x = mc_x[mc_in[:, 1] .|  mc_in[:, 2]]
+    mc_y = mc_y[mc_in[:, 1] .|  mc_in[:, 2]]
 
     return Floe(centroid = convert(Vector{T}, centroid), coords = convert(PolyVec{T}, coords),
                 height = convert(T, h), area = convert(T, area), mass = convert(T, mass),
                 rmax = convert(T, rmax), moment = convert(T, moment), angles = angles,
-                u = convert(T, u), v = convert(T, v), ξ = convert(T, ξ))
+                u = convert(T, u), v = convert(T, v), ξ = convert(T, ξ),
+                mc_x = mc_x, mc_y = mc_y, alive = alive)
 end
 
 """
@@ -708,7 +742,8 @@ Floe constructor with PolyVec{Float64}(i.e. Vector{Vector{Vector{Float64}}}) coo
 Inputs:
         coords      <Vector{Vector{Vector{Float64}}}> floe coordinates
         h_mean      <Real> mean height for floes
-        h_delta     <Real> variability in height for floes
+        Δh          <Real> variability in height for floes
+        grid        <Grid>
         rho_ice     <Real> ice density kg/m3
         u           <Real> x-velocity of the floe - default 0.0
         v           <Real> y-velcoity of the floe - default 0.0
@@ -717,8 +752,8 @@ Inputs:
 Output:
         Floe with needed fields defined - all default field values used so all forcings and velocities start at 0 and floe is "alive"
 """
-Floe(coords::PolyVec{<:Real}, h_mean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, t::Type{T} = Float64) where T = 
-    Floe(LG.Polygon(convert(PolyVec{Float64}, coords)), h_mean, Δh, ρi, u, v, ξ, T) 
+Floe(coords::PolyVec{<:Real}, h_mean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n = 1000.0, t::Type{T} = Float64) where T =
+    Floe(LG.Polygon(convert(PolyVec{Float64}, coords)), h_mean, Δh, ρi, u, v, ξ, mc_n, T) 
     # Polygon convert is needed since LibGEOS only takes Float64 - when this is fixed convert can be removed
 
 """
@@ -765,7 +800,7 @@ struct Model{FT<:AbstractFloat, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBou
     floes::StructArray{Floe{FT}}
 
     Model(grid, ocean, wind, domain, floes) =
-        (grid.dims == size(ocean.u) == size(wind.u) && domain_in_grid(domain, grid)) ?
+        ((grid.dims .+ 1) == size(ocean.u) == size(wind.u) && domain_in_grid(domain, grid)) ?
         new{eltype(ocean.u), typeof(domain)}(grid, ocean, wind, domain, floes) :
         throw(ArgumentError("Size of grid does not match size of ocean and/or wind OR domain is not within grid."))
 end

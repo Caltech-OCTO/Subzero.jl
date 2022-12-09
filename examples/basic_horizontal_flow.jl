@@ -17,7 +17,7 @@ const coarse_ny = 10
 # Model instantiation
 grid = Grid(-Lx, Lx, -Ly, Ly, Δgrid, Δgrid)
 ocean = Ocean(grid, 0.0, 0.0, 0.0)
-wind = Wind(3*ones(grid.dims), zeros(grid.dims), fill(-20.0, grid.dims))
+wind = Wind(3*ones(grid.dims .+ 1), zeros(grid.dims .+ 1), fill(-20.0, grid.dims .+ 1))
 
 # Domain creation - boundaries and topography
 nboundary = CollisionBoundary(grid, North())
@@ -42,7 +42,7 @@ model = Model(grid, ocean, wind, domain, floe_arr)
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 consts = Constants(E = modulus, Cd_io = 0.0)
 #consts = Constants(E = modulus, Cd_io = 0.0, Cd_ia = 0.0, Cd_ao = 0.0, f = 0.0, μ = 0.0)  # collisions without friction 
-simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 1500, COLLISION = true)
+simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 6000, COLLISION = true)
 
 # Output setup
 gridwriter = GridOutputWriter([GridOutput(i) for i in 1:9], 10, "g.nc", grid, (10, 10))
@@ -50,5 +50,3 @@ floewriter = FloeOutputWriter([FloeOutput(i) for i in [3:4; 6; 9:11; 22:26]], 30
 
 # Run simulation
 run!(simulation, [floewriter])
-
-

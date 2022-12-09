@@ -50,10 +50,10 @@
     @testset "Ocean" begin
         g = Subzero.Grid(4e5, 3e5, 1e4, 1e4)
         # Large ocean default constructor
-        uocn = fill(3.0, g.dims)
-        vocn = fill(4.0, g.dims)
-        tempocn = fill(-2.0, g.dims)
-        τx = fill(0.0, g.dims)
+        uocn = fill(3.0, g.dims .+ 1)
+        vocn = fill(4.0, g.dims .+ 1)
+        tempocn = fill(-2.0, g.dims .+ 1)
+        τx = fill(0.0, g.dims .+ 1)
         τy = τx
         si_area = τx
         hflx = τx
@@ -75,7 +75,7 @@
         @test ocn.v == ocn2.v
         @test ocn.temp == ocn2.temp
         @test ocn.τx == ocn2.τx
-        @test ocn.si_frac == ocn2.si_frac
+        @test ocn.si_area == ocn2.si_area
         @test ocn.hflx == ocn2.hflx
         # Custom constructor Float32
         @test typeof(Subzero.Ocean(g, 3.0, 4.0, -2.0, Float32)) ==
@@ -85,9 +85,9 @@
     @testset "Wind" begin
         g = Subzero.Grid(4e5, 3e5, 1e4, 1e4)
         # Large wind default constructor
-        uwind = fill(3.0, g.dims)
-        vwind = fill(4.0, g.dims)
-        tempwind = fill(-2.0, g.dims)
+        uwind = fill(3.0, g.dims .+ 1)
+        vwind = fill(4.0, g.dims .+ 1)
+        tempwind = fill(-2.0, g.dims .+ 1)
         wind = Subzero.Wind(uwind, vwind, tempwind)
         @test wind.u == uwind
         @test wind.v == vwind
