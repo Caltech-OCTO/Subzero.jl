@@ -18,6 +18,7 @@ Outputs:
         than the number of grid lines, the indices will wrap around to the other side of the grid. 
 """
 function find_bounding_idx(point_idx, Δd::Int, end_idx::Int, ::PeriodicBoundary, ::Type{T} = Float64) where T
+    # TODO: this is wrong, spacing needs to be consistent 
     imin, imax = extrema(point_idx)
     imin -= Δd
     imax += Δd
@@ -57,6 +58,19 @@ function find_bounding_idx(point_idx, Δd::Int, end_idx::Int, ::AbstractBoundary
     imin = (imin < 1) ? 1 : imin
     imax = (imax > end_idx) ? end_idx : imax
     return [imin:imax;]
+end
+
+"""
+domain_coords(domain::Domain)
+Inputs:
+    domain<Domain>
+Output:
+    RingVec coordinates for edges of rectangular domain based off of boundary values
+"""
+function cell_coords(xmin, xmax, ymin, ymax)
+return [[[xmin, ymax], [xmin, ymin],
+         [xmax, ymin], [xmax, ymax],
+         [xmin, ymax]]]
 end
 
 """

@@ -31,9 +31,9 @@ Simulation which holds a model and parameters needed for running the simulation.
     RAFTING (floe rafting enabled), RIDGING (floe ridging enabled), and WELDING (floe welding enabled). All are false by default.
 """
 @kwdef struct Simulation{FT<:AbstractFloat, DT<:Domain}
-    # Objects ------------------------------------------------------------------
     model::Model{FT, DT}            # Model to simulate
-    consts::Constants{FT}
+    consts::Constants{FT}           # Constants used in simulation
+    name::String = "sim"            # Simulation name for saving output
     # Timesteps ----------------------------------------------------------------
     Δt::Int = 10                    # Simulation timestep (seconds)
     nΔt::Int = 7500                 # Total timesteps simulation runs for
@@ -182,6 +182,7 @@ function timestep_sim!(sim, ::Type{T} = Float64) where T
                 end
             end
         end
+        floe_domain_interaction!(ifloe, m.domain, sim.consts, sim.Δt)
         m.floes[i] = ifloe
     end
     for i in 1:length(m.floes)  # Update floes not directly calculated above where i>j
@@ -204,7 +205,6 @@ function timestep_sim!(sim, ::Type{T} = Float64) where T
     end
     for i in 1:nfloes
         ifloe = m.floes[i]
-        floe_domain_interaction!(ifloe, m.domain, sim.consts, sim.Δt)
         floe_OA_forcings!(ifloe, m, sim.consts)
         calc_torque!(ifloe)
         timestep_floe!(ifloe, sim.Δt)
@@ -239,8 +239,11 @@ Outputs:
 """
 function run!(sim, writers, ::Type{T} = Float64) where T
     Δtout_lst = Int[]
+    if !isempty(writers)
+        write_domain!(sim.model.domain, sim.name)
+    end
     for w in writers
-        setup_output_file!(w, sim.nΔt, T)
+        setup_output_file!(w, sim.nΔt, sim.name, T)
         push!(Δtout_lst, w.Δtout)
     end
     println("Model running!")
@@ -250,7 +253,7 @@ function run!(sim, writers, ::Type{T} = Float64) where T
         if length(widx) > 0
             println(tstep, " timesteps completed")
             for idx in widx
-                write_data!(writers[idx], tstep, sim.model)
+                write_data!(writers[idx], tstep, sim.model, sim.name)
             end
         end
         timestep_sim!(sim, T)

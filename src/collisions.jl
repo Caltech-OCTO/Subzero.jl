@@ -150,7 +150,7 @@ Input:
 Outputs:
         <Float> frictional/tangential force of the collision
 """
-function calc_friction_forces(v1, v2, normal, Δl, consts, Δt, t::Type{T} = Float64) where T
+function calc_friction_forces(v1, v2, normal, Δl, consts, Δt, ::Type{T} = Float64) where T
     force = zeros(T, size(v1, 1), 2)
     G = consts.E/(2*(1+consts.ν))  # Sheer modulus
     # Difference in velocities between floes in x and y direction
@@ -193,7 +193,7 @@ Outputs:
             xfpoints and yfpoints are the location of the force and overlaps is the overlap between the floe and boundary.
         The overlaps field is also added to the floe's overarea field that describes the total overlapping area at any timestep. 
 """
-function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, t::Type{T} = Float64) where T
+function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, ::Type{T} = Float64) where T
     remove = Int(0)
     transfer = Int(0)
     ifloe_poly = LG.Polygon(ifloe.coords)
@@ -246,7 +246,7 @@ function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, t::Type
 end
 
 """
-    floe_boundary_interaction!(floe, boundary, _, _, _)
+    floe_domain_element_interaction!(floe, boundary, _, _, _)
 
 If given floe insersects with an open boundary, the floe is set to be removed from the simulation.
 Inputs:
@@ -258,7 +258,7 @@ Inputs:
 Output:
         None. If floe is interacting with the boundary, floe.alive field is set to 0. Else, nothing is changed. 
 """
-function floe_boundary_interaction!(floe, boundary::OpenBoundary, consts, Δt, ::Type{T} = Float64) where T
+function floe_domain_element_interaction!(floe, boundary::OpenBoundary, consts, Δt, ::Type{T} = Float64) where T
     floe_poly = LG.Polygon(floe.coords)
     bounds_poly = LG.Polygon(boundary.coords)
     # Check if the floe and boundary actually overlap
@@ -271,88 +271,62 @@ end
 """
     normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{North, <:AbstractFloat}, ::Type{T} = Float64)
 
-Zero-out forces that point in direction not perpendicular to North boundary wall.
+Zero-out forces that point in direction not perpendicular to North or South boundary wall.
 Inputs:
         force       <Array{Float, n, 2}> normal forces on each of the n regions greater than a minimum area
         fpoint      <Array{Float, n, 2}> point force is applied on each of the n regions greater than a minimum area
         boundary    <AbstractBoundary{North, <:AbstractFloat}> domain's northern boundary 
                     <Type> Float type model is running on (Float64 or Float32) - not needed here
-Outputs: None. All forces in the x direction set to 0 if the point the force is applied is the northern boundary value.
+Outputs: None. All forces in the x direction set to 0 if the point the force is applied is the northern or southern boundary value.
 """
-function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{North, <:AbstractFloat}, ::Type{T} = Float64) where T
+function normal_direction_correct!(forces, fpoints, boundary::Union{AbstractBoundary{North, <:AbstractFloat},
+                                                                    AbstractBoundary{South, <:AbstractFloat}}, ::Type{T} = Float64) where T
     forces[fpoints[:, 2] .== boundary.val, 1] .= T(0.0)
     return
 end
 
 """
-    normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{South, <:AbstractFloat}, ::Type{T} = Float64)
+    normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{Union{East, West}, <:AbstractFloat}, ::Type{T} = Float64)
 
-Zero-out forces that point in direction not perpendicular to South boundary wall.
-Inputs:
-        force       <Array{Float, n, 2}> normal forces on each of the n regions greater than a minimum area
-        fpoint      <Array{Float, n, 2}> point force is applied on each of the n regions greater than a minimum area
-        boundary    <AbstractBoundary{South, <:AbstractFloat}> domain's southern boundary 
-                    <Type> Float type model is running on (Float64 or Float32) - not needed here
-Outputs: None. All forces in the x direction set to 0 if the point the force is applied is the southern boundary value.
-"""
-function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{South, <:AbstractFloat}, ::Type{T} = Float64) where T
-    forces[fpoints[:, 2] .== boundary.val, 1] .= T(0.0)
-    return
-end
-
-"""
-    normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{East, <:AbstractFloat}, ::Type{T} = Float64)
-
-Zero-out forces that point in direction not perpendicular to East boundary wall.
+Zero-out forces that point in direction not perpendicular to East or West boundary wall.
 Inputs:
         force       <Array{Float, n, 2}> normal forces on each of the n regions greater than a minimum area
         fpoint      <Array{Float, n, 2}> point force is applied on each of the n regions greater than a minimum area
         boundary    <AbstractBoundary{East, <:AbstractFloat}> domain's southern boundary 
                     <Type> Float type model is running on (Float64 or Float32) - not needed here
-Outputs: None. All forces in the y direction set to 0 if the point the force is applied is the eastern boundary value.
+Outputs: None. All forces in the y direction set to 0 if the point the force is applied is the eastern or western boundary value.
 """
-function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{East, <:AbstractFloat}, ::Type{T} = Float64) where T
+function normal_direction_correct!(forces, fpoints, boundary::Union{AbstractBoundary{East, <:AbstractFloat},
+                                                                    AbstractBoundary{West, <:AbstractFloat}}, ::Type{T} = Float64) where T
     forces[fpoints[:, 1] .== boundary.val, 2] .= T(0.0)
     return
 end
 
-"""
-    normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{West, <:AbstractFloat}, ::Type{T} = Float64)
-
-Zero-out forces that point in direction not perpendicular to West boundary wall.
-Inputs:
-        force       <Array{Float, n, 2}> normal forces on each of the n regions greater than a minimum area
-        fpoint      <Array{Float, n, 2}> point force is applied on each of the n regions greater than a minimum area
-        boundary    <AbstractBoundary{West, <:AbstractFloat}> domain's southern boundary 
-                    <Type> Float type model is running on (Float64 or Float32) - not needed here
-Outputs: None. All forces in the x direction set to 0 if the point the force is applied is the western boundary value.
-"""
-function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{West, <:AbstractFloat}, ::Type{T} = Float64) where T
-    forces[fpoints[:, 1] .== boundary.val, 2] .= T(0.0)
+function normal_direction_correct!(forces, fpoints, ::TopographyElement, ::Type{T} = Float64) where T
     return
 end
 
 """
-    floe_boundary_interaction!(floe, boundary, consts, Δt, t::Type{T} = Float64)
+    floe_domain_element_interaction!(floe, element, consts, Δt, t::Type{T} = Float64)
 
-If floe intersects with given boundary, floe interactions field and overare field are updated.
+If floe intersects with given element (either collision boundary or topography element), floe interactions field and overarea field are updated.
 Inputs:
-        floe            <Floe> floe interacting with boundary
-        boundary        <CollisionBoundary> coordinates of boundary
+        floe            <Floe> floe interacting with element
+        element         <Union{CollisionBoundary, TopographyElement}> coordinates of element
         consts          <Constants> model constants needed for calculations
         Δt              <Int> current simulation timestep
                         <Type> Float type model is running on (Float64 or Float32)
 Outputs:
         None. If floe interacts, the floe's interactions field is updated with the details of each region of overlap.
-        The interactions field will have the following form for each region of overlap with the boundary:
+        The interactions field will have the following form for each region of overlap with the element:
             [Inf, xforce, yforce, xfpoints, yfpoints, overlaps] where the xforce and yforce are the forces,
-            xfpoints and yfpoints are the location of the force and overlaps is the overlap between the floe and boundary.
+            xfpoints and yfpoints are the location of the force and overlaps is the overlap between the floe and element.
         The overlaps field is also added to the floe's overarea field that describes the total overlapping area at any timestep.
 """
-function floe_boundary_interaction!(floe, boundary::CollisionBoundary, consts, Δt, ::Type{T} = Float64) where T
+function floe_domain_element_interaction!(floe, element::Union{CollisionBoundary, TopographyElement}, consts, Δt, ::Type{T} = Float64) where T
     floe_poly = LG.Polygon(floe.coords)
-    bounds_poly = LG.Polygon(boundary.coords)
-    # Check if the floe and boundary actually overlap
+    bounds_poly = LG.Polygon(element.coords)
+    # Check if the floe and element actually overlap
     if LG.intersects(floe_poly, bounds_poly)
         inter_floe = LG.intersection(floe_poly, bounds_poly)
         inter_regions = LG.getGeometries(inter_floe)
@@ -364,7 +338,7 @@ function floe_boundary_interaction!(floe, boundary::CollisionBoundary, consts, �
         # Constant needed for force calculations
         force_factor = consts.E * floe.height / sqrt(floe.area)
         # Calculate normal forces, force points, and overlap areas
-        normal_forces, fpoints, overlaps, Δl =  calc_elastic_forces(floe.coords, boundary.coords,
+        normal_forces, fpoints, overlaps, Δl =  calc_elastic_forces(floe.coords, element.coords,
                                         inter_regions, region_areas, force_factor, consts, T)
         # Calculate frictional forces at each force point - based on velocities at force points
         np = size(fpoints, 1)
@@ -374,7 +348,7 @@ function floe_boundary_interaction!(floe, boundary::CollisionBoundary, consts, �
         # Calculate total forces and update ifloe's interactions
         forces = normal_forces .+ friction_forces
         if sum(abs.(forces)) != 0
-            normal_direction_correct!(forces, fpoints, boundary, T)
+            normal_direction_correct!(forces, fpoints, element, T)
             floe.interactions = [floe.interactions; fill(Inf, np) forces fpoints zeros(np) overlaps']
             floe.overarea += sum(overlaps)
         end
@@ -404,16 +378,22 @@ function floe_domain_interaction!(floe, domain::Domain, consts, Δt, ::Type{T} =
     wbound = domain.west
 
     if centroid[2] + rmax > nbound.val
-        floe_boundary_interaction!(floe, nbound, consts, Δt)
+        floe_domain_element_interaction!(floe, nbound, consts, Δt)
     end
     if centroid[2] - rmax < sbound.val
-        floe_boundary_interaction!(floe, sbound, consts, Δt)
+        floe_domain_element_interaction!(floe, sbound, consts, Δt)
     end
     if centroid[1] + rmax > ebound.val
-        floe_boundary_interaction!(floe, ebound, consts, Δt)
+        floe_domain_element_interaction!(floe, ebound, consts, Δt)
     end
     if centroid[1] - rmax < wbound.val
-        floe_boundary_interaction!(floe, wbound, consts, Δt)
+        floe_domain_element_interaction!(floe, wbound, consts, Δt)
+    end
+
+    for topo_element in domain.topography
+        if sum((topo_element.centroid .- floe.centroid).^2) < (topo_element.rmax + floe.rmax)^2
+            floe_domain_element_interaction!(floe, topo_element, consts, Δt)
+        end
     end
 
     if centroid[1] > ebound.val || centroid[1] < wbound.val || centroid[2] > nbound.val || centroid[2] < sbound.val
@@ -446,3 +426,4 @@ function calc_torque!(floe, ::Type{T} = Float64) where T
         end
     end
 end
+

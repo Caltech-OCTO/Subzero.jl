@@ -21,7 +21,7 @@ export
     East,
     West,
     Domain,
-    Topography,
+    TopographyElement,
     Floe,
     Constants,
     Model,
@@ -36,7 +36,7 @@ export
 import LibGEOS as LG
 import Base.@kwdef # this is being exported as of version 1.9
 using NCDatasets, Plots, StructArrays, Statistics, LinearAlgebra
-using PolygonInbounds, NamedArrays, Interpolations
+using PolygonInbounds, NamedArrays, Interpolations, JLD2
 
 
 """

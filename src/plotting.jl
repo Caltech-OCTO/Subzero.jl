@@ -34,7 +34,9 @@ end
 """
     setup_plot(model::Model)
 
-Plots grid lines, model domain, and model topology on a plot with a ratio determined by the grid coordinates. This plot will be used throughout simulation so these qualities only need to be plotted/set once as they cannot change during the simulation.
+Plots grid lines, model domain, and model topology on a plot with a ratio determined by the grid coordinates.
+Used for plotting during simulation, mainly for debugging purposes. 
+These qualities only need to be plotted/set once as they cannot change during the simulation.
 
 Inputs:
         model <Model>
@@ -59,24 +61,46 @@ function setup_plot(model::Model)
 
     # Plot Topology
     if length(size(model.topos)) > 0
-        topos_coords = model.topos.coords
-        plot!(plt, [LG.Polygon([c[1] ./ 1000]) for c in topos_coords],
+        topo_coords = model.topos.coords
+        plot!(plt, [LG.Polygon([c[1] ./ 1000]) for c in topo_coords],
               fill = :grey)
     end
     return plt
 end
 
-function setup_plot(sim_data, xg, yg)
-    xmax = xg[end]  # kilometers
-    ymax = yg[end]
-    ratio = ymax/xmax
-    plt = Plots.plot(xlims = (xg[1], xmax),
-                     ylims = (yg[1], ymax),
-                     size = (1500, 1200),
-                     aspect_ratio=ratio,
-                     xlabel = "[km]",
-                     ylabel = "[km]")
-    # TODO: add in topography and domain once we figure out how we want to save this meta data
+"""
+    setup_plot(domain_data::String, plot_size = (1500, 1200))
+
+Set up plot object using domain data from file. x and y limits based on domain
+and topograhy plotted in grey.
+Inputs:
+        domain_fn   <String> file path to JLD2 file holding domain struct information
+        plot_size   <Tuple{Int, Int}> size of output plot - default is (1500, 1200)
+Outputs:
+        Plot with x and y xlim determed by domain and including all topography. 
+"""
+function setup_plot(domain_fn::String, plot_size = (1500, 1200))
+    # Open file to get needed values
+    plt = jldopen(domain_fn, "r") do file
+        d = file["domain"]
+        xmin = d.west.val/1000
+        xmax = d.east.val/1000
+        ymin = d.south.val/1000
+        ymax = d.north.val/1000
+
+        # Plot domain using file data
+        ratio = (ymax-ymin)/(xmax-xmin)
+        plt = Plots.plot(xlims = (xmin, xmax),
+                         ylims = (ymin, ymax),
+                         size = plot_size,
+                         aspect_ratio=ratio,
+                         xlabel = "[km]",
+                         ylabel = "[km]")
+        if !isempty(d.topography)
+            topo_coords = d.topography.coords
+            plot!(plt, [LG.Polygon([c[1] ./ 1000]) for c in topo_coords], fillcolor = :grey)
+        end
+    end
     return plt
 end
 
@@ -84,15 +108,16 @@ end
     plot_sim(model, plt)
 
 Plot ocean velocities and floes for current model time step using given plot.
+Used for plotting during simulation, mainly for debugging purposes. 
     
 Inputs:
         model   <Model>
         plt     <Plots.plt>
         time    <Int> model timestep
-Outpits:
-        Save new plot
+Outputs:
+        Save new plot.
 """
-function plot_sim(model, plt, time)
+function plot_sim_timestep(model, plt, time)
     # Plot Ocean Vector Field - also clears previous plot
     xgrid, ygrid = Subzero.grids_from_lines(model.grid.xc, model.grid.xc)
     plt_new = quiver(plt, vec(xgrid ./ 1000), vec(ygrid ./ 1000),
@@ -108,19 +133,26 @@ function plot_sim(model, plt, time)
     Plots.savefig(plt_new, "figs/collisions/plot_$time.png")
 end
 
-function create_sim_gif(floes_fn, xg, yg)
-    sim_data = NCDataset(floes_fn)  # TODO: Change this if we don't want NetCDFs
-    plt = setup_plot(sim_data, xg, yg)
+"""
+    create_sim_gif(floes_fn, domian_fn)
 
+Create a gif of a simulation given a file with domain information and floe information from a floe output writer.
+Inputs:
+        floes_fn    <String> file path to file output by floe output writer that inclues coordinate and alive fields
+        domain_fn   <String> file path to JLD2 file holding domain struct information
+Outputs: Saves simulation gif with floes and topography plotted.
+"""
+function create_sim_gif(floes_fn, domian_fn)
+    sim_data = NCDataset(floes_fn)  # TODO: Change this if we don't want NetCDFs
     xcoords = sim_data["xcoords"][:, :, :]
     ycoords = sim_data["ycoords"][:, :, :]
     alive = sim_data["alive"][:, :]
     anim = @animate for tstep in eachindex(sim_data["time"][:])
-        plt_new = plot(plt)
+        plt = setup_plot(domian_fn)  # Uses JLD2
         for i in eachindex(sim_data["floes"][:])
             if alive[tstep, i] == 1
-            plot!(plt_new, xcoords[tstep, i, :], ycoords[tstep, i, :],
-                           seriestype = [:shape,], fill = :lightblue, legend=false)
+            plot!(plt, xcoords[tstep, i, :]./1000, ycoords[tstep, i, :]./1000,
+                  seriestype = [:shape,], fill = :lightblue, legend=false)
             end
         end
     end

@@ -216,7 +216,7 @@ struct GridOutputWriter{FT<:AbstractFloat, ST<:AbstractString}<:AbstractOutputWr
     yg::Vector{FT}          # Grid lines in y-direction for ouput calculations
     xc::Vector{FT}          # Center-lines on grid cells in the x-direction
     yc::Vector{FT}          # Center-lines on grid cells in the y-direction
-    data::Array{FT, 3}      # Timestep to write to file stored here
+    data::Array{FT, 3}      # Data to write to file stored here
 
     GridOutputWriter(outputs, Δtout, fn, xg, yg, xc, yc, data) = 
         length(xg) > 1 && length(yg) > 1 &&
@@ -302,15 +302,16 @@ Create output NetCDF file for given GridOutputWriter.
 The file, named writer.fn, will be saved in folder output/grid and will contain data for fields defined by the writer.
 It will save data for nΔt/Δnout timesteps and the saved data will be of type T. 
 Inputs:
-        writer  <GridOutputWriter>
-        nΔt     <Int> total number of timesteps in the simulation
-        T       <Type> datatype to convert grid fields - must be a Float!
+        writer      <GridOutputWriter>
+        nΔt         <Int> total number of timesteps in the simulation
+        sim_name    <String> simulation name to use for as folder name
+        T           <Type> datatype to convert grid fields - must be a Float!
 Outputs:
         Setup and saved NetCDF file with desired fields and number of timesteps to be written to throughout the rest of the model. 
  """
-function setup_output_file!(writer::GridOutputWriter, nΔt::Int, t::Type{T} = Float64) where T
+function setup_output_file!(writer::GridOutputWriter, nΔt::Int, sim_name::String, ::Type{T} = Float64) where T
     # Create file and folder if needed
-    file_path = joinpath(pwd(), "output", "grid")
+    file_path = joinpath(pwd(), "output", sim_name)
     !isdir(file_path) && mkdir(file_path)
     outfn = joinpath(file_path, writer.fn)
     isfile(outfn) && rm(outfn)
@@ -349,15 +350,16 @@ end
 
 Create output NetCDF file for given floe output writer. The file, which will have name defined in writer.fn will be saved in folder output/floe and will contain data for all fields defined by the writer. It will save data for nΔt/Δnout timesteps and the saved data will be of type T. 
 Inputs:
-        writer  <FloeOutputWriter>
-        nΔt     <Int> total number of timesteps in the simulation
-        T       <Type> datatype to convert grid fields - must be a Float!
+        writer      <FloeOutputWriter>
+        nΔt         <Int> total number of timesteps in the simulation
+        sim_name    <String> simulation name to use for as folder name
+        T           <Type> datatype to convert grid fields - must be a Float!
 Outputs:
         Saved NetCDF file with needed fields and number of timesteps to be written to throughout the rest of the model. 
  """
-function setup_output_file!(writer::FloeOutputWriter, nΔt, t::Type{T} = Float64) where T
+function setup_output_file!(writer::FloeOutputWriter, nΔt, sim_name::String, ::Type{T} = Float64) where T
     # Create file
-    file_path = joinpath(pwd(), "output", "floe")
+    file_path = joinpath(pwd(), "output", sim_name)
     !isdir(file_path) && mkdir(file_path)
     outfn = joinpath(file_path, writer.fn)
     isfile(outfn) && rm(outfn)
@@ -496,20 +498,21 @@ end
 
 Writes GridOutputWriter data to NetCDF file created with setup_output_file! function.
 Inputs:
-        writer  <GridOutputWriter>
-        tstep   <Int> simulation timestep
-        model   <Model> model being simulated
+        writer      <GridOutputWriter>
+        tstep       <Int> simulation timestep
+        model       <Model> model being simulated
+        sim_name    <String> simulation name to use for as folder name
 Output:
         Writes desired fields writer.outputs to file with name writer.fn for current timestep
 """
-function write_data!(writer::GridOutputWriter, tstep, model)
+function write_data!(writer::GridOutputWriter, tstep, model, sim_name)
     live_floes = filter(f -> f.alive == 1, model.floes)
     if length(live_floes) > 0
         calc_eulerian_data!(live_floes, model.topos, writer)
         istep = div(tstep, writer.Δtout) + 1  # Julia indicies start at 1
         
         # Open file and write data from grid writer
-        ds = NCDataset(joinpath(pwd(), "output", "grid", writer.fn), "a")
+        ds = NCDataset(joinpath(pwd(), "output", sim_name, writer.fn), "a")
         for i in eachindex(writer.outputs)
             name = getname(writer.outputs[i])
             ds[name][istep, :, :] = writer.data[:, :, i]
@@ -527,16 +530,17 @@ Inputs:
         writer  <FloeOutputWriter>
         tstep   <Int> simulation timestep
         model   <Model> model being simulated
+        sim_name    <String> simulation name to use for as folder name
 Output:
         Writes desired fields writer.outputs to file with name writer.fn for current timestep
 """
-function write_data!(writer::FloeOutputWriter, tstep, model)
+function write_data!(writer::FloeOutputWriter, tstep, model, sim_name)
     live_floes = filter(f -> f.alive == 1, model.floes)
     nfloes = length(live_floes)
     if nfloes > 0
         istep = div(tstep, writer.Δtout) + 1  # Julia indicies start at 1
         # Open file 
-        ds = NCDataset(joinpath(pwd(), "output", "floe", writer.fn), "a")
+        ds = NCDataset(joinpath(pwd(), "output", sim_name, writer.fn), "a")
 
         # Change in number of floes
         Δfloes = nfloes - ds.dim["floes"]
@@ -653,6 +657,23 @@ function write_data!(writer::FloeOutputWriter, tstep, model)
         end
         close(ds)
     end
+    return
+end
+
+"""
+    write_domain!(domain::Domain, sim_name::AbstractString)
+
+Write and save file that holds domain struct data.
+Inputs:
+        domain      <Domain> model's domain for a given simulation
+        sim_name    <AbstractString subtype> simulation name
+Ouputs: File will be saved in output/sim_name/domain.jld2 and file will hold simulations's domain. 
+"""
+function write_domain!(domain::Domain, sim_name::String)
+    file_path = joinpath(pwd(), "output", sim_name)
+    !isdir(file_path) && mkdir(file_path)
+    domain_fn = joinpath(file_path, "domain.jld2")
+    jldsave(domain_fn; domain)
     return
 end
 
