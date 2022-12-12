@@ -150,7 +150,7 @@ Input:
 Outputs:
         <Float> frictional/tangential force of the collision
 """
-function calc_friction_forces(v1, v2, normal, Δl, consts, Δt, t::Type{T} = Float64) where T
+function calc_friction_forces(v1, v2, normal, Δl, consts, Δt, ::Type{T} = Float64) where T
     force = zeros(T, size(v1, 1), 2)
     G = consts.E/(2*(1+consts.ν))  # Sheer modulus
     # Difference in velocities between floes in x and y direction
@@ -193,7 +193,7 @@ Outputs:
             xfpoints and yfpoints are the location of the force and overlaps is the overlap between the floe and boundary.
         The overlaps field is also added to the floe's overarea field that describes the total overlapping area at any timestep. 
 """
-function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, t::Type{T} = Float64) where T
+function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, ::Type{T} = Float64) where T
     remove = Int(0)
     transfer = Int(0)
     ifloe_poly = LG.Polygon(ifloe.coords)
@@ -279,7 +279,8 @@ Inputs:
                     <Type> Float type model is running on (Float64 or Float32) - not needed here
 Outputs: None. All forces in the x direction set to 0 if the point the force is applied is the northern or southern boundary value.
 """
-function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{Union{North, South}, <:AbstractFloat}, ::Type{T} = Float64) where T
+function normal_direction_correct!(forces, fpoints, boundary::Union{AbstractBoundary{North, <:AbstractFloat},
+                                                                    AbstractBoundary{South, <:AbstractFloat}}, ::Type{T} = Float64) where T
     forces[fpoints[:, 2] .== boundary.val, 1] .= T(0.0)
     return
 end
@@ -295,7 +296,8 @@ Inputs:
                     <Type> Float type model is running on (Float64 or Float32) - not needed here
 Outputs: None. All forces in the y direction set to 0 if the point the force is applied is the eastern or western boundary value.
 """
-function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{Union{East, West}, <:AbstractFloat}, ::Type{T} = Float64) where T
+function normal_direction_correct!(forces, fpoints, boundary::Union{AbstractBoundary{East, <:AbstractFloat},
+                                                                    AbstractBoundary{West, <:AbstractFloat}}, ::Type{T} = Float64) where T
     forces[fpoints[:, 1] .== boundary.val, 2] .= T(0.0)
     return
 end
