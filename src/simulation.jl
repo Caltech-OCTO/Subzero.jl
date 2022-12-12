@@ -31,9 +31,9 @@ Simulation which holds a model and parameters needed for running the simulation.
     RAFTING (floe rafting enabled), RIDGING (floe ridging enabled), and WELDING (floe welding enabled). All are false by default.
 """
 @kwdef struct Simulation{FT<:AbstractFloat, DT<:Domain}
-    # Objects ------------------------------------------------------------------
     model::Model{FT, DT}            # Model to simulate
-    consts::Constants{FT}
+    consts::Constants{FT}           # Constants used in simulation
+    name::String = "sim"            # Simulation name for saving output
     # Timesteps ----------------------------------------------------------------
     Δt::Int = 10                    # Simulation timestep (seconds)
     nΔt::Int = 7500                 # Total timesteps simulation runs for
@@ -240,10 +240,10 @@ Outputs:
 function run!(sim, writers, ::Type{T} = Float64) where T
     Δtout_lst = Int[]
     if !isempty(writers)
-        write_domain!(sim.model.domain, "output/domain.jld2")
+        write_domain!(sim.model.domain, sim.name)
     end
     for w in writers
-        setup_output_file!(w, sim.nΔt, T)
+        setup_output_file!(w, sim.nΔt, sim.name, T)
         push!(Δtout_lst, w.Δtout)
     end
     println("Model running!")
@@ -253,7 +253,7 @@ function run!(sim, writers, ::Type{T} = Float64) where T
         if length(widx) > 0
             println(tstep, " timesteps completed")
             for idx in widx
-                write_data!(writers[idx], tstep, sim.model)
+                write_data!(writers[idx], tstep, sim.model, sim.name)
             end
         end
         timestep_sim!(sim, T)
