@@ -656,3 +656,8 @@ function write_data!(writer::FloeOutputWriter, tstep, model)
     return
 end
 
+function write_domain!(domain::Domain, domain_fn::AbstractString)
+    jldsave(domain_fn; domain)
+    return
+end
+

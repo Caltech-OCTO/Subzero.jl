@@ -535,7 +535,8 @@ struct TopographyElement{FT}<:AbstractDomainElement{FT}
     coords::PolyVec{FT}
     centroid::Vector{FT}
     rmax::FT
-    function TopographyElement{FT}(coords::PolyVec{FT}) where {FT <: AbstractFloat}
+
+    function TopographyElement{FT}(coords::PolyVec{FT}, centroid::Vector{FT}, rmax::FT) where {FT <: AbstractFloat}
         rmax > 0 ? 
             new{FT}(valid_polyvec!(rmholes(coords)), centroid, rmax) : 
             throw(ArgumentError("Topography element maximum radius must be positive and non-zero."))
@@ -543,20 +544,6 @@ struct TopographyElement{FT}<:AbstractDomainElement{FT}
 
     TopographyElement(coords::PolyVec{FT}, centroid::Vector{FT}, rmax::FT) where {FT <: AbstractFloat} =
         TopographyElement{FT}(coords, centroid, rmax)
-end
-
-"""
-    Topography(coords::PolyVec{T}, ::Type{T} = Float64)
-
-Constructor for topographic element with PolyVec coordinates
-    Inputs:
-            poly    <LibGEOS.Polygon> 
-            _       <Type> datatype used to run model (Float32 or Float64)
-    Output:
-            Topographic element coordinates of type PolyVec{T} with any holes removed
-"""
-function TopographyElement(coords::PolyVec{T}, ::Type{T} = Float64) where {T} 
-    return TopographyElement(LG.Polygon(coords), T)
 end
 
 """
@@ -579,6 +566,20 @@ function TopographyElement(poly::LG.Polygon, ::Type{T} = Float64) where T
     origin_coords = translate(coords, -centroid)
     rmax = sqrt(maximum([sum(c.^2) for c in origin_coords[1]]))
     return TopographyElement(coords, centroid, rmax)
+end
+
+"""
+    Topography(coords::PolyVec{T}, ::Type{T} = Float64)
+
+Constructor for topographic element with PolyVec coordinates
+    Inputs:
+            poly    <LibGEOS.Polygon> 
+            _       <Type> datatype used to run model (Float32 or Float64)
+    Output:
+            Topographic element coordinates of type PolyVec{T} with any holes removed
+"""
+function TopographyElement(coords::PolyVec{T}, ::Type{T} = Float64) where {T} 
+    return TopographyElement(LG.Polygon(coords), T)
 end
 
 """

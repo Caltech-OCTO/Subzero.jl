@@ -239,6 +239,9 @@ Outputs:
 """
 function run!(sim, writers, ::Type{T} = Float64) where T
     Δtout_lst = Int[]
+    if !isempty(writers)
+        write_domain!(sim.model.domain, "output/domain.jld2")
+    end
     for w in writers
         setup_output_file!(w, sim.nΔt, T)
         push!(Δtout_lst, w.Δtout)

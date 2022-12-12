@@ -25,10 +25,10 @@ sboundary = CollisionBoundary(grid, South())
 eboundary = CollisionBoundary(grid, East())
 wboundary = CollisionBoundary(grid, West())
 
-topo = TopographyElement([[[0.0, -0.75e5], [5e3, -0.75e5], [5e3, -1e5],[0.0, -1e5], [0.0, -0.75e5]]])
+topo = TopographyElement([[[0.0, -0.75e5], [5e3, -0.75e5], [5e3, -1e5], [0.0, -1e5], [0.0, -0.75e5]]])
 topo_arr = StructVector([topo for i in 1:1])
 
-domain = Subzero.Domain(nboundary, sboundary, eboundary, wboundary)
+domain = Subzero.Domain(nboundary, sboundary, eboundary, wboundary, topo_arr)
 
 # Floe instantiation
 floe1_poly = LG.Polygon([[[7.25e4, 7e4], [7.25e4, 5e4], [7.75e4, 5e4], 
@@ -42,7 +42,7 @@ model = Model(grid, ocean, wind, domain, floe_arr)
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 consts = Constants(E = modulus, Cd_io = 0.0)
 #consts = Constants(E = modulus, Cd_io = 0.0, Cd_ia = 0.0, Cd_ao = 0.0, f = 0.0, μ = 0.0)  # collisions without friction 
-simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 6000, COLLISION = true)
+simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 1000, COLLISION = true)
 
 # Output setup
 gridwriter = GridOutputWriter([GridOutput(i) for i in 1:9], 10, "g.nc", grid, (10, 10))
