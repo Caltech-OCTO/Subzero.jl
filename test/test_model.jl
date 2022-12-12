@@ -146,13 +146,13 @@
         coords = [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]]
         poly = LibGEOS.Polygon(coords)
         # Polygon Constructor
-        topo1 = Subzero.Topography(poly)
+        topo1 = Subzero.TopographyElement(poly)
         @test topo1.coords == coords
-        topo32 = Subzero.Topography(poly, Float32)
-        @test typeof(topo32) == Subzero.Topography{Float32}
+        topo32 = Subzero.TopographyElement(poly, Float32)
+        @test typeof(topo32) == Subzero.TopographyElement{Float32}
         @test typeof(topo32.coords) == Subzero.PolyVec{Float32}
         # Coords Constructor
-        topo2 = Subzero.Topography(coords)
+        topo2 = Subzero.TopographyElement(coords)
         @test topo2.coords == coords
     end
 
