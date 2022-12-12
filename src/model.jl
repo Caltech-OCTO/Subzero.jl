@@ -531,15 +531,18 @@ within the grid. These are used to create the desired topography within the
 simulation and will be treated as islands or coastline within the model
 in that they will not move or break due to floe interactions, but they will affect floes.
 """
-struct Topography{FT}<:AbstractDomainElement{FT}
+struct TopographyElement{FT}<:AbstractDomainElement{FT}
     coords::PolyVec{FT}
-
-    function Topography{FT}(coords::PolyVec{FT}) where {FT <: AbstractFloat}
-        new{FT}(valid_polyvec!(rmholes(coords)))
+    centroid::Vector{FT}
+    rmax::FT
+    function TopographyElement{FT}(coords::PolyVec{FT}) where {FT <: AbstractFloat}
+        rmax > 0 ? 
+            new{FT}(valid_polyvec!(rmholes(coords)), centroid, rmax) : 
+            throw(ArgumentError("Topography element maximum radius must be positive and non-zero."))
     end
 
-    Topography(coords::PolyVec{FT}) where {FT <: AbstractFloat} =
-        Topography{FT}(coords)
+    TopographyElement(coords::PolyVec{FT}, centroid::Vector{FT}, rmax::FT) where {FT <: AbstractFloat} =
+        TopographyElement{FT}(coords, centroid, rmax)
 end
 
 """
@@ -552,8 +555,8 @@ Constructor for topographic element with PolyVec coordinates
     Output:
             Topographic element coordinates of type PolyVec{T} with any holes removed
 """
-function Topography(coords::PolyVec{T}, ::Type{T} = Float64) where {T} 
-    return Topography(convert(PolyVec{T}, rmholes(coords)))
+function TopographyElement(coords::PolyVec{T}, ::Type{T} = Float64) where {T} 
+    return TopographyElement(LG.Polygon(coords), T)
 end
 
 """
@@ -569,9 +572,13 @@ Constructor for topographic element with LibGEOS Polygon
             Types are specified at Float64 below as type annotations given that when written LibGEOS could exclusivley use Float64 (as of 09/29/22). When this is fixed, this annotation will need to be updated.
             We should only run the model with Float64 right now or else we will be converting the Polygon back and forth all of the time. 
 """
-function Topography(poly::LG.Polygon, ::Type{T} = Float64) where T
-    coords = convert(PolyVec{T}, LG.GeoInterface.coordinates(poly)::PolyVec{Float64})
-    return Topography(rmholes(coords))
+function TopographyElement(poly::LG.Polygon, ::Type{T} = Float64) where T
+    topo = rmholes(poly)
+    centroid = convert(Vector{T}, LG.GeoInterface.coordinates(LG.centroid(topo))::Vector{Float64})
+    coords = convert(PolyVec{T}, LG.GeoInterface.coordinates(topo)::PolyVec{Float64})
+    origin_coords = translate(coords, -centroid)
+    rmax = sqrt(maximum([sum(c.^2) for c in origin_coords[1]]))
+    return TopographyElement(coords, centroid, rmax)
 end
 
 """
@@ -613,18 +620,18 @@ EB<:AbstractBoundary{East, FT}, WB<:AbstractBoundary{West, FT}}
     south::SB
     east::EB
     west::WB
-    coastline::StructArray{Topography{FT}}
+    topography::StructArray{TopographyElement{FT}}
 
-    Domain(north, south, east, west, coastline) = 
+    Domain(north, south, east, west, topography) = 
         (periodic_compat(north, south) && periodic_compat(east, west)) &&
         (north.val > south.val && east.val > west.val) ?
-        new{typeof(north.val), typeof(north), typeof(south), typeof(east), typeof(west)}(north, south, east, west, coastline) : 
+        new{typeof(north.val), typeof(north), typeof(south), typeof(east), typeof(west)}(north, south, east, west, topography) : 
         throw(ArgumentError("Periodic boundary must have matching opposite boundary and/or North value must be greater then South and East must be greater than West."))
 end
 
 
 Domain(north, south, east, west, ::Type{T} = Float64) where T =
-    Domain(north, south, east, west, StructArray{Topography{T}}(undef, 0, 0))
+    Domain(north, south, east, west, StructArray{TopographyElement{T}}(undef, 0, 0))
 
 
 """

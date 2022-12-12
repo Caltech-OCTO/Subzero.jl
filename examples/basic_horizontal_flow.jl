@@ -25,10 +25,10 @@ sboundary = CollisionBoundary(grid, South())
 eboundary = CollisionBoundary(grid, East())
 wboundary = CollisionBoundary(grid, West())
 
-topo = Topography([[[0.0, -0.75e5], [5e3, -0.75e5], [5e3, -1e5],[0.0, -1e5], [0.0, -0.75e5]]])
+topo = TopographyElement([[[0.0, -0.75e5], [5e3, -0.75e5], [5e3, -1e5],[0.0, -1e5], [0.0, -0.75e5]]])
 topo_arr = StructVector([topo for i in 1:1])
 
-domain = Subzero.Domain(nboundary, sboundary, eboundary, wboundary, topo_arr)
+domain = Subzero.Domain(nboundary, sboundary, eboundary, wboundary)
 
 # Floe instantiation
 floe1_poly = LG.Polygon([[[7.25e4, 7e4], [7.25e4, 5e4], [7.75e4, 5e4], 

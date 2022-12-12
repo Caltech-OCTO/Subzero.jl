@@ -182,6 +182,7 @@ function timestep_sim!(sim, ::Type{T} = Float64) where T
                 end
             end
         end
+        floe_domain_interaction!(ifloe, m.domain, sim.consts, sim.Δt)
         m.floes[i] = ifloe
     end
     for i in 1:length(m.floes)  # Update floes not directly calculated above where i>j
@@ -204,7 +205,6 @@ function timestep_sim!(sim, ::Type{T} = Float64) where T
     end
     for i in 1:nfloes
         ifloe = m.floes[i]
-        floe_domain_interaction!(ifloe, m.domain, sim.consts, sim.Δt)
         floe_OA_forcings!(ifloe, m, sim.consts)
         calc_torque!(ifloe)
         timestep_floe!(ifloe, sim.Δt)

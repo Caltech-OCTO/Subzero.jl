@@ -21,7 +21,7 @@ export
     East,
     West,
     Domain,
-    Topography,
+    TopographyElement,
     Floe,
     Constants,
     Model,
