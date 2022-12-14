@@ -3,6 +3,19 @@ Functions needed for coupling the ice, ocean, and atmosphere
 """
 
 """
+domain_coords(domain::Domain)
+Inputs:
+    domain<Domain>
+Output:
+    RingVec coordinates for edges of rectangular domain based off of boundary values
+"""
+function cell_coords(xmin, xmax, ymin, ymax)
+return [[[xmin, ymax], [xmin, ymin],
+         [xmax, ymin], [xmax, ymax],
+         [xmin, ymax]]]
+end
+
+"""
     find_bounding_idx(point_idx, Δd::Int, end_idx::Int, ::PeriodicBoundary, ::Type{T} = Float64)
 
 Find indicies in list of grid lines that surround points with indicies 'point_idx'
@@ -17,23 +30,30 @@ Outputs:
         Assumes that domain is periodic, so if the buffer causes the indices to be larger or smaller
         than the number of grid lines, the indices will wrap around to the other side of the grid. 
 """
-function find_bounding_idx(point_idx, Δd::Int, end_idx::Int, ::PeriodicBoundary, ::Type{T} = Float64) where T
-    # TODO: this is wrong, spacing needs to be consistent 
+function find_bounding_idx(points, point_idx, gpoints, Δd::Int, end_idx::Int, ::PeriodicBoundary, ::Type{T} = Float64) where T 
     imin, imax = extrema(point_idx)
-    imin -= Δd
-    imax += Δd
-    bounding =
+    Δg = gpoints[end] - gpoints[1]
+    knot_idx, knots =
         if imin < 1 && imax > end_idx
             @warn "A floe longer than the domain passed through a periodic boundary. It was removed to prevent overlap."
             Vector{T}(undef, 0)
-        elseif imin < 1
-            [1:max_idx; (imin + end_idx):end_idx]
-        elseif imax > end_idx
-            [1:(imax-end_idx); imin:end_idx]
         else
-            [imin:imax;]
+            imin -= Δd
+            imax += (Δd + 1)
+            if imin < 1 && imax > end_idx
+                [(imin + end_idx):end_idx; 1:end_idx; 1:(imax-end_idx)],
+                [gpoints[(imin + end_idx):end_idx] .- Δg; gpoints[1:end_idx]; gpoints[1:(imax-end_idx)] .+ Δg]
+            elseif imin < 1
+                [(imin + end_idx):end_idx; 1:imax],
+                [gpoints[(imin + end_idx):end_idx] .- Δg; gpoints[1:imax]]
+            elseif imax > end_idx
+                [imin:end_idx; 1:(imax-end_idx)],
+                [gpoints[imin:end_idx]; gpoints[1:(imax-end_idx)] .+ Δg]
+            else
+                [imin:imax;]
+            end
         end
-    return bounding
+    return knots, knot_idx, points, point_idx
 end
 
 """
@@ -51,26 +71,21 @@ non-periodic boundary, so the points must be within the grid.
             Assumes that domain is non-periodic so the points are cut-off at the edge of the grid,
             even if this means that there is no buffer.
 """
-function find_bounding_idx(point_idx, Δd::Int, end_idx::Int, ::AbstractBoundary, ::Type{T} = Float64) where T
+function find_bounding_idx(points, point_idx, gpoints, Δd::Int, end_idx::Int, ::AbstractBoundary, ::Type{T} = Float64) where T
+    points = points[point_idx .> 0]
+    point_idx = point_idx[point_idx .> 0]
     imin, imax = extrema(point_idx)
     imin -= Δd
-    imax += Δd
+    imax += (Δd + 1) # point in ith gridcell is between the i and i+1 grid line
     imin = (imin < 1) ? 1 : imin
     imax = (imax > end_idx) ? end_idx : imax
-    return [imin:imax;]
+    return gpoints[imin:imax], [imin:imax;], points, point_idx
 end
 
-"""
-domain_coords(domain::Domain)
-Inputs:
-    domain<Domain>
-Output:
-    RingVec coordinates for edges of rectangular domain based off of boundary values
-"""
-function cell_coords(xmin, xmax, ymin, ymax)
-return [[[xmin, ymax], [xmin, ymin],
-         [xmax, ymin], [xmax, ymax],
-         [xmin, ymax]]]
+function point_grid_indices(xp, yp, grid::Grid)
+    xidx = floor.(Int, (xp .- grid.xg[1])/(grid.xg[2] - grid.xg[1])) .+ 1
+    yidx = floor.(Int, (yp .- grid.yg[1])/(grid.yg[2] - grid.yg[1])) .+ 1
+    return xidx, yidx
 end
 
 """
@@ -82,58 +97,44 @@ and the effects of the ice floe on the ocean.
 Inputs:
         floe    <Floe> floe
         m       <Model> given model
+        c       <Constants> constants within simulation
+        Δd      <Int> buffer for monte carlo interpolation knots
 Outputs:
         None. Both floe and ocean fields are updated in-place.
-Note: For floes that are completly out of the Grid, simulation will error. 
 """
-function floe_OA_forcings!(floe, m, c, ::Type{T} = Float64) where T
+function floe_OA_forcings!(floe, m, c, Δd, ::Type{T} = Float64) where T
     # Rotate and translate Monte Carlo points to current floe location
     α = floe.α
     α_rot = [cos(α) -sin(α); sin(α) cos(α)]
     mc_p = α_rot * [floe.mc_x'; floe.mc_y']
     mc_xr = mc_p[1, :] .+ floe.centroid[1]
     mc_yr = mc_p[2, :] .+ floe.centroid[2]
+    mc_xidx, mc_yidx = point_grid_indices(mc_xr, mc_yr, m.grid)
 
-    # Find grid cell that each point is in - indices might not be in bounds if floe is past edge of domain
-    mc_xidx = Int.(fld.(mc_xr .- m.grid.xg[1], m.grid.xg[2] - m.grid.xg[1])) .+ 1
-    mc_yidx = Int.(fld.(mc_yr .- m.grid.yg[1], m.grid.yg[2] - m.grid.yg[1])) .+ 1
-
-    # Find grid indicies surrounding floe with buffer
     nrows, ncols = m.grid.dims
-    xbound_idx = find_bounding_idx(mc_xidx, 2, ncols, m.domain.east, T)
-    ybound_idx = find_bounding_idx(mc_yidx, 2, nrows, m.domain.north, T)
+    xknots, xknot_idx, mc_xr, mc_xidx = find_bounding_idx(mc_xr, mc_xidx, m.grid.xg, Δd, ncols, m.domain.east, T)
+    yknots, yknot_idx, mc_yr, mc_yidx = find_bounding_idx(mc_yr, mc_yidx, m.grid.yg, Δd, nrows, m.domain.north, T)
 
-    if isempty(xbound_idx) && isempty(ybound_idx)
+    if isempty(xknots) && isempty(yknots)
         floe.alive = 0
     else
-        # Adjust indices such that they are all within the domain
-        mc_xidx[mc_xidx .< 1] .+= ncols
-        mc_xidx[mc_xidx .> ncols] .-= ncols
-        mc_yidx[mc_yidx .< 1] .+= nrows
-        mc_yidx[mc_yidx .> nrows] .-= nrows
-
-        # Floe heatflux for grid cells below monte carlo points
-        floe.hflx = mean(m.ocean.hflx[mc_xidx, mc_yidx])
-
-        # Grid line values for indices surrounding floe
-        xg_interp = m.grid.xg[xbound_idx]
-        yg_interp = m.grid.yg[ybound_idx]
-
         # Wind Interpolation for Monte Carlo Points
-        uatm_interp = linear_interpolation((xg_interp, yg_interp), m.wind.u[xbound_idx, ybound_idx])
-        vatm_interp = linear_interpolation((xg_interp, yg_interp), m.wind.v[xbound_idx, ybound_idx])
-        uatm = mean([uatm_interp(mc_xr[i], mc_yr[i]) for i in eachindex(mc_xr)])
-        vatm = mean([vatm_interp(mc_xr[i], mc_yr[i]) for i in eachindex(mc_xr)])
+        uatm_interp = linear_interpolation((xknots, yknots), m.wind.u[xknot_idx, yknot_idx])
+        vatm_interp = linear_interpolation((xknots, yknots), m.wind.v[xknot_idx, yknot_idx])
+        avg_uatm = mean([uatm_interp(mc_xr[i], mc_yr[i]) for i in eachindex(mc_xr)])
+        avg_vatm = mean([vatm_interp(mc_xr[i], mc_yr[i]) for i in eachindex(mc_xr)])
 
         # Ocean Interpolation for Monte Carlo Points
-        uocn_interp = linear_interpolation((xg_interp, yg_interp), m.ocean.u[xbound_idx, ybound_idx])
-        vocn_interp = linear_interpolation((xg_interp, yg_interp), m.ocean.v[xbound_idx, ybound_idx])
+        uocn_interp = linear_interpolation((xknots, yknots), m.ocean.u[xknot_idx, yknot_idx])
+        vocn_interp = linear_interpolation((xknots, yknots), m.ocean.v[xknot_idx, yknot_idx])
+        hflx_interp = linear_interpolation((xknots, yknots), m.ocean.v[xknot_idx, yknot_idx])
         uocn = [uocn_interp(mc_xr[i], mc_yr[i]) for i in eachindex(mc_xr)]
         vocn = [vocn_interp(mc_xr[i], mc_yr[i]) for i in eachindex(mc_xr)]
+        floe.hflx = mean([hflx_interp(mc_xr[i], mc_yr[i]) for i in eachindex(mc_xr)])
 
         # Force on ice from atmopshere
-        τx_atm = (c.ρa * c.Cd_ia * sqrt(uatm^2 + vatm^2) * uatm)
-        τy_atm = (c.ρa * c.Cd_ia * sqrt(uatm^2 + vatm^2) * vatm)
+        τx_atm = (c.ρa * c.Cd_ia * sqrt(avg_uatm^2 + avg_vatm^2) * avg_uatm)
+        τy_atm = (c.ρa * c.Cd_ia * sqrt(avg_uatm^2 + avg_vatm^2) * avg_vatm)
 
         # Force on ice from pressure gradient
         ma_ratio = floe.mass/floe.area
@@ -177,7 +178,6 @@ function floe_OA_forcings!(floe, m, c, ::Type{T} = Float64) where T
             m.ocean.τy[key[1], key[2]] += fy_mean
             m.ocean.si_area[key[1], key[2]] += floe_area_in_cell
         end
-
 
         # Sum above forces and find torque
         τx = τx_atm .+ τx_pressure∇ .+ τx_ocn

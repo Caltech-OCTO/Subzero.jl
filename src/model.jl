@@ -3,6 +3,14 @@ Structs and functions used to define a Subzero model
 """
 
 """
+    AbstractGrid
+
+An abstract type for the grid that model will be simulated on. Affects calculation
+on the grid.
+"""
+abstract type AbstractGrid end
+
+"""
     Grid{FT<:AbstractFloat}
 
 Grid splitting the model into distinct rectanglular grid cells where xg are the grid lines in the x-direction (1xn vector)

@@ -34,6 +34,7 @@ Simulation which holds a model and parameters needed for running the simulation.
     model::Model{FT, DT}            # Model to simulate
     consts::Constants{FT}           # Constants used in simulation
     name::String = "sim"            # Simulation name for saving output
+    Δd::Int = 2                     # Number of buffer grid cells on each side of floe for monte carlo interpolation
     # Timesteps ----------------------------------------------------------------
     Δt::Int = 10                    # Simulation timestep (seconds)
     nΔt::Int = 7500                 # Total timesteps simulation runs for
@@ -205,7 +206,7 @@ function timestep_sim!(sim, ::Type{T} = Float64) where T
     end
     for i in 1:nfloes
         ifloe = m.floes[i]
-        floe_OA_forcings!(ifloe, m, sim.consts)
+        floe_OA_forcings!(ifloe, m, sim.consts, sim.Δd)
         calc_torque!(ifloe)
         timestep_floe!(ifloe, sim.Δt)
         m.floes[i] = ifloe
