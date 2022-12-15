@@ -144,25 +144,19 @@ Inputs:
 Outputs: Saves simulation gif with floes and topography plotted.
 """
 function create_sim_gif(floes_fn, domain_fn)
-
-    sim_data = NCDataset(floes_fn) # TODO: Change this if we don't want NetCDFs
-    xcoords = sim_data["xcoords"][:, :, :]
-    ycoords = sim_data["ycoords"][:, :, :]
-    alive = sim_data["alive"][:, :]
-    time = sim_data["time"][:]
-    floes = sim_data["floes"][:]
-    NCDatasets.close(sim_data)
-
-    plt = setup_plot(domain_fn)  # Uses JLD2
-    anim = @animate for tstep in eachindex(time)
-        new_frame = plot(plt)
-        for i in eachindex(floes)
-            if alive[tstep, i] == 1
-                plot!(new_frame, xcoords[tstep, i, :]./1000, ycoords[tstep, i, :]./1000,
-                        seriestype = [:shape,], fill = :lightblue, legend=false)
+    NCDataset(floes_fn) do sim_data # TODO: Change this if we don't want NetCDFs
+        plt = setup_plot(domain_fn)  # Uses JLD2
+        anim = @animate for tstep in eachindex(sim_data["time"][:])
+            new_frame = plot(plt)
+            for i in eachindex(sim_data["floes"][:])
+                if sim_data["alive"][tstep, i] == 1
+                    plot!(new_frame, sim_data["xcoords"][tstep, i, :]./1000,
+                                     sim_data["ycoords"][tstep, i, :]./1000,
+                                     seriestype = [:shape,], fill = :lightblue, legend=false)
+                end
             end
         end
+        gif(anim, string("figs/collisions/f.gif"), fps = 15)
     end
-    gif(anim, string("figs/collisions/f.gif"), fps = 15)
     return
 end

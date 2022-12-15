@@ -7,12 +7,15 @@ domain_coords(domain::Domain)
 Inputs:
     domain<Domain>
 Output:
-    RingVec coordinates for edges of rectangular domain based off of boundary values
+    PolyVec coordinates for edges of rectangular domain based off of boundary values
 """
 function cell_coords(xmin, xmax, ymin, ymax)
-return [[[xmin, ymax], [xmin, ymin],
-         [xmax, ymin], [xmax, ymax],
-         [xmin, ymax]]]
+    if xmin >= xmax || ymin >= ymax
+        throw(ArgumentError("Given grid cell maximums must be greater than minimums."))
+    end
+    return [[[xmin, ymin], [xmin, ymax],
+            [xmax, ymax], [xmax, ymin],
+            [xmin, ymin]]]
 end
 
 """
@@ -30,29 +33,36 @@ Outputs:
         Assumes that domain is periodic, so if the buffer causes the indices to be larger or smaller
         than the number of grid lines, the indices will wrap around to the other side of the grid. 
 """
-function find_bounding_idx(points, point_idx, gpoints, Δd::Int, end_idx::Int, ::PeriodicBoundary, ::Type{T} = Float64) where T 
+function find_bounding_idx(point_idx, gpoints, Δd::Int, end_idx::Int, ::PeriodicBoundary, ::Type{T} = Float64) where T 
     imin, imax = extrema(point_idx)
     Δg = gpoints[end] - gpoints[1]
-    knot_idx, knots =
-        if imin < 1 && imax > end_idx
-            @warn "A floe longer than the domain passed through a periodic boundary. It was removed to prevent overlap."
-            Vector{T}(undef, 0)
-        else
-            imin -= Δd
-            imax += (Δd + 1)
+    knots = Vector{T}(undef, 0)
+    knot_idx = Vector{T}(undef, 0)
+    if imin < 1 && imax > end_idx
+        @warn "A floe longer than the domain passed through a periodic boundary. It was removed to prevent overlap."
+    else
+        imin -= Δd
+        imax += (Δd + 1)
+        # Find out-of-bounds (oob) indices and the in-bounds (within the grid) indices
+        low_oob_idx = Vector{T}(undef, 0)  # out of bounds on south or west side of domain 
+        high_oob_idx = Vector{T}(undef, 0)  # out of bounds on north or east side of domain 
+        in_bounds_idx = 
             if imin < 1 && imax > end_idx
-                [(imin + end_idx):end_idx; 1:end_idx; 1:(imax-end_idx)],
-                [gpoints[(imin + end_idx):end_idx] .- Δg; gpoints[1:end_idx]; gpoints[1:(imax-end_idx)] .+ Δg]
+                low_oob_idx = (imin + end_idx):end_idx
+                high_oob_idx = 1:(imax-end_idx)
+                1:end_idx
             elseif imin < 1
-                [(imin + end_idx):end_idx; 1:imax],
-                [gpoints[(imin + end_idx):end_idx] .- Δg; gpoints[1:imax]]
+                low_oob_idx = (imin + end_idx):end_idx
+                1:imax
             elseif imax > end_idx
-                [imin:end_idx; 1:(imax-end_idx)],
-                [gpoints[imin:end_idx]; gpoints[1:(imax-end_idx)] .+ Δg]
+                high_oob_idx = 1:(imax-end_idx)
+                imin:end_idx
             else
-                [imin:imax;]
+                imin:imax
             end
-        end
+        knot_idx = [low_oob_idx; in_bounds_idx; high_oob_idx]
+        knots = [gpoints[low_oob_idx] .- Δg; gpoints[in_bounds_idx]; gpoints[high_oob_idx] .+ Δg]
+    end
     return knots, knot_idx, points, point_idx
 end
 
@@ -71,21 +81,39 @@ non-periodic boundary, so the points must be within the grid.
             Assumes that domain is non-periodic so the points are cut-off at the edge of the grid,
             even if this means that there is no buffer.
 """
-function find_bounding_idx(points, point_idx, gpoints, Δd::Int, end_idx::Int, ::AbstractBoundary, ::Type{T} = Float64) where T
-    points = points[point_idx .> 0]
-    point_idx = point_idx[point_idx .> 0]
+function find_bounding_idx(point_idx, gpoints, Δd::Int, end_idx::Int, ::AbstractBoundary, ::Type{T} = Float64) where T
     imin, imax = extrema(point_idx)
     imin -= Δd
     imax += (Δd + 1) # point in ith gridcell is between the i and i+1 grid line
     imin = (imin < 1) ? 1 : imin
     imax = (imax > end_idx) ? end_idx : imax
-    return gpoints[imin:imax], [imin:imax;], points, point_idx
+    return gpoints[imin:imax], [imin:imax;]
 end
 
 function point_grid_indices(xp, yp, grid::RegRectilinearGrid)
     xidx = floor.(Int, (xp .- grid.xg[1])/(grid.xg[2] - grid.xg[1])) .+ 1
     yidx = floor.(Int, (yp .- grid.yg[1])/(grid.yg[2] - grid.yg[1])) .+ 1
     return xidx, yidx
+end
+
+function filter_oob_points(p, xr, yr, grid, ::PeriodicBoundary, ::PeriodicBoundary)
+    return p, xr, yr
+end
+
+function filter_oob_points(p, xr, yr, grid, ::AbstractBoundary, ::PeriodicBoundary)
+    keep_idx = findall(p -> grid.xg[1] .<= p .<= grid.xg[end], xr)
+    return p[:, keep_idx], xr[keep_idx], yr[keep_idx]
+end
+
+function filter_oob_points(p, xr, yr, grid, ::PeriodicBoundary, ::AbstractBoundary)
+    keep_idx = findall(p -> grid.yg[1] .<= p .<= grid.yg[end], yr)
+    return p[:, keep_idx], xr[keep_idx], yr[keep_idx]
+end
+
+function filter_oob_points(p, xr, yr, grid, ::AbstractBoundary, ::AbstractBoundary)
+    keep_idx = filter(i -> (grid.xg[1] .<= xr[i] .<= grid.xg[end]) && 
+                           (grid.yg[1] .<= yr[i] .<= grid.yg[end]), 1:length(xr))
+    return p[:, keep_idx], xr[keep_idx], yr[keep_idx]
 end
 
 """
@@ -109,11 +137,15 @@ function floe_OA_forcings!(floe, m, c, Δd, ::Type{T} = Float64) where T
     mc_p = α_rot * [floe.mc_x'; floe.mc_y']
     mc_xr = mc_p[1, :] .+ floe.centroid[1]
     mc_yr = mc_p[2, :] .+ floe.centroid[2]
+
+    # Filter points outside of non-periodic boundaries and find indices
+    mc_p, mc_xr, mc_yr = filter_oob_points(mc_p, mc_xr, mc_yr, m.grid, m.domain.east, m.domain.north)
     mc_xidx, mc_yidx = point_grid_indices(mc_xr, mc_yr, m.grid)
 
+    # Find knots and indices of knots for monte carlo interpolation
     nrows, ncols = m.grid.dims
-    xknots, xknot_idx, mc_xr, mc_xidx = find_bounding_idx(mc_xr, mc_xidx, m.grid.xg, Δd, ncols, m.domain.east, T)
-    yknots, yknot_idx, mc_yr, mc_yidx = find_bounding_idx(mc_yr, mc_yidx, m.grid.yg, Δd, nrows, m.domain.north, T)
+    xknots, xknot_idx = find_bounding_idx(mc_xidx, m.grid.xg, Δd, ncols, m.domain.east, T)
+    yknots, yknot_idx = find_bounding_idx(mc_yidx, m.grid.yg, Δd, nrows, m.domain.north, T)
 
     if isempty(xknots) && isempty(yknots)
         floe.alive = 0
