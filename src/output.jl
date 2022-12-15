@@ -242,7 +242,7 @@ Inputs:
 Output:
         GridOutputWriter that re-grids given grid to given dimensions, and number of timesteps between saving averaged output on this re-gridded grid to filename.
 """
-function GridOutputWriter(outputs, Δtout, fn, grid::Grid, dims, t::Type{T} = Float64) where T
+function GridOutputWriter(outputs, Δtout, fn, grid::AbstractGrid, dims, ::Type{T} = Float64) where T
     # Define output grid
     lx = grid.xg[1]
     ux = grid.xg[end]
@@ -293,7 +293,7 @@ Output:
         FloeOutputWriter that holds desired floe fields to save to given filename and the number of timesteps between saving this output.
         Grid extents is saved as metadata for plotting.
 """
-FloeOutputWriter(outputs, Δtout, fn, grid::Grid) = FloeOutputWriter(outputs, Δtout, fn, grid.xg, grid.yg)
+FloeOutputWriter(outputs, Δtout, fn, grid::AbstractGrid) = FloeOutputWriter(outputs, Δtout, fn, grid.xg, grid.yg)
 
 """
     setup_output_file!(writer::GridOutputWriter, nΔt, t::Type{T} = Float64)

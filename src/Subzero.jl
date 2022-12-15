@@ -4,7 +4,8 @@ Module `Subzero.jl` - UW's sea ice model ported from MATLAB to Julia
 module Subzero
 
 export
-    Grid,
+    AbstractGrid,
+    RegRectilinearGrid,
     Ocean,
     Wind,
     OpenBC,

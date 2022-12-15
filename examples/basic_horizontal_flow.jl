@@ -15,7 +15,7 @@ const coarse_nx = 10
 const coarse_ny = 10
 
 # Model instantiation
-grid = Grid(-Lx, Lx, -Ly, Ly, Δgrid, Δgrid)
+grid = RegRectilinearGrid(-Lx, Lx, -Ly, Ly, Δgrid, Δgrid)
 ocean = Ocean(grid, -1.0, 0.0, 0.0)
 wind = Wind(zeros(grid.dims .+ 1), zeros(grid.dims .+ 1), fill(-20.0, grid.dims .+ 1))
 

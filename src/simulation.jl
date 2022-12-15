@@ -30,8 +30,8 @@ Simulation which holds a model and parameters needed for running the simulation.
     COLLISION (enable floe collisions), CORNERS (floe corners can break), FRACTURES (floes can fracture), KEEPMIN (small floes don't dissolve), PACKING (floe packing enabled),
     RAFTING (floe rafting enabled), RIDGING (floe ridging enabled), and WELDING (floe welding enabled). All are false by default.
 """
-@kwdef struct Simulation{FT<:AbstractFloat, DT<:Domain}
-    model::Model{FT, DT}            # Model to simulate
+@kwdef struct Simulation{FT<:AbstractFloat, GT<:AbstractGrid, DT<:Domain}
+    model::Model{FT, GT, DT}            # Model to simulate
     consts::Constants{FT}           # Constants used in simulation
     name::String = "sim"            # Simulation name for saving output
     Δd::Int = 2                     # Number of buffer grid cells on each side of floe for monte carlo interpolation

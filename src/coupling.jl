@@ -82,7 +82,7 @@ function find_bounding_idx(points, point_idx, gpoints, Δd::Int, end_idx::Int, :
     return gpoints[imin:imax], [imin:imax;], points, point_idx
 end
 
-function point_grid_indices(xp, yp, grid::Grid)
+function point_grid_indices(xp, yp, grid::RegRectilinearGrid)
     xidx = floor.(Int, (xp .- grid.xg[1])/(grid.xg[2] - grid.xg[1])) .+ 1
     yidx = floor.(Int, (yp .- grid.yg[1])/(grid.yg[2] - grid.yg[1])) .+ 1
     return xidx, yidx
