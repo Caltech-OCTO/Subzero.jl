@@ -103,14 +103,14 @@ struct Ocean{FT<:AbstractFloat}
     v::Matrix{FT}
     temp::Matrix{FT}
     hflx::Matrix{FT} 
-    τx::Matrix{FT}
-    τy::Matrix{FT}
+    fx::Matrix{FT}
+    fy::Matrix{FT}
     si_area::Matrix{FT}
 
-    Ocean(u, v, temp, hflx, τx, τy, si_frac) =
-        (size(u) == size(v) == size(temp) == size(hflx) == size(τx) == size(τy) ==
+    Ocean(u, v, temp, hflx, fx, fy, si_frac) =
+        (size(u) == size(v) == size(temp) == size(hflx) == size(fx) == size(fy) ==
          size(si_frac)) ?
-        new{eltype(u)}(u, v, temp, hflx, τx, τy, si_frac) :
+        new{eltype(u)}(u, v, temp, hflx, fx, fy, si_frac) :
         throw(ArgumentError("All ocean fields matricies must have the same dimensions."))
 end
 
@@ -677,7 +677,7 @@ Inputs:
         v           <Real> y-velcoity of the floe - default 0.0
         ksi         <Real> angular velocity of the floe - default 0.0
         mc_n        <Real> number of monte carlo points
-        t           <Type> datatype to convert ocean fields - must be a Float!
+        t           <Float> datatype to run simulation with - either Float32 or Float64
 Output:
         Floe with needed fields defined - all default field values used so all forcings start at 0 and floe is "alive".
         Velocities and the density of ice can be optionally set.

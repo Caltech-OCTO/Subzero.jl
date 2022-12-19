@@ -20,7 +20,7 @@ Outputs:
         <Float> normal force of collision
         Δl <Float> mean length of distance between intersection points
 """
-function calc_normal_force(c1, c2, region, area, ipoints, force_factor, t::Type{T} = Float64) where T
+function calc_normal_force(c1, c2, region, area, ipoints, force_factor, ::Type{T} = Float64) where T
     force_dir = zeros(T, 2)
     coords = LG.GeoInterface.coordinates(region)::PolyVec{Float64}
     n_ipoints = size(ipoints, 1)
