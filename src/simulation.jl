@@ -163,7 +163,7 @@ function timestep_atm!(m, c)
     m.hflx .= c.k/(c.ρi*c.L) .* (wind.temp .- ocean.temp)
 end
 
-function timestep_sim!(sim, ::Type{T} = Float64) where T
+function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
     m = sim.model
     m.ocean.si_area .= zeros(T, 1)
     nfloes = length(m.floes) # number of floes before ghost floes
@@ -188,17 +188,18 @@ function timestep_sim!(sim, ::Type{T} = Float64) where T
     end
     for i in 1:length(m.floes)  # Update floes not directly calculated above where i>j
         if i <= nfloes && remove[i] > 0 && remove[i] != i
-            transfer[remove[i]] = j
+            transfer[remove[i]] = i
         end
         ij_inters = m.floes[i].interactions
-        if size(ij_inters, 1) > 1
-            for j in ij_inters[:, "floeidx"]
+        if size(ij_inters, 1) > 1 # First row is place holder for initialization and clearing
+            for inter_idx in axes(ij_inters, 1)  # Loop over each interaction with Floe i
+                j = ij_inters[inter_idx, "floeidx"]  # Index of floe to update in model floe list
                 if j <= length(m.floes) && j > i
                     jidx = Int(j)
                     jfloe = m.floes[jidx]
-                    jfloe.interactions = [jfloe.interactions; i -ij_inters[jidx, "xforce"] -ij_inters[jidx, "yforce"] #=
-                                        =# ij_inters[jidx, "xpoint"] ij_inters[jidx, "ypoint"] T(0.0) ij_inters[jidx, "overlap"]]
-                    jfloe.overarea += ij_inters[jidx, "overlap"]
+                    jfloe.interactions = [jfloe.interactions; i -ij_inters[inter_idx, "xforce"] -ij_inters[inter_idx, "yforce"] #=
+                                        =# ij_inters[inter_idx, "xpoint"] ij_inters[inter_idx, "ypoint"] T(0.0) ij_inters[inter_idx, "overlap"]]
+                    jfloe.overarea += ij_inters[inter_idx, "overlap"]
                     m.floes[jidx] = jfloe
                 end
             end
@@ -206,7 +207,9 @@ function timestep_sim!(sim, ::Type{T} = Float64) where T
     end
     for i in 1:nfloes
         ifloe = m.floes[i]
-        floe_OA_forcings!(ifloe, m, sim.consts, sim.Δd)
+        if mod(tstep, sim.Δtocn) == 0
+            floe_OA_forcings!(ifloe, m, sim.consts, sim.Δd)
+        end
         calc_torque!(ifloe)
         timestep_floe!(ifloe, sim.Δt)
         m.floes[i] = ifloe
@@ -247,7 +250,7 @@ function run!(sim, writers, ::Type{T} = Float64) where T
         setup_output_file!(w, sim.nΔt, sim.name, T)
         push!(Δtout_lst, w.Δtout)
     end
-    println("Model running!")
+    println(string(sim.name ," running!"))
     tstep = 0
     while tstep <= sim.nΔt
         widx = findall(Δtout-> mod(tstep, Δtout) == 0, Δtout_lst)
@@ -257,8 +260,8 @@ function run!(sim, writers, ::Type{T} = Float64) where T
                 write_data!(writers[idx], tstep, sim.model, sim.name)
             end
         end
-        timestep_sim!(sim, T)
+        timestep_sim!(sim, tstep, T)
         tstep+=1
     end
-    println("Model done running!")
+    println(string(sim.name ," done running!"))
 end

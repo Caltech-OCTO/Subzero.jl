@@ -60,8 +60,8 @@ function setup_plot(model::Model)
           linecolor = :black, fillalpha = 0.0, lw = 2, legend=false)
 
     # Plot Topology
-    if length(size(model.topos)) > 0
-        topo_coords = model.topos.coords
+    if !isempty(model.domain.topography)
+        topo_coords = model.domain.topography.coords
         plot!(plt, [LG.Polygon([c[1] ./ 1000]) for c in topo_coords],
               fill = :grey)
     end
@@ -143,7 +143,7 @@ Inputs:
         domain_fn   <String> file path to JLD2 file holding domain struct information
 Outputs: Saves simulation gif with floes and topography plotted.
 """
-function create_sim_gif(floes_fn, domain_fn)
+function create_sim_gif(floes_fn, domain_fn, output_fn)
     NCDataset(floes_fn) do sim_data # TODO: Change this if we don't want NetCDFs
         plt = setup_plot(domain_fn)  # Uses JLD2
         anim = @animate for tstep in eachindex(sim_data["time"][:])
@@ -156,7 +156,7 @@ function create_sim_gif(floes_fn, domain_fn)
                 end
             end
         end
-        gif(anim, string("figs/collisions/f.gif"), fps = 15)
+        gif(anim, output_fn, fps = 15)
     end
     return
 end
