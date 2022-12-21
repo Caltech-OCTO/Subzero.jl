@@ -237,7 +237,7 @@ function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, ::Type{
             # Calculate total forces and update ifloe's interactions
             forces = normal_forces .+ friction_forces
             if sum(abs.(forces)) != 0
-                ifloe.interactions = [ifloe.interactions; fill(j, np) forces fpoints zeros(np) overlaps']
+                ifloe.interactions = [ifloe.interactions; fill(j, np) forces fpoints zeros(np) overlaps]
                 ifloe.overarea += sum(overlaps)
             end
         end

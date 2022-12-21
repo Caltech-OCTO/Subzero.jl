@@ -115,25 +115,41 @@ struct Ocean{FT<:AbstractFloat}
 end
 
 """
-    Ocean(grid, u, v, temp, FT)
+    Ocean(u, v, temp, ::Type{T} = Float64)
+
+Construct model ocean.
+Inputs:
+        u       <Matrix> ocean x-velocity matrix with u for each grid line
+        v       <Matrix> ocean y-velocity matrix with u for each grid line
+        temp    <Matrix> temperature matrix with ocean/ice interface temperature for each grid lin
+        t       <Type> datatype to convert ocean fields - must be a Float!
+Output: 
+        Ocean with given velocity and temperature fields on each grid line.
+"""
+function Ocean(u, v, temp, ::Type{T} = Float64) where {T}
+    nvals = size(u)
+    return Ocean((convert(Matrix{T}, u)), convert(Matrix{T}, v),
+                  convert(Matrix{T}, temp),
+                  zeros(T, nvals), zeros(T, nvals), 
+                  zeros(T, nvals), zeros(T, nvals))
+end
+
+"""
+    Ocean(grid::AbstractGrid, u, v, temp, ::Type{T} = Float64)
 
 Construct model ocean.
 Inputs: 
-        grid    <AbstractGrid> model grid cell
-        u       <Real> ocean x-velocity for each grid cell
-        v       <Real> ocean y-velocity for each grid cell
+        grid    <AbstractGrid> model grid
+        u       <Real> ocean x-velocity for each grid line
+        v       <Real> ocean y-velocity for each grid line
         temp    <Real> temperature at ocean/ice interface per grid cell
         t       <Type> datatype to convert ocean fields - must be a Float!
 Output: 
-        Ocean with constant velocity and temperature in each grid cell.
+        Ocean with constant velocity and temperature on each grid line.
 """
 function Ocean(grid::AbstractGrid, u, v, temp, ::Type{T} = Float64) where T
     nvals = grid.dims .+ 1  # one value per grid line - not grid cell 
-    return Ocean(fill(convert(T, u), nvals), 
-                 fill(convert(T, v), nvals), 
-                 fill(convert(T, temp), nvals),
-                 zeros(T, nvals), zeros(T, nvals), 
-                 zeros(T, nvals), zeros(T, nvals))
+    return Ocean(fill(u, nvals), fill(v, nvals), fill(temp, nvals), T)
 end
 
 """
@@ -739,7 +755,7 @@ Output:
         Floe with needed fields defined - all default field values used so all forcings and velocities start at 0 and floe is "alive"
 """
 Floe(coords::PolyVec{<:Real}, h_mean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n = 1000.0, t::Type{T} = Float64) where T =
-    Floe(LG.Polygon(convert(PolyVec{Float64}, coords)), h_mean, Δh, ρi, u, v, ξ, mc_n, T) 
+    Floe(LG.Polygon(convert(PolyVec{Float64}, valid_polyvec!(rmholes(coords)))), h_mean, Δh; ρi = ρi, u = u, v = v, ξ = ξ, mc_n = mc_n, t = T) 
     # Polygon convert is needed since LibGEOS only takes Float64 - when this is fixed convert can be removed
 
 """
