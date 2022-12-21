@@ -49,28 +49,28 @@
         uocn = fill(3.0, g.dims .+ 1)
         vocn = fill(4.0, g.dims .+ 1)
         tempocn = fill(-2.0, g.dims .+ 1)
-        τx = fill(0.0, g.dims .+ 1)
-        τy = τx
-        si_area = τx
-        hflx = τx
-        ocn = Subzero.Ocean(uocn, vocn, tempocn, hflx, τx, τy, si_area)
+        fx = fill(0.0, g.dims .+ 1)
+        fy = fx
+        si_area = fx
+        hflx = fx
+        ocn = Subzero.Ocean(uocn, vocn, tempocn, hflx, fx, fy, si_area)
         @test ocn.u == uocn
         @test ocn.v == vocn
         @test ocn.temp == tempocn
-        @test ocn.τx == τx == ocn.τy == ocn.si_area == ocn.hflx
+        @test ocn.fx == fx == ocn.fy == ocn.si_area == ocn.hflx
         # Default constructor fails for non-matching dimensions
-        @test_throws ArgumentError Subzero.Ocean(Float64[0.0], vocn, tempocn, hflx, τx, τy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, Float64[0.0], tempocn, hflx, τx, τy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, Float64[0.0], hflx, τx, τy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, Float64[0.0], τx, τy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, Float64[0.0], τy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, τx, τy, Float64[0.0])
+        @test_throws ArgumentError Subzero.Ocean(Float64[0.0], vocn, tempocn, hflx, fx, fy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, Float64[0.0], tempocn, hflx, fx, fy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, Float64[0.0], hflx, fx, fy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, Float64[0.0], fx, fy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, Float64[0.0], fy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, fx, fy, Float64[0.0])
         # Custom constructor
         ocn2 = Subzero.Ocean(g, 3.0, 4.0, -2.0)
         @test ocn.u == ocn2.u
         @test ocn.v == ocn2.v
         @test ocn.temp == ocn2.temp
-        @test ocn.τx == ocn2.τx
+        @test ocn.fx == ocn2.fx
         @test ocn.si_area == ocn2.si_area
         @test ocn.hflx == ocn2.hflx
         # Custom constructor Float32

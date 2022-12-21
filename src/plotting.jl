@@ -60,8 +60,8 @@ function setup_plot(model::Model)
           linecolor = :black, fillalpha = 0.0, lw = 2, legend=false)
 
     # Plot Topology
-    if length(size(model.topos)) > 0
-        topo_coords = model.topos.coords
+    if !isempty(model.domain.topography)
+        topo_coords = model.domain.topography.coords
         plot!(plt, [LG.Polygon([c[1] ./ 1000]) for c in topo_coords],
               fill = :grey)
     end
@@ -143,26 +143,20 @@ Inputs:
         domain_fn   <String> file path to JLD2 file holding domain struct information
 Outputs: Saves simulation gif with floes and topography plotted.
 """
-function create_sim_gif(floes_fn, domain_fn)
-
-    sim_data = NCDataset(floes_fn) # TODO: Change this if we don't want NetCDFs
-    xcoords = sim_data["xcoords"][:, :, :]
-    ycoords = sim_data["ycoords"][:, :, :]
-    alive = sim_data["alive"][:, :]
-    time = sim_data["time"][:]
-    floes = sim_data["floes"][:]
-    NCDatasets.close(sim_data)
-
-    plt = setup_plot(domain_fn)  # Uses JLD2
-    anim = @animate for tstep in eachindex(time)
-        new_frame = plot(plt)
-        for i in eachindex(floes)
-            if alive[tstep, i] == 1
-                plot!(new_frame, xcoords[tstep, i, :]./1000, ycoords[tstep, i, :]./1000,
-                        seriestype = [:shape,], fill = :lightblue, legend=false)
+function create_sim_gif(floes_fn, domain_fn, output_fn)
+    NCDataset(floes_fn) do sim_data # TODO: Change this if we don't want NetCDFs
+        plt = setup_plot(domain_fn)  # Uses JLD2
+        anim = @animate for tstep in eachindex(sim_data["time"][:])
+            new_frame = plot(plt)
+            for i in eachindex(sim_data["floes"][:])
+                if sim_data["alive"][tstep, i] == 1
+                    plot!(new_frame, sim_data["xcoords"][tstep, i, :]./1000,
+                                     sim_data["ycoords"][tstep, i, :]./1000,
+                                     seriestype = [:shape,], fill = :lightblue, legend=false)
+                end
             end
         end
+        gif(anim, output_fn, fps = 15)
     end
-    gif(anim, string("figs/collisions/f.gif"), fps = 15)
     return
 end
