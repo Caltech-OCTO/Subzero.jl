@@ -516,6 +516,12 @@ function CompressionBoundary(grid::AbstractGrid, direction, velocity)
     CompressionBoundary(coords, val, velocity, direction)
 end
 
+"""
+    NonPeriodicBoundary
+
+Union of all non-peridic boundary types to use as shorthand for dispatch.
+"""
+const NonPeriodicBoundary = Union{OpenBoundary, CollisionBoundary, CompressionBoundary}
 
 """
     TopographyE{FT}<:AbstractDomainElement{FT}
