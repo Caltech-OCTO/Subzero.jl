@@ -1,22 +1,21 @@
 """
-Functions needed for coupling the ice, ocean, and atmosphere
+Functions needed for coupling the ice, ocean, and atmosphere.
 """
 
 """
     find_cell_indices(xp, yp, grid::RegRectilinearGrid)
 
-Find cell indicies of x-coordinates and y-coordinates on the given RegRectilinearGrid. 
-Depends on the size of grid cells being constant across the grid.
+Find center cell indicies of x-coordinates and y-coordinates on the given RegRectilinearGrid.
+These cells are centered around the grid lines, so they are shifted grid cells by half a cell.
+Method depends on grid being a regular rectilinear grid.
 Inputs:
         xp      <Vector{Float}> x-coordinates of a vector of points
         yp      <Vector{Float}> y-coordinates of a vector of points
         grid    <RegRectilinearGrid> simulation grid
 Outputs:
-        Indices of x and y-coordintes with respect to the given grid. Points can be 
-        outside of the grid, so indices can be less than 1 or greater than the number
-        of cells in the grid in a given direction. Points on maximum grid line in the x
-        or y direction will have an index outside of the grid, but this will not cause
-        a problem with interpolation as that is done with point values, not indices. 
+        Indices of x and y-coordintes with respect to cells centered on grid lines of given grid.
+        Points can be outside of the grid, so indices can be less than 1 or greater than the number
+        of grid lines in a given direction.
 """
 function find_cell_indices(xp, yp, grid::RegRectilinearGrid)
     xidx = floor.(Int, (xp .- grid.xg[1])/(grid.xg[2] - grid.xg[1]) .+ 0.5) .+ 1
@@ -25,20 +24,20 @@ function find_cell_indices(xp, yp, grid::RegRectilinearGrid)
 end
 
 """
-    filter_oob_points(p, xr, yr, grid, ::AbstractBoundary, ::AbstractBoundary)
+    filter_oob_points(p, xr, yr, grid, ::NonPeriodicBoundary, ::NonPeriodicBoundary)
 
 With all non-periodic boundaries, points outside of the grid in both the x and y
 direction need to be removed. These points can't be interpolated as we don't have
 any information on the ocean outside of the grid. 
-p is a matrix of non-translated points centered on (0,0),
+Note that p is a matrix of non-translated points centered on (0,0),
 while xr and yr are these coordinates translated to a floe location. 
 Inputs:
         p   <Matrix{Float}> a 2xn matrix of points where the 1st row corresponds
                             to x-values and the 2nd row corresponds to y-values
         xr  <Vector{Float}> a length-n vector of translated x-coordinates
         yr  <Vector{Float}> a length-n vector of translated y-coordinates
-            <::AbstractBoundary> the east or west boundary type - neither are periodic
-            <::AbstractBoundary> the north or south boundary type - neither are periodic
+            <::NonPeriodicBoundary> type of either north or south boundary - for checking if periodic
+            <::NonPeriodicBoundary> type of either east or west boundary - for checking if periodic
 Output:
         p, xr, and yr filtered so that the translated points are all within the grid.
 """
@@ -49,24 +48,24 @@ function filter_oob_points(p, xr, yr, grid, ::NonPeriodicBoundary, ::NonPeriodic
 end
 
 """
-    filter_oob_points(p, xr, yr, grid, ::AbstractBoundary, ::PeriodicBoundary)
+    filter_oob_points(p, xr, yr, grid, ::NonPeriodicBoundary, ::PeriodicBoundary)
 
-With non-periodic boundaries in the east/west direction, points outside of the grid in the x
+With non-periodic boundaries in the north/south direction, points outside of the grid in the y
 direction need to be removed. These points can't be interpolated as we don't have
 any information on the ocean outside of the grid. In the periodic direction, we can't have a 
-floe longer than the grid as the floe could overlap with itself.
-p is a matrix of non-translated points centered on (0,0),
+floe longer than the grid, as the floe could overlap with itself.
+Note that p is a matrix of non-translated points centered on (0,0),
 while xr and yr are these coordinates translated to a floe location. 
 Inputs:
         p   <Matrix{Float}> a 2xn matrix of points where the 1st row corresponds
                             to x-values and the 2nd row corresponds to y-values
         xr  <Vector{Float}> a length-n vector of translated x-coordinates
         yr  <Vector{Float}> a length-n vector of translated y-coordinates
-            <::AbstractBoundary> the east or west boundary type - not periodic
-            <::PeriodicBoundary> the north or south boundary type - periodic
+            <::NonPeriodicBoundary> type of either north or south boundary - for checking if periodic
+            <::PeriodicBoundary> type of either east or west boundary - for checking if periodic
 Output:
-        p, xr, and yr filtered so that the translated points are all within the grid and so
-        that the floe does not overlap with itself through periodic boundaries. 
+        p, xr, and yr filtered so that the translated points are all within the grid in the
+        y-direction and so floe does not overlap with itself through periodic boundary. 
 """
 function filter_oob_points(p, xr, yr, grid, ::NonPeriodicBoundary, ::PeriodicBoundary)
     ymin, ymax = extrema(yr)
@@ -81,24 +80,24 @@ function filter_oob_points(p, xr, yr, grid, ::NonPeriodicBoundary, ::PeriodicBou
 end
 
 """
-    filter_oob_points(p, xr, yr, grid, ::PeriodicBoundary, ::AbstractBoundary)
+    filter_oob_points(p, xr, yr, grid, ::PeriodicBoundary, ::NonPeriodicBoundary)
 
-With non-periodic boundaries in the north/south direction, points outside of the grid in the y
+With non-periodic boundaries in the east/west direction, points outside of the grid in the x
 direction need to be removed. These points can't be interpolated as we don't have
 any information on the ocean outside of the grid. In the periodic direction, we can't have a 
 floe longer than the grid as the floe could overlap with itself.
-p is a matrix of non-translated points centered on (0,0),
+Note that p is a matrix of non-translated points centered on (0,0),
 while xr and yr are these coordinates translated to a floe location. 
 Inputs:
         p   <Matrix{Float}> a 2xn matrix of points where the 1st row corresponds
                             to x-values and the 2nd row corresponds to y-values
         xr  <Vector{Float}> a length-n vector of translated x-coordinates
         yr  <Vector{Float}> a length-n vector of translated y-coordinates
-            <::PeriodicBoundary> the east or west boundary type - periodic
-            <::AbstractBoundary> the north or south boundary type - not periodic
+            <::PeriodicBoundary> type of either north or south boundary - for checking if periodic
+            <::AbstractBoundary> type of either east or west boundary - for checking if periodic
 Output:
-        p, xr, and yr filtered so that the translated points are all within the grid and so
-        that the floe does not overlap with itself through periodic boundaries. 
+        p, xr, and yr filtered so that the translated points are all within the grid in the y-direction
+        and so that the floe does not overlap with itself through periodic boundary. 
 """
 function filter_oob_points(p, xr, yr, grid, ::PeriodicBoundary, ::NonPeriodicBoundary)
     xmin, xmax = extrema(xr)
@@ -125,8 +124,8 @@ Inputs:
                             to x-values and the 2nd row corresponds to y-values
         xr  <Vector{Float}> a length-n vector of translated x-coordinates
         yr  <Vector{Float}> a length-n vector of translated y-coordinates
-            <::PeriodicBoundary> the east or west boundary type - periodic
-            <::PeriodicBoundary> the north or south boundary type - periodic
+            <::PeriodicBoundary> type of either north or south boundary - for checking if periodic
+            <::PeriodicBoundary> type of either east or west boundary - for checking if periodic
 Output:
         p, xr, and yr as given, unless the floe might overlap with itself through periodic boundaries,
         in which case no points are returned.
@@ -159,11 +158,15 @@ Inputs:
                     <Float> datatype to run simulation with - either Float32 or Float64
 Outputs:
         Knots and indices of those knots on the grid for interpolation.
-        The grid is extended if points expand past gridlines.
+        The grid values are extended if points expand past gridlines, however, the indices are within the grid.
+        For example, consider a grid where the maximum grid value is 1e5, with grid cells of length 1e4.
+        One of the knot values might be 1.1e5, however, its index would be 2 since the grid line at 1e5 is equivalent
+        to the first grid line since it is periodic, and 1.1e5 is one grid cell length past that value.
+
 Note: This function depends on the ocean being periodic in the given direction. We assume that first grid line and
 the last grid line are the same, and have the same values within the ocean/atmosphere. These are not repeated in the
 knots, but rather only one is used. So if there are 10 grid lines, grid line 1 and 10 are the equivalent and we 
-use grid line 1. 
+use grid line 1 exclusively. 
 """
 function find_interp_knots(point_idx, glines, Δd::Int, ::PeriodicBoundary, ::Type{T} = Float64) where T 
     knots = Vector{T}(undef, 0)
@@ -195,18 +198,18 @@ function find_interp_knots(point_idx, glines, Δd::Int, ::PeriodicBoundary, ::Ty
         end
     # Combine above indices for knot indicies
     knot_idx = [low_oob_idx; in_bounds_idx; high_oob_idx]
-    # Adjust out-of-bound indices by grid length so there isn't a jump in interpolation spacing
+    # Adjust out-of-bound values by grid length so there isn't a jump in interpolation spacing
     Δg = glines[end] - glines[1]
     knots = [glines[low_oob_idx] .- Δg; glines[in_bounds_idx]; glines[high_oob_idx] .+ Δg]
     return knots, knot_idx
 end
 
 """
-    find_interp_knots(point_idx, glines, Δd::Int, ::PeriodicBoundary, ::Type{T} = Float64)
+    find_interp_knots(point_idx, glines, Δd::Int, ::NonPeriodicBoundary, ::Type{T} = Float64)
 
 Find indicies in list of grid lines that surround points with indicies 'point_idx' with a buffer of Δd indices
 on each side of the points. In this case, the points are being considered near a NON-periodic boundary,
-so we cut off the possible indices at the edge of the grid. 
+so we cut off the possible indices past the edge of the grid. 
 Inputs:
         point_idx   <Vector{Int}> vector of indices representing the grid line they are nearest
         glines      <Vector{Float}> vector of grid line values 
@@ -214,7 +217,8 @@ Inputs:
                     <PeriodicBoundary> dispatching on periodic boundary
                     <Float> datatype to run simulation with - either Float32 or Float64
 Outputs:
-        Knots and indices of those knots on the grid for interpolation. 
+        Knots and indices of those knots on the grid for interpolation. Only knots within the grid will be
+        returned since this is a non-periodic boundary.
 """
 function find_interp_knots(point_idx, glines, Δd::Int, ::NonPeriodicBoundary, ::Type{T} = Float64) where T
     nlines = length(glines)
@@ -222,12 +226,29 @@ function find_interp_knots(point_idx, glines, Δd::Int, ::NonPeriodicBoundary, :
     min_line -= (Δd + 1) # point close to ith grid line could be between the i and i-1 grid line
     max_line += (Δd + 1) # point close to ith grid line could be between the i and i+1 grid line
 
-    # Boundary isn't periodic -> can't be outside grid given unknow ocean conditions
+    # Boundary isn't periodic -> can't be outside grid given unknown ocean/atmosphere conditions
     min_line = (min_line < 1) ? 1 : min_line
     max_line = (max_line > nlines) ? nlines : max_line
     return glines[min_line:max_line], [min_line:max_line;]
 end 
 
+"""
+    center_cell_coords(xidx::Int, yidx::Int, grid::RegRectilinearGrid, ns_bound, ew_bound)
+
+Find the coordinates of a given grid cell, centered on a grid line with row yidx and column xidx.
+This is offset from the cells within the regular rectilinear grid by half of a grid cell. 
+Inputs:
+        xidx        <Int> x index of grid line within list of gridlines (cell column)
+        yidx        <Int> y index of grid line within list of gridlines (cell row)
+        grid        <RegRectilinearGrid> model's grid 
+        ns_bound    <AbstractBoundary> type of either north or south boundary - for checking if periodic
+        ew_bound    <AbstractBoundary> type of either east or west boundary - for checking if perioidic
+Output:
+        PolyVec coordinates for cell centered on grid line with given indices. Note that cell bounds will be 
+        adjusted depending on if the bounds are periodic. Cells cannot extend outside of non-periodic 
+        boundaries and thus will be trimmed at boundaries. Therefore, if indices place cell completely
+        outside of grid, could return a line at the edge of the boundary. 
+"""
 function center_cell_coords(xidx::Int, yidx::Int, grid::RegRectilinearGrid, ns_bound, ew_bound)
     Δx = grid.xg[2] .- grid.xg[1]
     Δy = grid.yg[2] .- grid.yg[1]
@@ -235,6 +256,7 @@ function center_cell_coords(xidx::Int, yidx::Int, grid::RegRectilinearGrid, ns_b
     xmax = xmin + Δx
     ymin = (yidx - 1.5)*Δy + grid.yg[1]
     ymax = ymin + Δy
+    # Check if cell extends beyond boundaries and if non-periodic, trim cell to fit within grid.
     xmin, xmax, ymin, ymax = check_cell_bounds(xmin, xmax, ymin, ymax, grid, ns_bound, ew_bound)
     return [[[xmin, ymin], [xmin, ymax],
     [xmax, ymax], [xmax, ymin],
@@ -242,32 +264,86 @@ function center_cell_coords(xidx::Int, yidx::Int, grid::RegRectilinearGrid, ns_b
 end
 
 """
-    cell_coords(xidx::Int, yidx::Int, grid::AbstractGrid)
+    check_cell_bounds(xmin, xmax, ymin, ymax, grid, ::PeriodicBoundary, ::PeriodicBoundary)
 
-Create PolyVec coordinates for a grid cell given the grid and the index of the desired grid cell
+Return cell bounding values as is given the domain is doubley periodic and thus the cell can extend
+beyond the grid as it will simply wrap back around into grid through opposite periodic boundary.
 Inputs:
-        xidx    <Int> x index for desired grid cell within grid
-        yidx    <Int> y index for desired grid cell within grid
-        grid    <AbstractGrid> simulation's grid
+        xmin    <Float> center cell minimum x value
+        xmax    <Float> center cell maxumum x value
+        ymin    <Float> center cell minimum y value
+        ymax    <Float> center cell maximum y value
+        grid    <AbstractGrid>
+                <PeriodicBoundary> type of either north or south boundary - periodic pair
+                <PeriodicBoundary> type of either east or west boundary - periodic pair
 Output:
-    PolyVec coordinates for edges of rectangular grid cell based off cell indicies
+        x and y minimums and maximums as given since they can extend past the grid due to periodic boundaries.
 """
 function check_cell_bounds(xmin, xmax, ymin, ymax, grid, ::PeriodicBoundary, ::PeriodicBoundary)
     return xmin, xmax, ymin, ymax
 end
 
+"""
+    check_cell_bounds(xmin, xmax, ymin, ymax, grid, ::NonPeriodicBoundary, ::PeriodicBoundary)
+
+Trim cell bound in the north-south direction if it exends past grid due to non-periodic boundary pair.
+Inputs:
+        xmin    <Float> center cell minimum x value
+        xmax    <Float> center cell maxumum x value
+        ymin    <Float> center cell minimum y value
+        ymax    <Float> center cell maximum y value
+        grid    <AbstractGrid>
+                <NonPeriodicBoundary> type of either north or south boundary - not a periodic pair
+                <PeriodicBoundary> type of either east or west boundary - periodic pair
+Output:
+        Potentially trimmed y min and max if these values extend beyond grid values.
+        Else returned unchanged. 
+"""
 function check_cell_bounds(xmin, xmax, ymin, ymax, grid, ::NonPeriodicBoundary, ::PeriodicBoundary)
     ymin = ymin < grid.yg[1] ? grid.yg[1] : (ymin > grid.yg[end] ? grid.yg[end] : ymin)
     ymax = ymax > grid.yg[end] ? grid.yg[end] : (ymax < grid.yg[1] ? grid.yg[1] : ymax) 
     return xmin, xmax, ymin, ymax
 end
 
+"""
+    check_cell_bounds(xmin, xmax, ymin, ymax, grid, ::PeriodicBoundary, ::NonPeriodicBoundary)
+
+Trim cell bound in the east-west direction if it exends past grid due to non-periodic boundary pair.
+Inputs:
+        xmin    <Float> center cell minimum x value
+        xmax    <Float> center cell maxumum x value
+        ymin    <Float> center cell minimum y value
+        ymax    <Float> center cell maximum y value
+        grid    <AbstractGrid>
+                <PeriodicBoundary> type of either north or south boundary - periodic pair
+                <NonPeriodicBoundary> type of either east or west boundary - not a periodic pair
+Output:
+        Potentially trimmed x min and max if these values extend beyond grid values.
+        Else returned unchanged. 
+"""
 function check_cell_bounds(xmin, xmax, ymin, ymax, grid, ::PeriodicBoundary, ::NonPeriodicBoundary)
     xmin = xmin < grid.xg[1] ? grid.xg[1] : (xmin > grid.xg[end] ? grid.xg[end] : xmin)
     xmax = xmax > grid.xg[end] ? grid.xg[end] : (xmax < grid.xg[1] ? grid.xg[1] : xmax) 
     return xmin, xmax, ymin, ymax
 end
 
+"""
+    check_cell_bounds(xmin, xmax, ymin, ymax, grid, ::NonPeriodicBoundary, ::NonPeriodicBoundary)
+
+Trim cell bounds in the east-west and north-south direction if they exend past grid
+due to non-periodic boundary pairs.
+Inputs:
+        xmin    <Float> center cell minimum x value
+        xmax    <Float> center cell maxumum x value
+        ymin    <Float> center cell minimum y value
+        ymax    <Float> center cell maximum y value
+        grid    <AbstractGrid>
+                <NonPeriodicBoundary> type of either north or south boundary - not a periodic pair
+                <NonPeriodicBoundary> type of either east or west boundary - not a periodic pair
+Output:
+        Potentially trimmed x and y minimums and maximums if these values extend beyond grid values.
+        Else returned unchanged. 
+"""
 function check_cell_bounds(xmin, xmax, ymin, ymax, grid, ::NonPeriodicBoundary, ::NonPeriodicBoundary)
     xmin = xmin < grid.xg[1] ? grid.xg[1] : (xmin > grid.xg[end] ? grid.xg[end] : xmin)
     xmax = xmax > grid.xg[end] ? grid.xg[end] : (xmax < grid.xg[1] ? grid.xg[1] : xmax) 
@@ -276,13 +352,37 @@ function check_cell_bounds(xmin, xmax, ymin, ymax, grid, ::NonPeriodicBoundary, 
     return xmin, xmax, ymin, ymax
 end
 
+"""
+    shift_cell_idx(idx, nlines, ::NonPeriodicBoundary)
+
+Return index as is given non-periodic boundary pair in either x or y direction.
+Inputs:
+        idx     <Int> grid line index in either x or y
+        nlines  <Int> number of grid lines in model grid in either x or y direction
+                <NonPeriodicBoundary> boundary pair is non-periodic
+Ouput:  idx as given. Can include the index nlines, unlike with the periodic case, which will
+        use the first index instead. 
+"""
 function shift_cell_idx(idx, nlines, ::NonPeriodicBoundary)
     return idx
 end
 
+"""
+    shift_cell_idx(idx, nlines, ::PeriodicBoundary)
+
+If index is greater than or equal to the grid lines, shift index to equivalent
+grid line on opposite side of grid due to periodic boundary.
+Inputs:
+        idx     <Int> grid line index in either x or y
+        nlines  <Int> number of grid lines in model grid in either x or y direction
+                <NonPeriodicBoundary> boundary pair is non-periodic
+Output: If given index is greater than or equal to number of grid lines, shift index.
+For example, the last grid index, nlines, is equivalent to the 1st grid line.
+The nlines+1 grid line is equivalent to the 2nd grid line.
+
+"""
 function shift_cell_idx(idx, nlines, ::PeriodicBoundary)
-    new_idx = Int(mod(idx, nlines))
-    new_idx = new_idx < idx ? (new_idx + 1) : idx
+    return idx < nlines ? idx : Int(mod(idx, nlines)) + 1
 end
 
 """
@@ -307,12 +407,6 @@ Outputs:
 function aggragate_grid_force!(mc_cols, mc_rows, τx_ocn, τy_ocn, floe, ocean, grid, ns_bound, ew_bound, ::Type{T} = Float64) where {T}
     τx_group = Dict{Tuple{Int64, Int64}, Vector{T}}()
     τy_group = Dict{Tuple{Int64, Int64}, Vector{T}}()
-    # Make sure indices are within grid, else wrap around to other side of the grid
-    # nrows, ncols = grid.dims
-    # mc_cols[mc_cols .< 1] .+= ncols
-    # mc_cols[mc_cols .> ncols] .-= ncols
-    # mc_rows[mc_rows .< 1] .+= nrows
-    # mc_rows[mc_rows .> nrows] .-= nrows
     # Use dictionary to sort stress values by grid cell
     for i in eachindex(mc_cols)
         idx = (mc_rows[i], mc_cols[i])
@@ -333,10 +427,9 @@ function aggragate_grid_force!(mc_cols, mc_rows, τx_ocn, τy_ocn, floe, ocean, 
         if floe_area_in_cell > 0
             fx_mean = mean(τx_group[row, col]) * floe_area_in_cell
             fy_mean = mean(τy_group[row, col]) * floe_area_in_cell
-            # Need to add a lock here...
-            # row and col need to be shifted for periodic
             row = shift_cell_idx(row, grid.dims[1] + 1, ns_bound)
             col = shift_cell_idx(col, grid.dims[2] + 1, ew_bound)
+            # Need to add a lock here...
             ocean.fx[row, col] += fx_mean
             ocean.fy[row, col] += fy_mean
             ocean.si_area[row, col] += floe_area_in_cell
@@ -346,18 +439,23 @@ function aggragate_grid_force!(mc_cols, mc_rows, τx_ocn, τy_ocn, floe, ocean, 
 end
 
 """
-    floe_OA_forcings!(floe, m, t::Type{T} = Float64)
+    floe_OA_forcings!(floe, m, c, Δd, ::Type{T} = Float64)
 
 Calculate the effects on the ocean and atmpshere on floe i within the given model
-and the effects of the ice floe on the ocean.
+and the effects of the ice floe on the ocean grid.
 
 Inputs:
         floe    <Floe> floe
         m       <Model> given model
         c       <Constants> constants within simulation
         Δd      <Int> buffer for monte carlo interpolation knots
+                <Float> Type for running the simulation calculation - Float32 or Float64
 Outputs:
         None. Both floe and ocean fields are updated in-place.
+        Floe fields fxOA, fyOA, and trqOA are updated with effects of the ocean and atmosphere.
+        Ocean fields fx, fy, and si_area are updated with effects from this floe. fx and fy are
+        equal but opposite values from the force of ocean on the ice floe. si_area adds area of floe
+        segment in each grid cell to grid cell field. 
 """
 function floe_OA_forcings!(floe, m, c, Δd, ::Type{T} = Float64) where T
     # Rotate and translate Monte Carlo points to current floe location
