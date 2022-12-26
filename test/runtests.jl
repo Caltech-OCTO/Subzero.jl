@@ -1,4 +1,4 @@
-using Subzero, LibGEOS
+using Subzero, LibGEOS, JLD2, StructArrays
 using Test
 
 @testset "Subzero.jl" begin

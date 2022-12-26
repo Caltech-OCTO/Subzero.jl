@@ -59,12 +59,12 @@
         @test ocn.temp == tempocn
         @test ocn.fx == fx == ocn.fy == ocn.si_area == ocn.hflx
         # Default constructor fails for non-matching dimensions
-        @test_throws ArgumentError Subzero.Ocean(Float64[0.0], vocn, tempocn, hflx, fx, fy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, Float64[0.0], tempocn, hflx, fx, fy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, Float64[0.0], hflx, fx, fy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, Float64[0.0], fx, fy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, Float64[0.0], fy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, fx, fy, Float64[0.0])
+        @test_throws ArgumentError Subzero.Ocean(Matrix{Float64}(undef, 0, 0), vocn, tempocn, hflx, fx, fy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, Matrix{Float64}(undef, 0, 0), tempocn, hflx, fx, fy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, Matrix{Float64}(undef, 0, 0), hflx, fx, fy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, Matrix{Float64}(undef, 0, 0), fx, fy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, Matrix{Float64}(undef, 0, 0), fy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, fx, fy, Matrix{Float64}(undef, 0, 0))
         # Custom constructor
         ocn2 = Subzero.Ocean(g, 3.0, 4.0, -2.0)
         @test ocn.u == ocn2.u

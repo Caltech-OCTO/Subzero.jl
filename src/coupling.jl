@@ -5,7 +5,8 @@ Functions needed for coupling the ice, ocean, and atmosphere.
 """
     find_cell_indices(xp, yp, grid::RegRectilinearGrid)
 
-Find center cell indicies of x-coordinates and y-coordinates on the given RegRectilinearGrid.
+Find indicies of cells centered on grid lines of the given RegRectilinearGrid
+that the given x-coordinates and y-coordinates fall within.
 These cells are centered around the grid lines, so they are shifted grid cells by half a cell.
 Method depends on grid being a regular rectilinear grid.
 Inputs:
@@ -30,14 +31,14 @@ With all non-periodic boundaries, points outside of the grid in both the x and y
 direction need to be removed. These points can't be interpolated as we don't have
 any information on the ocean outside of the grid. 
 Note that p is a matrix of non-translated points centered on (0,0),
-while xr and yr are these coordinates translated to a floe location. 
+while xr and yr are these coordinates translated by a floe's centroid. 
 Inputs:
         p   <Matrix{Float}> a 2xn matrix of points where the 1st row corresponds
                             to x-values and the 2nd row corresponds to y-values
         xr  <Vector{Float}> a length-n vector of translated x-coordinates
         yr  <Vector{Float}> a length-n vector of translated y-coordinates
-            <::NonPeriodicBoundary> type of either north or south boundary - for checking if periodic
-            <::NonPeriodicBoundary> type of either east or west boundary - for checking if periodic
+            <::NonPeriodicBoundary> type of either north or south boundary - checking if periodic pair
+            <::NonPeriodicBoundary> type of either east or west boundary - checking if periodic pair
 Output:
         p, xr, and yr filtered so that the translated points are all within the grid.
 """
@@ -61,8 +62,8 @@ Inputs:
                             to x-values and the 2nd row corresponds to y-values
         xr  <Vector{Float}> a length-n vector of translated x-coordinates
         yr  <Vector{Float}> a length-n vector of translated y-coordinates
-            <::NonPeriodicBoundary> type of either north or south boundary - for checking if periodic
-            <::PeriodicBoundary> type of either east or west boundary - for checking if periodic
+            <::NonPeriodicBoundary> type of either north or south boundary - checking if periodic pair
+            <::PeriodicBoundary> type of either east or west boundary - checking if periodic pair
 Output:
         p, xr, and yr filtered so that the translated points are all within the grid in the
         y-direction and so floe does not overlap with itself through periodic boundary. 
@@ -93,10 +94,10 @@ Inputs:
                             to x-values and the 2nd row corresponds to y-values
         xr  <Vector{Float}> a length-n vector of translated x-coordinates
         yr  <Vector{Float}> a length-n vector of translated y-coordinates
-            <::PeriodicBoundary> type of either north or south boundary - for checking if periodic
-            <::AbstractBoundary> type of either east or west boundary - for checking if periodic
+            <::PeriodicBoundary> type of either north or south boundary - checking if periodic pair
+            <::AbstractBoundary> type of either east or west boundary - checking if periodic pair
 Output:
-        p, xr, and yr filtered so that the translated points are all within the grid in the y-direction
+        p, xr, and yr filtered so that the translated points are all within the grid in the x-direction
         and so that the floe does not overlap with itself through periodic boundary. 
 """
 function filter_oob_points(p, xr, yr, grid, ::PeriodicBoundary, ::NonPeriodicBoundary)
@@ -124,8 +125,8 @@ Inputs:
                             to x-values and the 2nd row corresponds to y-values
         xr  <Vector{Float}> a length-n vector of translated x-coordinates
         yr  <Vector{Float}> a length-n vector of translated y-coordinates
-            <::PeriodicBoundary> type of either north or south boundary - for checking if periodic
-            <::PeriodicBoundary> type of either east or west boundary - for checking if periodic
+            <::PeriodicBoundary> type of either north or south boundary - checking if periodic pair
+            <::PeriodicBoundary> type of either east or west boundary - checking if periodic pair
 Output:
         p, xr, and yr as given, unless the floe might overlap with itself through periodic boundaries,
         in which case no points are returned.
@@ -146,13 +147,13 @@ end
 """
     find_interp_knots(point_idx, glines, Δd::Int, ::PeriodicBoundary, ::Type{T} = Float64)
 
-Find indicies in list of grid lines that surround points with indicies 'point_idx' with a buffer of Δd indices
+Find indicies in list of grid lines that surround points with indicies 'point_idx', with a buffer of Δd indices
 on each side of the points. In this case, the points are being considered near a periodic boundary,
 which means that they can loop around to the other side of the grid. If these points exist,
 we extend the grid lines to cover the points and buffer. 
 Inputs:
-        point_idx   <Vector{Int}> vector of indices representing the grid line they are nearest
-        glines      <Vector{Float}> vector of grid line values 
+        point_idx   <Vector{Int}> vector of point indices representing the grid line they are nearest
+        glines      <Vector{Float}> vector of all grid line values 
         Δd          <Int> number of buffer grid cells to include on either side of the provided indicies 
                     <PeriodicBoundary> dispatching on periodic boundary
                     <Float> datatype to run simulation with - either Float32 or Float64
@@ -386,7 +387,7 @@ function shift_cell_idx(idx, nlines, ::PeriodicBoundary)
 end
 
 """
-    aggragate_grid_force!(mc_cols, mc_rows, τx_ocn, τy_ocn, floe, ocean)
+    aggregate_grid_force!(mc_cols, mc_rows, τx_ocn, τy_ocn, floe, ocean)
 
 Add force from the ice on ocean to ocean force fields (fx & fy) for each grid cell
 and update ocean sea ice area fraction (si_area), representing total area of sea ice in a given cell.
@@ -404,7 +405,7 @@ Outputs:
         Since multiple floes can be within one grid cell, this critical section needs to be locked for
         when the code is run with multiple threads to prevent race conditions.
 """
-function aggragate_grid_force!(mc_cols, mc_rows, τx_ocn, τy_ocn, floe, ocean, grid, ns_bound, ew_bound, ::Type{T} = Float64) where {T}
+function aggregate_grid_force!(mc_cols, mc_rows, τx_ocn, τy_ocn, floe, ocean, grid, ns_bound, ew_bound, ::Type{T} = Float64) where {T}
     τx_group = Dict{Tuple{Int64, Int64}, Vector{T}}()
     τy_group = Dict{Tuple{Int64, Int64}, Vector{T}}()
     # Use dictionary to sort stress values by grid cell
@@ -478,18 +479,19 @@ function floe_OA_forcings!(floe, m, c, Δd, ::Type{T} = Float64) where T
         yknots, yknot_idx = find_interp_knots(mc_rows, m.grid.yg, Δd, m.domain.north, T)
 
         # Wind Interpolation for Monte Carlo Points
-        uatm_interp = linear_interpolation((xknots, yknots), m.wind.u[xknot_idx, yknot_idx])
-        vatm_interp = linear_interpolation((xknots, yknots), m.wind.v[xknot_idx, yknot_idx])
-        avg_uatm = mean([uatm_interp(mc_xr[i], mc_yr[i]) for i in eachindex(mc_xr)])
-        avg_vatm = mean([vatm_interp(mc_xr[i], mc_yr[i]) for i in eachindex(mc_xr)])
+        uatm_interp = linear_interpolation((yknots, xknots), m.wind.u[yknot_idx, xknot_idx])
+        vatm_interp = linear_interpolation((yknots, xknots), m.wind.v[yknot_idx, xknot_idx])
+        vals = [uatm_interp(mc_yr[i], mc_xr[i]) for i in eachindex(mc_xr)]
+        avg_uatm = mean([uatm_interp(mc_yr[i], mc_xr[i]) for i in eachindex(mc_xr)])
+        avg_vatm = mean([vatm_interp(mc_yr[i], mc_xr[i]) for i in eachindex(mc_xr)])
 
         # Ocean Interpolation for Monte Carlo Points
-        uocn_interp = linear_interpolation((xknots, yknots), m.ocean.u[xknot_idx, yknot_idx])
-        vocn_interp = linear_interpolation((xknots, yknots), m.ocean.v[xknot_idx, yknot_idx])
-        uocn = [uocn_interp(mc_xr[i], mc_yr[i]) for i in eachindex(mc_xr)]
-        vocn = [vocn_interp(mc_xr[i], mc_yr[i]) for i in eachindex(mc_xr)]
-        hflx_interp = linear_interpolation((xknots, yknots), m.ocean.v[xknot_idx, yknot_idx])
-        floe.hflx = mean([hflx_interp(mc_xr[i], mc_yr[i]) for i in eachindex(mc_xr)])
+        uocn_interp = linear_interpolation((yknots, xknots), m.ocean.u[yknot_idx, xknot_idx])
+        vocn_interp = linear_interpolation((yknots, xknots), m.ocean.v[yknot_idx, xknot_idx])
+        uocn = [uocn_interp(mc_yr[i], mc_xr[i]) for i in eachindex(mc_xr)]
+        vocn = [vocn_interp(mc_yr[i], mc_xr[i]) for i in eachindex(mc_xr)]
+        hflx_interp = linear_interpolation((yknots, xknots), m.ocean.hflx[yknot_idx, xknot_idx])
+        floe.hflx = mean([hflx_interp(mc_yr[i], mc_xr[i]) for i in eachindex(mc_xr)])
 
         # Stress on ice from atmopshere
         τx_atm = (c.ρa * c.Cd_ia * sqrt(avg_uatm^2 + avg_vatm^2) * avg_uatm)
@@ -501,8 +503,8 @@ function floe_OA_forcings!(floe, m, c, Δd, ::Type{T} = Float64) where T
         τy_pressure∇ = ma_ratio * c.f .* uocn
 
         # Find total velocity at each monte carlo point
-        mc_rad = sqrt.(mc_p[1, :].^2 .+ mc_p[1, :].^2)
-        mc_θ = atan.(mc_p[1, :], mc_p[2, :])
+        mc_rad = sqrt.(mc_p[1, :].^2 .+ mc_p[2, :].^2)
+        mc_θ = atan.(mc_p[2, :], mc_p[1, :])
         mc_u = floe.u .- floe.ξ * mc_rad .* sin.(mc_θ)
         mc_v = floe.v .+ floe.ξ * mc_rad .* cos.(mc_θ)
 
@@ -513,7 +515,7 @@ function floe_OA_forcings!(floe, m, c, Δd, ::Type{T} = Float64) where T
         τy_ocn = c.ρo*c.Cd_io*sqrt.(Δu_OI.^2 + Δv_OI.^2) .* (sin(c.turnθ) .* Δu_OI .+ cos(c.turnθ) * Δv_OI)
 
         # Update ocean with froce from floes per grid cell
-        aggragate_grid_force!(mc_cols, mc_rows, -τx_ocn, -τy_ocn, floe, m.ocean, m.grid, m.domain.east, m.domain.north, T)
+        aggregate_grid_force!(mc_cols, mc_rows, -τx_ocn, -τy_ocn, floe, m.ocean, m.grid, m.domain.east, m.domain.north, T)
 
         # Sum above stresses and find stress from torque
         τx = τx_atm .+ τx_pressure∇ .+ τx_ocn

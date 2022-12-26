@@ -34,7 +34,7 @@ Simulation which holds a model and parameters needed for running the simulation.
     model::Model{FT, GT, DT}            # Model to simulate
     consts::Constants{FT}           # Constants used in simulation
     name::String = "sim"            # Simulation name for saving output
-    Δd::Int = 2                     # Number of buffer grid cells on each side of floe for monte carlo interpolation
+    Δd::Int = 1                     # Number of buffer grid cells on each side of floe for monte carlo interpolation
     # Timesteps ----------------------------------------------------------------
     Δt::Int = 10                    # Simulation timestep (seconds)
     nΔt::Int = 7500                 # Total timesteps simulation runs for

@@ -44,7 +44,7 @@ struct RegRectilinearGrid{FT}<:AbstractGrid{FT}
 end
 
 """
-    RegRectilinearGrid(lx, ux, ly, uy, Δx, Δy, t::Type{T} = Float64)
+    RegRectilinearGrid(lx, ux, ly, uy, Δx, Δy, ::Type{T} = Float64)
 
 Construct a RegRectilinearGrid for model given upper and lower bounds for x and y and grid cell dimensions.
 Inputs: 
@@ -54,7 +54,7 @@ Inputs:
         uy       <Real> upper bound of grid y-direction
         Δx       <Real> length/height of grid cells in x-direction
         Δy       <Real> length/height of grid cells in y-direction
-        t        <Type> datatype to convert grid fields - must be a Float!
+                 <Float> datatype to run simulation with - either Float32 or Float64
 Output: 
     RegRectilinearGrid from lx to ux and height from ly to uy with grid squares of size Δx by Δy
 Warning: If Δx doesn't evenly divide x length (lu-lx) or Δy doesn't evenly 
@@ -72,7 +72,7 @@ function RegRectilinearGrid(lx, ux, ly, uy, Δx, Δy, ::Type{T} = Float64) where
 end
 
 """
-    RegRectilinearGrid(Lx, Ly, Δx, Δy, t::Type{T} = Float64)
+    RegRectilinearGrid(lx, ux, ly, uy, dims::Tuple{Int, Int}, ::Type{T} = Float64)
 
 Construct a RegRectilinearGrid for model given upper and lower bounds for x and y and the number of grid cells
 in both the x and y direction.
@@ -81,8 +81,9 @@ Inputs:
         ux       <Real> upper bound of grid x-direction
         ly       <Real> lower bound of grid y-direction
         uy       <Real> upper bound of grid y-direction
-        dims     <(Int, Int)> grid dimensions - rows -> ny, cols -> nx
-        t        <Type> datatype to convert grid fields - must be a Float!
+        dims     <(Int, Int)> grid dimensions - rows -> number of y cells
+                                                cols -> number of x cells
+                 <Float> datatype to run simulation with - either Float32 or Float64
 Output: 
     RegRectilinearGrid from lx to ux and height from ly to uy with nx grid cells in the x-direction and ny grid cells in the y-direction.
 """
@@ -93,10 +94,25 @@ function RegRectilinearGrid(lx, ux, ly, uy, dims::Tuple{Int, Int}, ::Type{T} = F
 end
 
 """
-Ocean velocities in the x-direction (u) and y-direction (v). u and v should match the size of the corresponding
-model grid so that there is one x and y velocity value for each grid cell. Ocean also needs temperature at the
-ocean/ice interface in each grid cell. Ocean fields must all be matricies with the same dimensions.
-Model cannot be constructed if size of ocean and grid do not match.
+    Ocean{FT<:AbstractFloat}
+
+Simulation ocean holding ocean values on the grid-scale with matricies of the
+same size as the model's grid. The struct has the following fields:
+- u is the ocean velocities in the x-direction for each grid cell
+- v is the ocean velocities in the y-direction for each grid cell
+- temp is the ocean temperature for each grid cell
+- hflx is the ocean-atmosphere heat flux for each grid cell
+- fx is the x-stress from the ice onto the ocean averaged over each grid cell
+- fy is the y-stress from the ice onto the ocean averaged over each grid cell
+- si_area is the total sea-ice area in each grid cell
+
+Ocean fields must all be matricies with dimensions equal to the number of grid
+lines in the model's grid. 
+Note: If a periodic boundary is used in the domain, the last grid cell in that
+direction will not be used as it is equivalent to the first grid cell. Thus, for
+all of these fields, the first and last value in the x and/or y direction should
+be equal if the east-west or north-south boundary pair are periodic
+respectively.
 """
 struct Ocean{FT<:AbstractFloat}
     u::Matrix{FT}
@@ -107,11 +123,17 @@ struct Ocean{FT<:AbstractFloat}
     fy::Matrix{FT}
     si_area::Matrix{FT}
 
-    Ocean(u, v, temp, hflx, fx, fy, si_frac) =
-        (size(u) == size(v) == size(temp) == size(hflx) == size(fx) == size(fy) ==
-         size(si_frac)) ?
-        new{eltype(u)}(u, v, temp, hflx, fx, fy, si_frac) :
-        throw(ArgumentError("All ocean fields matricies must have the same dimensions."))
+    function Ocean{FT}(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}, hflx::Matrix{FT},
+                   fx::Matrix{FT}, fy::Matrix{FT}, si_area::Matrix{FT}) where {FT <: AbstractFloat}
+        if !(size(u) == size(v) == size(temp) == size(hflx) == size(fx) == size(fy) == size(si_area))
+            throw(ArgumentError("All ocean fields matricies must have the same dimensions."))
+        end
+        new{FT}(u, v, temp, hflx, fx, fy, si_area)
+    end
+
+    Ocean(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}, hflx::Matrix{FT},
+          fx::Matrix{FT}, fy::Matrix{FT}, si_area::Matrix{FT}) where {FT<:AbstractFloat} =
+        Ocean{FT}(u, v, temp, hflx, fx, fy, si_area)
 end
 
 """
@@ -121,8 +143,8 @@ Construct model ocean.
 Inputs:
         u       <Matrix> ocean x-velocity matrix with u for each grid line
         v       <Matrix> ocean y-velocity matrix with u for each grid line
-        temp    <Matrix> temperature matrix with ocean/ice interface temperature for each grid lin
-        t       <Type> datatype to convert ocean fields - must be a Float!
+        temp    <Matrix> temperature matrix with ocean/ice interface temperature for each grid line
+                <Type> datatype to convert ocean fields - must be a Float!
 Output: 
         Ocean with given velocity and temperature fields on each grid line.
 """
