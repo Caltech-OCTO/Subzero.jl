@@ -9,7 +9,7 @@ for file in mat_files
     push!(v_mat, mat_data["Floe"]["Vi"])
 end
 
-jul_path = "output/floe/f.nc"
+jul_path = "output/sim/f.nc"
 jul_data = NCDataset(jul_path)
 u_jul = jul_data["u"][:, 1]
 v_jul= jul_data["v"][:, 1]

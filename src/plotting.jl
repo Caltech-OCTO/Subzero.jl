@@ -60,8 +60,8 @@ function setup_plot(model::Model)
           linecolor = :black, fillalpha = 0.0, lw = 2, legend=false)
 
     # Plot Topology
-    if length(size(model.topos)) > 0
-        topo_coords = model.topos.coords
+    if !isempty(model.domain.topography)
+        topo_coords = model.domain.topography.coords
         plot!(plt, [LG.Polygon([c[1] ./ 1000]) for c in topo_coords],
               fill = :grey)
     end
@@ -79,27 +79,28 @@ Inputs:
 Outputs:
         Plot with x and y xlim determed by domain and including all topography. 
 """
-function setup_plot(domain_fn::String, plot_size = (1500, 1200))
+function setup_plot(domain_fn::String, plot_size = (1500, 1500))
     # Open file to get needed values
-    plt = jldopen(domain_fn, "r") do file
-        d = file["domain"]
-        xmin = d.west.val/1000
-        xmax = d.east.val/1000
-        ymin = d.south.val/1000
-        ymax = d.north.val/1000
+    file = jldopen(domain_fn, "r")
+    d = file["domain"]
+    JLD2.close(file)
+    
+    xmin = d.west.val/1000
+    xmax = d.east.val/1000
+    ymin = d.south.val/1000
+    ymax = d.north.val/1000
 
-        # Plot domain using file data
-        ratio = (ymax-ymin)/(xmax-xmin)
-        plt = Plots.plot(xlims = (xmin, xmax),
-                         ylims = (ymin, ymax),
-                         size = plot_size,
-                         aspect_ratio=ratio,
-                         xlabel = "[km]",
-                         ylabel = "[km]")
-        if !isempty(d.topography)
-            topo_coords = d.topography.coords
-            plot!(plt, [LG.Polygon([c[1] ./ 1000]) for c in topo_coords], fillcolor = :grey)
-        end
+    # Plot domain using file data
+    ratio = (ymax-ymin)/(xmax-xmin)
+    plt = Plots.plot(xlims = (xmin, xmax),
+                        ylims = (ymin, ymax),
+                        size = plot_size,
+                        aspect_ratio=ratio,
+                        xlabel = "[km]",
+                        ylabel = "[km]")
+    if !isempty(d.topography)
+        topo_coords = d.topography.coords
+        plot!(plt, [LG.Polygon([c[1] ./ 1000]) for c in topo_coords], fillcolor = :grey)
     end
     return plt
 end
@@ -142,19 +143,20 @@ Inputs:
         domain_fn   <String> file path to JLD2 file holding domain struct information
 Outputs: Saves simulation gif with floes and topography plotted.
 """
-function create_sim_gif(floes_fn, domian_fn)
-    sim_data = NCDataset(floes_fn)  # TODO: Change this if we don't want NetCDFs
-    xcoords = sim_data["xcoords"][:, :, :]
-    ycoords = sim_data["ycoords"][:, :, :]
-    alive = sim_data["alive"][:, :]
-    anim = @animate for tstep in eachindex(sim_data["time"][:])
-        plt = setup_plot(domian_fn)  # Uses JLD2
-        for i in eachindex(sim_data["floes"][:])
-            if alive[tstep, i] == 1
-            plot!(plt, xcoords[tstep, i, :]./1000, ycoords[tstep, i, :]./1000,
-                  seriestype = [:shape,], fill = :lightblue, legend=false)
+function create_sim_gif(floes_fn, domain_fn, output_fn)
+    NCDataset(floes_fn) do sim_data # TODO: Change this if we don't want NetCDFs
+        plt = setup_plot(domain_fn)  # Uses JLD2
+        anim = @animate for tstep in eachindex(sim_data["time"][:])
+            new_frame = plot(plt)
+            for i in eachindex(sim_data["floes"][:])
+                if sim_data["alive"][tstep, i] == 1
+                    plot!(new_frame, sim_data["xcoords"][tstep, i, :]./1000,
+                                     sim_data["ycoords"][tstep, i, :]./1000,
+                                     seriestype = [:shape,], fill = :lightblue, legend=false)
+                end
             end
         end
+        gif(anim, output_fn, fps = 15)
     end
-    gif(anim, string("figs/collisions/f.gif"), fps = 15)
+    return
 end

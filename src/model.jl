@@ -3,34 +3,50 @@ Structs and functions used to define a Subzero model
 """
 
 """
-    Grid{FT<:AbstractFloat}
+    AbstractGrid
 
-Grid splitting the model into distinct rectanglular grid cells where xg are the grid lines in the x-direction (1xn vector)
-and yg are the grid lines in the y-direction (mx1 vector). xc and cy are the mid-lines on grid cells in the x and y-direction.
-These have dimensions n-1x1 and m-1x1 respectively. The dimension field holds the number of rows (m-1) and columns (n-1) in the grid.
-The dimensions of each of the fields must match according to the above definitions.
-
-This struct is also used to create a coarse grid of the model domain.
-Ocean and floe data is averaged over this coarse grid and then saved as model output.
+An abstract type for the grid that model will be simulated on.
+Affects calculation on the grid.
 """
-struct Grid{FT<:AbstractFloat}
+abstract type AbstractGrid{FT<:AbstractFloat} end
+
+"""
+    RegRectilinearGrid{FT<:AbstractFloat}<:AbstractGrid
+
+Tessellation of 2-dimensional Euclidean space into n-by-m congruent rectangles.
+The dimension of grid is (n,m), and the struct hold the grid-line and grid-center values:
+ - xg are the grid lines in the x-direction (m+1 length vector)
+ - yg are the grid lines in the y-direction (n+1 length vector)
+ - xc are the mid-lines on grid cells (m length vector) in the x-direction
+ - yc are the mid-lines on grid cells (n length vector) in the y-direction
+The dimensions of each of the fields must match according to the above definitions.
+"""
+struct RegRectilinearGrid{FT}<:AbstractGrid{FT}
     dims::Tuple{Int, Int}
     xg::Vector{FT}
     yg::Vector{FT}
     xc::Vector{FT}
     yc::Vector{FT}
 
-    Grid(dims, xg, yg, xc, yc) =
-        (length(xg) == dims[2]+1 && length(yg) == dims[1]+1 &&
-         length(xc) == dims[2] && length(yc) == dims[1]) ?
-        new{eltype(xg)}(dims, xg, yg, xc, yc) :
-        throw(ArgumentError("Dimension field doesn't match grid dimensions."))
+    function RegRectilinearGrid{FT}(dims, xg::Vector{FT}, yg::Vector{FT},
+                                          xc::Vector{FT}, yc::Vector{FT}) where {FT <: AbstractFloat}
+        if (length(xg) != dims[2]+1) || (length(yg) != dims[1]+1)
+            throw(ArgumentError("Grid line dimensions vector doesn't match dimensions field."))
+        end
+        if (length(xc) != dims[2]) || (length(yc) != dims[1])
+            throw(ArgumentError("Grid center dimensions vector doesn't match dimensions field."))
+        end
+        new{FT}(dims, xg, yg, xc, yc)
+    end
+
+    RegRectilinearGrid(dims, xg::Vector{FT}, yg::Vector{FT}, xc::Vector{FT}, yc::Vector{FT}) where {FT <: AbstractFloat} = 
+        RegRectilinearGrid{FT}(dims, xg, yg, xc, yc)
 end
 
 """
-    Grid(lx, ux, ly, uy, Δx, Δy, t::Type{T} = Float64)
+    RegRectilinearGrid(lx, ux, ly, uy, Δx, Δy, ::Type{T} = Float64)
 
-Construct a rectanglular grid for model given upper and lower bounds for x and y and grid cell dimensions.
+Construct a RegRectilinearGrid for model given upper and lower bounds for x and y and grid cell dimensions.
 Inputs: 
         lx       <Real> lower bound of grid x-direction
         ux       <Real> upper bound of grid x-direction
@@ -38,124 +54,124 @@ Inputs:
         uy       <Real> upper bound of grid y-direction
         Δx       <Real> length/height of grid cells in x-direction
         Δy       <Real> length/height of grid cells in y-direction
-        t        <Type> datatype to convert grid fields - must be a Float!
+                 <Float> datatype to run simulation with - either Float32 or Float64
 Output: 
-        Grid from lx to ux and height from ly to uy with grid squares of size Δx by Δy
+    RegRectilinearGrid from lx to ux and height from ly to uy with grid squares of size Δx by Δy
 Warning: If Δx doesn't evenly divide x length (lu-lx) or Δy doesn't evenly 
          divide y length (uy-ly) you won't get full size grid. The grid will be "trimmed" to the nearest
          full grid square in both directions.
 """
-function Grid(lx, ux, ly, uy, Δx, Δy, t::Type{T} = Float64) where T
+function RegRectilinearGrid(lx, ux, ly, uy, Δx, Δy, ::Type{T} = Float64) where T
     xg = collect(T, lx:Δx:ux) 
     yg = collect(T, ly:Δy:uy)
     nx = length(xg) - 1
     ny = length(yg) - 1
-    xc = collect(xg[1]+Δx/2:Δx:xg[end]-Δx/2)
-    yc = collect(yg[1]+Δy/2:Δy:yg[end]-Δy/2)
-    return Grid((ny, nx), xg, yg, xc, yc)
-end
-
-
-"""
-    Grid(Lx, Ly, Δx, Δy, t::Type{T} = Float64)
-
-Construct a rectanglular grid for the model given Lx, Ly and cell dimensions.
-Inputs: 
-        Lx       <Real> grid length will range from 0 to Lx
-        Ly       <Real> grid height will range from y to Ly
-        Δx       <Real> length/height of grid cells in x-direction
-        Δy       <Real> length/height of grid cells in y-direction
-        t        <Type> datatype to convert grid fields - must be a Float!
-Output: 
-        Grid with length of Lx (0.0 to LX) and height of Ly (0.0 to LY) with square Δx by Δy grid cells
-Warning: If Δx doesn't evenly divide Lx or Δy doesn't evenly divide Ly you 
-         won't get full size grid. The grid will be "trimmed" to the nearest full grid square.
-"""
-function Grid(Lx, Ly, Δx, Δy, t::Type{T} = Float64) where T
-    return Grid(0.0, Lx, 0.0, Ly, Δx, Δy, T)
+    xc = collect(T, xg[1]+Δx/2:Δx:xg[end]-Δx/2)
+    yc = collect(T, yg[1]+Δy/2:Δy:yg[end]-Δy/2)
+    return RegRectilinearGrid((ny, nx), xg, yg, xc, yc)
 end
 
 """
-    Grid(Lx, Ly, Δx, Δy, t::Type{T} = Float64)
+    RegRectilinearGrid(lx, ux, ly, uy, dims::Tuple{Int, Int}, ::Type{T} = Float64)
 
-Construct a rectanglular grid for model given upper and lower bounds for x and y and the number of grid cells
+Construct a RegRectilinearGrid for model given upper and lower bounds for x and y and the number of grid cells
 in both the x and y direction.
 Inputs: 
         lx       <Real> lower bound of grid x-direction
         ux       <Real> upper bound of grid x-direction
         ly       <Real> lower bound of grid y-direction
         uy       <Real> upper bound of grid y-direction
-        dims     <(Int, Int)> grid dimensions - rows -> ny, cols -> nx
-        t        <Type> datatype to convert grid fields - must be a Float!
+        dims     <(Int, Int)> grid dimensions - rows -> number of y cells
+                                                cols -> number of x cells
+                 <Float> datatype to run simulation with - either Float32 or Float64
 Output: 
-        Grid from lx to ux and height from ly to uy with nx grid cells in the x-direction and ny grid cells in the y-direction.
+    RegRectilinearGrid from lx to ux and height from ly to uy with nx grid cells in the x-direction and ny grid cells in the y-direction.
 """
-function Grid(lx, ux, ly, uy, dims::Tuple{Int, Int}, t::Type{T} = Float64) where T
+function RegRectilinearGrid(lx, ux, ly, uy, dims::Tuple{Int, Int}, ::Type{T} = Float64) where T
     Δx = (ux-lx)/dims[2]
     Δy = (uy-ly)/dims[1]
-    return Grid(lx, ux, ly, uy, Δx, Δy, T)
+    return RegRectilinearGrid(lx, ux, ly, uy, Δx, Δy, T)
 end
 
 """
-    Grid(Lx, Ly, nx, ny, t::Type{T} = Float64)
+    Ocean{FT<:AbstractFloat}
 
-    Construct a rectanglular grid for the model given Lx, Ly, and the number of grid cells in both the x and y direction.
-Inputs: 
-        Lx       <Real> grid length will range from 0 to Lx
-        Ly       <Real> grid height will range from y to Ly
-        dims     <(Int, Int)> grid dimensions
-        t        <Type> datatype to convert grid fields - must be a Float!
-Output: 
-        Grid from 0 to Lx and height from 0 to Ly with nx grid cells in the x-direction and ny grid cells in the y-direction.
-"""
-function Grid(Lx, Ly, dims::Tuple{Int, Int}, t::Type{T} = Float64) where T
-    Δx = Lx/dims[2]
-    Δy = Ly/dims[1]
-    return Grid(0.0, Lx, 0.0, Ly, Δx, Δy, T)
-end
+Simulation ocean holding ocean values on the grid-scale with matricies of the
+same size as the model's grid. The struct has the following fields:
+- u is the ocean velocities in the x-direction for each grid cell
+- v is the ocean velocities in the y-direction for each grid cell
+- temp is the ocean temperature for each grid cell
+- hflx is the ocean-atmosphere heat flux for each grid cell
+- fx is the x-stress from the ice onto the ocean averaged over each grid cell
+- fy is the y-stress from the ice onto the ocean averaged over each grid cell
+- si_area is the total sea-ice area in each grid cell
 
-"""
-Ocean velocities in the x-direction (u) and y-direction (v). u and v should match the size of the corresponding
-model grid so that there is one x and y velocity value for each grid cell. Ocean also needs temperature at the
-ocean/ice interface in each grid cell. Ocean fields must all be matricies with the same dimensions.
-Model cannot be constructed if size of ocean and grid do not match.
+Ocean fields must all be matricies with dimensions equal to the number of grid
+lines in the model's grid. 
+Note: If a periodic boundary is used in the domain, the last grid cell in that
+direction will not be used as it is equivalent to the first grid cell. Thus, for
+all of these fields, the first and last value in the x and/or y direction should
+be equal if the east-west or north-south boundary pair are periodic
+respectively.
 """
 struct Ocean{FT<:AbstractFloat}
     u::Matrix{FT}
     v::Matrix{FT}
     temp::Matrix{FT}
     hflx::Matrix{FT} 
-    τx::Matrix{FT}
-    τy::Matrix{FT}
+    fx::Matrix{FT}
+    fy::Matrix{FT}
     si_area::Matrix{FT}
 
-    Ocean(u, v, temp, hflx, τx, τy, si_frac) =
-        (size(u) == size(v) == size(temp) == size(hflx) == size(τx) == size(τy) ==
-         size(si_frac)) ?
-        new{eltype(u)}(u, v, temp, hflx, τx, τy, si_frac) :
-        throw(ArgumentError("All ocean fields matricies must have the same dimensions."))
+    function Ocean{FT}(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}, hflx::Matrix{FT},
+                   fx::Matrix{FT}, fy::Matrix{FT}, si_area::Matrix{FT}) where {FT <: AbstractFloat}
+        if !(size(u) == size(v) == size(temp) == size(hflx) == size(fx) == size(fy) == size(si_area))
+            throw(ArgumentError("All ocean fields matricies must have the same dimensions."))
+        end
+        new{FT}(u, v, temp, hflx, fx, fy, si_area)
+    end
+
+    Ocean(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}, hflx::Matrix{FT},
+          fx::Matrix{FT}, fy::Matrix{FT}, si_area::Matrix{FT}) where {FT<:AbstractFloat} =
+        Ocean{FT}(u, v, temp, hflx, fx, fy, si_area)
 end
 
 """
-    Ocean(grid, u, v, temp, FT)
+    Ocean(u, v, temp, ::Type{T} = Float64)
+
+Construct model ocean.
+Inputs:
+        u       <Matrix> ocean x-velocity matrix with u for each grid line
+        v       <Matrix> ocean y-velocity matrix with u for each grid line
+        temp    <Matrix> temperature matrix with ocean/ice interface temperature for each grid line
+                <Type> datatype to convert ocean fields - must be a Float!
+Output: 
+        Ocean with given velocity and temperature fields on each grid line.
+"""
+function Ocean(u, v, temp, ::Type{T} = Float64) where {T}
+    nvals = size(u)
+    return Ocean((convert(Matrix{T}, u)), convert(Matrix{T}, v),
+                  convert(Matrix{T}, temp),
+                  zeros(T, nvals), zeros(T, nvals), 
+                  zeros(T, nvals), zeros(T, nvals))
+end
+
+"""
+    Ocean(grid::AbstractGrid, u, v, temp, ::Type{T} = Float64)
 
 Construct model ocean.
 Inputs: 
-        grid    <Grid> model grid cell
-        u       <Real> ocean x-velocity for each grid cell
-        v       <Real> ocean y-velocity for each grid cell
+        grid    <AbstractGrid> model grid
+        u       <Real> ocean x-velocity for each grid line
+        v       <Real> ocean y-velocity for each grid line
         temp    <Real> temperature at ocean/ice interface per grid cell
         t       <Type> datatype to convert ocean fields - must be a Float!
 Output: 
-        Ocean with constant velocity and temperature in each grid cell.
+        Ocean with constant velocity and temperature on each grid line.
 """
-function Ocean(grid::Grid, u, v, temp, ::Type{T} = Float64) where T
+function Ocean(grid::AbstractGrid, u, v, temp, ::Type{T} = Float64) where T
     nvals = grid.dims .+ 1  # one value per grid line - not grid cell 
-    return Ocean(fill(convert(T, u), nvals), 
-                 fill(convert(T, v), nvals), 
-                 fill(convert(T, temp), nvals),
-                 zeros(T, nvals), zeros(T, nvals), 
-                 zeros(T, nvals), zeros(T, nvals))
+    return Ocean(fill(u, nvals), fill(v, nvals), fill(temp, nvals), T)
 end
 
 """
@@ -179,7 +195,7 @@ end
 
 Construct model atmosphere/wind.
 Inputs: 
-        grid    <Grid> model grid cell
+        grid    <AbstractGrid> model grid cell
         u       <Real> wind x-velocity for each grid cell
         v       <Real> wind y-velocity for each grid cell
         temp    <Real> temperature at atmopshere/ice interface per grid cell
@@ -187,7 +203,7 @@ Inputs:
 Output: 
         Ocean with constant velocity and temperature in each grid cell.
 """
-function Wind(grid, u, v, temp, ::Type{T} = Float64) where T
+function Wind(grid::AbstractGrid, u, v, temp, ::Type{T} = Float64) where T
     nvals = grid.dims .+ 1  # one value per grid line - not grid cell 
     return Wind(fill(convert(T, u), nvals),
                 fill(convert(T, v), nvals),
@@ -231,11 +247,11 @@ A simple direction type representing if a boundary is the western boundary in a 
 struct West<:AbstractDirection end
 
 """
-    boundary_coords(grid::Grid, ::North)
+    boundary_coords(grid::AbstractGrid, ::North)
 
 Determine coordinates of northen-most boundary of domain if around the edge of the grid.
 Inputs:
-        grid    <Grid> model grid
+        grid    <AbstractGrid> model grid
                 <North> boundary direction
 Output:
         PolyVec of boundary coordinates. These coordinates describe a rectangle that has a length 2-times
@@ -244,7 +260,7 @@ Output:
         pieces of floes from passing outside the boundary before the next timestep - possibly too cautious.
         If boundary_coords methods are used for each direction, corners will be shared between adjacent boundaries. 
 """
-function boundary_coords(grid::Grid, ::North)
+function boundary_coords(grid::AbstractGrid, ::North)
     Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
     Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
     return grid.yg[end],  # val
@@ -256,16 +272,16 @@ function boundary_coords(grid::Grid, ::North)
 end
 
 """
-    boundary_coords(grid::Grid, ::South)
+    boundary_coords(grid::AbstractGrid, ::South)
 
 Determine coordinates of southern-most boundary of domain if around the edge of the grid.
 Inputs:
-        grid    <Grid> model grid
+        grid    <AbstractGrid> model grid
                 <South> boundary direction
 Output:
         PolyVec of boundary coordinates. See documentation of North method of this function for more details. 
 """
-function boundary_coords(grid::Grid, ::South)
+function boundary_coords(grid::AbstractGrid, ::South)
     Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
     Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
     return grid.yg[1],  # val
@@ -277,16 +293,16 @@ function boundary_coords(grid::Grid, ::South)
 end
 
 """
-    boundary_coords(grid::Grid, ::East)
+    boundary_coords(grid::AbstractGrid, ::East)
 
 Determine coordinates of eastern-most boundary of domain if around the edge of the grid.
 Inputs:
-        grid    <Grid> model grid
+        grid    <AbstractGrid> model grid
                 <East> boundary direction
 Output:
         PolyVec of boundary coordinates. See documentation of North method of this function for more details. 
 """
-function boundary_coords(grid::Grid, ::East)
+function boundary_coords(grid::AbstractGrid, ::East)
     Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
     Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
     return grid.xg[end],  # val
@@ -298,16 +314,16 @@ function boundary_coords(grid::Grid, ::East)
 end
 
 """
-    boundary_coords(grid::Grid, ::West)
+    boundary_coords(grid::AbstractGrid, ::West)
 
 Determine coordinates of western-most boundary of domain if around the edge of the grid.
 Inputs:
-        grid    <Grid> model grid
+        grid    <AbstractGrid> model grid
                 <West> boundary direction
 Output:
         PolyVec of boundary coordinates. See documentation of North method of this function for more details. 
 """
-function boundary_coords(grid::Grid, ::West)
+function boundary_coords(grid::AbstractGrid, ::West)
     Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
     Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
     return grid.xg[1],  # val
@@ -375,17 +391,17 @@ function OpenBoundary(coords, val, direction::AbstractDirection)
 end
 
 """
-    OpenBoundary(grid::Grid, direction)
+    OpenBoundary(grid::AbstractGrid, direction)
 
 Creates open boundary on the edge of the grid, and with the direction as a type.
 Edge is determined by direction.
 Inputs:
-        grid        <Grid> model grid
+        grid        <AbstractGrid> model grid
         direction   <AbstractDirection> direction of boundary wall
 Outputs:
         Open Boundary on edge of grid given by direction. 
 """
-function OpenBoundary(grid::Grid, direction)
+function OpenBoundary(grid::AbstractGrid, direction)
     val, coords = boundary_coords(grid, direction)
     OpenBoundary(coords, val, direction)
 end
@@ -419,17 +435,17 @@ function PeriodicBoundary(coords, val, direction::AbstractDirection)
 end
 
 """
-    PeriodicBoundary(grid::Grid, direction)
+    PeriodicBoundary(grid::AbstractGrid, direction)
 
 Creates periodic boundary on the edge of the grid, and with the direction as a type.
 Edge is determined by direction.
 Inputs:
-        grid        <Grid> model grid
+        grid        <AbstractGrid> model grid
         direction   <AbstractDirection> direction of boundary wall
 Outputs:
         Periodic Boundary on edge of grid given by direction. 
 """
-function PeriodicBoundary(grid::Grid, direction)
+function PeriodicBoundary(grid::AbstractGrid, direction)
     val, coords = boundary_coords(grid, direction)
     PeriodicBoundary(coords, val, direction)
 end
@@ -461,17 +477,17 @@ function CollisionBoundary(coords, val, direction::AbstractDirection)
 end
 
 """
-    CollisionBoundary(grid::Grid, direction)
+    CollisionBoundary(grid::AbstractGrid, direction)
 
 Creates collision boundary on the edge of the grid, and with the direction as a type.
 Edge is determined by direction.
 Inputs:
-        grid        <Grid> model grid
+        grid        <AbstractGrid> model grid
         direction   <AbstractDirection> direction of boundary wall
 Outputs:
         Collision Boundary on edge of grid given by direction. 
 """
-function CollisionBoundary(grid::Grid, direction)
+function CollisionBoundary(grid::AbstractGrid, direction)
     val, coords = boundary_coords(grid, direction)
     CollisionBoundary(coords, val, direction)
 end
@@ -507,21 +523,27 @@ function CompressionBoundary(coords, val, velocity, direction::AbstractDirection
 end
 
 """
-    CompressionBoundary(grid::Grid, direction)
+    CompressionBoundary(grid::AbstractGrid, direction)
 
 Creates compression boundary on the edge of the grid, and with the direction as a type.
 Edge is determined by direction.
 Inputs:
-        grid        <Grid> model grid
+        grid        <AbstractGrid> model grid
         direction   <AbstractDirection> direction of boundary wall
 Outputs:
         Open Boundary on edge of grid given by direction. 
 """
-function CompressionBoundary(grid::Grid, direction, velocity)
+function CompressionBoundary(grid::AbstractGrid, direction, velocity)
     val, coords = boundary_coords(grid, direction)
     CompressionBoundary(coords, val, velocity, direction)
 end
 
+"""
+    NonPeriodicBoundary
+
+Union of all non-peridic boundary types to use as shorthand for dispatch.
+"""
+const NonPeriodicBoundary = Union{OpenBoundary, CollisionBoundary, CompressionBoundary}
 
 """
     TopographyE{FT}<:AbstractDomainElement{FT}
@@ -677,7 +699,7 @@ Singular sea ice floe with fields describing current state.
     p_dαdt::FT = 0.0        # previous timestep ξ
 end
 
-function generate_mc_points(npoints, xfloe, yfloe, rmax, area, t::Type{T} = Float64) where T
+function generate_mc_points(npoints, xfloe, yfloe, rmax, area, ::Type{T} = Float64) where T
     mc_x = rmax * (2rand(T, Int(npoints)) .- 1)
     mc_y = rmax * (2rand(T, Int(npoints)) .- 1)
     mc_in = inpoly2(hcat(mc_x, mc_y), hcat(xfloe, yfloe))
@@ -699,7 +721,7 @@ Inputs:
         v           <Real> y-velcoity of the floe - default 0.0
         ksi         <Real> angular velocity of the floe - default 0.0
         mc_n        <Real> number of monte carlo points
-        t           <Type> datatype to convert ocean fields - must be a Float!
+        t           <Float> datatype to run simulation with - either Float32 or Float64
 Output:
         Floe with needed fields defined - all default field values used so all forcings start at 0 and floe is "alive".
         Velocities and the density of ice can be optionally set.
@@ -761,21 +783,21 @@ Output:
         Floe with needed fields defined - all default field values used so all forcings and velocities start at 0 and floe is "alive"
 """
 Floe(coords::PolyVec{<:Real}, h_mean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n = 1000.0, t::Type{T} = Float64) where T =
-    Floe(LG.Polygon(convert(PolyVec{Float64}, coords)), h_mean, Δh, ρi, u, v, ξ, mc_n, T) 
+    Floe(LG.Polygon(convert(PolyVec{Float64}, valid_polyvec!(rmholes(coords)))), h_mean, Δh; ρi = ρi, u = u, v = v, ξ = ξ, mc_n = mc_n, t = T) 
     # Polygon convert is needed since LibGEOS only takes Float64 - when this is fixed convert can be removed
 
 """
-    domain_in_grid(domain::Domain, grid)
+    domain_in_grid(domain::Domain, grid::AbstractGrid)
 
 Checks if given rectangular domain is within given grid and gives user a warning if domain is not of maximum possible size given grid dimensions.
 
 Inputs:
         domain      <RectangularDomain>
-        grid        <Grid>
+        grid        <AbstractGrid>
 Outputs:
         <Boolean> true if domain is within grid bounds, else false
 """
-function domain_in_grid(domain::Domain, grid)
+function domain_in_grid(domain::Domain, grid::AbstractGrid)
     northval = domain.north.val
     southval = domain.south.val
     eastval = domain.east.val
@@ -800,8 +822,8 @@ Model which holds grid, ocean, wind structs, each with the same underlying float
 It also holds the domain information, which includes the topography and the boundaries.
 Finally, it holds an StructArray of floe structs, again each relying on the same underlying float type.
 """
-struct Model{FT<:AbstractFloat, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}}
-    grid::Grid{FT}
+struct Model{FT<:AbstractFloat, GT<:AbstractGrid{FT}, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}}
+    grid::GT
     ocean::Ocean{FT}
     wind::Wind{FT}
     domain::DT
@@ -809,6 +831,6 @@ struct Model{FT<:AbstractFloat, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBou
 
     Model(grid, ocean, wind, domain, floes) =
         ((grid.dims .+ 1) == size(ocean.u) == size(wind.u) && domain_in_grid(domain, grid)) ?
-        new{eltype(ocean.u), typeof(domain)}(grid, ocean, wind, domain, floes) :
+        new{eltype(ocean.u), typeof(grid), typeof(domain)}(grid, ocean, wind, domain, floes) :
         throw(ArgumentError("Size of grid does not match size of ocean and/or wind OR domain is not within grid."))
 end

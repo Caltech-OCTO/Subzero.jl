@@ -3,6 +3,24 @@ Structs and functions to calculate and write output from the simulation
 """
 
 """
+    rect_coords(xmin, xmax, ymin, ymax)
+
+PolyVec coordinates of a rectangle given minimum and maximum x and y coordinates
+Inputs:
+    xmin    <Float> minimum x coordinate of rectangle
+    xmax    <Float> maximum x coordinate of rectangle
+    ymin    <Float> minimum y coordiante of rectangle
+    ymax    <Float> maximum y coordiante of rectangle
+Output:
+    PolyVect coordinates for edges of rectangle with given minimums and maximums
+"""
+function rect_coords(xmin, xmax, ymin, ymax)
+return [[[xmin, ymax], [xmin, ymin],
+         [xmax, ymin], [xmax, ymax],
+         [xmin, ymax]]]
+end
+
+"""
     GridOutput
 
 Options for averaged grid output. A list of these GridOutput objects is provided to the
@@ -242,7 +260,7 @@ Inputs:
 Output:
         GridOutputWriter that re-grids given grid to given dimensions, and number of timesteps between saving averaged output on this re-gridded grid to filename.
 """
-function GridOutputWriter(outputs, Δtout, fn, grid::Grid, dims, t::Type{T} = Float64) where T
+function GridOutputWriter(outputs, Δtout, fn, grid::AbstractGrid, dims, ::Type{T} = Float64) where T
     # Define output grid
     lx = grid.xg[1]
     ux = grid.xg[end]
@@ -293,7 +311,7 @@ Output:
         FloeOutputWriter that holds desired floe fields to save to given filename and the number of timesteps between saving this output.
         Grid extents is saved as metadata for plotting.
 """
-FloeOutputWriter(outputs, Δtout, fn, grid::Grid) = FloeOutputWriter(outputs, Δtout, fn, grid.xg, grid.yg)
+FloeOutputWriter(outputs, Δtout, fn, grid::AbstractGrid) = FloeOutputWriter(outputs, Δtout, fn, grid.xg, grid.yg)
 
 """
     setup_output_file!(writer::GridOutputWriter, nΔt, t::Type{T} = Float64)
@@ -435,7 +453,7 @@ function calc_eulerian_data!(live_floes, topography, writer)
             pint = potential_interactions[i,j,:]
             # If there are any potential interactions
             if sum(pint) > 0
-                cell_poly = LG.Polygon(cell_coords(writer.xg[j], writer.xg[j+1], writer.yg[i], writer.yg[i+1]))
+                cell_poly = LG.Polygon(rect_coords(writer.xg[j], writer.xg[j+1], writer.yg[i], writer.yg[i+1]))
                 if length(topography) > 0
                     topography_poly = LG.MultiPolygon(topography.coords)
                     cell_poly = LG.difference(cell_poly, topography_poly)
