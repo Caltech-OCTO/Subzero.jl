@@ -184,10 +184,15 @@ struct Wind{FT<:AbstractFloat}
     v::Matrix{FT}
     temp::Matrix{FT}
 
-    Wind(u, v, temp) =
-    (size(u) == size(v) == size(temp)) ?
-    new{eltype(u)}(u, v, temp) :
-    throw(ArgumentError("All wind fields matricies must have the same dimensions."))
+    function Wind{FT}(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}) where {FT <: AbstractFloat}
+        if !(size(u) == size(v) == size(temp))
+            throw(ArgumentError("All wind fields matricies must have the same dimensions."))
+        end
+        new{FT}(u, v, temp)
+    end
+
+    Wind(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}) where {FT<:AbstractFloat} =
+        Wind{FT}(u, v, temp)
 end
 
 """
@@ -386,9 +391,9 @@ Inputs:
 Output:
         Open Boundary of type given by direction and defined by given coordinates and edge value
 """
-function OpenBoundary(coords, val, direction::AbstractDirection)
-    return OpenBoundary{typeof(direction), typeof(val)}(coords, val)
-end
+OpenBoundary(coords, val, direction::AbstractDirection) =
+    OpenBoundary{typeof(direction), typeof(val)}(coords, val)
+
 
 """
     OpenBoundary(grid::AbstractGrid, direction)
@@ -430,9 +435,8 @@ Inputs:
 Output:
         Periodic Boundary of type given by direction and defined by given coordinates and edge value
 """
-function PeriodicBoundary(coords, val, direction::AbstractDirection)
-    return PeriodicBoundary{typeof(direction), typeof(val)}(coords, val)
-end
+PeriodicBoundary(coords, val, direction::AbstractDirection) = 
+    PeriodicBoundary{typeof(direction), typeof(val)}(coords, val)
 
 """
     PeriodicBoundary(grid::AbstractGrid, direction)
@@ -472,9 +476,8 @@ Inputs:
 Output:
         Collision Boundary of type given by direction and defined by given coordinates and edge value
 """
-function CollisionBoundary(coords, val, direction::AbstractDirection)
-    return CollisionBoundary{typeof(direction), typeof(val)}(coords, val)
-end
+CollisionBoundary(coords, val, direction::AbstractDirection) =
+    CollisionBoundary{typeof(direction), typeof(val)}(coords, val)
 
 """
     CollisionBoundary(grid::AbstractGrid, direction)
@@ -518,9 +521,8 @@ Inputs:
 Output:
         Compression Boundary of type given by direction and defined by given coordinates and edge value
 """
-function CompressionBoundary(coords, val, velocity, direction::AbstractDirection)
-    return CompressionBoundary{typeof(direction), typeof(val)}(coords, val, velocity)
-end
+CompressionBoundary(coords, val, velocity, direction::AbstractDirection) =
+    CompressionBoundary{typeof(direction), typeof(val)}(coords, val, velocity)
 
 """
     CompressionBoundary(grid::AbstractGrid, direction)
@@ -559,9 +561,10 @@ struct TopographyElement{FT}<:AbstractDomainElement{FT}
     rmax::FT
 
     function TopographyElement{FT}(coords::PolyVec{FT}, centroid::Vector{FT}, rmax::FT) where {FT <: AbstractFloat}
-        rmax > 0 ? 
-            new{FT}(valid_polyvec!(rmholes(coords)), centroid, rmax) : 
+        if rmax <= 0
             throw(ArgumentError("Topography element maximum radius must be positive and non-zero."))
+        end
+        new{FT}(valid_polyvec!(rmholes(coords)), centroid, rmax)
     end
 
     TopographyElement(coords::PolyVec{FT}, centroid::Vector{FT}, rmax::FT) where {FT <: AbstractFloat} =
@@ -645,13 +648,24 @@ EB<:AbstractBoundary{East, FT}, WB<:AbstractBoundary{West, FT}}
     west::WB
     topography::StructArray{TopographyElement{FT}}
 
-    Domain(north, south, east, west, topography) = 
-        (periodic_compat(north, south) && periodic_compat(east, west)) &&
-        (north.val > south.val && east.val > west.val) ?
-        new{typeof(north.val), typeof(north), typeof(south), typeof(east), typeof(west)}(north, south, east, west, topography) : 
-        throw(ArgumentError("Periodic boundary must have matching opposite boundary and/or North value must be greater then South and East must be greater than West."))
-end
+    function Domain{FT, NB, SB, EB, WB}(north::NB, south::SB, east::EB, west::WB, topography::StructArray{TopographyElement{FT}}) where {FT<:AbstractFloat,
+    NB<:AbstractBoundary{North, FT}, SB<:AbstractBoundary{South, FT}, EB<:AbstractBoundary{East, FT}, WB<:AbstractBoundary{West, FT}}
+        if !periodic_compat(north, south)
+            throw(ArgumentError("North and south boundary walls are not periodically compatable as only one of them is periodic."))
+        elseif !periodic_compat(east, west)
+            throw(ArgumentError("East and west boundary walls are not periodically compatable as only one of them is periodic."))
+        elseif north.val < south.val
+            throw(ArgumentError("North boundary value is less than south boundary value."))
+        elseif east.val < west.val
+            throw(ArgumentError("East boundary value is less than west boundary value."))
+        end
+        new{FT, NB, SB, EB, WB}(north, south, east, west, topography)
+    end
 
+    Domain(north::NB, south::SB, east::EB, west::WB, topography::StructArray{TopographyElement{FT}}) where {FT<:AbstractFloat, NB<:AbstractBoundary{North, FT},
+    SB<:AbstractBoundary{South, FT}, EB<:AbstractBoundary{East, FT}, WB<:AbstractBoundary{West, FT}} =
+        Domain{FT, NB, SB, EB, WB}(north, south, east, west, topography)
+end
 
 Domain(north, south, east, west, ::Type{T} = Float64) where T =
     Domain(north, south, east, west, StructArray{TopographyElement{T}}(undef, 0, 0))
@@ -829,8 +843,17 @@ struct Model{FT<:AbstractFloat, GT<:AbstractGrid{FT}, DT<:Domain{FT, <:AbstractB
     domain::DT
     floes::StructArray{Floe{FT}}
 
-    Model(grid, ocean, wind, domain, floes) =
-        ((grid.dims .+ 1) == size(ocean.u) == size(wind.u) && domain_in_grid(domain, grid)) ?
-        new{eltype(ocean.u), typeof(grid), typeof(domain)}(grid, ocean, wind, domain, floes) :
-        throw(ArgumentError("Size of grid does not match size of ocean and/or wind OR domain is not within grid."))
+    function Model{FT, GT, DT}(grid::GT, ocean::Ocean{FT}, wind::Wind{FT}, domain::DT, floes::StructArray{Floe{FT}}) where {FT<:AbstractFloat,
+    GT<:AbstractGrid{FT}, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}}
+        if !domain_in_grid(domain, grid)
+            throw(ArgumentError("Domain does not fit within grid."))
+        elseif !((grid.dims .+ 1) == size(ocean.u) == size(wind.u))
+            throw(ArgumentError("Size of grid does not match with size of ocean and/or wind"))
+        end
+        new{FT, GT, DT}(grid, ocean, wind, domain, floes)
+    end
+
+    Model(grid::GT, ocean::Ocean{FT}, wind::Wind{FT}, domain::DT, floes::StructArray{Floe{FT}}) where {FT<:AbstractFloat,
+    GT<:AbstractGrid{FT}, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}} = 
+        Model{FT, GT, DT}(grid, ocean, wind, domain, floes)
 end

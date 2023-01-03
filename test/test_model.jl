@@ -89,9 +89,9 @@
         @test wind.v == vwind
         @test wind.temp == tempwind
         # Default constructor fails for non-matching dimensions
-        @test_throws ArgumentError Subzero.Wind(Float64[0.0], vwind, tempwind)
-        @test_throws ArgumentError Subzero.Wind(uwind, Float64[0.0], tempwind)
-        @test_throws ArgumentError Subzero.Wind(uwind, vwind, Float64[0.0])
+        @test_throws ArgumentError Subzero.Wind(Matrix{Float64}(undef, 0, 0), vwind, tempwind)
+        @test_throws ArgumentError Subzero.Wind(uwind, Matrix{Float64}(undef, 0, 0), tempwind)
+        @test_throws ArgumentError Subzero.Wind(uwind, vwind, Matrix{Float64}(undef, 0, 0))
         # Custom constructor
         wind2 = Subzero.Wind(g, 3.0, 4.0, -2.0)
         @test wind.u == wind2.u
@@ -102,7 +102,7 @@
               Subzero.Wind{Float32}
     end
 
-    @testset "Boundary and Domain" begin
+    @testset "Boundaries" begin
         # Boundary
         g = Subzero.RegRectilinearGrid(0, 4e5, 0, 3e5, 1e4, 1e4)
         b1 = Subzero.PeriodicBoundary(g, Subzero.North())
@@ -118,6 +118,10 @@
         @test b3.coords == [[[-2e5, -1.5e5], [-2e5, 4.5e5], [0.0, 4.5e5], [0.0, -1.5e5], [-2e5, -1.5e5]]]
         @test b5.velocity == 1.0
 
+        # Test changing CompressionBoundary values
+
+        # Test changing CollisionBoundary values
+
         # Need to add in ability to run with Float32
         #b32 = Subzero.OpenBoundary(Subzero.OpenBC(), 1, Float32)
         #@test typeof(b32.val) == Float32
@@ -128,13 +132,18 @@
         @test Subzero.periodic_compat(b1, b4)
         @test Subzero.periodic_compat(b2, b3)
 
+        # Test Boundary Coords
+
+        
+
         # RectangularDomain default constructor
         rdomain1 = Subzero.Domain(b1, b4, b2, b3)
         @test rdomain1.north == b1
 
-        # RectangularDomain fails
-        # need checks for val not being correct
-        @test_throws ArgumentError Subzero.Domain(b4, b2, b2, b3)
+        # Domain fails
+        # Directions are not correct
+        @test_throws MethodError Subzero.Domain(b4, b2, b2, b3)
+        @test_throws ArgumentError Subzero.Domain(b1, Subzero.OpenBoundary(g, Subzero.South()), b2, b3)
         #@test_throws MethodError Subzero.Domain(b4, b1, b3, b32)
     end
 
@@ -150,13 +159,30 @@
         # Coords Constructor
         topo2 = Subzero.TopographyElement(coords)
         @test topo2.coords == coords
+
+        # check when radius is less than  or equal to 0
+    end
+
+    @testset "Domain" begin
+        # test basic domain
+        # domain with wrong directions
+        # domain with non-periodic 
+        # domain with north < south
+        # domain with east < west
     end
 
     @testset "Floe" begin
+        # test generate MC points
+        # test with polygon inputs
+        # test with coords input
         
     end
 
     @testset "Model" begin
-        
+        # test domain in grid
+        # test basic working model
+        # test model where domain isn't in grid
+        # test model where size of grid and ocean/wind doesn't match
+        # test model where types don't match up 
     end
 end
