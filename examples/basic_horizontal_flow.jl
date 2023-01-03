@@ -14,29 +14,10 @@ const newfloe_Δt = 500
 const coarse_nx = 10
 const coarse_ny = 10
 
-
-g = Subzero.RegRectilinearGrid(0, 4e5, 0, 3e5, 1e4, 1e4)
-# Large ocean default constructor
-uocn = fill(3.0, g.dims .+ 1)
-vocn = fill(4.0, g.dims .+ 1)
-tempocn = fill(-2.0, g.dims .+ 1)
-fx = fill(0.0, g.dims .+ 1)
-fy = fx
-si_area = fx
-hflx = fx
-Subzero.Ocean(Matrix{Float64}(undef, 0, 0), vocn, tempocn, hflx, fx, fy, si_area)
-
 # Model instantiation
 grid = RegRectilinearGrid(-Lx, Lx, -Ly, Ly, Δgrid, Δgrid)
 ocean = Ocean(grid, 0.0, 0.0, 0.0)
-#wind = Wind(zeros(grid.dims .+ 1), zeros(grid.dims .+ 1), fill(-20.0, grid.dims .+ 1))
-xgrid, ygrid = Subzero.grids_from_lines(grid.xg, grid.yg)
-psi_wind = 0.5e4*(sin.(4*(π/4e5).*xgrid) .* sin.(4*(π/4e5).*ygrid))
-uwind = zeros(size(xgrid))
-uwind[2:end, :] = -1e-4*(psi_wind[2:end, :] .- psi_wind[1:end-1, :])
-vwind = zeros(size(ygrid))
-vwind[:, 2:end] =  1e-4*(psi_wind[:, 2:end] .- psi_wind[:, 1:end-1])
-wind = Wind(uwind, vwind, fill(0.0, grid.dims .+ 1))
+atmos = Atmos(zeros(grid.dims .+ 1), zeros(grid.dims .+ 1), fill(-20.0, grid.dims .+ 1))
 
 # Domain creation - boundaries and topography
 nboundary = CollisionBoundary(grid, North())
@@ -59,7 +40,7 @@ jldopen("test/test_mc_points.jld2", "r") do f
 end
 floe_arr = StructArray([floe1])
 
-model = Model(grid, ocean, wind, domain, floe_arr)
+model = Model(grid, ocean, atmos, domain, floe_arr)
 
 # Simulation setup
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))

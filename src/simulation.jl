@@ -152,15 +152,15 @@ Update model's ocean and heat flux from atmosphere effects.
 Input:
         m <Model>
 Outputs: 
-        None. The ocean stress fields are updated from wind stress.
-        Heatflux is also updated with ocean and wind temperatures. 
+        None. The ocean stress fields are updated from atmos stress.
+        Heatflux is also updated with ocean and atmos temperatures. 
 """
 function timestep_atm!(m, c)
-    Δu_AO = m.wind.u .- m.ocean.u
-    Δv_AO = m.wind.v .- m.ocean.v
+    Δu_AO = m.atmos.u .- m.ocean.u
+    Δv_AO = m.atmos.v .- m.ocean.v
     m.ocean.taux .= c.ρa  *c.Cd_ao * sqrt.(Δu_AO.^2 + Δv_OI.^2) .* Δu_AO
     m.ocean.tauy .= c.ρa * c.Cd_ao * sqrt.(Δu_AO.^2 + Δv_OI.^2) .* Δv_AO
-    m.hflx .= c.k/(c.ρi*c.L) .* (wind.temp .- ocean.temp)
+    m.hflx .= c.k/(c.ρi*c.L) .* (atmos.temp .- ocean.temp)
 end
 
 function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
@@ -220,7 +220,7 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
     for idx in remove_idx
         StructArrays.foreachfield(f -> deleteat!(f, idx), m.floes)
     end
-    m.ocean.hflx .= sim.consts.k/(sim.consts.ρi*sim.consts.L) .* (m.wind.temp .- m.ocean.temp)
+    m.ocean.hflx .= sim.consts.k/(sim.consts.ρi*sim.consts.L) .* (m.atmos.temp .- m.ocean.temp)
     # h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx)))
     # mean(h0)
 

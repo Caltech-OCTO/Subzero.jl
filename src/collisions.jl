@@ -280,7 +280,7 @@ Inputs:
 Outputs: None. All forces in the x direction set to 0 if the point the force is applied is the northern or southern boundary value.
 """
 function normal_direction_correct!(forces, fpoints, boundary::Union{AbstractBoundary{North, <:AbstractFloat},
-                                                                    AbstractBoundary{South, <:AbstractFloat}}, ::Type{T} = Float64) where T
+AbstractBoundary{South, <:AbstractFloat}}, ::Type{T} = Float64) where T
     forces[fpoints[:, 2] .== boundary.val, 1] .= T(0.0)
     return
 end
