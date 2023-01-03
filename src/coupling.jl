@@ -478,9 +478,9 @@ function floe_OA_forcings!(floe, m, c, Δd, ::Type{T} = Float64) where T
         xknots, xknot_idx = find_interp_knots(mc_cols, m.grid.xg, Δd, m.domain.east, T)
         yknots, yknot_idx = find_interp_knots(mc_rows, m.grid.yg, Δd, m.domain.north, T)
 
-        # Wind Interpolation for Monte Carlo Points
-        uatm_interp = linear_interpolation((yknots, xknots), m.wind.u[yknot_idx, xknot_idx])
-        vatm_interp = linear_interpolation((yknots, xknots), m.wind.v[yknot_idx, xknot_idx])
+        # Atmos Interpolation for Monte Carlo Points
+        uatm_interp = linear_interpolation((yknots, xknots), m.atmos.u[yknot_idx, xknot_idx])
+        vatm_interp = linear_interpolation((yknots, xknots), m.atmos.v[yknot_idx, xknot_idx])
         vals = [uatm_interp(mc_yr[i], mc_xr[i]) for i in eachindex(mc_xr)]
         avg_uatm = mean([uatm_interp(mc_yr[i], mc_xr[i]) for i in eachindex(mc_xr)])
         avg_vatm = mean([vatm_interp(mc_yr[i], mc_xr[i]) for i in eachindex(mc_xr)])

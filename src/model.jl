@@ -175,42 +175,42 @@ function Ocean(grid::AbstractGrid, u, v, temp, ::Type{T} = Float64) where T
 end
 
 """
-Wind velocities in the x-direction (u) and y-direction (v). u and v should match the size of the corresponding
-model grid so that there is one x and y velocity value for each grid cell. Wind also needs temperature at the
-atmosphere/ice interface in each grid cell. Model cannot be constructed if size of wind and grid do not match.
+Atmos velocities in the x-direction (u) and y-direction (v). u and v should match the size of the corresponding
+model grid so that there is one x and y velocity value for each grid cell. Atmos also needs temperature at the
+atmosphere/ice interface in each grid cell. Model cannot be constructed if size of atmos fields and grid do not match.
 """
-struct Wind{FT<:AbstractFloat}
+struct Atmos{FT<:AbstractFloat}
     u::Matrix{FT}
     v::Matrix{FT}
     temp::Matrix{FT}
 
-    function Wind{FT}(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}) where {FT <: AbstractFloat}
+    function Atmos{FT}(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}) where {FT <: AbstractFloat}
         if !(size(u) == size(v) == size(temp))
-            throw(ArgumentError("All wind fields matricies must have the same dimensions."))
+            throw(ArgumentError("All atmos fields matricies must have the same dimensions."))
         end
         new{FT}(u, v, temp)
     end
 
-    Wind(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}) where {FT<:AbstractFloat} =
-        Wind{FT}(u, v, temp)
+    Atmos(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}) where {FT<:AbstractFloat} =
+        Atmos{FT}(u, v, temp)
 end
 
 """
-    Wind(grid, u, v, FT)
+    Atmos(grid, u, v, FT)
 
-Construct model atmosphere/wind.
+Construct model atmosphere.
 Inputs: 
         grid    <AbstractGrid> model grid cell
-        u       <Real> wind x-velocity for each grid cell
-        v       <Real> wind y-velocity for each grid cell
+        u       <Real> Atmos x-velocity for each grid cell
+        v       <Real> Atmos y-velocity for each grid cell
         temp    <Real> temperature at atmopshere/ice interface per grid cell
-        t       <Type> datatype to convert ocean fields - must be a Float!
+                <Type> datatype to convert ocean fields - must be a Float!
 Output: 
         Ocean with constant velocity and temperature in each grid cell.
 """
-function Wind(grid::AbstractGrid, u, v, temp, ::Type{T} = Float64) where T
+function Atmos(grid::AbstractGrid, u, v, temp, ::Type{T} = Float64) where T
     nvals = grid.dims .+ 1  # one value per grid line - not grid cell 
-    return Wind(fill(convert(T, u), nvals),
+    return Atmos(fill(convert(T, u), nvals),
                 fill(convert(T, v), nvals),
                 fill(convert(T, temp), nvals))
 end
@@ -388,11 +388,12 @@ Inputs:
         coords      <PolyVec{AbstractFloat}> coordinates of boundary
         val         <AbstractFloat> value defining line that marks edge of domain
         direction   <AbstractDirection> direction of boundary wall
+                    <Float> datatype simulation is run in - either Float64 of Float32
 Output:
         Open Boundary of type given by direction and defined by given coordinates and edge value
 """
-OpenBoundary(coords, val, direction::AbstractDirection) =
-    OpenBoundary{typeof(direction), typeof(val)}(coords, val)
+OpenBoundary(coords, val, direction::AbstractDirection, ::Type{T} = Float64) where T =
+    OpenBoundary{typeof(direction), T}(convert(PolyVec{T}, coords), convert(T, val))
 
 
 """
@@ -403,12 +404,13 @@ Edge is determined by direction.
 Inputs:
         grid        <AbstractGrid> model grid
         direction   <AbstractDirection> direction of boundary wall
+        <Float> datatype simulation is run in - either Float64 of Float32
 Outputs:
         Open Boundary on edge of grid given by direction. 
 """
-function OpenBoundary(grid::AbstractGrid, direction)
+function OpenBoundary(grid::AbstractGrid, direction, ::Type{T} = Float64) where T
     val, coords = boundary_coords(grid, direction)
-    OpenBoundary(coords, val, direction)
+    OpenBoundary(coords, val, direction, T)
 end
 
 """
@@ -432,11 +434,12 @@ Inputs:
         coords      <PolyVec{AbstractFloat}> coordinates of boundary
         val         <AbstractFloat> value defining line that marks edge of domain
         direction   <AbstractDirection> direction of boundary wall
+                    <Float> datatype simulation is run in - either Float64 of Float32
 Output:
         Periodic Boundary of type given by direction and defined by given coordinates and edge value
 """
-PeriodicBoundary(coords, val, direction::AbstractDirection) = 
-    PeriodicBoundary{typeof(direction), typeof(val)}(coords, val)
+PeriodicBoundary(coords, val, direction::AbstractDirection, ::Type{T} = Float64) where T =
+    PeriodicBoundary{typeof(direction), T}(convert(PolyVec{T}, coords), convert(T, val))
 
 """
     PeriodicBoundary(grid::AbstractGrid, direction)
@@ -446,12 +449,13 @@ Edge is determined by direction.
 Inputs:
         grid        <AbstractGrid> model grid
         direction   <AbstractDirection> direction of boundary wall
+        <Float> datatype simulation is run in - either Float64 of Float32
 Outputs:
         Periodic Boundary on edge of grid given by direction. 
 """
-function PeriodicBoundary(grid::AbstractGrid, direction)
+function PeriodicBoundary(grid::AbstractGrid, direction, ::Type{T} = Float64) where T
     val, coords = boundary_coords(grid, direction)
-    PeriodicBoundary(coords, val, direction)
+    PeriodicBoundary(coords, val, direction, T)
 end
 
 """
@@ -473,11 +477,12 @@ Inputs:
         coords      <PolyVec{AbstractFloat}> coordinates of boundary
         val         <AbstractFloat> value defining line that marks edge of domain
         direction   <AbstractDirection> direction of boundary wall
+                    <Float> datatype simulation is run in - either Float64 of Float32
 Output:
         Collision Boundary of type given by direction and defined by given coordinates and edge value
 """
-CollisionBoundary(coords, val, direction::AbstractDirection) =
-    CollisionBoundary{typeof(direction), typeof(val)}(coords, val)
+CollisionBoundary(coords, val, direction::AbstractDirection, ::Type{T} = Float64) where T =
+    CollisionBoundary{typeof(direction), T}(convert(PolyVec{T}, coords), convert(T, val))
 
 """
     CollisionBoundary(grid::AbstractGrid, direction)
@@ -487,12 +492,13 @@ Edge is determined by direction.
 Inputs:
         grid        <AbstractGrid> model grid
         direction   <AbstractDirection> direction of boundary wall
+                    <Float> datatype simulation is run in - either Float64 of Float32
 Outputs:
         Collision Boundary on edge of grid given by direction. 
 """
-function CollisionBoundary(grid::AbstractGrid, direction)
+function CollisionBoundary(grid::AbstractGrid, direction, ::Type{T} = Float64) where T
     val, coords = boundary_coords(grid, direction)
-    CollisionBoundary(coords, val, direction)
+    CollisionBoundary(coords, val, direction, T)
 end
 """
     CompressionBC <: AbstractBC
@@ -518,11 +524,12 @@ Inputs:
         coords      <PolyVec{AbstractFloat}> coordinates of boundary
         val         <AbstractFloat> value defining line that marks edge of domain
         direction   <AbstractDirection> direction of boundary wall
+                    <Float> datatype simulation is run in - either Float64 of Float32
 Output:
         Compression Boundary of type given by direction and defined by given coordinates and edge value
 """
-CompressionBoundary(coords, val, velocity, direction::AbstractDirection) =
-    CompressionBoundary{typeof(direction), typeof(val)}(coords, val, velocity)
+CompressionBoundary(coords, val, velocity, direction::AbstractDirection, ::Type{T} = Float64) where T =
+    CompressionBoundary{typeof(direction), T}(convert(PolyVec{T}, coords), convert(T, val), convert(T, velocity))
 
 """
     CompressionBoundary(grid::AbstractGrid, direction)
@@ -532,12 +539,13 @@ Edge is determined by direction.
 Inputs:
         grid        <AbstractGrid> model grid
         direction   <AbstractDirection> direction of boundary wall
+        <Float> datatype simulation is run in - either Float64 of Float32
 Outputs:
         Open Boundary on edge of grid given by direction. 
 """
-function CompressionBoundary(grid::AbstractGrid, direction, velocity)
+function CompressionBoundary(grid::AbstractGrid, direction, velocity, ::Type{T} = Float64) where T
     val, coords = boundary_coords(grid, direction)
-    CompressionBoundary(coords, val, velocity, direction)
+    CompressionBoundary(coords, val, velocity, direction, T)
 end
 
 """
@@ -695,9 +703,9 @@ Singular sea ice floe with fields describing current state.
     # Status
     alive::Int = 1          # floe is still active in simulation
     # Forces/Collisions
-    fxOA::FT = 0.0          # force from ocean and wind in x direction
-    fyOA::FT = 0.0          # force from ocean and wind in y direction
-    trqOA::FT = 0.0      # torque from ocean and wind
+    fxOA::FT = 0.0          # force from ocean and atmos in x direction
+    fyOA::FT = 0.0          # force from ocean and atmos in y direction
+    trqOA::FT = 0.0      # torque from ocean and Atmos
     hflx::FT = 0.0          # heat flux under the floe
     overarea::FT = 0.0      # total overlap with other floe
     collision_force::Matrix{FT} = [0.0 0.0] 
@@ -713,6 +721,24 @@ Singular sea ice floe with fields describing current state.
     p_dαdt::FT = 0.0        # previous timestep ξ
 end
 
+"""
+    generate_mc_points(npoints, xfloe, yfloe, rmax, area, ::Type{T} = Float64)
+
+Generate monte carlo points, determine which are within the given floe, and the error associated with the points
+Inputs:
+        npoints     <Int> number of points to generate
+        xfloe       <Vector{Float}> vector of floe x-coordinates
+        yfloe       <Vector{Float}> vector of floe y-coordinates
+        rmax        <Int> floe maximum radius
+        area        <Int> floe area
+        T           <Float> datatype simulation is run in - either Float64 of Float32
+Outputs:
+        mc_x        <Vector{T}> vector of monte carlo point x-coordinates
+        mc_y        <Vector{T}> vector of monte carlo point y-coordinates
+        mc_in       <Vector{Bool}> vector of bools representing if each
+                                   monte carlo point is within the given polygon
+        err         <Float> error associated with given monte carlo points
+"""
 function generate_mc_points(npoints, xfloe, yfloe, rmax, area, ::Type{T} = Float64) where T
     mc_x = rmax * (2rand(T, Int(npoints)) .- 1)
     mc_y = rmax * (2rand(T, Int(npoints)) .- 1)
@@ -832,28 +858,28 @@ function domain_in_grid(domain::Domain, grid::AbstractGrid)
 end
 
 """
-Model which holds grid, ocean, wind structs, each with the same underlying float type (either Float32 of Float64) and size.
+Model which holds grid, ocean, atmos structs, each with the same underlying float type (either Float32 of Float64) and size.
 It also holds the domain information, which includes the topography and the boundaries.
 Finally, it holds an StructArray of floe structs, again each relying on the same underlying float type.
 """
 struct Model{FT<:AbstractFloat, GT<:AbstractGrid{FT}, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}}
     grid::GT
     ocean::Ocean{FT}
-    wind::Wind{FT}
+    atmos::Atmos{FT}
     domain::DT
     floes::StructArray{Floe{FT}}
 
-    function Model{FT, GT, DT}(grid::GT, ocean::Ocean{FT}, wind::Wind{FT}, domain::DT, floes::StructArray{Floe{FT}}) where {FT<:AbstractFloat,
+    function Model{FT, GT, DT}(grid::GT, ocean::Ocean{FT}, atmos::Atmos{FT}, domain::DT, floes::StructArray{Floe{FT}}) where {FT<:AbstractFloat,
     GT<:AbstractGrid{FT}, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}}
         if !domain_in_grid(domain, grid)
             throw(ArgumentError("Domain does not fit within grid."))
-        elseif !((grid.dims .+ 1) == size(ocean.u) == size(wind.u))
-            throw(ArgumentError("Size of grid does not match with size of ocean and/or wind"))
+        elseif !((grid.dims .+ 1) == size(ocean.u) == size(atmos.u))
+            throw(ArgumentError("Size of grid does not match with size of ocean and/or atmos"))
         end
-        new{FT, GT, DT}(grid, ocean, wind, domain, floes)
+        new{FT, GT, DT}(grid, ocean, atmos, domain, floes)
     end
 
-    Model(grid::GT, ocean::Ocean{FT}, wind::Wind{FT}, domain::DT, floes::StructArray{Floe{FT}}) where {FT<:AbstractFloat,
+    Model(grid::GT, ocean::Ocean{FT}, atmos::Atmos{FT}, domain::DT, floes::StructArray{Floe{FT}}) where {FT<:AbstractFloat,
     GT<:AbstractGrid{FT}, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}} = 
-        Model{FT, GT, DT}(grid, ocean, wind, domain, floes)
+        Model{FT, GT, DT}(grid, ocean, atmos, domain, floes)
 end

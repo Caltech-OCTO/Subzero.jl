@@ -26,8 +26,8 @@ Expected Behavior:
 zero_ocn = Ocean(grid, 0.0, 0.0, 0.0)
 meridional_ocn = Ocean(grid, 0.0, 1.0, 0.0)
 
-zero_wind = Wind(grid, 0.0, 0.0, 0.0)
-zonal_wind = Wind(grid, 3.0, 0.0, 0.0)
+zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
+zonal_atmos = Atmos(grid, 3.0, 0.0, 0.0)
 
 open_domain_no_topo = Subzero.Domain(OpenBoundary(grid, North()),
                                      OpenBoundary(grid, South()),
@@ -62,15 +62,15 @@ sim_arr = Vector{Simulation}(undef, 0)
 Simulation 1: One floe pushed by meridional (south-to-north) 1m/s ocean flow. Floe is initally stationary.
 Expected Behavior: Floe velocity quickly reaches ocean velocity and flows northward. 
 """
-model1 = Model(grid, meridional_ocn, zero_wind, open_domain_no_topo, deepcopy(stationary_rect_floe))
+model1 = Model(grid, meridional_ocn, zero_atmos, open_domain_no_topo, deepcopy(stationary_rect_floe))
 simulation1 = Simulation(name = "sim1", model = model1, consts = standard_consts, Δt = 10, nΔt = nΔt, COLLISION = false)
 push!(sim_arr, simulation1)
 """
-Simulation 2: One floe pushed by zonal (west-to-east) 1m/s wind flow. Ocean-ice drag coefficent set to 0.
+Simulation 2: One floe pushed by zonal (west-to-east) 1m/s atmos flow. Ocean-ice drag coefficent set to 0.
             Floe is initally stationary.
 Expected Behavior: Floe should drift to the right due to Coriolis force in the northern hemisphere. 
 """
-model2 = Model(grid, zero_ocn, zonal_wind, open_domain_no_topo, deepcopy(stationary_rect_floe))
+model2 = Model(grid, zero_ocn, zonal_atmos, open_domain_no_topo, deepcopy(stationary_rect_floe))
 simulation2 = Simulation(name = "sim2", model = model2, consts = no_ocndrag_consts, Δt = 50, nΔt = nΔt, COLLISION = false)
 push!(sim_arr, simulation2)
 
@@ -80,7 +80,7 @@ Another floe woth opposite initial velocity hits the other side of the collision
 free of the ocean.
 Expected Behavior: Floes should bounce off of the topography elements and then off of the walls. 
 """
-model3 = Model(grid, zero_ocn, zero_wind, collision_domain_topo, deepcopy(zonal_2rect_floe))
+model3 = Model(grid, zero_ocn, zero_atmos, collision_domain_topo, deepcopy(zonal_2rect_floe))
 simulation3 = Simulation(name = "sim3", model = model3, consts = no_drag_consts, Δt = 10, nΔt = nΔt, COLLISION = true)
 push!(sim_arr, simulation3)
 

@@ -17,7 +17,7 @@ const coarse_ny = 10
 # Model instantiation
 grid = RegRectilinearGrid(-Lx, Lx, -Ly, Ly, Δgrid, Δgrid)
 ocean = Ocean(grid, 0.0, 0.0, 0.0)
-wind = Wind(zeros(grid.dims .+ 1), zeros(grid.dims .+ 1), fill(-20.0, grid.dims .+ 1))
+atmos = Atmos(zeros(grid.dims .+ 1), zeros(grid.dims .+ 1), fill(-20.0, grid.dims .+ 1))
 
 # Domain creation - boundaries and topography
 nboundary = CollisionBoundary(grid, North())
@@ -40,7 +40,7 @@ jldopen("test/test_mc_points.jld2", "r") do f
 end
 floe_arr = StructArray([floe1])
 
-model = Model(grid, ocean, wind, domain, floe_arr)
+model = Model(grid, ocean, atmos, domain, floe_arr)
 
 # Simulation setup
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))

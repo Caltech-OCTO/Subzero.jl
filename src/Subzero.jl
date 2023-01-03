@@ -7,7 +7,7 @@ export
     AbstractGrid,
     RegRectilinearGrid,
     Ocean,
-    Wind,
+    Atmos,
     OpenBC,
     PeriodicBC,
     CollisionBC,

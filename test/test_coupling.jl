@@ -146,7 +146,7 @@
         # set up model and floe
         grid = Subzero.RegRectilinearGrid(-1e5, 1e5, -1e5, 1e5, 1e4, 1e4)
         zonal_ocean = Subzero.Ocean(grid, 1.0, 0.0, 0.0)
-        zero_wind = Subzero.Wind(zeros(grid.dims .+ 1), zeros(grid.dims .+ 1), fill(-20.0, grid.dims .+ 1))
+        zero_atmos = Subzero.Atmos(zeros(grid.dims .+ 1), zeros(grid.dims .+ 1), fill(-20.0, grid.dims .+ 1))
         domain = Subzero.Domain(Subzero.CollisionBoundary(grid, Subzero.North()), Subzero.CollisionBoundary(grid, Subzero.South()),
                         Subzero.CollisionBoundary(grid, Subzero.East()), Subzero.CollisionBoundary(grid, Subzero.West()))
         floe = Subzero.Floe([[[-1.75e4, 5e4], [-1.75e4, 7e4], [-1.25e4, 7e4], 
@@ -163,7 +163,7 @@
 
         # stationary floe, uniform zonal ocean flow
         floe1 = deepcopy(floe)
-        model1 = Model(grid, zonal_ocean, zero_wind, domain, StructArray([floe1]))
+        model1 = Model(grid, zonal_ocean, zero_atmos, domain, StructArray([floe1]))
         Subzero.floe_OA_forcings!(floe1, model1, consts, 2)
         @test isapprox(floe1.fxOA/area, 2.9760, atol = 1e-3)
         @test isapprox(floe1.fyOA/area, 0.8296, atol = 1e-3)
@@ -172,7 +172,7 @@
         # stationary floe, uniform meridional ocean flow
         floe2 = deepcopy(floe)
         meridional_ocean = Subzero.Ocean(grid, 0.0, 1.0, 0.0)
-        model2 = Subzero.Model(grid, meridional_ocean, zero_wind, domain, StructArray([floe2]))
+        model2 = Subzero.Model(grid, meridional_ocean, zero_atmos, domain, StructArray([floe2]))
         Subzero.floe_OA_forcings!(floe2, model2, consts, 2)
         @test isapprox(floe2.fxOA/area, -0.8296, atol = 1e-3)
         @test isapprox(floe2.fyOA/area, 2.9760, atol = 1e-3)
@@ -183,7 +183,7 @@
         floe3 = deepcopy(floe)
         floe3.u = 0.25
         floe3.v = 0.1
-        model3 = Subzero.Model(grid, zero_ocean, zero_wind, domain, StructArray([floe3]))
+        model3 = Subzero.Model(grid, zero_ocean, zero_atmos, domain, StructArray([floe3]))
         Subzero.floe_OA_forcings!(floe3, model3, consts, 2)
         @test isapprox(floe3.fxOA/area, -0.1756, atol = 1e-3)
         @test isapprox(floe3.fyOA/area, -0.1419, atol = 1e-3)
@@ -192,22 +192,22 @@
         # rotating floe, uniform 0 ocean flow
         floe4 = deepcopy(floe)
         floe4.ξ = 0.05
-        model4 = Subzero.Model(grid, zero_ocean, zero_wind, domain, StructArray([floe4]))
+        model4 = Subzero.Model(grid, zero_ocean, zero_atmos, domain, StructArray([floe4]))
         Subzero.floe_OA_forcings!(floe4, model4, consts, 2)
         @test isapprox(floe4.fxOA/area, 1.91887860e4, atol = 1e-3)
         @test isapprox(floe4.fyOA/area, 5.9577026e3, atol = 1e-3)
         @test isapprox(floe4.trqOA/area, -1.9773119198332e9, atol = 1e-3)
         
-        # stationary floe, diagonal wind flow
-        diagonal_wind = Subzero.Wind(grid, -1, -0.5, 0.0)
+        # stationary floe, diagonal atmos flow
+        diagonal_atmos = Subzero.Atmos(grid, -1, -0.5, 0.0)
         floe5 = deepcopy(floe)
-        model5 = Subzero.Model(grid, zero_ocean, diagonal_wind, domain, StructArray([floe5]))
+        model5 = Subzero.Model(grid, zero_ocean, diagonal_atmos, domain, StructArray([floe5]))
         Subzero.floe_OA_forcings!(floe5, model5, consts, 2)
         @test isapprox(floe5.fxOA/area, -0.0013, atol = 1e-3)
         @test isapprox(floe5.fyOA/area, -6.7082e-4, atol = 1e-3)
         @test isapprox(floe5.trqOA/area, 0.2276, atol = 1e-3)
 
-        # non-uniform ocean flow, zero wind, stationary floe
+        # non-uniform ocean flow, zero atmos, stationary floe
         xgrid, ygrid = Subzero.grids_from_lines(grid.xg, grid.yg)
         psi_ocn = 0.5e4*(sin.(4*(π/4e5).*xgrid) .* sin.(4*(π/4e5).*ygrid))
         non_unif_uocn = zeros(size(xgrid))
@@ -216,26 +216,26 @@
         non_unif_vocn[:, 2:end] =  1e-4*(psi_ocn[:, 2:end] .- psi_ocn[:, 1:end-1])
         non_unif_ocean = Subzero.Ocean(non_unif_uocn, non_unif_vocn, zeros(size(xgrid)))
         floe6 = deepcopy(floe)
-        model6 = Subzero.Model(grid, non_unif_ocean, zero_wind, domain, StructArray([floe6]))
+        model6 = Subzero.Model(grid, non_unif_ocean, zero_atmos, domain, StructArray([floe6]))
         Subzero.floe_OA_forcings!(floe6, model6, consts, 1)
         @test isapprox(floe6.fxOA/area, -0.0182, atol = 1e-3)
         @test isapprox(floe6.fyOA/area, 0.0392, atol = 1e-3)
         @test isapprox(floe6.trqOA/area, 23.6399, atol = 1e-3)
 
-        # non-uniform wind flow, zero ocean, stationary floe
-        non_unif_wind = Subzero.Wind(non_unif_uocn, non_unif_vocn, zeros(size(xgrid)))
+        # non-uniform atmos flow, zero ocean, stationary floe
+        non_unif_atmos = Subzero.Atmos(non_unif_uocn, non_unif_vocn, zeros(size(xgrid)))
         floe7 = deepcopy(floe)
-        model7 = Subzero.Model(grid, zero_ocean, non_unif_wind, domain, StructArray([floe7]))
+        model7 = Subzero.Model(grid, zero_ocean, non_unif_atmos, domain, StructArray([floe7]))
         Subzero.floe_OA_forcings!(floe7, model7, consts, 1)
         @test isapprox(floe7.fxOA/area, -1.5378e-6, atol = 1e-8)
         @test isapprox(floe7.fyOA/area, 1.61516e-5, atol = 1e-7)
         @test isapprox(floe7.trqOA/area, 7.528529e-4, atol = 1e-6)
 
-        # moving floe, non-uniform ocean, non-uniform wind
+        # moving floe, non-uniform ocean, non-uniform atmos
         floe8 = deepcopy(floe)
         floe8.u = 0.5
         floe8.v = -0.5
-        model8 = Subzero.Model(grid, non_unif_ocean, non_unif_wind, domain, StructArray([floe7]))
+        model8 = Subzero.Model(grid, non_unif_ocean, non_unif_atmos, domain, StructArray([floe7]))
         Subzero.floe_OA_forcings!(floe8, model8, consts, 1)
         @test isapprox(floe8.fxOA/area, -1.6300, atol = 1e-3)
         @test isapprox(floe8.fyOA/area, 1.1240, atol = 1e-3)
