@@ -54,6 +54,44 @@ Simulation which holds a model and parameters needed for running the simulation.
     WELDING::Bool = false           # If true, floe welding is enabled
 end
 
+function unidirectional_ghost_floes!(floes, centroid, ::NonPeriodicBoundary, ::NonPeriodicBoundary, trans_vec)
+    return
+end
+
+function unidirectional_ghost_floes!(floes, centroid, domain_min::PeriodicBoundary, domain_max::NonPeriodicBoundary, tran_vec)
+    throw(ErrorException("Cannot generate ghost floes when provided boundaries are not both periodic."))
+end
+
+function unidirectional_ghost_floes!(floes, centroid, domain_min::NonPeriodicBoundary, domain_max::PeriodicBoundary, tran_vec)
+    throw(ErrorException("Cannot generate ghost floes when provided boundaries are not both periodic."))
+end
+
+function unidirectional_ghost_floes!(floes, centroid, domain_min::PeriodicBoundary, domain_max::PeriodicBoundary, trans_vec)
+    ΔL = domain_max.val - domain_min.val
+    for i in eachindex(floes)  # uses length of original vector, allowing us to push to vector
+        f = floes[i]
+        if f.alive
+            # If the first check in the if statement is false, the second won't execute
+            floe_poly = LG.Polygon(f.coords)
+            if (centroid[i] - f.rmax < domain_min.val) && (LG.intersect(floe_poly, LG.Polygon(domain_min.coords)))
+                push!(floes, deepcopy(f))
+                floes[end].coords = translate(floes[end].coords, trans_vec)
+            elseif (centroid[i] + f.rmax < domain_max.val) && (LG.intersect(floe_poly, LG.Polygon(domain_max.coords)))
+                push!(floes, deepcopy(f))
+                floes[end].coords = translate(floes[end].coords, -trans_vec)
+            end
+        end
+    end
+end
+
+function add_ghost_floes!(floes, domain, ::Type{T} = Float64) where T
+    Lx = domain.east.val - domain.west.val
+    Ly = domain.north.val - domain.south.val
+
+    unidirectional_ghost_floes!(floes, first.(floes.centroid), domain.west, domain.east, [Lx, 0.0])
+    unidirectional_ghost_floes!(floes, last.(floes.centroid), domain.south, domain.north, [0.0, Ly])
+end
+
 """
     timestep_floe(floe)
 

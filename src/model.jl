@@ -676,7 +676,7 @@ EB<:AbstractBoundary{East, FT}, WB<:AbstractBoundary{West, FT}}
 end
 
 Domain(north, south, east, west, ::Type{T} = Float64) where T =
-    Domain(north, south, east, west, StructArray{TopographyElement{T}}(undef, 0, 0))
+    Domain(north, south, east, west, StructArray{TopographyElement{T}}(undef, 0))
 
 
 """
