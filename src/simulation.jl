@@ -289,6 +289,12 @@ function run!(sim, writers, ::Type{T} = Float64) where T
         push!(Δtout_lst, w.Δtout)
     end
     println(string(sim.name ," running!"))
+
+    # Initialize floe IDs
+    for i in eachindex(sim.model.floes)
+        sim.model.floes.id = i
+    end
+
     tstep = 0
     while tstep <= sim.nΔt
         widx = findall(Δtout-> mod(tstep, Δtout) == 0, Δtout_lst)

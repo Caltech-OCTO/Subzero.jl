@@ -702,6 +702,7 @@ Singular sea ice floe with fields describing current state.
     ξ::FT = 0.0             # floe angular velocity
     # Status
     alive::Int = 1          # floe is still active in simulation
+    id::Int = 0             # floe id - set to index in floe array at start of sim
     # Forces/Collisions
     fxOA::FT = 0.0          # force from ocean and atmos in x direction
     fyOA::FT = 0.0          # force from ocean and atmos in y direction
