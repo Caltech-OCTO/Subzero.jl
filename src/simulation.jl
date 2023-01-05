@@ -54,48 +54,64 @@ Simulation which holds a model and parameters needed for running the simulation.
     WELDING::Bool = false           # If true, floe welding is enabled
 end
 
-function unidirectional_ghost_floes!(floes, ::NonPeriodicBoundary, ::NonPeriodicBoundary, dim)
-    return
+function ghosts_on_bounds(floe, ghosts, ::NonPeriodicBoundary, _)
+    return floe, ghosts
 end
 
-function unidirectional_ghost_floes!(floes, domain_min::PeriodicBoundary, domain_max::PeriodicBoundary, dim)
-    ΔL = domain_max.val - domain_min.val
-    trans_vec = dim == 1 ? [ΔL, 0.0] : [0.0, ΔL]
-    nfloes = length(floes)
-    for i in eachindex(floes)  # uses length of original vector, allowing us to push to vector
-        f = floes[i]
-        if f.alive == 1
-            floe_poly = LG.Polygon(f.coords)
-            # If the first check is false, the second won't execute
-            min_intersect = (f.centroid[dim] - f.rmax < domain_min.val) && (LG.intersects(floe_poly, LG.Polygon(domain_min.coords)))
-            max_intersect = (f.centroid[dim] + f.rmax > domain_max.val) && (LG.intersects(floe_poly, LG.Polygon(domain_max.coords)))
-            if max_intersect || min_intersect
-                ghost = deepcopy(f)
-                ghost.id = ghost.id < 0 ? ghost.id : -ghost.id
-                if f.centroid[dim] < domain_min.val
-                    f.coords = translate(f.coords, trans_vec)
-                    f.centroid = f.centroid .+ trans_vec
-                elseif f.centroid[dim] > domain_max.val
-                    f.coords = translate(f.coords, -trans_vec)
-                    f.centroid = f.centroid .- trans_vec
-                else
-                    trans_vec = min_intersect ? trans_vec : -trans_vec
-                    ghost.coords = translate(floes[end].coords, trans_vec)
-                    ghost.centroid = ghost.centroid .- trans_vec
-                end
-                push!(floes, ghost)
-                nfloes += 1
-                push!(f.ghosts, nfloes)
-            end
+function ghosts_on_bounds(f, ghosts, boundary::PeriodicBoundary, trans_vec)
+    didx = findfirst(!iszero, trans_vec)
+    @assert !isnothing(didx) "trans_vec must have one non-zero component."
+    if LG.intersects(LG.Polygon(f.coords), LG.Polygon(boundary.coords))
+        # ghosts of ghost floes - ghost floes share first dimension checked with primary floe so they will also intersect
+        for g in ghosts
+            gc = deepcopy(g)
+            gc.coords = translate(g.coords, trans_vec)
+            gc.centroid = gc.centroid .+ trans_vec
+            ghosts = [ghosts; gc]
         end
+        # ghost of primary floe
+        g = deepcopy(f)
+        g.coords = translate(g.coords, trans_vec)
+        g.centroid = g.centroid .+ trans_vec
+        # either the ghost or the original floe must have centroid within domain for current direction
+        if (trans_vec[didx] > 0 && f.centroid[didx] < boundary.val) || (trans_vec[didx] < 0 && f.centroid[didx] > boundary.val)
+            f, g = g, f  # swap f and g
+        end
+        g.id *= -1
+        ghosts = [ghosts; g]
     end
-    return
+    return f, ghosts
 end
 
 function add_ghost_floes!(floes, domain, ::Type{T} = Float64) where T
-    unidirectional_ghost_floes!(floes, domain.west, domain.east, 1)
-    unidirectional_ghost_floes!(floes, domain.south, domain.north, 2)
-    return
+    nfloes = length(floes)
+    for i in eachindex(floes)  # uses initial length of floes so we can push to floes
+        f = floes[i]
+        if f.alive == 1
+            ghosts = Vector{Floe}()
+            # Add east/west ghost floes
+            Lx = domain.east.val - domain.west.val
+            if f.centroid[1] - f.rmax < domain.west.val
+                f, ghosts = ghosts_on_bounds(f, ghosts, domain.west, [Lx, T(0)])
+            elseif (f.centroid[1] + f.rmax > domain.east.val)
+                f, ghosts = ghosts_on_bounds(f, ghosts, domain.east, [-Lx, T(0)])
+            end
+            # Add north/south ghost floes
+            Ly =  domain.north.val - domain.south.val
+            if (f.centroid[2] - f.rmax < domain.south.val)
+                f, ghosts = ghosts_on_bounds(f, ghosts, domain.south, [T(0), Ly])
+            elseif (f.centroid[2] + f.rmax > domain.north.val)
+                f, ghosts = ghosts_on_bounds(f, ghosts, domain.north, [T(0), -Ly])
+            end
+            # If we have ghost floes, update lists
+            if !isempty(ghosts)
+                append!(floes, ghosts)
+                append!(f.ghosts, nfloes+1:nfloes+length(ghosts))
+                nfloes += length(ghosts)
+                floes[i] = f
+            end
+        end
+    end
 end
 
 """
@@ -209,10 +225,10 @@ end
 
 function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
     m = sim.model
+    n_init_floes = length(m.floes) # number of floes before ghost floes
     m.ocean.si_area .= zeros(T, 1)
-    nfloes = length(m.floes) # number of floes before ghost floes
-    remove = zeros(Int, nfloes)
-    transfer = zeros(Int, nfloes)
+    remove = zeros(Int, n_init_floes)
+    transfer = zeros(Int, n_init_floes)
     add_ghost_floes!(m.floes, m.domain)
     for i in eachindex(m.floes) # floe-floe collisions for floes i and j where i<j
         ifloe = m.floes[i]
@@ -220,9 +236,9 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
         ifloe.collision_trq = T(0.0)
         ifloe.interactions = ifloe.interactions[1:1, :]
         if sim.COLLISION
-            for j in i+1:nfloes
+            for j in i+1:length(floes)
                 if sum((ifloe.centroid .- m.floes[j].centroid).^2) < (ifloe.rmax + m.floes[j].rmax)^2
-                    ikill, itransfer = floe_floe_interaction!(ifloe, i, m.floes[j], j, nfloes, sim.consts, sim.Δt)
+                    ikill, itransfer = floe_floe_interaction!(ifloe, i, m.floes[j], j, n_init_floes, sim.consts, sim.Δt)
                     if ikill != 0 || itransfer != 0
                         remove[i] = ikill
                         transfer[i] = itransfer
@@ -234,7 +250,7 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
         m.floes[i] = ifloe
     end
     for i in eachindex(m.floes)  # Update floes not directly calculated above where i>j
-        if i <= nfloes && remove[i] > 0 && remove[i] != i
+        if i <= n_init_floes && remove[i] > 0 && remove[i] != i
             transfer[remove[i]] = i
         end
         ij_inters = m.floes[i].interactions
@@ -252,20 +268,20 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
             end
         end
     end
-    for i in reverse(eachindex(m.floes))
+    for i in reverse(eachindex(m.floes)) # TODO: Move torque calculations to earlier and then we only need to do this for the first points
         ifloe = m.floes[i]
         calc_torque!(ifloe)
         for g in ifloe.ghosts
             gfloe = m.floes[g]
-            ifloe.collision_force[1] += sum(gfloe.interactions[:, "xforce"]) + gfloe.collision_force[1]
-            ifloe.collision_force[2] += sum(gfloe.interactions[:, "yforce"]) + gfloe.collision_force[2]
-            ifloe.collision_trq += sum(gfloe.interactions[:, "torque"]) + gfloe.collision_trq
+            ifloe.collision_force[1] += sum(gfloe.interactions[:, "xforce"])
+            ifloe.collision_force[2] += sum(gfloe.interactions[:, "yforce"])
+            ifloe.collision_trq += sum(gfloe.interactions[:, "torque"])
 
         end
         m.floes[i] = ifloe
     end
-    m.floes = m.floes[1:nfloes] # remove the ghost floes
-    for i in 1:nfloes
+    m.floes = m.floes[1:n_init_floes] # remove the ghost floes
+    for i in 1:n_init_floes
         ifloe = m.floes[i]
         if mod(tstep, sim.Δtocn) == 0
             floe_OA_forcings!(ifloe, m, sim.consts, sim.Δd)
@@ -300,6 +316,7 @@ Outputs:
         None. The simulation will be run and outputs will be saved in the output folder. 
 """
 function run!(sim, writers, ::Type{T} = Float64) where T
+    # Output setup
     Δtout_lst = Int[]
     if !isempty(writers)
         write_domain!(sim.model.domain, sim.name)
@@ -316,9 +333,12 @@ function run!(sim, writers, ::Type{T} = Float64) where T
         f.id = i
         sim.model.floes[i] = f
     end
+    
+    # TODO: need to add ghost topography
 
     tstep = 0
     while tstep <= sim.nΔt
+        # Write data
         widx = findall(Δtout-> mod(tstep, Δtout) == 0, Δtout_lst)
         if length(widx) > 0
             println(tstep, " timesteps completed")
@@ -326,6 +346,7 @@ function run!(sim, writers, ::Type{T} = Float64) where T
                 write_data!(writers[idx], tstep, sim.model, sim.name)
             end
         end
+        # Timestep the simulation forward
         timestep_sim!(sim, tstep, T)
         tstep+=1
     end
