@@ -703,10 +703,11 @@ Singular sea ice floe with fields describing current state.
     # Status
     alive::Int = 1          # floe is still active in simulation
     id::Int = 0             # floe id - set to index in floe array at start of sim
+    ghosts::Vector{Int} = Vector{Int}()  # indices of ghost floes of given floe
     # Forces/Collisions
     fxOA::FT = 0.0          # force from ocean and atmos in x direction
     fyOA::FT = 0.0          # force from ocean and atmos in y direction
-    trqOA::FT = 0.0      # torque from ocean and Atmos
+    trqOA::FT = 0.0         # torque from ocean and Atmos
     hflx::FT = 0.0          # heat flux under the floe
     overarea::FT = 0.0      # total overlap with other floe
     collision_force::Matrix{FT} = [0.0 0.0] 
@@ -863,7 +864,7 @@ Model which holds grid, ocean, atmos structs, each with the same underlying floa
 It also holds the domain information, which includes the topography and the boundaries.
 Finally, it holds an StructArray of floe structs, again each relying on the same underlying float type.
 """
-struct Model{FT<:AbstractFloat, GT<:AbstractGrid{FT}, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}}
+mutable struct Model{FT<:AbstractFloat, GT<:AbstractGrid{FT}, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}}
     grid::GT
     ocean::Ocean{FT}
     atmos::Atmos{FT}

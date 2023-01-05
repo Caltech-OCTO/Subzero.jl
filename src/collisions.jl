@@ -268,6 +268,10 @@ function floe_domain_element_interaction!(floe, boundary::OpenBoundary, consts, 
     return
 end
 
+function floe_domain_element_interaction!(floe, boundary::PeriodicBoundary, consts, Δt, ::Type{T} = Float64) where T
+    return
+end
+
 """
     normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{North, <:AbstractFloat}, ::Type{T} = Float64)
 
