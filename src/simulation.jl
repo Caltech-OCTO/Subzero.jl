@@ -54,62 +54,76 @@ Simulation which holds a model and parameters needed for running the simulation.
     WELDING::Bool = false           # If true, floe welding is enabled
 end
 
-function ghosts_on_bounds(floe, ghosts, ::NonPeriodicBoundary, _)
-    return floe, ghosts
+function ghosts_on_bounds(_, ghosts, ::NonPeriodicBoundary, _)
+    return ghosts
 end
 
-function ghosts_on_bounds(f, ghosts, boundary::PeriodicBoundary, trans_vec)
-    didx = findfirst(!iszero, trans_vec)
-    @assert !isnothing(didx) "trans_vec must have one non-zero component."
-    if LG.intersects(LG.Polygon(f.coords), LG.Polygon(boundary.coords))
-        # ghosts of ghost floes - ghost floes share first dimension checked with primary floe so they will also intersect
-        for g in ghosts
-            gc = deepcopy(g)
-            gc.coords = translate(g.coords, trans_vec)
-            gc.centroid = gc.centroid .+ trans_vec
-            ghosts = [ghosts; gc]
+function ghosts_on_bounds(primary, ghosts, boundary::PeriodicBoundary, trans_vec)
+    if LG.intersects(LG.Polygon(primary.coords), LG.Polygon(boundary.coords))
+        # ghosts of existing ghosts and original element
+        for elem in vcat(ghosts, primary)
+            g = deepcopy(elem)
+            g.coords = translate(g.coords, trans_vec)
+            g.centroid = g.centroid .+ trans_vec
+            push!(ghosts, g)
         end
-        # ghost of primary floe
-        g = deepcopy(f)
-        g.coords = translate(g.coords, trans_vec)
-        g.centroid = g.centroid .+ trans_vec
-        # either the ghost or the original floe must have centroid within domain for current direction
-        if (trans_vec[didx] > 0 && f.centroid[didx] < boundary.val) || (trans_vec[didx] < 0 && f.centroid[didx] > boundary.val)
-            f, g = g, f  # swap f and g
-        end
-        g.id *= -1
-        ghosts = [ghosts; g]
     end
+    return ghosts
+end
+
+function find_ghosts(f, domain, ::Type{T} = Float64) where T
+    ghosts = Vector{Floe}()
+    # Add east/west ghost floes
+    Lx = domain.east.val - domain.west.val
+    if f.centroid[1] - f.rmax < domain.west.val
+        ghosts = ghosts_on_bounds(f, ghosts, domain.west, [Lx, T(0)])
+    elseif (f.centroid[1] + f.rmax > domain.east.val)
+        ghosts = ghosts_on_bounds(f, ghosts, domain.east, [-Lx, T(0)])
+    end
+    # Add north/south ghost floes
+    Ly =  domain.north.val - domain.south.val
+    if (f.centroid[2] - f.rmax < domain.south.val)
+        ghosts = ghosts_on_bounds(f, ghosts, domain.south, [T(0), Ly])
+    elseif (f.centroid[2] + f.rmax > domain.north.val)
+        ghosts = ghosts_on_bounds(f, ghosts, domain.north, [T(0), -Ly])
+    end
+    println(typeof(ghosts))
     return f, ghosts
 end
 
 function add_ghost_floes!(floes, domain, ::Type{T} = Float64) where T
     nfloes = length(floes)
-    for i in eachindex(floes)  # uses initial length of floes so we can push to floes
+    for i in eachindex(floes)  # uses initial length of floes so we can append to list
         f = floes[i]
         if f.alive == 1
-            ghosts = Vector{Floe}()
-            # Add east/west ghost floes
-            Lx = domain.east.val - domain.west.val
-            if f.centroid[1] - f.rmax < domain.west.val
-                f, ghosts = ghosts_on_bounds(f, ghosts, domain.west, [Lx, T(0)])
-            elseif (f.centroid[1] + f.rmax > domain.east.val)
-                f, ghosts = ghosts_on_bounds(f, ghosts, domain.east, [-Lx, T(0)])
-            end
-            # Add north/south ghost floes
-            Ly =  domain.north.val - domain.south.val
-            if (f.centroid[2] - f.rmax < domain.south.val)
-                f, ghosts = ghosts_on_bounds(f, ghosts, domain.south, [T(0), Ly])
-            elseif (f.centroid[2] + f.rmax > domain.north.val)
-                f, ghosts = ghosts_on_bounds(f, ghosts, domain.north, [T(0), -Ly])
-            end
+            ghosts = find_ghosts(f, domain, T)
             # If we have ghost floes, update lists
             if !isempty(ghosts)
+                inbound_idx = findfirst(g -> (domain.west.val < g.centroid[1] < domain.east.val && domain.south.val < g.centroid[2] < domain.north.val), ghosts)
+                if !isnothing(inbound_idx)
+                    println(typeof(f))
+                    println(typeof(ghosts))
+                    temp = ghosts[inbound_idx]
+                    ghosts[inbound_idx] = f
+                    f = temp
+                    #f, ghosts[inbound_idx] = ghosts[inbound_idx], f  # "primary" floe now has centroid within domain
+                end
+                ghosts.id *= -1  # ghosts have negative index of parent floe
                 append!(floes, ghosts)
-                append!(f.ghosts, nfloes+1:nfloes+length(ghosts))
+                append!(f.ghosts, nfloes+1:nfloes+length(ghosts))  # index of ghosts floes saved
                 nfloes += length(ghosts)
                 floes[i] = f
             end
+        end
+    end
+end
+
+function add_ghost_topography!(domain, ::Type{T} = Float64) where T
+    topography = domain.topography
+    for i in eachindex(topography)  # uses initial length of topography so we can append to list
+        ghosts = find_ghosts(topography[i], domain, T)
+        if !isempty(ghosts)
+            append!(domain.topography, ghosts)
         end
     end
 end
@@ -334,7 +348,8 @@ function run!(sim, writers, ::Type{T} = Float64) where T
         sim.model.floes[i] = f
     end
     
-    # TODO: need to add ghost topography
+    # Add topography elements crossing through periodic boundaries
+    add_ghost_topography!(sim.model.domain)
 
     tstep = 0
     while tstep <= sim.nΔt
