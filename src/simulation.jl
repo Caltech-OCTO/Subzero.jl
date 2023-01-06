@@ -54,11 +54,7 @@ Simulation which holds a model and parameters needed for running the simulation.
     WELDING::Bool = false           # If true, floe welding is enabled
 end
 
-function ghosts_on_bounds(_, ghosts, ::NonPeriodicBoundary, _)
-    return ghosts
-end
-
-function ghosts_on_bounds(primary, ghosts, boundary::PeriodicBoundary, trans_vec)
+function ghosts_on_bounds(primary, ghosts, boundary, trans_vec)
     if LG.intersects(LG.Polygon(primary.coords), LG.Polygon(boundary.coords))
         # ghosts of existing ghosts and original element
         for elem in vcat(ghosts, primary)
@@ -126,6 +122,77 @@ function add_ghost_topography!(domain, ::Type{T} = Float64) where T
             append!(domain.topography, ghosts)
         end
     end
+end
+
+
+
+
+
+
+function ghosts_on_bounds(element, ghosts, boundary, trans_vec)
+    new_ghosts = StructArray(Vector{Floe}())
+    if LG.intersects(LG.Polygon(element.coords), LG.Polygon(boundary.coords))
+        # ghosts of existing ghosts and original element
+        append!(new_ghosts, ghosts)
+        push!(new_ghosts, element)
+        new_ghosts.coords = translate(g.coords, trans_vec)
+        new_ghosts.centroid = g.centroid .+ trans_vec
+    end
+    return new_ghosts
+end
+
+"""
+East West
+"""
+function add_zonal_ghosts!(floes::StructArray{Floe}, domain)
+    nfloes = length(floes)
+    for i in eachindex(floes)  # uses initial length of floes so we can append to list
+        f = floes[i]
+        if f.alive == 1
+            Lx = domain.east.val - domain.west.val
+            ghosts = if f.centroid[1] - f.rmax < domain.west.val
+                ghosts_on_bounds(f, floes[f.ghosts], domain.west, [Lx, T(0)])
+            elseif (f.centroid[1] + f.rmax > domain.east.val)
+                ghosts_on_bounds(f, floes[f.ghosts], domain.east, [-Lx, T(0)])
+            end
+            if (f.centroid[1] < domain.west.val) || (domain.east.val < f.centroid[1])
+                f, ghosts[end] = ghosts[end], f
+            end
+            ghosts.id *= -1  # ghosts have negative index of parent floe
+            append!(floes, ghosts)
+            append!(f.ghosts, nfloes+1:nfloes+length(ghosts))  # index of ghosts floes saved
+            nfloes += length(ghosts)
+            floes[i] = f
+        end
+    end
+    return
+end
+
+"""
+North South
+"""
+function add_meridional_ghosts!(elems::StructArray{Floe}, domain)
+
+end
+
+function add_ghosts!(elems, ::Domain{FT, <:NonPeriodicBoundary, <:NonPeriodicBoundary, <:NonPeriodicBoundary, <:NonPeriodicBoundary}) where {FT<:AbstractFloat}
+    return
+end
+
+function add_ghosts!(elems, domain::Domain{FT, <:PeriodicBoundary, <:PeriodicBoundary, <:NonPeriodicBoundary, <:NonPeriodicBoundary}) where {FT<:AbstractFloat}
+    add_meridional_ghosts!(elems, domain)
+    return
+end
+
+function add_ghosts!(elems, domain::Domain{FT, <:NonPeriodicBoundary, <:NonPeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary}) where {FT<:AbstractFloat}
+    add_zonal_ghosts!(elems, domain)
+    return
+end
+
+function add_ghosts!(elems, domain::Domain{FT, <:PeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary}) where {FT<:AbstractFloat}
+    add_meridional_ghosts!(elems, domain)
+    add_zonal_ghosts!(elems, domain)
+    return
 end
 
 """
@@ -349,7 +416,7 @@ function run!(sim, writers, ::Type{T} = Float64) where T
     end
     
     # Add topography elements crossing through periodic boundaries
-    add_ghost_topography!(sim.model.domain)
+    add_ghosts!(sim.model.domain.topography, sim.model.domain)
 
     tstep = 0
     while tstep <= sim.nΔt
