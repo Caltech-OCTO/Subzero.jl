@@ -253,7 +253,7 @@ Inputs:
         floe            <Floe> floe interacting with boundary
         boundary        <OpenBoundary> coordinates of boundary
         _               <Constants> model constants needed in other methods of this function - not needed here
-        _               <Int> current simulation timestep 
+        _               <Int> current simulation timestep - not needed here
         _               <Type> Float type model is running on (Float64 or Float32) - not needed here
 Output:
         None. If floe is interacting with the boundary, floe.alive field is set to 0. Else, nothing is changed. 
@@ -268,7 +268,17 @@ function floe_domain_element_interaction!(floe, boundary::OpenBoundary, consts, 
     return
 end
 
-function floe_domain_element_interaction!(floe, boundary::PeriodicBoundary, consts, Δt, ::Type{T} = Float64) where T
+"""
+    floe_domain_element_interaction!(floe, ::PeriodicBoundary, consts, Δt, ::Type{T} = Float64)
+
+If a given floe intersects with a periodic boundary, nothing happens at this point. Periodic floes pass through boundaries
+using ghost floes.
+Inputs:
+        None are used. 
+Output:
+        None. This function does not do anyting. 
+"""
+function floe_domain_element_interaction!(floe, ::PeriodicBoundary, consts, Δt, ::Type{T} = Float64) where T
     return
 end
 
@@ -306,6 +316,15 @@ function normal_direction_correct!(forces, fpoints, boundary::Union{AbstractBoun
     return
 end
 
+"""
+    normal_direction_correct!(forces, fpoints, ::TopographyElement, ::Type{T} = Float64)
+
+No forces should be zero-ed out in collidions with topography elements. 
+Inputs:
+        None used.
+Outputs:
+        None.
+"""
 function normal_direction_correct!(forces, fpoints, ::TopographyElement, ::Type{T} = Float64) where T
     return
 end
@@ -398,10 +417,6 @@ function floe_domain_interaction!(floe, domain::Domain, consts, Δt, ::Type{T} =
         if sum((topo_element.centroid .- floe.centroid).^2) < (topo_element.rmax + floe.rmax)^2
             floe_domain_element_interaction!(floe, topo_element, consts, Δt)
         end
-    end
-
-    if centroid[1] > ebound.val || centroid[1] < wbound.val || centroid[2] > nbound.val || centroid[2] < sbound.val
-        floe.alive = 0
     end
 
     return

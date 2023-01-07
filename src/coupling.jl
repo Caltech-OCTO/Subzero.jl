@@ -370,18 +370,24 @@ end
     shift_cell_idx(idx, nlines, ::PeriodicBoundary)
 
 If index is greater than or equal to the grid lines, shift index to equivalent
-grid line on opposite side of grid due to periodic boundary.
+grid line on opposite side of grid due to periodic boundary. Similarly if given
+index is less than 1, shift index to equivalent grid line on opposite side of grid due to periodic boundary.
 Inputs:
         idx     <Int> grid line index in either x or y
         nlines  <Int> number of grid lines in model grid in either x or y direction
                 <NonPeriodicBoundary> boundary pair is non-periodic
 Output: If given index is greater than or equal to number of grid lines, shift index.
+If given index is less than 1, shift grid index.
 For example, the last grid index, nlines, is equivalent to the 1st grid line.
 The nlines+1 grid line is equivalent to the 2nd grid line.
 
 """
 function shift_cell_idx(idx, nlines, ::PeriodicBoundary)
-    return idx < nlines ? idx : Int(mod(idx, nlines)) + 1
+    ncells = nlines - 1
+    return idx < 1 ? (idx + ncells) :
+                     ncells < idx ?
+                        (idx - ncells) :
+                        idx
 end
 
 """
