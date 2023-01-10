@@ -446,3 +446,269 @@ function calc_torque!(floe, ::Type{T} = Float64) where T
     end
 end
 
+function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, consts, Δt, ::Type{T} = Float64) where T
+    for i in eachindex(floes) # floe-floe collisions for floes i and j where i<j
+        ifloe = floes[i]
+        ifloe.collision_force = zeros(T, 1, 2)
+        ifloe.collision_trq = T(0.0)
+        ifloe.interactions = ifloe.interactions[1:1, :]
+        collide_ids = Vector{Int}()
+        for j in i+1:length(floes)
+            abs_id = abs(floes[j].id)
+            if !(abs_id in collide_ids) && (sum((ifloe.centroid .- floes[j].centroid).^2) <
+                                           (ifloe.rmax + floes[j].rmax)^2)
+                push!(collide_ids, abs_id)
+                iremove, itransfer = floe_floe_interaction!(ifloe, i, floes[j], j, n_init_floes, consts, Δt)
+                if iremove != 0 || itransfer != 0
+                    remove[i] = iremove
+                    transfer[i] = itransfer
+                end
+            end
+        end
+        floe_domain_interaction!(ifloe, domain, consts, Δt)
+        floes[i] = ifloe
+    end
+    # Update floes not directly calculated above where i>j
+    for i in eachindex(floes)
+        if i <= n_init_floes && remove[i] > 0 && remove[i] != i
+            transfer[remove[i]] = i
+        end
+        ij_inters = floes[i].interactions
+        if size(ij_inters, 1) > 1 # First row is place holder for initialization and clearing
+            for inter_idx in axes(ij_inters, 1)  # Loop over each interaction with Floe i
+                j = ij_inters[inter_idx, "floeidx"]  # Index of floe to update in model floe list
+                if j <= length(floes) && j > i
+                    jidx = Int(j)
+                    jfloe = floes[jidx]
+                    jfloe.interactions = [jfloe.interactions; i -ij_inters[inter_idx, "xforce"] -ij_inters[inter_idx, "yforce"] #=
+                                        =# ij_inters[inter_idx, "xpoint"] ij_inters[inter_idx, "ypoint"] T(0.0) ij_inters[inter_idx, "overlap"]]
+                    jfloe.overarea += ij_inters[inter_idx, "overlap"]
+                    floes[jidx] = jfloe
+                end
+            end
+        end
+    end
+    for i in reverse(eachindex(floes)) # TODO: Move torque calculations to earlier and then we only need to do this for the first points
+        ifloe = floes[i]
+        calc_torque!(ifloe)
+        for g in ifloe.ghosts
+            gfloe = floes[g]
+            ifloe.collision_force[1] += sum(gfloe.interactions[:, "xforce"])
+            ifloe.collision_force[2] += sum(gfloe.interactions[:, "yforce"])
+            ifloe.collision_trq += sum(gfloe.interactions[:, "torque"])
+
+        end
+        floes[i] = ifloe
+    end
+    return remove, transfer
+end
+
+"""
+    ghosts_on_bounds(element, ghosts, boundary, trans_vec)
+
+If the given element intersects with the boundary, add ghosts of the element and 
+any of its existing ghosts. 
+Inputs:
+        element     <StructArray{Floe} or StructArray{TopographyElement}> given element
+        ghosts      <StructArray{Floe} or StructArray{TopographyElement}> current ghosts of element
+        boundary    <PeriodicBoundary> boundary to translate element through
+        trans_vec   <Matrix{Float}> 1x2 matrix of form [x y] to translate element through the boundary
+Outputs:
+        New ghosts created by the given element, or its current ghosts, passing through the given boundary. 
+"""
+function ghosts_on_bounds(element, ghosts, boundary, trans_vec)
+    new_ghosts = StructArray(Vector{typeof(element)}())
+    if LG.intersects(LG.Polygon(element.coords), LG.Polygon(boundary.coords))
+        # ghosts of existing ghosts and original element
+        append!(new_ghosts, deepcopy.(ghosts))
+        push!(new_ghosts, deepcopy(element))
+        # g is a copy
+        for i in eachindex(new_ghosts)
+            new_ghosts.coords[i] = translate(new_ghosts.coords[i], trans_vec)
+            new_ghosts.centroid[i] .+= trans_vec
+        end
+    end
+    return new_ghosts
+end
+
+"""
+    find_ghosts(elem, current_ghosts, ebound::PeriodicBoundary{East, <:AbstractFloat},
+                wbound::PeriodicBoundary{West, <:AbstractFloat}, ::Type{T} = Float64)
+
+Find ghosts of given element and its known ghosts through an eastern or western periodic boundary.
+If element's centroid isn't within the domain in the east/west direction, swap it with its ghost since
+the ghost's centroid must then be within the domain. 
+Inputs:
+        elem            <StructArray{Floe} or StructArray{TopographyElement}> given element
+        current_ghosts  <StructArray{Floe} or StructArray{TopographyElement}> current ghosts of element
+        eboundary        <PeriodicBoundary{East, Float}> domain's eastern boundary
+        wboundary        <PeriodicBoundary{West, Float}> domain's western boundary
+Outputs:
+        Return "primary" element, which has its centroid within the domain in the east/west direction,
+        and all of its ghosts in the east/west direction, including ghosts of previously existing ghosts.
+"""
+function find_ghosts(elem, current_ghosts, ebound::PeriodicBoundary{East, <:AbstractFloat}, wbound::PeriodicBoundary{West, <:AbstractFloat},
+::Type{T} = Float64) where T
+    Lx = ebound.val - wbound.val
+    new_ghosts =
+        if elem.centroid[1] - elem.rmax < wbound.val
+            ghosts_on_bounds(elem, current_ghosts, wbound, [Lx, T(0)])
+        elseif (elem.centroid[1] + elem.rmax > ebound.val)
+            ghosts_on_bounds(elem, current_ghosts, ebound, [-Lx, T(0)])
+        else
+            StructArray(Vector{typeof(elem)}())
+        end
+    # if element centroid isn't in domain in east/west direction, swap with its ghost
+    if !isempty(new_ghosts) && ((elem.centroid[1] < wbound.val) || (ebound.val < elem.centroid[1]))
+        elem, new_ghosts[end] = new_ghosts[end], elem
+    end
+    return elem, new_ghosts
+end
+
+"""
+    find_ghosts(elem, current_ghosts, nbound::PeriodicBoundary{North, <:AbstractFloat},
+                sbound::PeriodicBoundary{South, <:AbstractFloat}, ::Type{T} = Float64)
+
+Find ghosts of given element and its known ghosts through an northern or southern periodic boundary.
+If element's centroid isn't within the domain in the north/south direction, swap it with its ghost since
+the ghost's centroid must then be within the domain. 
+Inputs:
+        elem            <StructArray{Floe} or StructArray{TopographyElement}> given element
+        current_ghosts  <StructArray{Floe} or StructArray{TopographyElement}> current ghosts of element
+        nboundary        <PeriodicBoundary{North, Float}> domain's northern boundary
+        sboundary        <PeriodicBoundary{South, Float}> domain's southern boundary
+Outputs:
+        Return "primary" element, which has its centroid within the domain in the north/south direction,
+        and all of its ghosts in the north/south direction, including ghosts of previously existing ghosts.
+"""
+function find_ghosts(elem, current_ghosts, nbound::PeriodicBoundary{North, <:AbstractFloat}, sbound::PeriodicBoundary{South, <:AbstractFloat},
+::Type{T} = Float64) where T
+    Ly =  nbound.val - sbound.val
+    new_ghosts = 
+        if (elem.centroid[2] - elem.rmax < sbound.val)
+            ghosts_on_bounds(elem, current_ghosts, sbound, [T(0), Ly])
+        elseif (elem.centroid[2] + elem.rmax > nbound.val)
+            ghosts_on_bounds(elem, current_ghosts, nbound, [T(0), -Ly])
+        else
+            StructArray(Vector{typeof(elem)}())
+        end
+    # if element centroid isn't in domain in north/south direction, swap with its ghost
+    if !isempty(new_ghosts) && (elem.centroid[2] < sbound.val) || (nbound.val < elem.centroid[2])
+        elem, new_ghosts[end] = new_ghosts[end], elem
+    end
+    return elem, new_ghosts
+end
+
+"""
+    add_elem_ghosts!(floes::StructArray{Floe{T}}, max_boundary, min_boundary) where {T <: AbstractFloat}
+
+Add ghosts of all of the given floes passing through the two given boundaries to the list of floes.
+Inputs:
+        floes           <StructArray{Floe{T}}> list of floes to find ghosts for
+        max_boundary    <PeriodicBoundary> either northern or eastern boundary  of domain
+        min_boundary    <PeriodicBoundary> either southern or western boundary of domain
+Outputs:
+        None. Ghosts of floes are added to floe list. 
+"""
+function add_elem_ghosts!(floes::StructArray{Floe{T}}, max_boundary, min_boundary) where {T <: AbstractFloat}
+    nfloes = length(floes)
+    for i in eachindex(floes)  # uses initial length of floes so we can append to list
+        f = floes[i]  # might not need to make a copy 
+        if f.alive == 1 && f.id >= 0
+            f, new_ghosts = find_ghosts(f, floes[f.ghosts], max_boundary, min_boundary, T)
+            if !isempty(new_ghosts)
+                new_ghosts.id .= -abs.(new_ghosts.id)  # ghosts have negative index of parent floe
+                empty!.(new_ghosts.ghosts)
+                append!(floes, new_ghosts)
+                append!(f.ghosts, nfloes+1:nfloes+length(new_ghosts))  # index of ghosts floes saved
+                nfloes += length(new_ghosts)
+                floes[i] = f
+            end
+        end
+    end
+    return
+end
+
+"""
+    add_elem_ghosts!(topography::StructArray{TopographyElement{T}}, max_boundary, min_boundary) where {T <: AbstractFloat}
+
+Add ghosts of all of the given floes passing through the two given boundaries to the list of floes.
+Inputs:
+        floes           <topography::StructArray{TopographyElement{T}}> list of topography elements to find ghosts for
+        max_boundary    <PeriodicBoundary> either northern or eastern boundary  of domain
+        min_boundary    <PeriodicBoundary> either southern or western boundary of domain
+Outputs:
+        None. Ghosts of topography elements are added to topography list. 
+"""
+function add_elem_ghosts!(topography::StructArray{TopographyElement{T}}, max_boundary, min_boundary) where {T <: AbstractFloat}
+    for i in eachindex(topography)  # uses initial length of topography so we can append to list
+        t = topography[i]
+        t, new_ghosts = find_ghosts(t, StructArray(Vector{TopographyElement}()), max_boundary, min_boundary, T)
+        if !isempty(new_ghosts)
+            append!(topography, new_ghosts)
+            topography[i] = t
+        end
+    end
+end
+
+"""
+    add_ghosts!(elems, ::Domain{FT, <:NonPeriodicBoundary, <:NonPeriodicBoundary, <:NonPeriodicBoundary, <:NonPeriodicBoundary})
+
+When there are no periodic boundaries, no ghosts should be added.
+Inputs:
+        None are used. 
+Outputs:
+        None. 
+"""
+function add_ghosts!(elems, ::Domain{FT, <:NonPeriodicBoundary, <:NonPeriodicBoundary, <:NonPeriodicBoundary, <:NonPeriodicBoundary}) where {FT<:AbstractFloat}
+    return
+end
+
+"""
+    add_ghosts!(elems, domain::Domain{FT, <:PeriodicBoundary, <:PeriodicBoundary, <:NonPeriodicBoundary, <:NonPeriodicBoundary})
+
+Add ghosts for elements that pass through the northern or southern boundaries.
+Inputs:
+        elems   <StructArray{Floe} or StructArray{TopographyElement}> list of elements to add ghosts to
+        domain  <Domain{Float, PeriodicBoundary, PeriodicBoundary,
+                               NonPeriodicBoundary, NonPeriodicBoundary}> domain with northern and southern periodic boundaries
+Outputs:
+        None. Ghosts are added to list of elements.
+"""
+function add_ghosts!(elems, domain::Domain{FT, <:PeriodicBoundary, <:PeriodicBoundary, <:NonPeriodicBoundary, <:NonPeriodicBoundary}) where {FT<:AbstractFloat}
+    add_elem_ghosts!(elems, domain.north, domain.south)
+    return
+end
+
+"""
+    add_ghosts!(elems, domain::Domain{FT, <:NonPeriodicBoundary, <:NonPeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary})
+
+Add ghosts for elements that pass through the eastern or western boundaries. 
+Inputs:
+        elems   <StructArray{Floe} or StructArray{TopographyElement}> list of elements to add ghosts to
+        domain  <Domain{Float, NonPeriodicBoundary, NonPeriodicBoundary,
+                               PeriodicBoundary, PeriodicBoundary}> domain with eastern and western periodic boundaries 
+Outputs:
+        None. Ghosts are added to list of elements.
+"""
+function add_ghosts!(elems, domain::Domain{FT, <:NonPeriodicBoundary, <:NonPeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary}) where {FT<:AbstractFloat}
+    add_elem_ghosts!(elems, domain.east, domain.west)
+    return
+end
+
+"""
+    add_ghosts!(elems, domain::Domain{FT, <:PeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary})
+
+Add ghosts for elements that pass through any of the boundaries. 
+Inputs:
+        elems   <StructArray{Floe} or StructArray{TopographyElement}> list of elements to add ghosts to
+        domain  <Domain{Float, PeriodicBoundary, PeriodicBoundary,
+                               PeriodicBoundary, PeriodicBoundary}> domain with all boundaries
+Outputs:
+        None. Ghosts are added to list of elements.
+"""
+function add_ghosts!(elems, domain::Domain{FT, <:PeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary}) where {FT<:AbstractFloat}
+    add_elem_ghosts!(elems, domain.east, domain.west)
+    add_elem_ghosts!(elems, domain.north, domain.south)
+    return
+end

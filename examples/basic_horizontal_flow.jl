@@ -1,4 +1,4 @@
-using Subzero, StructArrays, Statistics, JLD2
+using Subzero, StructArrays, Statistics, JLD2, SplitApplyCombine
 import LibGEOS as LG
 
 # User Inputs
@@ -18,6 +18,19 @@ const coarse_ny = 10
 grid = RegRectilinearGrid(-Lx, Lx, -Ly, Ly, Δgrid, Δgrid)
 ocean = Ocean(grid, 0.0, 0.0, 0.0)
 atmos = Atmos(zeros(grid.dims .+ 1), zeros(grid.dims .+ 1), fill(-20.0, grid.dims .+ 1))
+th = 0:pi/50:2*pi
+r = Ly/4+1000
+coords1 = splitdims([Lx/2 Lx/2 3*Lx/4 3*Lx/4 Lx+10000 Lx+10000; Ly/2 Ly+10000 Ly+10000 3*Ly/4 3*Ly/4 Ly/2])
+coords2 = invert([r * cos.(th) .+ Lx, r * sin.(th) .+ Ly])
+
+floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
+for i in eachindex(floe_arr)
+    floe_arr.id[i] = i
+end
+# flip border overlap from north to south and east to west and visa versa
+double_periodic_domain = Domain(PeriodicBoundary(grid, North()), PeriodicBoundary(grid, South()),
+                                PeriodicBoundary(grid, East()), PeriodicBoundary(grid, West()))
+add_ghosts!(floe_arr, double_periodic_domain)
 
 # Domain creation - boundaries and topography
 nboundary = PeriodicBoundary(grid, North())

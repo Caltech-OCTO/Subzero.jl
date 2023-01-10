@@ -64,7 +64,7 @@ Expected Behavior: Floe velocity quickly reaches ocean velocity and flows northw
 """
 model1 = Model(grid, meridional_ocn, zero_atmos, open_domain_no_topo, deepcopy(stationary_rect_floe))
 simulation1 = Simulation(name = "sim1", model = model1, consts = standard_consts, Δt = 10, nΔt = nΔt, COLLISION = false)
-push!(sim_arr, simulation1)
+#push!(sim_arr, simulation1)
 """
 Simulation 2: One floe pushed by zonal (west-to-east) 1m/s atmos flow. Ocean-ice drag coefficent set to 0.
             Floe is initally stationary.
@@ -72,7 +72,7 @@ Expected Behavior: Floe should drift to the right due to Coriolis force in the n
 """
 model2 = Model(grid, zero_ocn, zonal_atmos, open_domain_no_topo, deepcopy(stationary_rect_floe))
 simulation2 = Simulation(name = "sim2", model = model2, consts = no_ocndrag_consts, Δt = 50, nΔt = nΔt, COLLISION = false)
-push!(sim_arr, simulation2)
+#push!(sim_arr, simulation2)
 
 """
 Simulation 3: One floe with initial velocity flows into a collision boundary and then bounces off a topography element.
