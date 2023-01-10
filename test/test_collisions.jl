@@ -116,43 +116,84 @@
         grid = RegRectilinearGrid(-Lx, Lx, -Lx, Lx, 1e4, 1e4)
         double_periodic_domain = Domain(PeriodicBoundary(grid, North()), PeriodicBoundary(grid, South()),
                                         PeriodicBoundary(grid, East()), PeriodicBoundary(grid, West()))
-        # Parent-Parent Collision
+        # Parent-parent collison (parents are touching)
         coords1 = splitdims([Lx/2 Lx/2 3*Lx/4 3*Lx/4 Lx+10000 Lx+10000; Ly/2 Ly+10000 Ly+10000 3*Ly/4 3*Ly/4 Ly/2])
         th = 0:pi/50:2*pi
         r = Ly/4+1000
-        coords2 = invert([r * cos.(th) .+ Lx, r * sin.(th) .+ Ly])
+        coords2 = invert([r * cos.(th) .+ (Lx-1), r * sin.(th) .+ (Ly-1)])
 
         floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
         for i in eachindex(floe_arr)
             floe_arr.id[i] = i
         end
-        floe_arr[1].u = 0.1
-        floe_arr[2].u = 0.1
         Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
-        println(floe_arr.collision_force)
         xforce = abs(floe_arr[1].collision_force[1])
         yforce = abs(floe_arr[1].collision_force[2])
-        torque = abs(floe_arr[1].collision_trq)
+        f1_torque = floe_arr[1].collision_trq
+        f2_torque = floe_arr[2].collision_trq
         add_ghosts!(floe_arr, double_periodic_domain)
         Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
+        # 1 and 2 are the "parent" floes - floe1 interacts with floe 2's ghost floe (floe 4)
         @test xforce == abs(floe_arr[1].collision_force[1]) == abs(floe_arr[2].collision_force[1])
         @test yforce == abs(floe_arr[2].collision_force[2]) == abs(floe_arr[2].collision_force[2])
-        @test torque == abs(floe_arr[1].collision_trq) == abs(floe_arr[2].collision_trq)
+        @test f1_torque == floe_arr[1].collision_trq
+        @test f2_torque == floe_arr[2].collision_trq
+        # All other ghost floes aren't calculated
         @test first.(floe_arr[3:end].collision_force) == zeros(6)
         @test last.(floe_arr[3:end].collision_force) == zeros(6)
         @test floe_arr[3:end].collision_trq == zeros(6)
-        # Ghost-Ghost Collision
-        x1 = [5*Lx/8 5*Lx/8 3*Lx/4 3*Lx/4].+1000
-        x2 = -[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000]
-        y1 = [3*Ly/4 5*Ly/4 5*Ly/4 3*Ly/4]
-        y2 = -[7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8 ]
+
+        # Ghost-Ghost collision (parents aren't touching, only ghosts touch)
+        coords1 = splitdims(vcat([5*Lx/8 5*Lx/8 3*Lx/4 3*Lx/4].+1000, [3*Ly/4 5*Ly/4 5*Ly/4 3*Ly/4]))
+        coords2 = splitdims(vcat(-[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000], -[7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8]))
+        floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
+        for i in eachindex(floe_arr)
+            floe_arr.id[i] = i
+        end
+        trans_arr = StructArray([Floe(Subzero.translate([coords1], [0.0, -2Ly]), 0.5, 0.0),
+                                 Floe(Subzero.translate([coords2], [2Lx, 0.0]), 0.5, 0.0)])
+        for i in eachindex(trans_arr)
+            trans_arr.id[i] = i
+        end
+        Subzero.timestep_collisions!(trans_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
+        xforce = abs(trans_arr[1].collision_force[1])
+        yforce = abs(trans_arr[1].collision_force[2])
+        f1_torque = trans_arr[1].collision_trq
+        f2_torque = trans_arr[2].collision_trq
+        add_ghosts!(floe_arr, double_periodic_domain)
+        Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
+        @test repeat([xforce], 4) == abs.(first.(floe_arr.collision_force[1:4]))
+        @test repeat([yforce], 4) == abs.(last.(floe_arr.collision_force[1:4]))
+        @test f1_torque == floe_arr[1].collision_trq == floe_arr[4].collision_trq
+        @test f2_torque == floe_arr[2].collision_trq == floe_arr[3].collision_trq
+        @test size(floe_arr[1].interactions, 1) == 1
+        @test size(floe_arr[2].interactions, 1) == 1
 
         # Parent-Ghost Collision
-        x1 = [5*Lx/8 5*Lx/8 3*Lx/4 3*Lx/4].+1000;
-        x2 = -[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000];
-        y1 = [3*Ly/4 5*Ly/4 5*Ly/4 3*Ly/4];
-        y2 = [7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8 ];
-
+        coords1 = splitdims(vcat([5*Lx/8 5*Lx/8 3*Lx/4 3*Lx/4].+1000, [3*Ly/4 5*Ly/4 5*Ly/4 3*Ly/4]))
+        coords2 = splitdims(vcat(-[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000], [7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8]))
+        floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
+        for i in eachindex(floe_arr)
+            floe_arr.id[i] = i
+        end
+        trans_arr = StructArray([Floe(Subzero.translate([coords1], [-2Lx, 0.0]), 0.5, 0.0),
+                                 Floe([coords2], 0.5, 0.0)])
+        for i in eachindex(trans_arr)
+            trans_arr.id[i] = i
+        end
+        Subzero.timestep_collisions!(trans_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
+        xforce = abs(trans_arr[1].collision_force[1])
+        yforce = abs(trans_arr[1].collision_force[2])
+        f1_torque = trans_arr[1].collision_trq
+        f2_torque = trans_arr[2].collision_trq
+        add_ghosts!(floe_arr, double_periodic_domain)
+        Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
+        @test repeat([xforce], 3) == abs.(first.(floe_arr.collision_force[1:3]))
+        @test repeat([yforce], 3) == abs.(last.(floe_arr.collision_force[1:3]))
+        @test f1_torque == floe_arr[1].collision_trq
+        @test f2_torque == floe_arr[2].collision_trq == floe_arr[3].collision_trq
+        @test size(floe_arr[2].interactions, 1) == 1
+        @test size(floe_arr[4].interactions, 1) == 1
     end
 
 end

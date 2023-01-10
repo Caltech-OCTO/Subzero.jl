@@ -30,7 +30,10 @@ end
 # flip border overlap from north to south and east to west and visa versa
 double_periodic_domain = Domain(PeriodicBoundary(grid, North()), PeriodicBoundary(grid, South()),
                                 PeriodicBoundary(grid, East()), PeriodicBoundary(grid, West()))
+floe_arr.u[1] = 0.1
+floe_arr.u[2] = 0.1
 add_ghosts!(floe_arr, double_periodic_domain)
+Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
 
 # Domain creation - boundaries and topography
 nboundary = PeriodicBoundary(grid, North())

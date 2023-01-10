@@ -97,7 +97,6 @@ Inputs:
         regions         <Vector{LibGEOS.Polygon}> polygon regions of overlap during collision
         region_areas    <Vector{Float}> area of each polygon in regions
         force_factor    <Float> Spring constant equivalent for collisions
-        consts          <Constants> model constants needed for calculations
         t               <Type> Float type model is running on (Float64 or Float32)
 Outputs:
         force   <Array{Float, n, 2}> normal forces on each of the n regions greater than a minimum area
@@ -105,7 +104,7 @@ Outputs:
         overlap <Array{Float, n, 2}> area of each of the n regions greater than a minimum area
         Δl      <Float> mean length of distance between intersection points
 """
-function calc_elastic_forces(c1, c2, regions, region_areas, force_factor, consts, t::Type{T} = Float64) where T
+function calc_elastic_forces(c1, c2, regions, region_areas, force_factor, ::Type{T} = Float64) where T
     ipoints = intersect_lines(c1, c2)  # Intersection points
     if isempty(ipoints) || size(ipoints,2) < 2  # No overlap points
         return zeros(T, 1, 2), zeros(T, 1, 2), zeros(T, 1)  # Force, contact points, overlap area
@@ -228,7 +227,7 @@ function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, ::Type{
             end
             # Calculate normal forces, force points, and overlap areas
             normal_forces, fpoints, overlaps, Δl = calc_elastic_forces(ifloe.coords, jfloe.coords,
-                                        inter_regions, region_areas, force_factor, consts, T)
+                                        inter_regions, region_areas, force_factor, T)
             # Calculate frictional forces at each force point - based on velocities at force points
             np = size(fpoints, 1)
             iv = repeat([ifloe.u ifloe.v], outer = np) .+ ifloe.ξ*(fpoints .- repeat(ifloe.centroid', outer = np)) 
@@ -362,7 +361,7 @@ function floe_domain_element_interaction!(floe, element::Union{CollisionBoundary
         force_factor = consts.E * floe.height / sqrt(floe.area)
         # Calculate normal forces, force points, and overlap areas
         normal_forces, fpoints, overlaps, Δl =  calc_elastic_forces(floe.coords, element.coords,
-                                        inter_regions, region_areas, force_factor, consts, T)
+                                        inter_regions, region_areas, force_factor, T)
         # Calculate frictional forces at each force point - based on velocities at force points
         np = size(fpoints, 1)
         vfloe = repeat([floe.u floe.v], outer = np) .+ floe.ξ*(fpoints .- repeat(floe.centroid', outer = np)) 
@@ -447,17 +446,18 @@ function calc_torque!(floe, ::Type{T} = Float64) where T
 end
 
 function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, consts, Δt, ::Type{T} = Float64) where T
+    collide_pairs = Set{Tuple{Int, Int}}()
     for i in eachindex(floes) # floe-floe collisions for floes i and j where i<j
         ifloe = floes[i]
+        iid = abs(ifloe.id)
         ifloe.collision_force = zeros(T, 1, 2)
         ifloe.collision_trq = T(0.0)
         ifloe.interactions = ifloe.interactions[1:1, :]
-        collide_ids = Vector{Int}()
         for j in i+1:length(floes)
-            abs_id = abs(floes[j].id)
-            if !(abs_id in collide_ids) && (sum((ifloe.centroid .- floes[j].centroid).^2) <
-                                           (ifloe.rmax + floes[j].rmax)^2)
-                push!(collide_ids, abs_id)
+            jid = abs(floes[j].id)
+            if (jid != iid) && !((jid, iid) in collide_pairs) && !((iid, jid) in collide_pairs) &&
+            (sum((ifloe.centroid .- floes[j].centroid).^2) < (ifloe.rmax + floes[j].rmax)^2)
+                push!(collide_pairs, (iid, jid))
                 iremove, itransfer = floe_floe_interaction!(ifloe, i, floes[j], j, n_init_floes, consts, Δt)
                 if iremove != 0 || itransfer != 0
                     remove[i] = iremove
@@ -491,12 +491,13 @@ function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, con
     for i in reverse(eachindex(floes)) # TODO: Move torque calculations to earlier and then we only need to do this for the first points
         ifloe = floes[i]
         calc_torque!(ifloe)
+        ifloe.collision_force[1] += sum(ifloe.interactions[:, "xforce"])
+        ifloe.collision_force[2] += sum(ifloe.interactions[:, "yforce"])
+        ifloe.collision_trq += sum(ifloe.interactions[:, "torque"])
         for g in ifloe.ghosts
-            gfloe = floes[g]
-            ifloe.collision_force[1] += sum(gfloe.interactions[:, "xforce"])
-            ifloe.collision_force[2] += sum(gfloe.interactions[:, "yforce"])
-            ifloe.collision_trq += sum(gfloe.interactions[:, "torque"])
-
+            ifloe.collision_force[1] += sum(floes.interactions[g][:, "xforce"])
+            ifloe.collision_force[2] += sum(floes.interactions[g][:, "yforce"])
+            ifloe.collision_trq += sum(floes.interactions[g][:, "torque"])
         end
         floes[i] = ifloe
     end

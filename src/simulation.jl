@@ -64,10 +64,6 @@ Output:
         None. Floe's fields are updated with new position and speed
 """
 function timestep_floe!(floe, Δt)
-    floe.collision_force[1] += sum(floe.interactions[:, "xforce"])
-    floe.collision_force[2] += sum(floe.interactions[:, "yforce"])
-    floe.collision_trq += sum(floe.interactions[:, "torque"])
-
     cforce = floe.collision_force
     ctrq = floe.collision_trq
 
