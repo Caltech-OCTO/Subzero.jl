@@ -447,17 +447,21 @@ end
 
 function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, consts, Δt, ::Type{T} = Float64) where T
     collide_pairs = Set{Tuple{Int, Int}}()
-    for i in eachindex(floes) # floe-floe collisions for floes i and j where i<j
+    # floe-floe collisions for floes i and j where i<j
+    for i in eachindex(floes)
         ifloe = floes[i]
         iid = abs(ifloe.id)
+        # reset collision values
         ifloe.collision_force = zeros(T, 1, 2)
         ifloe.collision_trq = T(0.0)
         ifloe.interactions = ifloe.interactions[1:1, :]
         for j in i+1:length(floes)
             jid = abs(floes[j].id)
+            # Confirm that this collision hasn't already occured with parent/ghost floes using ids
+            # If it hasn't occured, check if floes are in close proximity
             if (jid != iid) && !((jid, iid) in collide_pairs) && !((iid, jid) in collide_pairs) &&
             (sum((ifloe.centroid .- floes[j].centroid).^2) < (ifloe.rmax + floes[j].rmax)^2)
-                push!(collide_pairs, (iid, jid))
+                push!(collide_pairs, (iid, jid))  # add ids to collide_pairs list so collision isn't repeated with ghosts
                 iremove, itransfer = floe_floe_interaction!(ifloe, i, floes[j], j, n_init_floes, consts, Δt)
                 if iremove != 0 || itransfer != 0
                     remove[i] = iremove
@@ -468,8 +472,9 @@ function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, con
         floe_domain_interaction!(ifloe, domain, consts, Δt)
         floes[i] = ifloe
     end
-    # Update floes not directly calculated above where i>j
+    # Update floes not directly calculated above where i>j - can't be parallelized
     for i in eachindex(floes)
+        # if we are removing floe j = remove[i] floe j's mass must be transfered to floe i
         if i <= n_init_floes && remove[i] > 0 && remove[i] != i
             transfer[remove[i]] = i
         end
@@ -479,25 +484,24 @@ function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, con
                 j = ij_inters[inter_idx, "floeidx"]  # Index of floe to update in model floe list
                 if j <= length(floes) && j > i
                     jidx = Int(j)
-                    jfloe = floes[jidx]
-                    jfloe.interactions = [jfloe.interactions; i -ij_inters[inter_idx, "xforce"] -ij_inters[inter_idx, "yforce"] #=
-                                        =# ij_inters[inter_idx, "xpoint"] ij_inters[inter_idx, "ypoint"] T(0.0) ij_inters[inter_idx, "overlap"]]
-                    jfloe.overarea += ij_inters[inter_idx, "overlap"]
-                    floes[jidx] = jfloe
+                    floes.interactions[jidx] = [floes.interactions[jidx]; i -ij_inters[inter_idx, "xforce"] -ij_inters[inter_idx, "yforce"] #=
+                                             =# ij_inters[inter_idx, "xpoint"] ij_inters[inter_idx, "ypoint"] T(0.0) ij_inters[inter_idx, "overlap"]]
+                    floes.overarea[jidx] += ij_inters[inter_idx, "overlap"]
                 end
             end
         end
     end
-    for i in reverse(eachindex(floes)) # TODO: Move torque calculations to earlier and then we only need to do this for the first points
+    # reverse loop so ghost torques and foreces are calculated before parents
+    for i in reverse(eachindex(floes))
         ifloe = floes[i]
         calc_torque!(ifloe)
         ifloe.collision_force[1] += sum(ifloe.interactions[:, "xforce"])
         ifloe.collision_force[2] += sum(ifloe.interactions[:, "yforce"])
         ifloe.collision_trq += sum(ifloe.interactions[:, "torque"])
         for g in ifloe.ghosts
-            ifloe.collision_force[1] += sum(floes.interactions[g][:, "xforce"])
-            ifloe.collision_force[2] += sum(floes.interactions[g][:, "yforce"])
-            ifloe.collision_trq += sum(floes.interactions[g][:, "torque"])
+            ifloe.collision_force[1] += first(floes.collision_force[g])
+            ifloe.collision_force[2] += last(floes.collision_force[g])
+            ifloe.collision_trq += floes.collision_trq[g]
         end
         floes[i] = ifloe
     end
@@ -523,7 +527,6 @@ function ghosts_on_bounds(element, ghosts, boundary, trans_vec)
         # ghosts of existing ghosts and original element
         append!(new_ghosts, deepcopy.(ghosts))
         push!(new_ghosts, deepcopy(element))
-        # g is a copy
         for i in eachindex(new_ghosts)
             new_ghosts.coords[i] = translate(new_ghosts.coords[i], trans_vec)
             new_ghosts.centroid[i] .+= trans_vec
@@ -552,9 +555,9 @@ function find_ghosts(elem, current_ghosts, ebound::PeriodicBoundary{East, <:Abst
 ::Type{T} = Float64) where T
     Lx = ebound.val - wbound.val
     new_ghosts =
-        if elem.centroid[1] - elem.rmax < wbound.val
+        if elem.centroid[1] - elem.rmax < wbound.val  # passing through western boundary
             ghosts_on_bounds(elem, current_ghosts, wbound, [Lx, T(0)])
-        elseif (elem.centroid[1] + elem.rmax > ebound.val)
+        elseif (elem.centroid[1] + elem.rmax > ebound.val) # passing through eastern boundary
             ghosts_on_bounds(elem, current_ghosts, ebound, [-Lx, T(0)])
         else
             StructArray(Vector{typeof(elem)}())
@@ -586,9 +589,9 @@ function find_ghosts(elem, current_ghosts, nbound::PeriodicBoundary{North, <:Abs
 ::Type{T} = Float64) where T
     Ly =  nbound.val - sbound.val
     new_ghosts = 
-        if (elem.centroid[2] - elem.rmax < sbound.val)
+        if (elem.centroid[2] - elem.rmax < sbound.val)  # passing through southern boundary
             ghosts_on_bounds(elem, current_ghosts, sbound, [T(0), Ly])
-        elseif (elem.centroid[2] + elem.rmax > nbound.val)
+        elseif (elem.centroid[2] + elem.rmax > nbound.val)  # passing through northern boundary
             ghosts_on_bounds(elem, current_ghosts, nbound, [T(0), -Ly])
         else
             StructArray(Vector{typeof(elem)}())
@@ -614,14 +617,14 @@ Outputs:
 function add_elem_ghosts!(floes::StructArray{Floe{T}}, max_boundary, min_boundary) where {T <: AbstractFloat}
     nfloes = length(floes)
     for i in eachindex(floes)  # uses initial length of floes so we can append to list
-        f = floes[i]  # might not need to make a copy 
+        f = floes[i]
         if f.alive == 1 && f.id >= 0
             f, new_ghosts = find_ghosts(f, floes[f.ghosts], max_boundary, min_boundary, T)
             if !isempty(new_ghosts)
                 new_ghosts.id .= -abs.(new_ghosts.id)  # ghosts have negative index of parent floe
-                empty!.(new_ghosts.ghosts)
-                append!(floes, new_ghosts)
-                append!(f.ghosts, nfloes+1:nfloes+length(new_ghosts))  # index of ghosts floes saved
+                empty!.(new_ghosts.ghosts)  # remove ghost floes ghosts as these were added to parent
+                append!(floes, new_ghosts)  # add ghosts to floe list
+                append!(f.ghosts, nfloes+1:nfloes+length(new_ghosts))  # index of ghosts floes saved in parent
                 nfloes += length(new_ghosts)
                 floes[i] = f
             end
@@ -646,7 +649,7 @@ function add_elem_ghosts!(topography::StructArray{TopographyElement{T}}, max_bou
         t = topography[i]
         t, new_ghosts = find_ghosts(t, StructArray(Vector{TopographyElement}()), max_boundary, min_boundary, T)
         if !isempty(new_ghosts)
-            append!(topography, new_ghosts)
+            append!(topography, new_ghosts)  # add new topography to list
             topography[i] = t
         end
     end
