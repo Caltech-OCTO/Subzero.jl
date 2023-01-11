@@ -143,9 +143,9 @@ Inputs:
         domain_fn   <String> file path to JLD2 file holding domain struct information
 Outputs: Saves simulation gif with floes and topography plotted.
 """
-function create_sim_gif(floes_fn, domain_fn, output_fn)
+function create_sim_gif(floes_fn, domain_fn, output_fn, plot_size = (1500, 1500))
     NCDataset(floes_fn) do sim_data # TODO: Change this if we don't want NetCDFs
-        plt = setup_plot(domain_fn)  # Uses JLD2
+        plt = setup_plot(domain_fn, plot_size)  # Uses JLD2
         anim = @animate for tstep in eachindex(sim_data["time"][:])
             new_frame = plot(plt)
             for i in eachindex(sim_data["floes"][:])

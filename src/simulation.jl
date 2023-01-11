@@ -159,16 +159,25 @@ function timestep_atm!(m, c)
     m.hflx .= c.k/(c.ρi*c.L) .* (atmos.temp .- ocean.temp)
 end
 
-function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
+function timestep_sim!(sim, tstep, writers, widx, ::Type{T} = Float64) where T
     m = sim.model
     m.ocean.si_area .= zeros(T, 1)
     n_init_floes = length(m.floes) # number of floes before ghost floes
     add_ghosts!(m.floes, m.domain)
     remove = zeros(Int, n_init_floes)
     transfer = zeros(Int, n_init_floes)
+
     if sim.COLLISION
         remove, transfer = timestep_collisions!(m.floes, n_init_floes, m.domain, remove, transfer, sim.consts, sim.Δt, T)
     end
+    # Output at given timestep
+    if length(widx) > 0
+        println(tstep, " timesteps")
+        for idx in widx
+            write_data!(writers[idx], tstep, sim.model, sim.name)
+        end
+    end
+
     m.floes = m.floes[1:n_init_floes] # remove the ghost floes
     empty!.(m.floes.ghosts) 
     for i in 1:n_init_floes
@@ -227,16 +236,11 @@ function run!(sim, writers, ::Type{T} = Float64) where T
 
     tstep = 0
     while tstep <= sim.nΔt
-        # Write data
+        # Index of writers at given timestep
         widx = findall(Δtout-> mod(tstep, Δtout) == 0, Δtout_lst)
-        if length(widx) > 0
-            println(tstep, " timesteps completed")
-            for idx in widx
-                write_data!(writers[idx], tstep, sim.model, sim.name)
-            end
-        end
+
         # Timestep the simulation forward
-        timestep_sim!(sim, tstep, T)
+        timestep_sim!(sim, tstep, writers, widx, T)
         tstep+=1
     end
     println(string(sim.name ," done running!"))
