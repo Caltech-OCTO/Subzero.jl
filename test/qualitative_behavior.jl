@@ -64,7 +64,7 @@ Expected Behavior: Floe velocity quickly reaches ocean velocity and flows northw
 """
 model1 = Model(grid, meridional_ocn, zero_atmos, open_domain_no_topo, deepcopy(stationary_rect_floe))
 simulation1 = Simulation(name = "sim1", model = model1, consts = standard_consts, Δt = 10, nΔt = nΔt, COLLISION = false)
-push!(sim_arr, simulation1)
+#push!(sim_arr, simulation1)
 """
 Simulation 2: One floe pushed by zonal (west-to-east) 1m/s atmos flow. Ocean-ice drag coefficent set to 0.
             Floe is initally stationary.
@@ -72,7 +72,7 @@ Expected Behavior: Floe should drift to the right due to Coriolis force in the n
 """
 model2 = Model(grid, zero_ocn, zonal_atmos, open_domain_no_topo, deepcopy(stationary_rect_floe))
 simulation2 = Simulation(name = "sim2", model = model2, consts = no_ocndrag_consts, Δt = 50, nΔt = nΔt, COLLISION = false)
-push!(sim_arr, simulation2)
+#push!(sim_arr, simulation2)
 
 """
 Simulation 3: One floe with initial velocity flows into a collision boundary and then bounces off a topography element.
@@ -83,6 +83,32 @@ Expected Behavior: Floes should bounce off of the topography elements and then o
 model3 = Model(grid, zero_ocn, zero_atmos, collision_domain_topo, deepcopy(zonal_2rect_floe))
 simulation3 = Simulation(name = "sim3", model = model3, consts = no_drag_consts, Δt = 10, nΔt = nΔt, COLLISION = true)
 push!(sim_arr, simulation3)
+
+"""
+Simulation 4: Two initial floes and double periodic boundaries. One floe has (1, 1) initial velocity and the other has (1, 0) velocity.
+One topography element accross from second floe. No drag so the floes can move free of ocean.
+Expected Behavior: Floe one should pass through top right the corner and you should see 3 ghost floes appear before it eventually passes
+through bottom the left corner and later bounces off of the topogrpahy element. Floe 2 passes eastern wall, populating a ghost floe which 
+hits the topography element before bounding back through the western wall. 
+"""
+periodic_bounds_topo = Subzero.Domain(PeriodicBoundary(grid, North()),
+                                      PeriodicBoundary(grid, South()),
+                                      PeriodicBoundary(grid, East()), 
+                                      PeriodicBoundary(grid, West()),
+                                      StructArray([TopographyElement([[[-9.5e4, 4.5e4], [-9.5e4, 6.5e4], [-6.5e4, 6.5e4],
+                                                                       [-6.5e4, 4.5e4], [-9.5e4, 4.5e4]]])]))
+
+p1_coords = [[[7.5e4, 7.5e4], [7.5e4, 9.5e4], [9.5e4, 9.5e4], 
+                 [9.5e4, 7.5e4], [7.5e4, 7.5e4]]]
+p2_coords = [[[6.5e4, 4.5e4], [6.5e4, 6.5e4], [8.5e4, 6.5e4], 
+                 [8.5e4, 4.5e4], [6.5e4, 4.5e4]]]
+p_floe_arr = StructArray([Floe(c, h_mean, Δh) for c in [floe1_coords, floe2_coords]])
+p_floe_arr.u[1] = 1
+p_floe_arr.v[1] = 1
+p_floe_arr.u[2] = 1
+model4 = Model(grid, zero_ocn, zero_atmos, periodic_bounds_topo, deepcopy(p_floe_arr))
+simulation4 = Simulation(name = "sim4", model = model4, consts = no_drag_consts, Δt = 10, nΔt = nΔt, COLLISION = true)
+push!(sim_arr, simulation4)
 
 # Run the simulations
 for sim in sim_arr

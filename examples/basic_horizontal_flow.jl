@@ -1,4 +1,4 @@
-using Subzero, StructArrays, Statistics, JLD2
+using Subzero, StructArrays, Statistics, JLD2, SplitApplyCombine
 import LibGEOS as LG
 
 # User Inputs
@@ -15,38 +15,38 @@ const coarse_nx = 10
 const coarse_ny = 10
 
 # Model instantiation
-grid = RegRectilinearGrid(-Lx, Lx, -Ly, Ly, Δgrid, Δgrid)
+grid = RegRectilinearGrid(-Lx, Lx, 0, Ly, Δgrid, Δgrid)
 ocean = Ocean(grid, 0.0, 0.0, 0.0)
 atmos = Atmos(zeros(grid.dims .+ 1), zeros(grid.dims .+ 1), fill(-20.0, grid.dims .+ 1))
 
 # Domain creation - boundaries and topography
-nboundary = CollisionBoundary(grid, North())
-sboundary = CollisionBoundary(grid, South())
-eboundary = CollisionBoundary(grid, East())
-wboundary = CollisionBoundary(grid, West())
+nboundary = PeriodicBoundary(grid, North())
+sboundary = PeriodicBoundary(grid, South())
+eboundary = PeriodicBoundary(grid, East())
+wboundary = PeriodicBoundary(grid, West())
 
-topo = TopographyElement([[[0.5e4, 5e4], [0.5e4, 7e4], [1e4, 7e4], [1e4, 5e4], [0.5e4, 5e4]]])
+topo = TopographyElement([[[-9.5e4, 4.5e4], [-9.5e4, 6.5e4], [-6.5e4, 6.5e4],
+                           [-6.5e4, 4.5e4], [-9.5e4, 4.5e4]]])
 topo_arr = StructVector([topo for i in 1:1])
 
-domain = Domain(nboundary, sboundary, eboundary, wboundary)
+domain = Domain(nboundary, sboundary, eboundary, wboundary, topo_arr)
 
 # Floe instantiation
-floe1_coords = [[[-1.75e4, 5e4], [-1.75e4, 7e4], [-1.25e4, 7e4], 
-                    [-1.25e4, 5e4], [-1.75e4, 5e4]]]
-floe1 = Floe(floe1_coords, h_mean, Δh)
-jldopen("test/test_mc_points.jld2", "r") do f
-    floe1.mc_x = f["X"]
-    floe1.mc_y = f["Y"]
-end
-floe_arr = StructArray([floe1])
-
+floe1_coords = [[[7.5e4, 7.5e4], [7.5e4, 9.5e4], [9.5e4, 9.5e4], 
+                    [9.5e4, 7.5e4], [7.5e4, 7.5e4]]]
+floe2_coords = [[[6.5e4, 4.5e4], [6.5e4, 6.5e4], [8.5e4, 6.5e4], 
+                 [8.5e4, 4.5e4], [6.5e4, 4.5e4]]]
+floe_arr = StructArray([Floe(c, h_mean, Δh) for c in [floe1_coords, floe2_coords]])
+floe_arr.u[1] = 1
+floe_arr.v[1] = 1
+floe_arr.u[2] = 1
 model = Model(grid, ocean, atmos, domain, floe_arr)
 
 # Simulation setup
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
-consts = Constants(E = modulus)
-#consts = Constants(E = modulus, Cd_io = 0.0, Cd_ia = 0.0, Cd_ao = 0.0, f = 0.0, μ = 0.0)  # collisions without friction 
-simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 7000, COLLISION = true)
+#consts = Constants(E = modulus)
+consts = Constants(E = modulus, Cd_io = 0.0, Cd_ia = 0.0, Cd_ao = 0.0, f = 0.0, μ = 0.0)  # collisions without friction 
+simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 3000, COLLISION = true)
 
 # Output setup
 gridwriter = GridOutputWriter([GridOutput(i) for i in 1:9], 10, "g.nc", grid, (10, 10))

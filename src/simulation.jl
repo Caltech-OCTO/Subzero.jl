@@ -64,10 +64,6 @@ Output:
         None. Floe's fields are updated with new position and speed
 """
 function timestep_floe!(floe, Δt)
-    floe.collision_force[1] += sum(floe.interactions[:, "xforce"])
-    floe.collision_force[2] += sum(floe.interactions[:, "yforce"])
-    floe.collision_trq += sum(floe.interactions[:, "torque"])
-
     cforce = floe.collision_force
     ctrq = floe.collision_trq
 
@@ -163,59 +159,36 @@ function timestep_atm!(m, c)
     m.hflx .= c.k/(c.ρi*c.L) .* (atmos.temp .- ocean.temp)
 end
 
-function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
+function timestep_sim!(sim, tstep, writers, widx, ::Type{T} = Float64) where T
     m = sim.model
     m.ocean.si_area .= zeros(T, 1)
-    nfloes = length(m.floes) # number of floes before ghost floes
-    remove = zeros(Int, nfloes)
-    transfer = zeros(Int, nfloes)
-    for i in 1:nfloes # floe-floe collisions for floes i and j where i<j
-        ifloe = m.floes[i]
-        ifloe.collision_force = zeros(T, 1, 2)
-        ifloe.collision_trq = T(0.0)
-        ifloe.interactions = ifloe.interactions[1:1, :]
-        if sim.COLLISION
-            for j in i+1:nfloes
-                if sum((ifloe.centroid .- m.floes[j].centroid).^2) < (ifloe.rmax + m.floes[j].rmax)^2
-                    ikill, itransfer = floe_floe_interaction!(ifloe, i, m.floes[j], j, nfloes, sim.consts, sim.Δt)
-                    remove[i] = ikill
-                    transfer[i] = itransfer
-                end
-            end
-        end
-        floe_domain_interaction!(ifloe, m.domain, sim.consts, sim.Δt)
-        m.floes[i] = ifloe
+    n_init_floes = length(m.floes) # number of floes before ghost floes
+    add_ghosts!(m.floes, m.domain)
+    remove = zeros(Int, n_init_floes)
+    transfer = zeros(Int, n_init_floes)
+
+    if sim.COLLISION
+        remove, transfer = timestep_collisions!(m.floes, n_init_floes, m.domain, remove, transfer, sim.consts, sim.Δt, T)
     end
-    for i in 1:length(m.floes)  # Update floes not directly calculated above where i>j
-        if i <= nfloes && remove[i] > 0 && remove[i] != i
-            transfer[remove[i]] = i
-        end
-        ij_inters = m.floes[i].interactions
-        if size(ij_inters, 1) > 1 # First row is place holder for initialization and clearing
-            for inter_idx in axes(ij_inters, 1)  # Loop over each interaction with Floe i
-                j = ij_inters[inter_idx, "floeidx"]  # Index of floe to update in model floe list
-                if j <= length(m.floes) && j > i
-                    jidx = Int(j)
-                    jfloe = m.floes[jidx]
-                    jfloe.interactions = [jfloe.interactions; i -ij_inters[inter_idx, "xforce"] -ij_inters[inter_idx, "yforce"] #=
-                                        =# ij_inters[inter_idx, "xpoint"] ij_inters[inter_idx, "ypoint"] T(0.0) ij_inters[inter_idx, "overlap"]]
-                    jfloe.overarea += ij_inters[inter_idx, "overlap"]
-                    m.floes[jidx] = jfloe
-                end
-            end
+    # Output at given timestep
+    if length(widx) > 0
+        println(tstep, " timesteps")
+        for idx in widx
+            write_data!(writers[idx], tstep, sim.model, sim.name)
         end
     end
-    for i in 1:nfloes
+
+    m.floes = m.floes[1:n_init_floes] # remove the ghost floes
+    empty!.(m.floes.ghosts) 
+    for i in 1:n_init_floes
         ifloe = m.floes[i]
         if mod(tstep, sim.Δtocn) == 0
             floe_OA_forcings!(ifloe, m, sim.consts, sim.Δd)
         end
-        calc_torque!(ifloe)
         timestep_floe!(ifloe, sim.Δt)
         m.floes[i] = ifloe
     end
     
-
     remove_idx = findall(f -> f.alive == 0, m.floes)
     for idx in remove_idx
         StructArrays.foreachfield(f -> deleteat!(f, idx), m.floes)
@@ -242,6 +215,7 @@ Outputs:
         None. The simulation will be run and outputs will be saved in the output folder. 
 """
 function run!(sim, writers, ::Type{T} = Float64) where T
+    # Output setup
     Δtout_lst = Int[]
     if !isempty(writers)
         write_domain!(sim.model.domain, sim.name)
@@ -251,16 +225,22 @@ function run!(sim, writers, ::Type{T} = Float64) where T
         push!(Δtout_lst, w.Δtout)
     end
     println(string(sim.name ," running!"))
+
+    # Initialize floe IDs
+    for i in eachindex(sim.model.floes)
+        sim.model.floes.id[i] = i
+    end
+    
+    # Add topography elements crossing through periodic boundaries
+    add_ghosts!(sim.model.domain.topography, sim.model.domain)
+
     tstep = 0
     while tstep <= sim.nΔt
+        # Index of writers at given timestep
         widx = findall(Δtout-> mod(tstep, Δtout) == 0, Δtout_lst)
-        if length(widx) > 0
-            println(tstep, " timesteps completed")
-            for idx in widx
-                write_data!(writers[idx], tstep, sim.model, sim.name)
-            end
-        end
-        timestep_sim!(sim, tstep, T)
+
+        # Timestep the simulation forward
+        timestep_sim!(sim, tstep, writers, widx, T)
         tstep+=1
     end
     println(string(sim.name ," done running!"))

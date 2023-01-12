@@ -170,8 +170,6 @@ knots, but rather only one is used. So if there are 10 grid lines, grid line 1 a
 use grid line 1 exclusively. 
 """
 function find_interp_knots(point_idx, glines, Δd::Int, ::PeriodicBoundary, ::Type{T} = Float64) where T 
-    knots = Vector{T}(undef, 0)
-    knot_idx = Vector{T}(undef, 0)
     min_line, max_line = extrema(point_idx)
     nlines = length(glines)
     ncells = nlines - 1
@@ -181,8 +179,8 @@ function find_interp_knots(point_idx, glines, Δd::Int, ::PeriodicBoundary, ::Ty
     max_line += (Δd + 1)  # point close to ith grid line could be between the i and i+1 grid line
 
     # Find out-of-bounds (oob) indices and the in-bounds (within the grid) indices
-    low_oob_idx = Vector{T}(undef, 0)  # out of bounds on south or west side of domain 
-    high_oob_idx = Vector{T}(undef, 0)  # out of bounds on north or east side of domain 
+    low_oob_idx = Vector{Int}(undef, 0)  # out of bounds on south or west side of domain 
+    high_oob_idx = Vector{Int}(undef, 0)  # out of bounds on north or east side of domain 
     in_bounds_idx = 
         if min_line < 1 && max_line > ncells # last gird line is equal to first grid line
             low_oob_idx = (min_line + ncells):ncells
@@ -372,18 +370,24 @@ end
     shift_cell_idx(idx, nlines, ::PeriodicBoundary)
 
 If index is greater than or equal to the grid lines, shift index to equivalent
-grid line on opposite side of grid due to periodic boundary.
+grid line on opposite side of grid due to periodic boundary. Similarly if given
+index is less than 1, shift index to equivalent grid line on opposite side of grid due to periodic boundary.
 Inputs:
         idx     <Int> grid line index in either x or y
         nlines  <Int> number of grid lines in model grid in either x or y direction
                 <NonPeriodicBoundary> boundary pair is non-periodic
 Output: If given index is greater than or equal to number of grid lines, shift index.
+If given index is less than 1, shift grid index.
 For example, the last grid index, nlines, is equivalent to the 1st grid line.
 The nlines+1 grid line is equivalent to the 2nd grid line.
 
 """
 function shift_cell_idx(idx, nlines, ::PeriodicBoundary)
-    return idx < nlines ? idx : Int(mod(idx, nlines)) + 1
+    ncells = nlines - 1
+    return idx < 1 ? (idx + ncells) :
+                     ncells < idx ?
+                        (idx - ncells) :
+                        idx
 end
 
 """
