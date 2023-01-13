@@ -714,6 +714,9 @@ Singular sea ice floe with fields describing current state.
     collision_trq::FT = 0.0
     interactions::NamedMatrix{FT} = NamedArray(zeros(7),
     (["floeidx", "xforce", "yforce", "xpoint", "ypoint", "torque", "overlap"]))'
+    strain::Matrix{FT} = zeros(2,2)
+    stress::Matrix{FT} = zeros(2,2)
+    stress_history::CircularBuffer{Matrix{FT}} # history of stress on the floe
     # Previous values for timestepping
     p_dxdt::FT = 0.0        # previous timestep x-velocity
     p_dydt::FT = 0.0        # previous timestep y-velocity
@@ -763,6 +766,7 @@ Inputs:
         v           <Real> y-velcoity of the floe - default 0.0
         ksi         <Real> angular velocity of the floe - default 0.0
         mc_n        <Real> number of monte carlo points
+        history     <Real> number of stress history arrays to save for each floe
         t           <Float> datatype to run simulation with - either Float32 or Float64
 Output:
         Floe with needed fields defined - all default field values used so all forcings start at 0 and floe is "alive".
@@ -772,7 +776,7 @@ Note:
         When this is fixed, this annotation will need to be updated.
         We should only run the model with Float64 right now or else we will be converting the Polygon back and forth all of the time. 
 """
-function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n = 1000.0, t::Type{T} = Float64) where T
+function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n = 1000.0, history = 1000, t::Type{T} = Float64) where T
     floe = rmholes(poly)
     centroid = LG.GeoInterface.coordinates(LG.centroid(floe))::Vector{Float64}
     h = hmean + (-1)^rand(0:1) * rand() * Δh  # floe height
@@ -803,7 +807,8 @@ function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 
                 height = convert(T, h), area = convert(T, area), mass = convert(T, mass),
                 rmax = convert(T, rmax), moment = convert(T, moment), angles = angles,
                 u = convert(T, u), v = convert(T, v), ξ = convert(T, ξ),
-                mc_x = mc_x, mc_y = mc_y, alive = alive)
+                mc_x = mc_x, mc_y = mc_y, alive = alive,
+                stress_history = fill!(CircularBuffer{Matrix{T}}(history), zeros(T, 2, 2)))
 end
 
 """
@@ -815,17 +820,19 @@ Inputs:
         coords      <Vector{Vector{Vector{Float64}}}> floe coordinates
         h_mean      <Real> mean height for floes
         Δh          <Real> variability in height for floes
-        grid        <Grid>
-        rho_ice     <Real> ice density kg/m3
+        ρi          <Real> ice density kg/m3
         u           <Real> x-velocity of the floe - default 0.0
         v           <Real> y-velcoity of the floe - default 0.0
-        ksi         <Real> angular velocity of the floe - default 0.0
+        ξ           <Real> angular velocity of the floe - default 0.0
+        mc_n        <Real> number of monte carlo points
+        history     <Real> number of stress history arrays to save for each floe
         t           <Type> datatype to convert ocean fields - must be a Float!
 Output:
         Floe with needed fields defined - all default field values used so all forcings and velocities start at 0 and floe is "alive"
 """
-Floe(coords::PolyVec{<:Real}, h_mean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n = 1000.0, t::Type{T} = Float64) where T =
-    Floe(LG.Polygon(convert(PolyVec{Float64}, valid_polyvec!(rmholes(coords)))), h_mean, Δh; ρi = ρi, u = u, v = v, ξ = ξ, mc_n = mc_n, t = T) 
+Floe(coords::PolyVec{<:Real}, h_mean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n = 1000.0, history = 1000, t::Type{T} = Float64) where T =
+    Floe(LG.Polygon(convert(PolyVec{Float64}, valid_polyvec!(rmholes(coords)))), h_mean, Δh;
+         ρi = ρi, u = u, v = v, ξ = ξ, mc_n = mc_n, history = history, t = T) 
     # Polygon convert is needed since LibGEOS only takes Float64 - when this is fixed convert can be removed
 
 """
