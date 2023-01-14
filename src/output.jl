@@ -37,43 +37,6 @@ GridOutputWriter constructor to determine which are saved during the model run.
     area_grid = 8
     height_grid = 9
 end
-
-"""
-    FloeOutput
-
-Options for floe output. A list of these FloeOutput objects is provided to the
-FloeOutputWriter constructor to determine which are saved during the model run.
-"""
-@enum FloeOutput begin
-    height_floe = 1
-    area_floe = 2
-    mass_floe = 3
-    moment_floe = 4
-    rmax_floe = 5
-    α_floe = 6
-    xcentroid_floe = 7
-    ycentroid_floe = 8
-    u_floe = 9
-    v_floe = 10
-    ξ_floe = 11
-    fxOA_floe = 12
-    fyOA_floe = 13
-    trqOA_floe = 14
-    p_dxdt_floe = 15
-    p_dydt_floe = 16
-    p_dudt_floe = 17
-    p_dvdt_floe = 18
-    p_dξdt_floe = 19
-    p_dαdt_floe = 20
-    overarea_floe = 21
-    alive_floe = 22
-    xcoords_floe = 23
-    ycoords_floe = 24
-    xcollision_force = 25
-    ycollision_force = 26
-    collision_trq = 27
-end
-
 """
     getname(output::GridOutput)
 
@@ -96,49 +59,6 @@ function getname(output::GridOutput)
         n == 8 ? "area" :
         n == 9 ? "height" :
         throw(ArgumentError("Grid output provided is not known."))
-    return name
-end
-
-"""
-    getname(output::FloeOutput)
-
-Returns string name for given FloeOutput object for writing to NetCDF
-Input:
-        output <FloeOutput>
-Output:
-        <String> name for output object that is will be written as within output file
-"""
-function getname(output::FloeOutput)
-    n = Int(output)
-    name =
-        n == 1 ? "height" :
-        n == 2 ? "area" :
-        n == 3 ? "mass" :
-        n == 4 ? "moment" :
-        n == 5 ? "rmax"  :
-        n == 6 ? "α" :
-        n == 7 ? "xcentroid" :
-        n == 8 ? "ycentroid" :
-        n == 9 ? "u" :
-        n == 10 ? "v" :
-        n == 11 ? "ξ" :
-        n == 12 ? "fxOA" :
-        n == 13 ? "fyOA" :
-        n == 14 ? "trqOA" :
-        n == 15 ? "p_dxdt" :
-        n == 16 ? "p_dydt" :
-        n == 17 ? "p_dudt" :
-        n == 18 ? "p_dvdt" :
-        n == 19 ? "p_dξdt" :
-        n == 20 ? "p_dαdt" :
-        n == 21 ? "overarea" :
-        n == 22 ? "alive" :
-        n == 23 ? "xcoords" :
-        n == 24 ? "ycoords" :
-        n == 25 ? "xcollision_force" :
-        n == 26 ? "ycollision_force" :
-        n == 27 ? "collision_forque" :
-        throw(ArgumentError("Floe output provided is not known."))
     return name
 end
 
@@ -176,37 +96,43 @@ Input:
 Output:
         <Tuple(String, String)> tuple of string units and comments to be saved to output NetCDF file
 """
-function getattrs(output::FloeOutput)
-    n = Int(output)
+function getattrs(output::Symbol)
     unit, comment =
-        n == 1 ? ("m", "Floe height (uniform over floe)") :
-        n == 2 ? ("m^2", "Floe area") :
-        n == 3 ? ("kg", "Floe mass") :
-        n == 4 ? ("kg m^2", "Floe mass moment of intertia") :
-        n == 5 ? ("m", "Maximum radius within floe") :
-        n == 6 ? ("radians", "Floe rotation since starting position") :
-        n == 7 ? ("location", "X-point of centorid") :
-        n == 8 ? ("location", "Y-point of centorid") :
-        n == 9 ? ("m/s", "Floe x-direction velocity") :
-        n == 10 ? ("m/s", "Floe y-direction velocity") :
-        n == 11 ? ("rad/s", "Floe angular velocity") :
-        n == 12 ? ("N", "X-directional forces on floe from the ocean and atmosphere") :
-        n == 13 ? ("N", "Y-directional forces on floe from the ocean and atmosphere") :
-        n == 14 ? ("N m", "Torque on floes from ocean and atmosphere") :
-        n == 15 ? ("m/s", "Floe x-velocity from previous time step") :
-        n == 16 ? ("m/s", "Floe y-velocity from previous time step") :
-        n == 17 ? ("m/s^2", "Floe x-acceleration from previous time step") :
-        n == 18 ? ("m/s^2", "Floe y-acceleration from previous time step") :
-        n == 19 ? ("rad/s^2", "Floe angular acceleration from the previous timestep") :
-        n == 20 ? ("rad/s", "Floe angular velocity from previous timestep") :
-        n == 21 ? ("m^2", "Overlap area of floe with other floes") :
-        n == 22 ? ("unitless", "Flag if floe is still active in simulation") :
-        n == 23 ? ("location", "Floe x-coordinates") :
-        n == 24 ? ("location", "Floe y-coordinates") :
-        n == 25 ? ("N", "Total xcollision force from floes/topography/border") :
-        n == 26 ? ("N", "Total ycollision force from floes/topography/border") :
-        n == 27 ? ("N", "Total collision torque from floes/topography/border") :
-        throw(ArgumentError("Floe output provided is not known."))
+        output == :centroid ? ("location", "Coordinates of centorid as [x y]") :
+        output == :coords ? ("location", "Floe coordinates - either x or y") :
+        output == :height ? ("m", "Floe height (uniform over floe)") :
+        output == :area ? ("m^2", "Floe area") :
+        output == :mass ? ("kg", "Floe mass") :
+        output == :rmax ? ("m", "Maximum radius within floe") :
+        output == :moment ? ("kg m^2", "Floe mass moment of intertia") :
+        output == :angles ? ("kg m^2", "Floe interior angles") :
+        output == :mc_x ? ("location", "x-coordinates for floe monte carlo points") :
+        output == :mc_y ? ("location", "y-coordinates for floe monte carlo points") :
+        output == :α ? ("radians", "Floe rotation since starting position") :
+        output == :u ? ("m/s", "Floe x-direction velocity") :
+        output == :v ? ("m/s", "Floe y-direction velocity") :
+        output == :ξ ? ("rad/s", "Floe angular velocity") :
+        output == :alive ? ("unitless", "Flag if floe is still active in simulation") :
+        output == :id ? ("unitless", "Floe ID -  ghosts have negative ID of parents") :
+        output == :ghosts ? ("unitless", "Index of floe's ghost floes in list") :
+        output == :fxOA ? ("N", "X-directional forces on floe from the ocean and atmosphere") :
+        output == :fyOA ? ("N", "Y-directional forces on floe from the ocean and atmosphere") :
+        output == :trqOA ? ("N m", "Torque on floes from ocean and atmosphere") :
+        output == :hflx ? ("W/m^2", "Average heatflux acting on the floe") : 
+        output == :overarea ? ("m^2", "Overlap area of floe with other floes") :
+        output == :collision_force ? ("N", "Total collision force from floes/topography/border in form [xf yf]") :
+        output == :collision_torque ? ("N", "Total collision torque from floes/topography/border") :
+        output == :interactions ? ("[unitless, N, N, location, location, N m, m^2]",
+                                    "Matrix of floe's interactions with following columns: ID of floe interacted with,
+                                    collision x-force on floe, collision y-force on floe, collision x-point, collision y-point,
+                                    collision torque on floe, overlap with other floe") :
+        output == :p_dxdt ? ("m/s", "Floe x-velocity from previous time step") :
+        output == :p_dydt ? ("m/s", "Floe y-velocity from previous time step") :
+        output == :p_dudt ? ("m/s^2", "Floe x-acceleration from previous time step") :
+        output == :p_dvdt ? ("m/s^2", "Floe y-acceleration from previous time step") :
+        output == :p_dξdt ? ("rad/s^2", "Floe angular acceleration from the previous timestep") :
+        output == :p_dαdt ? ("rad/s", "Floe angular velocity from previous timestep") :
+        ("", "") # if symbol isn't found, return empty attributes
     return unit, comment
 end
 
@@ -278,40 +204,30 @@ function GridOutputWriter(outputs, Δtout, fn, grid::AbstractGrid, dims, ::Type{
 end
 
 """
-    FloeOutputWriter{FT<:AbstractFloat, ST<:AbstractString}<:AbstractOutputWriter
+    FloeOutputWriter{ST<:AbstractString}<:AbstractOutputWriter
 
 Floe subtype of AbstractOutputWriter that holds information for outputting floe information from model throughout simulation.
-The edges of the grid are defined by xg and yg (the grid lines for the model) for plotting and reconstruction purposes. 
-Output on this scale will be saved to the file defined by fn every Δtout timesteps.
+Output will be saved to the file defined by fn every Δtout timesteps.
 Only outputs within the outputs list will be saved.
+File will be saved as a JLD2 file.
 """
-struct FloeOutputWriter{FT<:AbstractFloat, ST<:AbstractString}<:AbstractOutputWriter
-    outputs::Vector{FloeOutput}
+struct FloeOutputWriter{ST<:AbstractString}<:AbstractOutputWriter
+    outputs::Vector{Symbol}
     Δtout::Int              # Number of timesteps between grid outputs
     fn::ST                  # Filename for output file
-    xg::Vector{FT}          # Grid lines in x-direction for plotting
-    yg::Vector{FT}          # Grid lines in y-direction for plotting
 
-    FloeOutputWriter(outputs, Δtout, fn, xg, yg) = 
-        length(xg) > 1 && length(yg) > 1 && length(fn) > 0  ?
-        new{eltype(xg), typeof(fn)}(outputs, Δtout, fn, xg, yg) :
-        throw(ArgumentError("Output grid lines must have at least one grid square and a filename must be provided."))
+    function FloeOutputWriter{ST}(outputs, Δtout, fn::ST) where ST<:AbstractString
+        if isempty(fn)
+            throw(ArgumentError("A filename must be provided for each floe writer."))
+        end
+        new{ST}(outputs, Δtout, fn)
+    end
+
+    FloeOutputWriter(outputs, Δtout, fn::ST) where ST<:AbstractString = 
+        FloeOutputWriter{ST}(outputs, Δtout, fn)  
 end
 
-"""
-    FloeOutputWriter(outputs, Δtout, fn, grid::Grid)
-
-Create FloeOutputWriter for given grid and desired number of timesteps, saved to the given file name.
-Inputs:
-        outputs  <Vector{FloeOutputs}>
-        Δtout    <Int> number of timesteps between output
-        fn       <String> name of file to save grid data to
-        grid     <Grid> original grid, which we are re-gridding
-Output:
-        FloeOutputWriter that holds desired floe fields to save to given filename and the number of timesteps between saving this output.
-        Grid extents is saved as metadata for plotting.
-"""
-FloeOutputWriter(outputs, Δtout, fn, grid::AbstractGrid) = FloeOutputWriter(outputs, Δtout, fn, grid.xg, grid.yg)
+FloeOutputWriter(Δtout, fn) = FloeOutputWriter(collect(fieldnames(Floe)), Δtout, fn)
 
 """
     setup_output_file!(writer::GridOutputWriter, nΔt, t::Type{T} = Float64)
@@ -355,58 +271,6 @@ function setup_output_file!(writer::GridOutputWriter, nΔt::Int, sim_name::Strin
         name = getname(output)
         unit, comment = getattrs(output)
         var = defVar(ds, name, T, ("time", "y", "x"))
-        var.attrib["units"] = unit
-        var.attrib["comments"] = comment
-    end
-    # Write to file and close
-    close(ds)
-    return
-end
-
-"""
-    setup_output_file!(writer::FloeOutputWriter, nΔt, t::Type{T} = Float64)
-
-Create output NetCDF file for given floe output writer. The file, which will have name defined in writer.fn will be saved in folder output/floe and will contain data for all fields defined by the writer. It will save data for nΔt/Δnout timesteps and the saved data will be of type T. 
-Inputs:
-        writer      <FloeOutputWriter>
-        nΔt         <Int> total number of timesteps in the simulation
-        sim_name    <String> simulation name to use for as folder name
-        T           <Type> datatype to convert grid fields - must be a Float!
-Outputs:
-        Saved NetCDF file with needed fields and number of timesteps to be written to throughout the rest of the model. 
- """
-function setup_output_file!(writer::FloeOutputWriter, nΔt, sim_name::String, ::Type{T} = Float64) where T
-    # Create file
-    file_path = joinpath(pwd(), "output", sim_name)
-    !isdir(file_path) && mkdir(file_path)
-    outfn = joinpath(file_path, writer.fn)
-    isfile(outfn) && rm(outfn)
-    ds = NCDataset(outfn, "c")
-    ds.attrib["type"] = "Floe data"
-
-    # Define dimensions
-    defDim(ds, "time", Inf)
-    t = defVar(ds, "time", T, ("time",))
-    t.attrib["units"] = "10 seconds"
-    t[:] = 0:writer.Δtout:nΔt
-
-    defDim(ds, "floes", Inf)
-    f = defVar(ds, "floes", T, ("floes",))
-    f.attrib["units"] = "floeID"
-
-    defDim(ds, "points", Inf)
-    p = defVar(ds, "points", T, ("points",))
-    p.attrib["units"] = "coordinate points"
-
-    # Define variables
-    for output in writer.outputs
-        name = getname(output)
-        unit, comment = getattrs(output)
-        if output != xcoords_floe && output != ycoords_floe
-            var = defVar(ds, name, T, ("time", "floes"))
-        else  # Coordinates have an extra dimension
-            var = defVar(ds, name, T, ("time", "floes", "points"))
-        end
         var.attrib["units"] = unit
         var.attrib["comments"] = comment
     end
@@ -530,7 +394,7 @@ function write_data!(writer::GridOutputWriter, tstep, model, sim_name)
         istep = div(tstep, writer.Δtout) + 1  # Julia indicies start at 1
         
         # Open file and write data from grid writer
-        ds = NCDataset(joinpath(pwd(), "output", sim_name, writer.fn), "a")
+        ds = NCDataset(joinpath(pwd(), "output", sim_name, writer.fn), "a+")
         for i in eachindex(writer.outputs)
             name = getname(writer.outputs[i])
             ds[name][istep, :, :] = writer.data[:, :, i]
@@ -539,6 +403,150 @@ function write_data!(writer::GridOutputWriter, tstep, model, sim_name)
     end
     return
 end
+
+
+function write_data!(writer::FloeOutputWriter, tstep, floes, sim_name)
+    jldopen(joinpath(pwd(), "output", sim_name, writer.fn), "a+") do file
+        timestep = JLD2.Group(file, string(tstep))
+        for output in writer.outputs
+            timestep[string(output)] = StructArrays.component(floes, output)
+        end
+    end
+end
+
+
+"""
+    write_domain!(domain::Domain, sim_name::AbstractString)
+
+Write and save file that holds domain struct data.
+Inputs:
+        domain      <Domain> model's domain for a given simulation
+        sim_name    <AbstractString subtype> simulation name
+Ouputs: File will be saved in output/sim_name/domain.jld2 and file will hold simulations's domain. 
+"""
+function setup_output!(domain::Domain, grid::AbstractGrid, writers::Vector{AbstractOutputWriter}, sim_name::String)
+    file_path = joinpath(pwd(), "output", sim_name)
+    !isdir(file_path) && mkdir(file_path)
+    domain_fn = joinpath(file_path, "domain.jld2")
+    jldsave(domain_fn; domain, grid)
+    # TODO: Should we delete files of the same name existing in current writers? Change the writer names?
+    return
+end
+
+# -----------Tools-------------------------------------------------------------
+"""
+    COULD BE TRANSFORMED INTO A TOOL TO CONVERT JLD2 to NetCDF
+
+    setup_output_file!(writer::FloeOutputWriter, nΔt, t::Type{T} = Float64)
+
+Create output NetCDF file for given floe output writer. The file, which will have name defined in writer.fn will be saved in folder output/floe and will contain data for all fields defined by the writer. It will save data for nΔt/Δnout timesteps and the saved data will be of type T. 
+Inputs:
+        writer      <FloeOutputWriter>
+        nΔt         <Int> total number of timesteps in the simulation
+        sim_name    <String> simulation name to use for as folder name
+        T           <Type> datatype to convert grid fields - must be a Float!
+Outputs:
+        Saved NetCDF file with needed fields and number of timesteps to be written to throughout the rest of the model. 
+ """
+function floes_to_netcdf(fn, ::Type{T} = Float64) where T
+    path, extension = split(fn, ".")
+    @assert extension == "jld2" "Can't run floes_to_netcdf on a non-jld2 file."
+    outfn = string(path, ".nc")
+    isfile(outfn) && rm(outfn)
+    # Load data and determine dimenstions
+    jld2_data = load(fn)
+    keynames = split.(keys(jld2_data), "/")
+    times = sort(parse.(Int, unique(first.(keynames))))
+    fields = unique(last.(keynames))
+
+    max_floes = 0
+    max_points = 0
+    for t in times
+        coords = jld2_data[string(t, "/coords")]
+        nfloes = length(coords)
+        if nfloes > max_floes
+            max_floes = nfloes
+        end
+        # we can parallelize this map with pmap?
+        npoints = maximum(map(c -> length(c[1]), coords))
+        if npoints > max_points
+            max_points = npoints
+        end
+    end
+
+    # Create NetCDF file
+    ds = NCDataset(outfn, "c")
+    ds.attrib["type"] = "Floe data"
+
+    # Define dimensions
+    defDim(ds, "time", Inf)
+    t = defVar(ds, "time", T, ("time",))
+    t.attrib["units"] = "10 seconds"
+    t[:] = times
+
+    defDim(ds, "floes", Inf)
+    f = defVar(ds, "floes", T, ("floes",))
+    t[:] = 1:max_floes
+
+    defDim(ds, "points", Inf)
+    p = defVar(ds, "points", T, ("points",))
+    p.attrib["units"] = "coordinate points"
+    t[:] = 1:npoints
+
+    # Define variables
+    for f in fields
+        unit, comment = getattrs(f)
+        if f == "coords"
+            var = defVar(ds, "xcoords", T, ("time", "floes", "points"))
+            var = defVar(ds, "ycoords", T, ("time", "floes", "points"))
+        else
+            var = defVar(ds, f, T, ("time", "floes"))
+        end
+        var.attrib["units"] = unit
+        var.attrib["comments"] = comment
+    end
+end
+
+# function setup_output_file!(writer::FloeOutputWriter, nΔt, sim_name::String, ::Type{T} = Float64) where T
+#     # Create file
+#     file_path = joinpath(pwd(), "output", sim_name)
+#     !isdir(file_path) && mkdir(file_path)
+#     outfn = joinpath(file_path, writer.fn)
+#     isfile(outfn) && rm(outfn)
+#     ds = NCDataset(outfn, "c")
+#     ds.attrib["type"] = "Floe data"
+
+#     # Define dimensions
+#     defDim(ds, "time", Inf)
+#     t = defVar(ds, "time", T, ("time",))
+#     t.attrib["units"] = "10 seconds"
+#     t[:] = 0:writer.Δtout:nΔt
+
+#     defDim(ds, "floes", Inf)
+#     f = defVar(ds, "floes", T, ("floes",))
+#     f.attrib["units"] = "floeID"
+
+#     defDim(ds, "points", Inf)
+#     p = defVar(ds, "points", T, ("points",))
+#     p.attrib["units"] = "coordinate points"
+
+#     # Define variables
+#     for output in writer.outputs
+#         name = getname(output)
+#         unit, comment = getattrs(output)
+#         if output != xcoords_floe && output != ycoords_floe
+#             var = defVar(ds, name, T, ("time", "floes"))
+#         else  # Coordinates have an extra dimension
+#             var = defVar(ds, name, T, ("time", "floes", "points"))
+#         end
+#         var.attrib["units"] = unit
+#         var.attrib["comments"] = comment
+#     end
+#     # Write to file and close
+#     close(ds)
+#     return
+# end
+
 
 """
     write_data!(writer::FloeOutputWriter, tstep, model)
@@ -552,146 +560,128 @@ Inputs:
 Output:
         Writes desired fields writer.outputs to file with name writer.fn for current timestep
 """
-function write_data!(writer::FloeOutputWriter, tstep, model, sim_name)
-    live_floes = filter(f -> f.alive == 1, model.floes)
-    nfloes = length(live_floes)
-    if nfloes > 0
-        istep = div(tstep, writer.Δtout) + 1  # Julia indicies start at 1
-        # Open file 
-        ds = NCDataset(joinpath(pwd(), "output", sim_name, writer.fn), "a")
+# function write_data!(writer::FloeOutputWriter, tstep, model, sim_name)
+#     live_floes = filter(f -> f.alive == 1, model.floes)
+#     nfloes = length(live_floes)
+#     if nfloes > 0
+#         istep = div(tstep, writer.Δtout) + 1  # Julia indicies start at 1
+#         # Open file 
+#         ds = NCDataset(joinpath(pwd(), "output", sim_name, writer.fn), "a+")
 
-        # Change in number of floes
-        Δfloes = nfloes - ds.dim["floes"]
+#         # Change in number of floes
+#         Δfloes = nfloes - ds.dim["floes"]
 
-        # If less floes, add NaN values to make data square with previous data
-        nfloeNaN = Δfloes < 0 ? -Δfloes : 0
+#         # If less floes, add NaN values to make data square with previous data
+#         nfloeNaN = Δfloes < 0 ? -Δfloes : 0
 
-        # If more floes, increase floes dimension
-        if Δfloes > 0
-            ds["floes"][:] = 1:nfloes
-        end
+#         # If more floes, increase floes dimension
+#         if Δfloes > 0
+#             ds["floes"][:] = 1:nfloes
+#         end
 
-        # Get data from all floes in Floe StructArray and transform if needed
-        for o in writer.outputs
-            data =
-                if o == height_floe
-                    live_floes.height
-                elseif o == area_floe
-                    live_floes.area
-                elseif o == mass_floe
-                    live_floes.mass
-                elseif o == moment_floe
-                    live_floes.moment
-                elseif o == rmax_floe
-                    live_floes.rmax
-                elseif o == α_floe
-                    live_floes.α
-                elseif o == u_floe
-                    live_floes.u
-                elseif o == v_floe
-                    live_floes.v
-                elseif o == ξ_floe
-                    live_floes.ξ
-                elseif o == fxOA_floe
-                    live_floes.fxOA
-                elseif o == fyOA_floe
-                    live_floes.fyOA
-                elseif o == trqOA_floe
-                    live_floes.trqOA
-                elseif o == p_dxdt_floe
-                    live_floes.p_dxdt
-                elseif o == p_dydt_floe
-                    live_floes.p_dydt
-                elseif o == p_dudt_floe
-                    live_floes.p_dudt
-                elseif o == p_dvdt_floe
-                    live_floes.p_dvdt
-                elseif o == p_dξdt_floe
-                    live_floes.p_dξdt
-                elseif o == p_dαdt_floe
-                    live_floes.p_dαdt
-                elseif o == overarea_floe
-                    live_floes.overarea
-                elseif o == alive_floe
-                    live_floes.alive
-                elseif o == xcentroid_floe
-                    # Seperate x centroid data
-                    xcentroid, ycentroid = seperate_xy([live_floes.centroid])
-                    xcentroid
-                elseif o == ycentroid_floe
-                    # Seperate y centroid data
-                    xcentroid, ycentroid = seperate_xy([live_floes.centroid])
-                    ycentroid
-                elseif o == xcoords_floe
-                    # Seperate x-coordinate data and square coordinate length between floes by adding NaNs
-                    xcoords = [Subzero.seperate_xy(f.coords)[1] for f in live_floes]
-                    # If more points, increase point dimensions and square data
-                    npoints = [length(c) for c in xcoords]
-                    maxpoints = maximum(npoints)
-                    Δpoints = maxpoints - ds.dim["points"]
-                    if Δpoints > 0
-                        ds["points"][:] = 1:maxpoints
-                    end
-                    npointsNaN = [n < 0 ? -n : 0 for n in npoints .- ds.dim["points"]]
-                    square_xcoords = [vcat(xcoords[i], fill(NaN, npointsNaN[i])) for i in eachindex(xcoords)]
-                    # Rectangular matrix of floes by x-coordinate points
-                    hcat(square_xcoords...)'
-                elseif o == ycoords_floe
-                    # Seperate y-coordinate data and square coordinate length between floes by adding NaNs
-                    ycoords = [Subzero.seperate_xy(f.coords)[2] for f in live_floes]
-                    # If more points, increase point dimensions and square data
-                    npoints = [length(c) for c in ycoords]
-                    maxpoints = maximum(npoints)
-                    Δpoints = maximum(npoints) - ds.dim["points"]
-                    if Δpoints > 0
-                        ds["points"][:] = 1:maxpoints
-                    end
-                    npointsNaN = [n < 0 ? -n : 0 for n in npoints .- ds.dim["points"]]
-                    square_ycoords = [vcat(ycoords[i], fill(NaN, npointsNaN[i])) for i in eachindex(ycoords)]
-                    # Rectangular matrix of floes by y-coordinate points
-                    hcat(square_ycoords...)'
-                elseif o == xcollision_force
-                    first.(live_floes.collision_force)
-                elseif o == ycollision_force
-                    last.(live_floes.collision_force)
-                elseif o == collision_trq
-                    live_floes.collision_trq
-                end
+#         # Get data from all floes in Floe StructArray and transform if needed
+#         for o in writer.outputs
+#             data =
+#                 if o == height_floe
+#                     live_floes.height
+#                 elseif o == area_floe
+#                     live_floes.area
+#                 elseif o == mass_floe
+#                     live_floes.mass
+#                 elseif o == moment_floe
+#                     live_floes.moment
+#                 elseif o == rmax_floe
+#                     live_floes.rmax
+#                 elseif o == α_floe
+#                     live_floes.α
+#                 elseif o == u_floe
+#                     live_floes.u
+#                 elseif o == v_floe
+#                     live_floes.v
+#                 elseif o == ξ_floe
+#                     live_floes.ξ
+#                 elseif o == fxOA_floe
+#                     live_floes.fxOA
+#                 elseif o == fyOA_floe
+#                     live_floes.fyOA
+#                 elseif o == trqOA_floe
+#                     live_floes.trqOA
+#                 elseif o == p_dxdt_floe
+#                     live_floes.p_dxdt
+#                 elseif o == p_dydt_floe
+#                     live_floes.p_dydt
+#                 elseif o == p_dudt_floe
+#                     live_floes.p_dudt
+#                 elseif o == p_dvdt_floe
+#                     live_floes.p_dvdt
+#                 elseif o == p_dξdt_floe
+#                     live_floes.p_dξdt
+#                 elseif o == p_dαdt_floe
+#                     live_floes.p_dαdt
+#                 elseif o == overarea_floe
+#                     live_floes.overarea
+#                 elseif o == alive_floe
+#                     live_floes.alive
+#                 elseif o == xcentroid_floe
+#                     # Seperate x centroid data
+#                     xcentroid, ycentroid = seperate_xy([live_floes.centroid])
+#                     xcentroid
+#                 elseif o == ycentroid_floe
+#                     # Seperate y centroid data
+#                     xcentroid, ycentroid = seperate_xy([live_floes.centroid])
+#                     ycentroid
+#                 elseif o == xcoords_floe
+#                     # Seperate x-coordinate data and square coordinate length between floes by adding NaNs
+#                     xcoords = [Subzero.seperate_xy(f.coords)[1] for f in live_floes]
+#                     # If more points, increase point dimensions and square data
+#                     npoints = [length(c) for c in xcoords]
+#                     maxpoints = maximum(npoints)
+#                     Δpoints = maxpoints - ds.dim["points"]
+#                     if Δpoints > 0
+#                         ds["points"][:] = 1:maxpoints
+#                     end
+#                     npointsNaN = [n < 0 ? -n : 0 for n in npoints .- ds.dim["points"]]
+#                     square_xcoords = [vcat(xcoords[i], fill(NaN, npointsNaN[i])) for i in eachindex(xcoords)]
+#                     # Rectangular matrix of floes by x-coordinate points
+#                     hcat(square_xcoords...)'
+#                 elseif o == ycoords_floe
+#                     # Seperate y-coordinate data and square coordinate length between floes by adding NaNs
+#                     ycoords = [Subzero.seperate_xy(f.coords)[2] for f in live_floes]
+#                     # If more points, increase point dimensions and square data
+#                     npoints = [length(c) for c in ycoords]
+#                     maxpoints = maximum(npoints)
+#                     Δpoints = maximum(npoints) - ds.dim["points"]
+#                     if Δpoints > 0
+#                         ds["points"][:] = 1:maxpoints
+#                     end
+#                     npointsNaN = [n < 0 ? -n : 0 for n in npoints .- ds.dim["points"]]
+#                     square_ycoords = [vcat(ycoords[i], fill(NaN, npointsNaN[i])) for i in eachindex(ycoords)]
+#                     # Rectangular matrix of floes by y-coordinate points
+#                     hcat(square_ycoords...)'
+#                 elseif o == xcollision_force
+#                     first.(live_floes.collision_force)
+#                 elseif o == ycollision_force
+#                     last.(live_floes.collision_force)
+#                 elseif o == collision_trq
+#                     live_floes.collision_trq
+#                 end
             
-            name = getname(o)
-            if length(size(data)) == 1  # if 1D (not coords)
-                if Δfloes > 0
-                    ds[name][1:istep-1, (nfloes-Δfloes+1):nfloes] = fill(NaN, istep-1, Δfloes)
-                end
-                ds[name][istep, :] = vcat(data, fill(NaN, nfloeNaN))
-            elseif length(size(data)) == 2  # if 2D (coords)
-                if Δfloes > 0
-                    ds[name][1:istep-1, (nfloes-Δfloes+1):nfloes, 1:ds.dim["points"]] =
-                        fill(NaN, istep-1, Δfloes, ds.dim["points"])
-                end
-                ds[name][istep, :, :] = vcat(data, fill(NaN, nfloeNaN, ds.dim["points"]))
-            end
+#             name = getname(o)
+#             if length(size(data)) == 1  # if 1D (not coords)
+#                 if Δfloes > 0
+#                     ds[name][1:istep-1, (nfloes-Δfloes+1):nfloes] = fill(NaN, istep-1, Δfloes)
+#                 end
+#                 ds[name][istep, :] = vcat(data, fill(NaN, nfloeNaN))
+#             elseif length(size(data)) == 2  # if 2D (coords)
+#                 if Δfloes > 0
+#                     ds[name][1:istep-1, (nfloes-Δfloes+1):nfloes, 1:ds.dim["points"]] =
+#                         fill(NaN, istep-1, Δfloes, ds.dim["points"])
+#                 end
+#                 ds[name][istep, :, :] = vcat(data, fill(NaN, nfloeNaN, ds.dim["points"]))
+#             end
             
-        end
-        close(ds)
-    end
-    return
-end
-
-"""
-    write_domain!(domain::Domain, sim_name::AbstractString)
-
-Write and save file that holds domain struct data.
-Inputs:
-        domain      <Domain> model's domain for a given simulation
-        sim_name    <AbstractString subtype> simulation name
-Ouputs: File will be saved in output/sim_name/domain.jld2 and file will hold simulations's domain. 
-"""
-function write_domain!(domain::Domain, sim_name::String)
-    file_path = joinpath(pwd(), "output", sim_name)
-    !isdir(file_path) && mkdir(file_path)
-    domain_fn = joinpath(file_path, "domain.jld2")
-    jldsave(domain_fn; domain)
-    return
-end
-
+#         end
+#         close(ds)
+#     end
+#     return
+# end
