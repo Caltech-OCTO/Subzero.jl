@@ -84,7 +84,7 @@ function timestep_floe!(floe, Δt)
     h = floe.height
     # Update floe based on thermodynamic growth
     Δh = floe.hflx * Δt/h
-    Δh = 0 # for collision testing
+    #Δh = 0 # for collision testing
     hfrac = (h-Δh)/h
     floe.mass *= hfrac
     floe.moment *= hfrac
@@ -174,7 +174,7 @@ function timestep_sim!(sim, tstep, writers, widx, ::Type{T} = Float64) where T
     if length(widx) > 0
         println(tstep, " timesteps")
         for idx in widx
-            write_data!(writers[idx], tstep, sim.model, sim.name)
+            write_data!(writers[idx], tstep, sim.model.floes, sim.name)
         end
     end
 
@@ -218,10 +218,9 @@ function run!(sim, writers, ::Type{T} = Float64) where T
     # Output setup
     Δtout_lst = Int[]
     if !isempty(writers)
-        write_domain!(sim.model.domain, sim.name)
+        write_domain!(sim.model.domain, sim.model.grid, sim.name)
     end
     for w in writers
-        setup_output_file!(w, sim.nΔt, sim.name, T)
         push!(Δtout_lst, w.Δtout)
     end
     println(string(sim.name ," running!"))

@@ -50,7 +50,7 @@ simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 3000, 
 
 # Output setup
 gridwriter = GridOutputWriter([GridOutput(i) for i in 1:9], 10, "g.nc", grid, (10, 10))
-floewriter = FloeOutputWriter([FloeOutput(i) for i in [3:4; 6; 9:11; 22:26]], 30, "f.nc", grid)
+floewriter = FloeOutputWriter([:area, :mass, :u, :v], 30, "f.jld2")
 
 # Run simulation
 run!(simulation, [floewriter])
