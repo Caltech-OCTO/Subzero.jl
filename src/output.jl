@@ -405,6 +405,19 @@ function write_data!(writer::GridOutputWriter, tstep, model, sim_name)
 end
 
 
+"""
+    write_data!(writer::FloeOutputWriter, tstep, floes, sim_name)
+
+Writes desired FloeOutputWriter data to JLD2 file.
+
+Inputs:
+        writer      <FloeOutputWriter>
+        tstep       <Int> simulation timestep
+        floes       <StructArray{Floe}> floes being simulated
+        sim_name    <String> simulation name to use for as folder name
+Output:
+        Writes desired fields writer.outputs to JLD2 file with name writer.fn for current timestep, which will be the group in the JLD2 file. 
+"""
 function write_data!(writer::FloeOutputWriter, tstep, floes, sim_name)
     jldopen(joinpath(pwd(), "output", sim_name, writer.fn), "a+") do file
         timestep = JLD2.Group(file, string(tstep))
@@ -424,7 +437,7 @@ Inputs:
         sim_name    <AbstractString subtype> simulation name
 Ouputs: File will be saved in output/sim_name/domain.jld2 and file will hold simulations's domain. 
 """
-function setup_output!(domain::Domain, grid::AbstractGrid, writers::Vector{AbstractOutputWriter}, sim_name::String)
+function setup_output!(domain::Domain, grid::AbstractGrid, writers, sim_name::String)
     file_path = joinpath(pwd(), "output", sim_name)
     !isdir(file_path) && mkdir(file_path)
     domain_fn = joinpath(file_path, "domain.jld2")

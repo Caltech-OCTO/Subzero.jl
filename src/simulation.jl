@@ -218,7 +218,7 @@ function run!(sim, writers, ::Type{T} = Float64) where T
     # Output setup
     Δtout_lst = Int[]
     if !isempty(writers)
-        write_domain!(sim.model.domain, sim.model.grid, sim.name)
+        setup_output!(sim.model.domain, sim.model.grid, writers, sim.name)
     end
     for w in writers
         push!(Δtout_lst, w.Δtout)

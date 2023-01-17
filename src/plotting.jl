@@ -135,24 +135,30 @@ function plot_sim_timestep(model, plt, time)
 end
 
 """
-    create_sim_gif(floes_fn, domian_fn)
+    create_sim_gif(floes_fn, domain_fn, output_fn, plot_size = (1500, 1500))
 
 Create a gif of a simulation given a file with domain information and floe information from a floe output writer.
 Inputs:
         floes_fn    <String> file path to file output by floe output writer that inclues coordinate and alive fields
         domain_fn   <String> file path to JLD2 file holding domain struct information
+        output_fn   <String> file path to save gif
+        plot_size   <Tuple(Int, Int)> size of output gif in pixels - default (1500, 1500)
 Outputs: Saves simulation gif with floes and topography plotted.
 """
 function create_sim_gif(floes_fn, domain_fn, output_fn, plot_size = (1500, 1500))
-    NCDataset(floes_fn) do sim_data # TODO: Change this if we don't want NetCDFs
-        plt = setup_plot(domain_fn, plot_size)  # Uses JLD2
-        anim = @animate for tstep in eachindex(sim_data["time"][:])
+    jldopen(floes_fn, "r") do sim_data
+        plt = setup_plot(domain_fn, plot_size)
+        keynames = split.(keys(sim_data), "/")
+        times = sort(parse.(Int, unique(first.(keynames))))
+        anim = @animate for t in eachindex(times)
             new_frame = plot(plt)
-            for i in eachindex(sim_data["floes"][:])
-                if sim_data["alive"][tstep, i] == 1
-                    plot!(new_frame, sim_data["xcoords"][tstep, i, :]./1000,
-                                     sim_data["ycoords"][tstep, i, :]./1000,
-                                     seriestype = [:shape,], fill = :lightblue, legend=false)
+            coords = sim_data[string(times[t], "/coords")]
+            alive = sim_data[string(times[t], "/alive")]
+            for i in eachindex(coords)
+                xcoords, ycoords = seperate_xy(coords[i])
+                if alive[i] == 1
+                    plot!(new_frame, xcoords./1000, ycoords./1000,
+                          seriestype = [:shape,], fill = :lightblue, legend=false)
                 end
             end
         end
