@@ -461,64 +461,64 @@ Inputs:
 Outputs:
         Saved NetCDF file with needed fields and number of timesteps to be written to throughout the rest of the model. 
  """
-function floes_to_netcdf(fn, ::Type{T} = Float64) where T
-    path, extension = split(fn, ".")
-    @assert extension == "jld2" "Can't run floes_to_netcdf on a non-jld2 file."
-    outfn = string(path, ".nc")
-    isfile(outfn) && rm(outfn)
-    # Load data and determine dimenstions
-    jld2_data = load(fn)
-    keynames = split.(keys(jld2_data), "/")
-    times = sort(parse.(Int, unique(first.(keynames))))
-    fields = unique(last.(keynames))
+# function floes_to_netcdf(fn, ::Type{T} = Float64) where T
+#     path, extension = split(fn, ".")
+#     @assert extension == "jld2" "Can't run floes_to_netcdf on a non-jld2 file."
+#     outfn = string(path, ".nc")
+#     isfile(outfn) && rm(outfn)
+#     # Load data and determine dimenstions
+#     jld2_data = load(fn)
+#     keynames = split.(keys(jld2_data), "/")
+#     times = sort(parse.(Int, unique(first.(keynames))))
+#     fields = unique(last.(keynames))
 
-    max_floes = 0
-    max_points = 0
-    for t in times
-        coords = jld2_data[string(t, "/coords")]
-        nfloes = length(coords)
-        if nfloes > max_floes
-            max_floes = nfloes
-        end
-        # we can parallelize this map with pmap?
-        npoints = maximum(map(c -> length(c[1]), coords))
-        if npoints > max_points
-            max_points = npoints
-        end
-    end
+#     max_floes = 0
+#     max_points = 0
+#     for t in times
+#         coords = jld2_data[string(t, "/coords")]
+#         nfloes = length(coords)
+#         if nfloes > max_floes
+#             max_floes = nfloes
+#         end
+#         # we can parallelize this map with pmap?
+#         npoints = maximum(map(c -> length(c[1]), coords))
+#         if npoints > max_points
+#             max_points = npoints
+#         end
+#     end
 
-    # Create NetCDF file
-    ds = NCDataset(outfn, "c")
-    ds.attrib["type"] = "Floe data"
+#     # Create NetCDF file
+#     ds = NCDataset(outfn, "c")
+#     ds.attrib["type"] = "Floe data"
 
-    # Define dimensions
-    defDim(ds, "time", Inf)
-    t = defVar(ds, "time", T, ("time",))
-    t.attrib["units"] = "10 seconds"
-    t[:] = times
+#     # Define dimensions
+#     defDim(ds, "time", Inf)
+#     t = defVar(ds, "time", T, ("time",))
+#     t.attrib["units"] = "10 seconds"
+#     t[:] = times
 
-    defDim(ds, "floes", Inf)
-    f = defVar(ds, "floes", T, ("floes",))
-    t[:] = 1:max_floes
+#     defDim(ds, "floes", Inf)
+#     f = defVar(ds, "floes", T, ("floes",))
+#     t[:] = 1:max_floes
 
-    defDim(ds, "points", Inf)
-    p = defVar(ds, "points", T, ("points",))
-    p.attrib["units"] = "coordinate points"
-    t[:] = 1:npoints
+#     defDim(ds, "points", Inf)
+#     p = defVar(ds, "points", T, ("points",))
+#     p.attrib["units"] = "coordinate points"
+#     t[:] = 1:npoints
 
-    # Define variables
-    for f in fields
-        unit, comment = getattrs(f)
-        if f == "coords"
-            var = defVar(ds, "xcoords", T, ("time", "floes", "points"))
-            var = defVar(ds, "ycoords", T, ("time", "floes", "points"))
-        else
-            var = defVar(ds, f, T, ("time", "floes"))
-        end
-        var.attrib["units"] = unit
-        var.attrib["comments"] = comment
-    end
-end
+#     # Define variables
+#     for f in fields
+#         unit, comment = getattrs(f)
+#         if f == "coords"
+#             var = defVar(ds, "xcoords", T, ("time", "floes", "points"))
+#             var = defVar(ds, "ycoords", T, ("time", "floes", "points"))
+#         else
+#             var = defVar(ds, f, T, ("time", "floes"))
+#         end
+#         var.attrib["units"] = unit
+#         var.attrib["comments"] = comment
+#     end
+# end
 
 # function setup_output_file!(writer::FloeOutputWriter, nΔt, sim_name::String, ::Type{T} = Float64) where T
 #     # Create file
