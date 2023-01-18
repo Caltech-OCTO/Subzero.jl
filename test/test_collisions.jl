@@ -1,12 +1,65 @@
 @testset "Collisions" begin
-    @testset "Normal Force" begin
+    @testset "Floe-Floe Interactions" begin
         
     end
-    @testset "Elastic Forces" begin
-        
-    end
-    @testset "Frictional Forces" begin
-        
+
+
+    @testset "Floe Boundary Interactions" begin
+        Lx = 1e5
+        Ly = Lx
+        h_mean = 0.25
+        Δh = 0.0
+        grid = RegRectilinearGrid(-Lx, Lx, -Ly, Ly, 1e4, 1e4)
+        nboundary = PeriodicBoundary(grid, North())
+        sboundary = PeriodicBoundary(grid, South())
+        eboundary = CollisionBoundary(grid, East())
+        wboundary = OpenBoundary(grid, West())
+        topo_elem = TopographyElement([[[1e4, 0.0], [0.0, 1e4], [1e4, 2e4], [2e4, 1e4], [1e4, 0.0]]])
+        domain = Domain(nboundary, sboundary, eboundary, wboundary, StructArray([topo_elem]))
+        # Diagonal floe barely overlaping with eastern collision boundary
+        efloe_small = Floe([[[9.5e4, 0.0], [9e4, 0.5e4], [10e4, 2.5e4], [10.05e4, 2e4], [9.5e4, 0.0]]], h_mean, Δh)
+        efloe_small.u = 0.5
+        efloe_small.v = 0.25
+        # Floe overlapping with eastern collision boundary by more than 75% to trigger overlap condition
+        efloe_large = Floe([[[9e4, -7e4], [9e4, -5e4], [1.4e5, -5e4], [1.4e5, -7e4], [9e4, -7e4]]], h_mean, Δh)
+        efloe_large.u = 0.1
+        efloe_large.v = -0.35
+        # Floe overlapping with western open boundary
+        wfloe = Floe([[[-9.75e4, 7e4], [-9.75e4, 5e4], [-10.05e4, 5e4], [-10.05e4, 7e4], [-9.75e4, 7e4]]], h_mean, Δh)
+        # Floe overlapping with northern periodic boundary
+        nfloe = Floe([[[5e4, 9.75e4], [5e4, 10.05e4], [7e4, 10.05e4], [7e4, 9.75e4], [5e4, 9.75e4]]], h_mean, Δh)
+        # Floe overlapping with topography element
+        tfloe = Floe([[[-0.5e4, 0.0], [-0.5e4, 0.75e4], [0.5e4, 0.75e4], [0.5e4, 0.0], [-0.5e4, 0.0]]], h_mean, Δh)
+        efloe_large.u = -0.4
+        efloe_large.v = 0.2
+        floe_arr = StructArray([efloe_small, efloe_large, wfloe, nfloe, tfloe])
+        consts = Constants()
+
+        # Test floe overlapping slightly with collision boundary
+        Subzero.floe_domain_interaction!(efloe_small, domain, consts, 10)
+        @test efloe_small.interactions[2, "floeidx"] == Inf
+        @test isapprox(efloe_small.interactions[2, "xforce"], -311304795.629, atol = 1e-3)
+        # if we want to zero out then should be 0
+        @test isapprox(efloe_small.interactions[2, "yforce"], -23618874.648, atol = 1e-3)
+        @test isapprox(efloe_small.interactions[2, "overlap"], 1704545.454, atol = 1e-3)
+        @test isapprox(efloe_small.interactions[2, "xpoint"], 100166.666, atol = 1e-3)
+        @test isapprox(efloe_small.interactions[2, "ypoint"], 21060.606, atol = 1e-3)
+
+        # Test floe overlapping >75% with collision boundary
+        Subzero.floe_domain_interaction!(efloe_large, domain, consts, 10)
+        @test size(efloe_large.interactions, 1) == 1  # No interactions
+        @test efloe_large.alive == 0
+        # Test floe passing through open boundary is killed
+        Subzero.floe_domain_interaction!(wfloe, domain, consts, 10)
+        @test wfloe.alive == 0
+        # Test floes not not interact with periodic boundary
+        nfloe_copy = deepcopy(nfloe)
+        Subzero.floe_domain_interaction!(nfloe, domain, consts, 10)
+        @test nfloe_copy.alive == nfloe.alive &&  nfloe_copy.interactions == nfloe.interactions
+        # Test floe overlapping with topography
+        Subzero.floe_domain_interaction!(tfloe, domain, consts, 10)
+        # TODO: this has issues. Need to check on it. 
+
     end
     
     @testset "Add Ghosts" begin

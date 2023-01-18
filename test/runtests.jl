@@ -1,4 +1,4 @@
-using Subzero, LibGEOS, JLD2, StructArrays, SplitApplyCombine
+using Subzero, LibGEOS, JLD2, StructArrays, SplitApplyCombine, Statistics
 using Test
 
 @testset "Subzero.jl" begin

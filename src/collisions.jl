@@ -120,7 +120,7 @@ function calc_elastic_forces(c1, c2, regions, region_areas, force_factor, ::Type
         # Calculate forces for each remaining region
         force = zeros(T, ncontact, 2)
         fpoint = zeros(T, ncontact, 2)
-        Δl = T(0.0)
+        Δl_lst = zeros(T, ncontact)
         for k in 1:ncontact
             normal_force = zeros(T, 1, 2)
             if region_areas[k] != 0
@@ -129,8 +129,9 @@ function calc_elastic_forces(c1, c2, regions, region_areas, force_factor, ::Type
                 normal_force, Δl = calc_normal_force(c1, c2, regions[k], region_areas[k], ipoints, force_factor, T)
             end
             force[k, :] = normal_force
+            Δl_lst[k] = Δl
         end
-        return force, fpoint, overlap, Δl
+        return force, fpoint, overlap, Δl_lst
     end
 end
 
@@ -159,9 +160,9 @@ function calc_friction_forces(v1, v2, normal, Δl, consts, Δt, ::Type{T} = Floa
         v = vdiff[i, :]
         vnorm = norm(v)
         force_dir = maximum(abs.(v)) == 0 ? zeros(T, 2) : v/vnorm
-        friction = G * Δl * Δt * vnorm * -dot(force_dir, v) * force_dir
+        friction = G * Δl[i] * Δt * vnorm * -dot(force_dir, v) * force_dir
         if norm(friction) > consts.μ*norm(normal)
-            friction = consts.μ*norm(normal)*force_dir
+            friction = -consts.μ*norm(normal)*force_dir
         end
         force[i, :] = friction
     end
