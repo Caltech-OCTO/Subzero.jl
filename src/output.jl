@@ -34,21 +34,21 @@ abstract type AbstractOutputWriter end
 
 Checkpoint subtype of AbstractOutputWriter that holds information for outputting checkpoint information used for
 restarting the simulation from a point where the writer saved data. Checkpoint data is saved every Δtout timesteps
-to file with name fn. 
+to filepath. If the given file doesn't end in ".jld2" the extension will be appended. If overwrite_existing is true
+then if there is already a file of the given name, it will be overwriten. Else it will thrown an error. 
 """
-struct CheckpointOutputWriter{ST<:AbstractString}<:AbstractOutputWriter
-    Δtout::Int              # Number of timesteps between checkpoint outputs
-    fn::ST                  # Filename for output file
-
-    function CheckpointOutputWriter{ST}(Δtout, fn::ST) where ST<:AbstractString
-        if isempty(fn)
-            throw(ArgumentError("A filename must be provided for each checkpoint writer."))
+struct CheckpointOutputWriter<:AbstractOutputWriter
+    Δtout::Int                  # Number of timesteps between checkpoint outputs
+    filepath::String            # Filename for output file
+    overwrite_existing::Bool    # Remove existing files if their filenames conflict.
+    function CheckpointOutputWriter(Δtout, filepath, overwrite_existing)
+        if isempty(filepath)
+            throw(ArgumentError("A file path must be provided for each checkpoint writer."))
         end
-        new{ST}(Δtout, fn)
-    end
-
-    CheckpointOutputWriter(Δtout, fn::ST) where ST<:AbstractString = 
-        CheckpointOutputWriter{ST}(Δtout, fn)  
+        filepath = auto_extension(filepath, ".jld2")
+        overwrite_existing && isfile(filepath) && rm(filepath, force=true)
+        new(Δtout, filepath, overwrite_existing)
+    end 
 end
 
 """
@@ -57,10 +57,14 @@ end
 CheckpointOutputWriter writer that outputs need data to restart simulation at given timesteps Δtout
 and saves the file in a file called "checkpoint.jld2".
 Inputs:
-        Δtout   <Int> number of timesteps between output
+        Δtout       <Int> number of timesteps between output
+        dir         <String> Directory to save output to. Default: "." (current working directory).
+        filename    <String> Descriptive filename.
+        overwrtie
 Outputs: FloeOutputWriter that outputs all Floe fields every Δtout timesteps to file.
 """
-CheckpointOutputWriter(Δtout) = CheckpointOutputWriter(Δtout, "checkpoint.jld2")
+CheckpointOutputWriter(Δtout; dir = ".", filename = "checkpoint.jld2", overwrite = false) =
+    CheckpointOutputWriter(Δtout, joinpath(dir, filename), overwrite)
 
 
 """
@@ -69,22 +73,22 @@ CheckpointOutputWriter(Δtout) = CheckpointOutputWriter(Δtout, "checkpoint.jld2
 Floe subtype of AbstractOutputWriter that holds information for outputting floe information from model throughout simulation.
 Output will be saved to the file defined by fn every Δtout timesteps.
 Only outputs within the outputs list will be saved.
-File will be saved as a JLD2 file.
+File will be saved as a JLD2 file to filepath. If the given file doesn't end in ".jld2" the extension will be appended.
+If overwrite_existing is true then if there is already a file of the given name, it will be overwriten. Else it will thrown an error. 
 """
-struct FloeOutputWriter{ST<:AbstractString}<:AbstractOutputWriter
-    outputs::Vector{Symbol}
-    Δtout::Int              # Number of timesteps between floe outputs
-    fn::ST                  # Filename for output file
+struct FloeOutputWriter<:AbstractOutputWriter
+    outputs::Vector{Symbol}     # Floe fields to output
+    Δtout::Int                  # Number of timesteps between floe outputs
+    filepath::String            # Filename for output file
+    overwrite_existing::Bool    # Remove existing files if their filenames conflict.
 
-    function FloeOutputWriter{ST}(outputs, Δtout, fn::ST) where ST<:AbstractString
-        if isempty(fn)
+    function FloeOutputWriter(outputs, Δtout, filepath, overwrite_existing)
+        if isempty(filepath)
             throw(ArgumentError("A filename must be provided for each floe writer."))
         end
-        new{ST}(outputs, Δtout, fn)
+        filepath = auto_extension(filepath, ".jld2")
+        new(outputs, Δtout, filepath, overwrite_existing)
     end
-
-    FloeOutputWriter(outputs, Δtout, fn::ST) where ST<:AbstractString = 
-        FloeOutputWriter{ST}(outputs, Δtout, fn)  
 end
 
 """
@@ -97,7 +101,8 @@ Inputs:
         fn      <String> name of file to save grid data to
 Outputs: FloeOutputWriter that outputs all Floe fields every Δtout timesteps to file fn
 """
-FloeOutputWriter(Δtout, fn) = FloeOutputWriter(collect(fieldnames(Floe)), Δtout, fn)
+FloeOutputWriter(Δtout; dir = ".", filename = "checkpoint.jld2", overwrite = false) =
+    FloeOutputWriter(collect(fieldnames(Floe)), Δtout, joinpath(dir, filename), overwrite)
 
 
 """
@@ -167,10 +172,11 @@ end
 Write and save file that holds the initial state of the simulation.
 Inputs:
         sim      <Simulation> simulation to run
+        fn       <String> filename to save initial state file
 Ouputs: File with initial simulation state will be saved in output/sim_name/initial_state.jld2.
 """
-function output_initial_state!(sim::Simulation)
-    outfn = setup_directory!("initial_state.jld2", sim.name)
+function output_initial_state!(sim::Simulation, fn = "initial_state.jld2")
+    outfn = setup_directory!(fn, sim.name)
     jldsave(outfn; sim)
     return
 end
@@ -354,6 +360,17 @@ function write_data!(writer::GridOutputWriter, tstep, model, sim_name)
 end
 
 #----------------------- Other Stuff -----------------------#
+"""
+    auto_extension(filename, ext) 
+
+If `filename` ends in `ext`, return `filename`. Otherwise return `filename * ext`.
+"""
+function auto_extension(filename, ext) 
+    Next = length(ext)
+    filename[end-Next+1:end] == ext || (filename *= ext)
+    return filename
+end
+
 """
     rect_coords(xmin, xmax, ymin, ymax)
 
