@@ -26,11 +26,10 @@ Inputs:
 Outputs:
         Plot with x and y xlim determed by domain and including all topography. 
 """
-function setup_plot(domain_fn::String, plot_size = (1500, 1500))
+function setup_plot(init_pn::String, plot_size = (1500, 1500))
     # Open file to get needed values
-    file = jldopen(domain_fn, "r")
-    d = file["domain"]
-    JLD2.close(file)
+    file = jldopen(init_pn, "r")
+    d = file["sim"].model.domain
     
     xmin = d.west.val/1000
     xmax = d.east.val/1000
@@ -46,42 +45,43 @@ function setup_plot(domain_fn::String, plot_size = (1500, 1500))
                         xlabel = "[km]",
                         ylabel = "[km]")
     if !isempty(d.topography)
-        topo_coords = d.topography.coords
-        plot!(plt, [LG.Polygon([c[1] ./ 1000]) for c in topo_coords], fillcolor = :grey)
+        topo_coords = seperate_xy.(d.topography.coords)
+        plot!(plt, first.(topo_coords)./1000, last.(topo_coords)./1000, seriestype = [:shape,], fill = :grey, legend=false)
     end
+    JLD2.close(file)
     return plt
 end
 
 """
-    create_sim_gif(floes_fn, domain_fn, output_fn, plot_size = (1500, 1500))
+    create_sim_gif(floes_pn, domain_fn, output_fn, plot_size = (1500, 1500))
 
 Create a gif of a simulation given a file with domain information and floe information from a floe output writer.
 Inputs:
-        floes_fn    <String> file path to file output by floe output writer that inclues coordinate and alive fields
-        domain_fn   <String> file path to JLD2 file holding domain struct information
+        floes_pn    <String> file path to file output by floe output writer that inclues coordinate and alive fields
+        init_pn   <String> file path to JLD2 file holding domain struct information
         output_fn   <String> file path to save gif
         plot_size   <Tuple(Int, Int)> size of output gif in pixels - default (1500, 1500)
 Outputs: Saves simulation gif with floes and topography plotted.
 """
-function create_sim_gif(floes_fn, domain_fn, output_fn, plot_size = (1500, 1500))
-    jldopen(floes_fn, "r") do sim_data
-        plt = setup_plot(domain_fn, plot_size)
-        keynames = split.(keys(sim_data), "/")
-        times = sort(parse.(Int, unique(first.(keynames))))
-        anim = @animate for t in eachindex(times)
-            new_frame = plot(plt)
-            coords = sim_data[string(times[t], "/coords")]
-            alive = sim_data[string(times[t], "/alive")]
-            for i in eachindex(coords)
-                xcoords, ycoords = seperate_xy(coords[i])
-                if alive[i] == 1
-                    plot!(new_frame, xcoords./1000, ycoords./1000,
-                          seriestype = [:shape,], fill = :lightblue, legend=false)
-                end
+function create_sim_gif(floe_pn, init_pn, output_fn, plot_size = (1500, 1500))
+    # Get floe data
+    floe_data = jldopen(floe_pn, "r")
+    alive = floe_data["alive"]
+    coords = floe_data["coords"]
+    # Plot floe data
+    plt = setup_plot(init_pn, plot_size)
+    times = keys(alive)
+    anim = @animate for t in times
+        new_frame = plot(plt)
+        verts = Subzero.seperate_xy.(coords[t])
+        for i in eachindex(verts)
+            if alive[t][i] == 1
+                plot!(new_frame, first(verts[i])./1000, last(verts[i])./1000, seriestype = [:shape,], fill = :lightblue, legend=false)
             end
         end
-        gif(anim, output_fn, fps = 15)
     end
+    JLD2.close(floe_data)
+    gif(anim, output_fn, fps = 15)
     return
 end
 

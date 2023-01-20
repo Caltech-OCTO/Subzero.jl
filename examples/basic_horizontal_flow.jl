@@ -1,9 +1,10 @@
 using Subzero, StructArrays, Statistics, JLD2, SplitApplyCombine
 import LibGEOS as LG
 
+Subzero.create_sim_gif("output/sim/f.jld2", "output/sim/initial_state.jld2", "output/sim/f.gif")
+
 # User Inputs
 const type = Float64::DataType
-
 const Lx = 1e5
 const Ly = 1e5
 const Δgrid = 10000
@@ -46,11 +47,12 @@ model = Model(grid, ocean, atmos, domain, floe_arr)
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 #consts = Constants(E = modulus)
 consts = Constants(E = modulus, Cd_io = 0.0, Cd_ia = 0.0, Cd_ao = 0.0, f = 0.0, μ = 0.0)  # collisions without friction 
-simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 10000, COLLISION = true)
+simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 5000, COLLISION = true)
 
 # Output setup
 gridwriter = GridOutputWriter([GridOutput(i) for i in 1:9], 10, "g.nc", grid, (10, 10))
 floewriter = FloeOutputWriter([:alive, :coords, :area, :mass, :u, :v], 50, "f.jld2")
+checkpointwriter = CheckpointOutputWriter(1000)
 
 # Run simulation
-run!(simulation, [floewriter])
+run!(simulation, [floewriter, checkpointwriter])

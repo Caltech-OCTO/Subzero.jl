@@ -171,11 +171,8 @@ function timestep_sim!(sim, tstep, writers, widx, ::Type{T} = Float64) where T
         remove, transfer = timestep_collisions!(m.floes, n_init_floes, m.domain, remove, transfer, sim.consts, sim.Δt, T)
     end
     # Output at given timestep
-    if length(widx) > 0
-        println(tstep, " timesteps")
-        for idx in widx
-            write_data!(writers[idx], tstep, sim.model.floes, sim.name)
-        end
+    for idx in widx
+        write_data!(writers[idx], tstep, sim.model, sim.name)
     end
 
     m.floes = m.floes[1:n_init_floes] # remove the ghost floes
@@ -216,14 +213,13 @@ Outputs:
 """
 function run!(sim, writers, ::Type{T} = Float64) where T
     # Output setup
+    println(string("Setting up ", sim.name, " output writers."))
     Δtout_lst = Int[]
-    if !isempty(writers)
-        setup_output!(sim.model.domain, sim.model.grid, writers, sim.name)
-    end
+    output_initial_state!(sim)
     for w in writers
+        setup_output_file!(w, sim.nΔt, sim.name, T)
         push!(Δtout_lst, w.Δtout)
     end
-    println(string(sim.name ," running!"))
 
     # Initialize floe IDs
     for i in eachindex(sim.model.floes)
@@ -233,11 +229,15 @@ function run!(sim, writers, ::Type{T} = Float64) where T
     # Add topography elements crossing through periodic boundaries
     add_ghosts!(sim.model.domain.topography, sim.model.domain)
 
+    # Start simulation
+    println(string(sim.name ," running!"))
     tstep = 0
     while tstep <= sim.nΔt
+        if mod(tstep, 50) == 0
+            println(tstep, " timesteps")
+        end
         # Index of writers at given timestep
         widx = findall(Δtout-> mod(tstep, Δtout) == 0, Δtout_lst)
-
         # Timestep the simulation forward
         timestep_sim!(sim, tstep, writers, widx, T)
         tstep+=1
