@@ -159,7 +159,7 @@ function timestep_atm!(m, c)
     m.hflx .= c.k/(c.ρi*c.L) .* (atmos.temp .- ocean.temp)
 end
 
-function timestep_sim!(sim, tstep, writers, widx, ::Type{T} = Float64) where T
+function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
     m = sim.model
     m.ocean.si_area .= zeros(T, 1)
     n_init_floes = length(m.floes) # number of floes before ghost floes
@@ -171,8 +171,10 @@ function timestep_sim!(sim, tstep, writers, widx, ::Type{T} = Float64) where T
         remove, transfer = timestep_collisions!(m.floes, n_init_floes, m.domain, remove, transfer, sim.consts, sim.Δt, T)
     end
     # Output at given timestep
-    for idx in widx
-        write_data!(writers[idx], tstep, sim.model, sim.name)
+    for w in writers
+        if hasfield(typeof(w), :Δtout) && mod(tstep, w.Δtout) == 0
+            write_data!(w, tstep, sim)
+        end
     end
 
     m.floes = m.floes[1:n_init_floes] # remove the ghost floes
@@ -212,14 +214,6 @@ Outputs:
         None. The simulation will be run and outputs will be saved in the output folder. 
 """
 function run!(sim, writers, ::Type{T} = Float64) where T
-    # Output setup
-    println(string("Setting up ", sim.name, " output writers."))
-    Δtout_lst = Int[]
-    output_initial_state!(sim)
-    for w in writers
-        setup_output_file!(w, sim.nΔt, sim.name, T)
-        push!(Δtout_lst, w.Δtout)
-    end
 
     # Initialize floe IDs
     for i in eachindex(sim.model.floes)
@@ -229,17 +223,20 @@ function run!(sim, writers, ::Type{T} = Float64) where T
     # Add topography elements crossing through periodic boundaries
     add_ghosts!(sim.model.domain.topography, sim.model.domain)
 
+    # output intial state for all writers
+    for w in writers
+        write_data!(w, 0, sim)
+    end
+    
     # Start simulation
     println(string(sim.name ," running!"))
-    tstep = 0
+    tstep = 1
     while tstep <= sim.nΔt
         if mod(tstep, 50) == 0
             println(tstep, " timesteps")
         end
-        # Index of writers at given timestep
-        widx = findall(Δtout-> mod(tstep, Δtout) == 0, Δtout_lst)
         # Timestep the simulation forward
-        timestep_sim!(sim, tstep, writers, widx, T)
+        timestep_sim!(sim, tstep, writers, T)
         tstep+=1
     end
     println(string(sim.name ," done running!"))

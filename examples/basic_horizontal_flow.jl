@@ -1,8 +1,6 @@
 using Subzero, StructArrays, Statistics, JLD2, SplitApplyCombine
 import LibGEOS as LG
 
-Subzero.create_sim_gif("output/sim/f.jld2", "output/sim/initial_state.jld2", "output/sim/f.gif")
-
 # User Inputs
 const type = Float64::DataType
 const Lx = 1e5
@@ -50,9 +48,10 @@ consts = Constants(E = modulus, Cd_io = 0.0, Cd_ia = 0.0, Cd_ao = 0.0, f = 0.0, 
 simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 5000, COLLISION = true)
 
 # Output setup
-gridwriter = GridOutputWriter([GridOutput(i) for i in 1:9], 10, "g.nc", grid, (10, 10))
-floewriter = FloeOutputWriter([:alive, :coords, :area, :mass, :u, :v], 50, "f.jld2")
-checkpointwriter = CheckpointOutputWriter(1000)
+initwriter = InitialStateOutputWriter(dir = "output/sim", filename = "initial_state.jld2", overwrite = true)
+gridwriter = GridOutputWriter(50, grid, (10, 10), dir = "output/sim", filename = "g.nc", overwrite = true)
+floewriter = FloeOutputWriter([:alive, :coords, :area, :mass, :u, :v], 50, dir = "output/sim", filename = "f.jld2", overwrite = true)
+checkpointwriter = CheckpointOutputWriter(1000, dir = "output/sim", overwrite = true)
 
 # Run simulation
-run!(simulation, [floewriter, checkpointwriter])
+run!(simulation, [initwriter, floewriter, checkpointwriter, gridwriter])

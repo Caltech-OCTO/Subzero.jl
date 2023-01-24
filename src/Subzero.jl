@@ -32,6 +32,7 @@ export
     CheckpointOutputWriter,
     GridOutputWriter, 
     FloeOutputWriter,
+    InitialStateOutputWriter,
     GridOutput,
     FloeOutput,
     add_ghosts!
