@@ -84,9 +84,9 @@ function timestep_floe!(floe, Δt)
     
     h = floe.height
     # Update floe based on thermodynamic growth
-    Δh = floe.hflx * Δt/h
+    Δh = floe.hflx_factor / h
     #Δh = 0 # for collision testing
-    hfrac = (h-Δh)/h
+    hfrac = (h + Δh) / h
     floe.mass *= hfrac
     floe.moment *= hfrac
     floe.height -= Δh
@@ -164,7 +164,7 @@ function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
     m = sim.model
     m.ocean.si_area .= zeros(T, 1)
     # Update ocean heatflux
-    m.ocean.hflx .= sim.consts.k/(sim.consts.ρi*sim.consts.L) .* (m.atmos.temp .- m.ocean.temp)
+    m.ocean.hflx_factor .= sim.Δt * sim.consts.k/(sim.consts.ρi*sim.consts.L) .* (m.ocean.temp .- m.atmos.temp)
 
     n_init_floes = length(m.floes) # number of floes before ghost floes
     add_ghosts!(m.floes, m.domain)
