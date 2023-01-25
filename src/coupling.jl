@@ -494,6 +494,7 @@ function floe_OA_forcings!(floe, m, c, Δd, ::Type{T} = Float64) where T
         vocn_interp = linear_interpolation((yknots, xknots), m.ocean.v[yknot_idx, xknot_idx])
         uocn = [uocn_interp(mc_yr[i], mc_xr[i]) for i in eachindex(mc_xr)]
         vocn = [vocn_interp(mc_yr[i], mc_xr[i]) for i in eachindex(mc_xr)]
+        
         hflx_interp = linear_interpolation((yknots, xknots), m.ocean.hflx[yknot_idx, xknot_idx])
         floe.hflx = mean([hflx_interp(mc_yr[i], mc_xr[i]) for i in eachindex(mc_xr)])
 

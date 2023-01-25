@@ -3,7 +3,6 @@ import LibGEOS as LG
 
 # User Inputs
 const type = Float64::DataType
-
 const Lx = 1e5
 const Ly = 1e5
 const Δgrid = 10000
@@ -46,11 +45,13 @@ model = Model(grid, ocean, atmos, domain, floe_arr)
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 #consts = Constants(E = modulus)
 consts = Constants(E = modulus, Cd_io = 0.0, Cd_ia = 0.0, Cd_ao = 0.0, f = 0.0, μ = 0.0)  # collisions without friction 
-simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 3000, COLLISION = true)
+simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 5000, COLLISION = true, verbose = true)
 
 # Output setup
-gridwriter = GridOutputWriter([GridOutput(i) for i in 1:9], 10, "g.nc", grid, (10, 10))
-floewriter = FloeOutputWriter([FloeOutput(i) for i in [3:4; 6; 9:11; 22:26]], 30, "f.nc", grid)
+initwriter = InitialStateOutputWriter(dir = "output/sim", filename = "initial_state.jld2", overwrite = true)
+gridwriter = GridOutputWriter(50, grid, (10, 10), dir = "output/sim", filename = "g.nc", overwrite = true)
+floewriter = FloeOutputWriter([:alive, :coords, :area, :mass, :u, :v], 50, dir = "output/sim", filename = "f.jld2", overwrite = true)
+checkpointwriter = CheckpointOutputWriter(1000, dir = "output/sim", overwrite = true)
 
 # Run simulation
-run!(simulation, [floewriter])
+run!(simulation, [initwriter, floewriter, checkpointwriter, gridwriter])
