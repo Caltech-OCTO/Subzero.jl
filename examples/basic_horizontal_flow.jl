@@ -45,7 +45,7 @@ model = Model(grid, ocean, atmos, domain, floe_arr)
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 #consts = Constants(E = modulus)
 consts = Constants(E = modulus, Cd_io = 0.0, Cd_ia = 0.0, Cd_ao = 0.0, f = 0.0, μ = 0.0)  # collisions without friction 
-simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 5000, COLLISION = true)
+simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 5000, COLLISION = true, verbose = true)
 
 # Output setup
 initwriter = InitialStateOutputWriter(dir = "output/sim", filename = "initial_state.jld2", overwrite = true)

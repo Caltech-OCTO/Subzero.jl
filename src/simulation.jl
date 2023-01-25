@@ -35,6 +35,7 @@ Simulation which holds a model and parameters needed for running the simulation.
     consts::Constants{FT}           # Constants used in simulation
     name::String = "sim"            # Simulation name for saving output
     Δd::Int = 1                     # Number of buffer grid cells on each side of floe for monte carlo interpolation
+    verbose::Bool = false           # String output printed during run
     # Timesteps ----------------------------------------------------------------
     Δt::Int = 10                    # Simulation timestep (seconds)
     nΔt::Int = 7500                 # Total timesteps simulation runs for
@@ -79,8 +80,8 @@ function timestep_floe!(floe, Δt)
     while maximum(abs.(cforce)) > floe.mass/(5Δt)
         cforce = cforce ./ 10
         ctrq = ctrq ./ 10
-        # TODO: check floe interactions
     end
+    
     h = floe.height
     # Update floe based on thermodynamic growth
     Δh = floe.hflx * Δt/h
@@ -162,6 +163,9 @@ end
 function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
     m = sim.model
     m.ocean.si_area .= zeros(T, 1)
+    # Update ocean heatflux
+    m.ocean.hflx .= sim.consts.k/(sim.consts.ρi*sim.consts.L) .* (m.atmos.temp .- m.ocean.temp)
+
     n_init_floes = length(m.floes) # number of floes before ghost floes
     add_ghosts!(m.floes, m.domain)
     remove = zeros(Int, n_init_floes)
@@ -192,7 +196,6 @@ function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
     for idx in remove_idx
         StructArrays.foreachfield(f -> deleteat!(f, idx), m.floes)
     end
-    m.ocean.hflx .= sim.consts.k/(sim.consts.ρi*sim.consts.L) .* (m.atmos.temp .- m.ocean.temp)
     # h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx)))
     # mean(h0)
 
@@ -229,15 +232,15 @@ function run!(sim, writers, ::Type{T} = Float64) where T
     end
     
     # Start simulation
-    println(string(sim.name ," running!"))
+    sim.verbose && println(string(sim.name ," running!"))
     tstep = 1
     while tstep <= sim.nΔt
-        if mod(tstep, 50) == 0
+        if sim.verbose && mod(tstep, 50) == 0
             println(tstep, " timesteps")
         end
         # Timestep the simulation forward
         timestep_sim!(sim, tstep, writers, T)
         tstep+=1
     end
-    println(string(sim.name ," done running!"))
+    sim.verbose && println(string(sim.name ," done running!"))
 end
