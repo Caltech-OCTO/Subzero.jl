@@ -83,8 +83,6 @@
         for i in eachindex(floe_arr)
             floe_arr.id[i] = i
         end
-        # flip border overlap from north to south and east to west and visa versa
-        topo_arr = StructArray([TopographyElement(-coords1)])
 
         nonperiodic_domain = Domain(OpenBoundary(grid, North()), OpenBoundary(grid, South()),
                                     OpenBoundary(grid, East()), OpenBoundary(grid, West()), topo_arr)
@@ -100,9 +98,7 @@
 
         # Make sure nothing is added with non-periodic domain
         new_floe_arr = deepcopy(floe_arr)
-        new_topo_arr = deepcopy(topo_arr)
         add_ghosts!(new_floe_arr, nonperiodic_domain)
-        add_ghosts!(new_topo_arr, nonperiodic_domain)
         @test new_floe_arr.coords == floe_arr.coords
         @test new_topo_arr.coords == topo_arr.coords
 
@@ -137,9 +133,7 @@
 
         # Add ghosts in both east-west and north-south directions
         new_floe_arr = deepcopy(floe_arr)
-        new_topo_arr = deepcopy(topo_arr)
         add_ghosts!(new_floe_arr, double_periodic_domain)
-        add_ghosts!(new_topo_arr, double_periodic_domain)
         @test -1e5 < new_floe_arr.centroid[1][1] < 1e5
         @test -1e5 < new_floe_arr.centroid[1][2] < 1e5
         @test new_floe_arr.coords[1] == Subzero.translate(floe_arr.coords[1], [-2e5, -2e5])
@@ -155,13 +149,7 @@
         @test new_floe_arr.ghosts[2] == [6]
         @test new_floe_arr.ghosts[3] == [9]
         @test new_floe_arr.ghosts[4:9] == [[], [], [], [], [], []]
-        # Add ghosts for topography in both east-west and north-south directions
-        @test -1e5 < new_topo_arr.centroid[1][1] < 1e5
-        @test -1e5 < new_topo_arr.centroid[1][2] < 1e5
-        @test new_topo_arr.coords[1] == Subzero.translate(topo_arr.coords[1], [2e5, 2e5])
-        @test new_topo_arr.coords[2] == Subzero.translate(topo_arr.coords[1], [0, 2e5])
-        @test new_topo_arr.coords[3] == Subzero.translate(topo_arr.coords[1], [2e5, 0])
-        @test new_topo_arr.coords[4] == topo_arr.coords[1]
+    
     end
     @testset "Ghost Collisions" begin
         Lx = 1e5

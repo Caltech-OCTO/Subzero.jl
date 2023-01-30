@@ -598,14 +598,14 @@ function find_ghosts(elem, current_ghosts, nbound::PeriodicBoundary{North, <:Abs
             StructArray(Vector{typeof(elem)}())
         end
     # if element centroid isn't in domain in north/south direction, swap with its ghost
-    if !isempty(new_ghosts) && (elem.centroid[2] < sbound.val) || (nbound.val < elem.centroid[2])
+    if !isempty(new_ghosts) && ((elem.centroid[2] < sbound.val) || (nbound.val < elem.centroid[2]))
         elem, new_ghosts[end] = new_ghosts[end], elem
     end
     return elem, new_ghosts
 end
 
 """
-    add_elem_ghosts!(floes::StructArray{Floe{T}}, max_boundary, min_boundary) where {T <: AbstractFloat}
+    add_floe_ghosts!(floes::StructArray{Floe{T}}, max_boundary, min_boundary) where {T <: AbstractFloat}
 
 Add ghosts of all of the given floes passing through the two given boundaries to the list of floes.
 Inputs:
@@ -615,7 +615,7 @@ Inputs:
 Outputs:
         None. Ghosts of floes are added to floe list. 
 """
-function add_elem_ghosts!(floes::StructArray{Floe{T}}, max_boundary, min_boundary) where {T <: AbstractFloat}
+function add_floe_ghosts!(floes::StructArray{Floe{T}}, max_boundary, min_boundary) where {T <: AbstractFloat}
     nfloes = length(floes)
     for i in eachindex(floes)  # uses initial length of floes so we can append to list
         f = floes[i]
@@ -632,28 +632,6 @@ function add_elem_ghosts!(floes::StructArray{Floe{T}}, max_boundary, min_boundar
         end
     end
     return
-end
-
-"""
-    add_elem_ghosts!(topography::StructArray{TopographyElement{T}}, max_boundary, min_boundary) where {T <: AbstractFloat}
-
-Add ghosts of all of the given floes passing through the two given boundaries to the list of floes.
-Inputs:
-        floes           <topography::StructArray{TopographyElement{T}}> list of topography elements to find ghosts for
-        max_boundary    <PeriodicBoundary> either northern or eastern boundary  of domain
-        min_boundary    <PeriodicBoundary> either southern or western boundary of domain
-Outputs:
-        None. Ghosts of topography elements are added to topography list. 
-"""
-function add_elem_ghosts!(topography::StructArray{TopographyElement{T}}, max_boundary, min_boundary) where {T <: AbstractFloat}
-    for i in eachindex(topography)  # uses initial length of topography so we can append to list
-        t = topography[i]
-        t, new_ghosts = find_ghosts(t, StructArray(Vector{TopographyElement}()), max_boundary, min_boundary, T)
-        if !isempty(new_ghosts)
-            append!(topography, new_ghosts)  # add new topography to list
-            topography[i] = t
-        end
-    end
 end
 
 """
@@ -681,7 +659,7 @@ Outputs:
         None. Ghosts are added to list of elements.
 """
 function add_ghosts!(elems, domain::Domain{FT, <:PeriodicBoundary, <:PeriodicBoundary, <:NonPeriodicBoundary, <:NonPeriodicBoundary}) where {FT<:AbstractFloat}
-    add_elem_ghosts!(elems, domain.north, domain.south)
+    add_floe_ghosts!(elems, domain.north, domain.south)
     return
 end
 
@@ -697,7 +675,7 @@ Outputs:
         None. Ghosts are added to list of elements.
 """
 function add_ghosts!(elems, domain::Domain{FT, <:NonPeriodicBoundary, <:NonPeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary}) where {FT<:AbstractFloat}
-    add_elem_ghosts!(elems, domain.east, domain.west)
+    add_floe_ghosts!(elems, domain.east, domain.west)
     return
 end
 
@@ -713,7 +691,7 @@ Outputs:
         None. Ghosts are added to list of elements.
 """
 function add_ghosts!(elems, domain::Domain{FT, <:PeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary}) where {FT<:AbstractFloat}
-    add_elem_ghosts!(elems, domain.east, domain.west)
-    add_elem_ghosts!(elems, domain.north, domain.south)
+    add_floe_ghosts!(elems, domain.east, domain.west)
+    add_floe_ghosts!(elems, domain.north, domain.south)
     return
 end

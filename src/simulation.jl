@@ -230,9 +230,6 @@ function run!(sim, writers, ::Type{T} = Float64) where T
     for i in eachindex(sim.model.floes)
         sim.model.floes.id[i] = i
     end
-    
-    # Add topography elements crossing through periodic boundaries
-    add_ghosts!(sim.model.domain.topography, sim.model.domain)
 
     tstep = 0
     while tstep <= sim.nΔt
