@@ -37,17 +37,17 @@
 
         # Test floe overlapping slightly with collision boundary
         Subzero.floe_domain_interaction!(efloe_small, domain, consts, 10)
-        @test efloe_small.interactions[2, "floeidx"] == Inf
-        @test isapprox(efloe_small.interactions[2, "xforce"], -311304795.629, atol = 1e-3)
+        @test efloe_small.interactions[1, floeidx] == Inf
+        @test isapprox(efloe_small.interactions[1, xforce], -311304795.629, atol = 1e-3)
         # if we want to zero out then should be 0
-        @test isapprox(efloe_small.interactions[2, "yforce"], -23618874.648, atol = 1e-3)
-        @test isapprox(efloe_small.interactions[2, "overlap"], 1704545.454, atol = 1e-3)
-        @test isapprox(efloe_small.interactions[2, "xpoint"], 100166.666, atol = 1e-3)
-        @test isapprox(efloe_small.interactions[2, "ypoint"], 21060.606, atol = 1e-3)
+        @test isapprox(efloe_small.interactions[1, yforce], -23618874.648, atol = 1e-3)
+        @test isapprox(efloe_small.interactions[1, overlap], 1704545.454, atol = 1e-3)
+        @test isapprox(efloe_small.interactions[1, xpoint], 100166.666, atol = 1e-3)
+        @test isapprox(efloe_small.interactions[1, ypoint], 21060.606, atol = 1e-3)
 
         # Test floe overlapping >75% with collision boundary
         Subzero.floe_domain_interaction!(efloe_large, domain, consts, 10)
-        @test size(efloe_large.interactions, 1) == 1  # No interactions
+        @test isempty(efloe_large.interactions)
         @test efloe_large.alive == 0
         # Test floe passing through open boundary is killed
         Subzero.floe_domain_interaction!(wfloe, domain, consts, 10)
@@ -85,22 +85,21 @@
         end
 
         nonperiodic_domain = Domain(OpenBoundary(grid, North()), OpenBoundary(grid, South()),
-                                    OpenBoundary(grid, East()), OpenBoundary(grid, West()), topo_arr)
+                                    OpenBoundary(grid, East()), OpenBoundary(grid, West()))
 
         ew_periodic_domain = Domain(OpenBoundary(grid, North()), OpenBoundary(grid, South()),
-                                    PeriodicBoundary(grid, East()), PeriodicBoundary(grid, West()), topo_arr)
+                                    PeriodicBoundary(grid, East()), PeriodicBoundary(grid, West()))
 
         ns_periodic_domain = Domain(PeriodicBoundary(grid, North()), PeriodicBoundary(grid, South()),
-                                    OpenBoundary(grid, East()), OpenBoundary(grid, West()), topo_arr)
+                                    OpenBoundary(grid, East()), OpenBoundary(grid, West()))
 
         double_periodic_domain = Domain(PeriodicBoundary(grid, North()), PeriodicBoundary(grid, South()),
-                                        PeriodicBoundary(grid, East()), PeriodicBoundary(grid, West()), topo_arr)
+                                        PeriodicBoundary(grid, East()), PeriodicBoundary(grid, West()))
 
         # Make sure nothing is added with non-periodic domain
         new_floe_arr = deepcopy(floe_arr)
         add_ghosts!(new_floe_arr, nonperiodic_domain)
         @test new_floe_arr.coords == floe_arr.coords
-        @test new_topo_arr.coords == topo_arr.coords
 
         # Add ghost floes in east-west direction
         new_floe_arr = deepcopy(floe_arr)
@@ -174,7 +173,7 @@
         f2_torque = floe_arr[2].collision_trq
         add_ghosts!(floe_arr, double_periodic_domain)
         Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
-        # 1 and 2 are the "parent" floes - floe1 interacts with floe 2's ghost floe (floe 4)
+        # 1 and 2 are the "parent" floes - floe 1 and floe 2 interact
         @test xforce == abs(floe_arr[1].collision_force[1]) == abs(floe_arr[2].collision_force[1])
         @test yforce == abs(floe_arr[2].collision_force[2]) == abs(floe_arr[2].collision_force[2])
         @test f1_torque == floe_arr[1].collision_trq
@@ -203,12 +202,15 @@
         f2_torque = trans_arr[2].collision_trq
         add_ghosts!(floe_arr, double_periodic_domain)
         Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
-        @test repeat([xforce], 4) == abs.(first.(floe_arr.collision_force[1:4]))
-        @test repeat([yforce], 4) == abs.(last.(floe_arr.collision_force[1:4]))
-        @test f1_torque == floe_arr[1].collision_trq == floe_arr[4].collision_trq
-        @test f2_torque == floe_arr[2].collision_trq == floe_arr[3].collision_trq
-        @test size(floe_arr[1].interactions, 1) == 1
-        @test size(floe_arr[2].interactions, 1) == 1
+        # floes 1 and 2 are the parents - floe 4 is floe 1's ghost and floe 3 is
+        # floe 2's ghost - floe 3 and 4 collide 
+        @test repeat([xforce], 2) == abs.(first.(floe_arr.collision_force[1:2]))
+        @test repeat([yforce], 2) == abs.(last.(floe_arr.collision_force[1:2]))
+        @test f1_torque == floe_arr[1].collision_trq
+        @test f2_torque == floe_arr[2].collision_trq
+        # interactions copied from ghosts
+        @test floe_arr[1].interactions[:, [1:5; 7]] == floe_arr[4].interactions[:, [1:5; 7]]
+        @test floe_arr[2].interactions[:, [1:5; 7]] == floe_arr[3].interactions[:, [1:5; 7]]
 
         # Parent-Ghost Collision
         coords1 = splitdims(vcat([5*Lx/8 5*Lx/8 3*Lx/4 3*Lx/4].+1000, [3*Ly/4 5*Ly/4 5*Ly/4 3*Ly/4]))
@@ -229,12 +231,13 @@
         f2_torque = trans_arr[2].collision_trq
         add_ghosts!(floe_arr, double_periodic_domain)
         Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
-        @test repeat([xforce], 3) == abs.(first.(floe_arr.collision_force[1:3]))
-        @test repeat([yforce], 3) == abs.(last.(floe_arr.collision_force[1:3]))
+        # Floe 1's ghost if floe 4 and floe 2's ghost is floe 3 and floe 3 and floe 1 interact
+        @test repeat([xforce], 2) == abs.(first.(floe_arr.collision_force[1:2]))
+        @test repeat([yforce], 2) == abs.(last.(floe_arr.collision_force[1:2]))
         @test f1_torque == floe_arr[1].collision_trq
-        @test f2_torque == floe_arr[2].collision_trq == floe_arr[3].collision_trq
-        @test size(floe_arr[2].interactions, 1) == 1
-        @test size(floe_arr[4].interactions, 1) == 1
+        @test f2_torque == floe_arr[2].collision_trq
+        @test floe_arr[2].interactions[:, [1:5; 7]] == floe_arr[3].interactions[:, [1:5; 7]]
+        @test isempty(floe_arr[4].interactions)
     end
 
 end

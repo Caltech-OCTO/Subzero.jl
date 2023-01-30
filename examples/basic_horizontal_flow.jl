@@ -3,8 +3,8 @@ import LibGEOS as LG
 
 # User Inputs
 const type = Float64::DataType
-const Lx = 1e5
-const Ly = 1e5
+#const Lx = 1e5
+#const Ly = 1e5
 const Δgrid = 10000
 const h_mean = 0.25
 const Δh = 0.0
@@ -13,6 +13,25 @@ const newfloe_Δt = 500
 const coarse_nx = 10
 const coarse_ny = 10
 
+Lx = 1e5
+Ly = 1e5
+grid = RegRectilinearGrid(-Lx, Lx, -Lx, Lx, 1e4, 1e4)
+double_periodic_domain = Domain(PeriodicBoundary(grid, North()), PeriodicBoundary(grid, South()),
+                                PeriodicBoundary(grid, East()), PeriodicBoundary(grid, West()))
+coords1 = splitdims(vcat([5*Lx/8 5*Lx/8 3*Lx/4 3*Lx/4].+1000, [3*Ly/4 5*Ly/4 5*Ly/4 3*Ly/4]))
+coords2 = splitdims(vcat(-[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000], -[7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8]))
+floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
+for i in eachindex(floe_arr)
+    floe_arr.id[i] = i
+end
+trans_arr = StructArray([Floe(Subzero.translate([coords1], [0.0, -2Ly]), 0.5, 0.0),
+                            Floe(Subzero.translate([coords2], [2Lx, 0.0]), 0.5, 0.0)])
+for i in eachindex(trans_arr)
+    trans_arr.id[i] = i
+end
+Subzero.timestep_collisions!(trans_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
+add_ghosts!(floe_arr, double_periodic_domain)
+Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
 # Model instantiation
 grid = RegRectilinearGrid(-Lx, Lx, 0, Ly, Δgrid, Δgrid)
 ocean = Ocean(grid, 1.0, 0.0, 0.0)

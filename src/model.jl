@@ -712,8 +712,7 @@ Singular sea ice floe with fields describing current state.
     overarea::FT = 0.0      # total overlap with other floe
     collision_force::Matrix{FT} = [0.0 0.0] 
     collision_trq::FT = 0.0
-    interactions::NamedMatrix{FT} = NamedArray(zeros(7),
-    (["floeidx", "xforce", "yforce", "xpoint", "ypoint", "torque", "overlap"]))'
+    interactions::Matrix{FT} = zeros(0, 7)
     # Previous values for timestepping
     p_dxdt::FT = 0.0        # previous timestep x-velocity
     p_dydt::FT = 0.0        # previous timestep y-velocity
@@ -722,6 +721,18 @@ Singular sea ice floe with fields describing current state.
     p_dξdt::FT = 0.0        # previous timestep time derivative of ξ
     p_dαdt::FT = 0.0        # previous timestep ξ
 end
+
+@enum InteractionFields begin
+    floeidx = 1
+    xforce = 2
+    yforce = 3
+    xpoint = 4
+    ypoint = 5
+    torque = 6
+    overlap = 7
+end
+
+Base.to_index(s::InteractionFields) = Int(s)
 
 """
     generate_mc_points(npoints, xfloe, yfloe, rmax, area, ::Type{T} = Float64)

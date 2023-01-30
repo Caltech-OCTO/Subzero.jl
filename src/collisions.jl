@@ -293,11 +293,15 @@ Inputs:
                     <Type> Float type model is running on (Float64 or Float32) - not needed here
 Outputs: None. All forces in the x direction set to 0 if the point the force is applied is the northern or southern boundary value.
 """
-function normal_direction_correct!(forces, fpoints, boundary::Union{AbstractBoundary{North, <:AbstractFloat},
-AbstractBoundary{South, <:AbstractFloat}}, ::Type{T} = Float64) where T
-    forces[fpoints[:, 2] .== boundary.val, 1] .= T(0.0)
+function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{North, <:AbstractFloat}, ::Type{T} = Float64) where T
+    forces[fpoints[:, 2] .>= boundary.val, 1] .= T(0.0)
     return
 end
+
+function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{South, <:AbstractFloat}, ::Type{T} = Float64) where T
+        forces[fpoints[:, 2] .<= boundary.val, 1] .= T(0.0)
+        return
+    end
 
 """
     normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{Union{East, West}, <:AbstractFloat}, ::Type{T} = Float64)
@@ -310,10 +314,15 @@ Inputs:
                     <Type> Float type model is running on (Float64 or Float32) - not needed here
 Outputs: None. All forces in the y direction set to 0 if the point the force is applied is the eastern or western boundary value.
 """
-function normal_direction_correct!(forces, fpoints, boundary::Union{AbstractBoundary{East, <:AbstractFloat},
-                                                                    AbstractBoundary{West, <:AbstractFloat}}, ::Type{T} = Float64) where T
-    forces[fpoints[:, 1] .== boundary.val, 2] .= T(0.0)
+function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{East, <:AbstractFloat}, ::Type{T} = Float64) where T
+    forces[fpoints[:, 1] .>= boundary.val, 2] .= T(0.0)
     return
+end
+
+function normal_direction_correct!(forces, fpoints, boundary::Union{AbstractBoundary{East, <:AbstractFloat},
+    AbstractBoundary{West, <:AbstractFloat}}, ::Type{T} = Float64) where T
+forces[fpoints[:, 1] .<= boundary.val, 2] .= T(0.0)
+return
 end
 
 """
@@ -356,24 +365,25 @@ function floe_domain_element_interaction!(floe, element::Union{CollisionBoundary
         region_areas = [LG.area(poly) for poly in inter_regions]::Vector{Float64}
         # Regions overlap too much
         if maximum(region_areas)/floe.area > 0.75
-            return zeros(T, 1, 2), zeros(T, 1, 2), fill(T(Inf), 1)
-        end
-        # Constant needed for force calculations
-        force_factor = consts.E * floe.height / sqrt(floe.area)
-        # Calculate normal forces, force points, and overlap areas
-        normal_forces, fpoints, overlaps, Δl =  calc_elastic_forces(floe.coords, element.coords,
-                                        inter_regions, region_areas, force_factor, T)
-        # Calculate frictional forces at each force point - based on velocities at force points
-        np = size(fpoints, 1)
-        vfloe = repeat([floe.u floe.v], outer = np) .+ floe.ξ*(fpoints .- repeat(floe.centroid', outer = np)) 
-        vbound = repeat(zeros(T, 1, 2), outer = np)
-        friction_forces = calc_friction_forces(vfloe, vbound, normal_forces, Δl, consts, Δt, T)
-        # Calculate total forces and update ifloe's interactions
-        forces = normal_forces .+ friction_forces
-        if sum(abs.(forces)) != 0
-            normal_direction_correct!(forces, fpoints, element, T)
-            floe.interactions = [floe.interactions; fill(Inf, np) forces fpoints zeros(np) overlaps']
-            floe.overarea += sum(overlaps)
+            floe.alive = 0
+        else
+            # Constant needed for force calculations
+            force_factor = consts.E * floe.height / sqrt(floe.area)
+            # Calculate normal forces, force points, and overlap areas
+            normal_forces, fpoints, overlaps, Δl =  calc_elastic_forces(floe.coords, element.coords,
+                                            inter_regions, region_areas, force_factor, T)
+            normal_direction_correct!(normal_forces, fpoints, element, T)
+            # Calculate frictional forces at each force point - based on velocities at force points
+            np = size(fpoints, 1)
+            vfloe = repeat([floe.u floe.v], outer = np) .+ floe.ξ*(fpoints .- repeat(floe.centroid', outer = np)) 
+            vbound = repeat(zeros(T, 1, 2), outer = np)
+            friction_forces = calc_friction_forces(vfloe, vbound, normal_forces, Δl, consts, Δt, T)
+            # Calculate total forces and update ifloe's interactions
+            forces = normal_forces .+ friction_forces
+            if sum(abs.(forces)) != 0
+                floe.interactions = [floe.interactions; fill(Inf, np) forces fpoints zeros(np) overlaps']
+                floe.overarea += sum(overlaps)
+            end
         end
     end
     return
@@ -434,14 +444,14 @@ Outputs:
 """
 function calc_torque!(floe, ::Type{T} = Float64) where T
     inters = floe.interactions
-    if size(inters, 1) > 1
-        dir = [inters[:, "xpoint"] .- floe.centroid[1] inters[:, "ypoint"] .- floe.centroid[2] zeros(T, size(inters, 1))]
-        frc = [inters[:, "xforce"] inters[:, "yforce"] zeros(T, size(inters, 1))]
+    if !isempty(inters)
+        dir = [inters[:, xpoint] .- floe.centroid[1] inters[:, ypoint] .- floe.centroid[2] zeros(T, size(inters, 1))]
+        frc = [inters[:, xforce] inters[:, yforce] zeros(T, size(inters, 1))]
         for i in axes(dir, 1)
             idir = vec(dir[i, :])
             ifrc = vec(frc[i, :])
             itorque = cross(idir, ifrc)
-            floe.interactions[i, "torque"] = itorque[3]
+            floe.interactions[i, torque] = itorque[3]
         end
     end
 end
@@ -455,7 +465,7 @@ function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, con
         # reset collision values
         ifloe.collision_force = zeros(T, 1, 2)
         ifloe.collision_trq = T(0.0)
-        ifloe.interactions = ifloe.interactions[1:1, :]
+        ifloe.interactions = zeros(T, 0, 7)
         for j in i+1:length(floes)
             jid = abs(floes[j].id)
             # Confirm that this collision hasn't already occured with parent/ghost floes using ids
@@ -480,30 +490,31 @@ function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, con
             transfer[remove[i]] = i
         end
         ij_inters = floes[i].interactions
-        if size(ij_inters, 1) > 1 # First row is place holder for initialization and clearing
+        if !isempty(ij_inters)
             for inter_idx in axes(ij_inters, 1)  # Loop over each interaction with Floe i
-                j = ij_inters[inter_idx, "floeidx"]  # Index of floe to update in model floe list
+                j = ij_inters[inter_idx, floeidx]  # Index of floe to update in model floe list
                 if j <= length(floes) && j > i
                     jidx = Int(j)
-                    floes.interactions[jidx] = [floes.interactions[jidx]; i -ij_inters[inter_idx, "xforce"] -ij_inters[inter_idx, "yforce"] #=
-                                             =# ij_inters[inter_idx, "xpoint"] ij_inters[inter_idx, "ypoint"] T(0.0) ij_inters[inter_idx, "overlap"]]
-                    floes.overarea[jidx] += ij_inters[inter_idx, "overlap"]
+                    floes.interactions[jidx] = [floes.interactions[jidx]; i -ij_inters[inter_idx, xforce] -ij_inters[inter_idx, yforce] #=
+                                             =# ij_inters[inter_idx, xpoint] ij_inters[inter_idx, ypoint] T(0.0) ij_inters[inter_idx, overlap]]
+                    floes.overarea[jidx] += ij_inters[inter_idx, overlap]
                 end
             end
         end
     end
     # reverse loop so ghost torques and foreces are calculated before parents
-    for i in reverse(eachindex(floes))
+    for i in range(1, n_init_floes)
         ifloe = floes[i]
-        calc_torque!(ifloe)
-        ifloe.collision_force[1] += sum(ifloe.interactions[:, "xforce"])
-        ifloe.collision_force[2] += sum(ifloe.interactions[:, "yforce"])
-        ifloe.collision_trq += sum(ifloe.interactions[:, "torque"])
         for g in ifloe.ghosts
-            ifloe.collision_force[1] += first(floes.collision_force[g])
-            ifloe.collision_force[2] += last(floes.collision_force[g])
-            ifloe.collision_trq += floes.collision_trq[g]
+            g_inters = floes.interactions[g]
+            g_inters[:, xpoint] .-= (floes.centroid[g][1] - ifloe.centroid[1])
+            g_inters[:, ypoint] .-= (floes.centroid[g][2] - ifloe.centroid[2])
+            ifloe.interactions = [ifloe.interactions; g_inters]
         end
+        calc_torque!(ifloe)
+        ifloe.collision_force[1] += sum(ifloe.interactions[:, xforce])
+        ifloe.collision_force[2] += sum(ifloe.interactions[:, yforce])
+        ifloe.collision_trq += sum(ifloe.interactions[:, torque])
         floes[i] = ifloe
     end
     return remove, transfer
