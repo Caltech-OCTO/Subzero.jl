@@ -40,8 +40,7 @@ function calc_normal_force(c1, c2, region, area, ipoints, force_factor, ::Type{T
     if m == 2  # Two intersection points
         Δx = p[2][1] - p[1][1]
         Δy = p[2][2] - p[1][2]
-        mag = sqrt(Δx^2 + Δy^2)
-        Δl = mag
+        Δl = sqrt(Δx^2 + Δy^2)
         if Δl > 0.1  # should match our scale
             force_dir = [-Δy/Δl; Δx/Δl]
         end
@@ -158,11 +157,12 @@ function calc_friction_forces(v1, v2, normal, Δl, consts, Δt, ::Type{T} = Floa
     # Friction forces for each vector
     for i in axes(vdiff, 1)
         v = vdiff[i, :]
+        n = normal[i, :]
         vnorm = norm(v)
         force_dir = maximum(abs.(v)) == 0 ? zeros(T, 2) : v/vnorm
         friction = G * Δl[i] * Δt * vnorm * -dot(force_dir, v) * force_dir
-        if norm(friction) > consts.μ*norm(normal)
-            friction = -consts.μ*norm(normal)*force_dir
+        if norm(friction) > consts.μ*norm(n)
+            friction = -consts.μ*norm(n)*force_dir
         end
         force[i, :] = friction
     end

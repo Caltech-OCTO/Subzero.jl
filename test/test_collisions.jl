@@ -1,6 +1,40 @@
 @testset "Collisions" begin
     @testset "Floe-Floe Interactions" begin
-        
+        h_mean = 0.25
+        Δh = 0.0
+        tri = Floe([[[0.0, 0.0], [1e4, 3e4], [2e4, 0], [0.0, 0.0]]], h_mean, Δh)
+        tri.u = 0.1
+        rect = Floe([[[0.0, 2.5e4], [0.0, 2.9e4], [2e4, 2.9e4], [2e4, 2.5e4], [0.0, 2.5e4]]], h_mean, Δh)
+        rect.v = -0.1
+        cfloe = Floe([[[0.5e4, 2.7e4], [0.5e4, 3.5e4], [1.5e4, 3.5e4], [1.5e4, 2.7e4], [1.25e4, 2.7e4],
+                       [1.25e4, 3e4], [1e4, 3e4], [1e4, 2.7e4], [0.5e4, 2.7e4]]], h_mean, Δh)
+        cfloe.u = 0.3
+        consts = Constants()
+        # Triange tip intersected with a rectangle
+        Subzero.floe_floe_interaction!(tri, 1, rect, 2, 2, consts, 10)
+        @test isapprox(tri.interactions[1, xforce], -64613382.47, atol = 1e-2)
+        @test isapprox(tri.interactions[1, yforce], -521498991.51, atol = 1e-2)
+        @test isapprox(tri.interactions[1, xpoint], 10000.00, atol = 1e-2)
+        @test isapprox(tri.interactions[1, ypoint], 26555.55, atol = 1e-2)
+        @test isapprox(tri.interactions[1, overlap], 8000000, atol = 1e-2)
+        Subzero.calc_torque!(tri)
+        @test isapprox(tri.interactions[1, torque], 1069710443203.99, atol = 1e-2)
+
+        # Sideways C intersected with rectangle so there are two areas of overlap
+        Subzero.floe_floe_interaction!(cfloe, 1, rect, 2, 2, consts, 10)
+        @test isapprox(cfloe.interactions[1, xforce],-163013665.41, atol = 1e-2)
+        @test isapprox(cfloe.interactions[2, xforce],-81506832.70, atol = 1e-2)
+        @test isapprox(cfloe.interactions[1, yforce], 804819565.60, atol = 1e-2)
+        @test isapprox(cfloe.interactions[2, yforce], 402409782.80, atol = 1e-2)
+        @test isapprox(cfloe.interactions[1, xpoint], 7500.00, atol = 1e-2)
+        @test isapprox(cfloe.interactions[2, xpoint], 13750.00, atol = 1e-2)
+        @test isapprox(cfloe.interactions[1, ypoint], 28000.00, atol = 1e-2)
+        @test isapprox(cfloe.interactions[2, ypoint], 28000.00, atol = 1e-2)
+        @test isapprox(cfloe.interactions[1, overlap], 10000000, atol = 1e-2)
+        @test isapprox(cfloe.interactions[2, overlap], 5000000, atol = 1e-2)
+        Subzero.calc_torque!(cfloe)
+        @test isapprox(cfloe.interactions[1, torque], -2439177121266.03, atol = 1e-2)
+        @test isapprox(cfloe.interactions[2, torque], 1295472581868.05, atol = 1e-2)
     end
 
 
