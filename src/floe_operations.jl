@@ -510,3 +510,25 @@ function intersect_lines(l1, l2)
     end
     return P
 end
+
+function cutpolygon(poly_coords, xp, yp)
+    xcoords, y_coords = seperate(poly_coords)
+    cut_poly_coords = deepcopy(poly_coords)[1]
+    for i in each_index(y_coords[1:end-1])
+        y1 = ycoords[i]
+        y2 = ycoords[i+1]
+        x1 = xcoords[i]
+        x2 = xcoords[i+1]
+        if y1 > yp && y2 > yp
+            cut_poly_coords[i] .= [NaN, NaN]
+            cut_poly_coords[i + 1] .= [NaN, NaN]
+        elseif y1 > yp
+            cut_poly_coords[i] .= [(yp - y2)/(y1 - y2) * (x1 - x2) + x2, yp]
+        elseif y2 > yp
+            cut_poly_coords[i + 1] .= [(yp - y1)/(y2 - y1) * (x2 - x1) + x1, yp]
+        end
+    end
+
+
+
+end

@@ -161,7 +161,7 @@ function calc_friction_forces(v1, v2, normal, Δl, consts, Δt, ::Type{T} = Floa
         force_dir = maximum(abs.(v)) == 0 ? zeros(T, 2) : v/vnorm
         friction = G * Δl * Δt * vnorm * -dot(force_dir, v) * force_dir
         if norm(friction) > consts.μ*norm(normal)
-            friction = consts.μ*norm(normal)*force_dir
+            friction = -consts.μ*norm(normal)*force_dir
         end
         force[i, :] = friction
     end

@@ -825,9 +825,70 @@ Inputs:
 Output:
         Floe with needed fields defined - all default field values used so all forcings and velocities start at 0 and floe is "alive"
 """
-Floe(coords::PolyVec{<:Real}, h_mean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n = 1000.0, t::Type{T} = Float64) where T =
+Floe(coords::PolyVec{<:Real}, h_mean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n = 1000, t::Type{T} = Float64) where T =
     Floe(LG.Polygon(convert(PolyVec{Float64}, valid_polyvec!(rmholes(coords)))), h_mean, Δh; ρi = ρi, u = u, v = v, ξ = ξ, mc_n = mc_n, t = T) 
     # Polygon convert is needed since LibGEOS only takes Float64 - when this is fixed convert can be removed
+
+
+function initialize_floe_field(coords::Vector{PolyVec}, h_mean, Δh; ρi = 920.0, mc_n = 1000, t::Type{T} = Float64) where T
+    return StructArray([Floe(c, h_mean, Δh, ρi = ρi, mc_n = mc_n, t = T) for c in coords])
+end
+
+function initialize_floe_field(nfloes::Int, concentrations::Matrix, domain, h_mean, Δh; ρi = 920.0, mc_n = 1000, t::Type{T} = Float64) where T
+    floe_arr = StructArray{Floe{T}}(undef, 0)
+    # Split domain into cells with given concentrations
+    nrows, ncols = size(concentrations)
+    rowlen = (domain.north.val - domain.south.val) / nrows
+    collen = (domain.east.val - domain.west.val) / ncols
+    # Availible space in whole domain
+    open_water = LG.Polygon(rect_coords(domain.west.val, domain.east.val, domain.south.val, domain.north.val))
+    if !isempty(domain.topography)
+        open_water = LG.difference(open_water, LG.MultiPolygon(domain.topography.coords))
+    end
+    open_water_area = LG.area(open_water)
+    # Loop over cells
+    for i in nrows
+        for j in ncols
+            c = concentrations[i, j]
+            if c > 0
+                # Grid cell bounds
+                xmin = domain.west.val + collen * (j - 1)
+                ymin = domain.south.val + rowlen * (i - 1)
+                cell_bounds = rect_coords(xmin, xmin + collen, ymin, ymin + rowlen)
+                trans_vec = [xmin, ymin]
+                # Open water in cell
+                open_cell = LG.intersection(LG.Polygon(cell_bounds), open_water)
+                open_coords = LG.GeoInterface.coordinates(open_cell)::PolyVec{T}
+                open_area = LG.area(open_cell)::T
+                # Create points to seed floes
+                ncell = ceil(Int, nfloes * open_area / open_water_area / c)
+                xpoints = rand(T, ncell) * 1/ncols
+                ypoints = rand(T, ncell) * 1/nrows
+                in_points = inpoly2(hcat(collen * xpoints .+ trans_vec[1], rowlen * ypoints .+ trans_vec[2]), reduce(vcat, open_coords))
+                in_idx = in_points[:, 1] .|  in_points[:, 2]
+                # Create floes
+                tess_floes = voronoicells(xpoints[in_idx], ypoints[in_idx], Rectangle(Point2(0.0, 0.0), Point2(1/ncols, 1/nrows))).Cells 
+                floes_area = T(0.0)
+                while !isempty(tess_floes) && floes_area/open_area <= c
+                    floe_coords = [valid_ringvec!([Vector(f) .* [collen, rowlen] .+ trans_vec for f in pop!(tess_floes)])]
+                    floe_poly = LG.intersection(LG.Polygon(floe_coords), open_cell)
+                    if LG.area(floe_poly) > 0
+                        regions = LG.getGeometries(floe_poly)
+                        for r in regions
+                            if hashole(r)
+
+                            end
+                        end
+                        floe = Floe(LG.getGeometry(floe_poly, 1), h_mean, Δh, ρi = ρi, mc_n = mc_n, t = T)
+                        push!(floe_arr, floe)
+                        floes_area += floe.area
+                    end
+                end
+            end
+        end
+    end  
+    return floe_arr
+end
 
 """
     domain_in_grid(domain::Domain, grid::AbstractGrid)

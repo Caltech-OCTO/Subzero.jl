@@ -72,6 +72,7 @@ function create_sim_gif(floe_pn, init_pn, output_fn, plot_size = (1500, 1500))
     plt = setup_plot(init_pn, plot_size)
     times = keys(alive)
     anim = @animate for t in times
+        println(t)
         new_frame = plot(plt)
         verts = Subzero.seperate_xy.(coords[t])
         for i in eachindex(verts)
@@ -81,6 +82,7 @@ function create_sim_gif(floe_pn, init_pn, output_fn, plot_size = (1500, 1500))
         end
     end
     JLD2.close(floe_data)
+    println("closed file")
     gif(anim, output_fn, fps = 15)
     return
 end
