@@ -109,4 +109,38 @@
     @test Subzero.intersect_lines(l1, l2) == [0.5 0; 1.5 0; 2.5 0]
     l2 = [[[10., 10]]]
     @test Subzero.intersect_lines(l1, l2) == zeros(2,0)
+
+    # Test cutting polygon through horizontal line
+    # Cut a hexagon through the line y = -1
+    poly_coords = [[[2.0, -3.0], [0.0, 0.0], [2.0, 2.0], [6.0, 2.0], [8.0, 0.0], [6.0, -3.0], [2.0, -3.0]]]
+    poly = LibGEOS.Polygon(Subzero.cutpolygon_coords(poly_coords, -1)[1])
+    @test LibGEOS.isValid(poly)
+    cut_coords = [[[2.0, -3.0], [2-4/3, -1.0], [22/3, -1.0], [6.0, -3.0], [2.0, -3.0]]]
+    @test Set(cut_coords[1]) == Set(LibGEOS.GeoInterface.coordinates(poly)[1])
+    @test isapprox(LibGEOS.GeoInterface.coordinates(LibGEOS.centroid(poly)), LibGEOS.GeoInterface.coordinates(LibGEOS.centroid(LibGEOS.Polygon(cut_coords))), atol = 1e-6)
+
+    # Cut a c-shaped polygon through the line y = 5, creating two polygons
+    poly_coords = [[[0.0, 0.0], [0.0, 10.0], [10.0, 10.0], [10.0, 0.0], [4.0, 0.0],
+                    [4.0, 6.0], [2.0, 6.0], [2.0, 0.0], [0.0, 0.0]]]
+    poly1_coords, poly2_coords = Subzero.cutpolygon_coords(poly_coords, 5)
+    poly1 = LibGEOS.Polygon(poly1_coords)
+    poly2 = LibGEOS.Polygon(poly2_coords)
+    @test LibGEOS.isValid(poly1)
+    @test LibGEOS.isValid(poly2)
+    @test Set([[4.0, 0.0], [4.0, 5.0], [10.0, 5.0], [10.0, 0.0], [4.0, 0.0]]) == Set(LibGEOS.GeoInterface.coordinates(poly1)[1])
+    @test Set([[0.0, 0.0], [0.0, 5.0], [2.0, 5.0], [2.0, 0.0], [0.0, 0.0]]) == Set(LibGEOS.GeoInterface.coordinates(poly2)[1])
+
+    # Cut a triangle through the line y = -10 so only its tip is left -> No polygon
+    poly_coords = [[[0.0, 0.0], [10.0, 0.0], [5.0, -10.0], [0.0, 0.0]]]
+    poly = Subzero.cutpolygon_coords(poly_coords, -10)
+    @test isempty(poly)
+
+    # Cut a rectangle through the line y = 0 so only its bottom edge is left -> No polygon
+    poly_coords = [[[0.0, 0.0], [0.0, 5.0], [10.0, 5.0], [10.0, 0.0], [0.0, 0.0]]]
+    poly = Subzero.cutpolygon_coords(poly_coords, 0)
+    @test isempty(poly)
+
+    # Cut a rectangle through the line y = -10 so no polygon is left
+    poly = Subzero.cutpolygon_coords(poly_coords, -10)
+    @test isempty(poly)
 end

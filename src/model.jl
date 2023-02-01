@@ -875,13 +875,16 @@ function initialize_floe_field(nfloes::Int, concentrations::Matrix, domain, h_me
                     if LG.area(floe_poly) > 0
                         regions = LG.getGeometries(floe_poly)
                         for r in regions
-                            if hashole(r)
-
+                            if !hashole(r)
+                                floe = Floe(r, h_mean, Δh, ρi = ρi, mc_n = mc_n, t = T)
+                                push!(floe_arr, floe)
+                                floes_area += floe.area
+                            else
+                                region_bottom, region_top = split_polygon_hole(r, T)
+                                append!(tess_floes, LG.getGeometries(region_bottom))
+                                append!(tess_floes, LG.getGeometries(region_top))
                             end
                         end
-                        floe = Floe(LG.getGeometry(floe_poly, 1), h_mean, Δh, ρi = ρi, mc_n = mc_n, t = T)
-                        push!(floe_arr, floe)
-                        floes_area += floe.area
                     end
                 end
             end

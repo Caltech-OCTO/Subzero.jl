@@ -24,13 +24,12 @@ sboundary = PeriodicBoundary(grid, South())
 eboundary = CollisionBoundary(grid, East())
 wboundary = CollisionBoundary(grid, West())
 
-#topo = TopographyElement([[[-9.5e4, 4.5e4], [-9.5e4, 6.5e4], [-6.5e4, 6.5e4],
-#                           [-6.5e4, 4.5e4], [-9.5e4, 4.5e4]]])
+island = [[[6e4, 4e4], [6e4, 4.5e4], [6.5e4, 4.5e4], [6.5e4, 4e4], [6e4, 4e4]]]
 
 topo1 = [[[0, 0.0], [0, 1e5], [2e4, 1e5], [3e4, 5e4], [2e4, 0], [0.0, 0.0]]]
 topo2 = [[[8e4, 0], [7e4, 5e4], [8e4, 1e5], [1e5, 1e5], [1e5, 0], [8e4, 0]]]
 
-topo_arr = StructVector([TopographyElement(t) for t in [topo1, topo2]])
+topo_arr = StructVector([TopographyElement(t) for t in [island, topo1, topo2]])
 
 domain = Domain(nboundary, sboundary, eboundary, wboundary, topo_arr)
 
@@ -43,7 +42,7 @@ domain = Domain(nboundary, sboundary, eboundary, wboundary, topo_arr)
 #floe_arr.u[1] = 1
 #floe_arr.v[1] = 1
 #floe_arr.u[2] = 1
-floe_arr = Subzero.initialize_floe_field(50, fill(0.40, 1, 1), domain, 0.5, 0.0)
+floe_arr = Subzero.initialize_floe_field(50, fill(1.0, 1, 1), domain, 0.5, 0.0)
 model = Model(grid, ocean, atmos, domain, floe_arr)
 
 # Simulation setup

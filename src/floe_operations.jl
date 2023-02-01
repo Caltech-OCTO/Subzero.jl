@@ -267,7 +267,7 @@ Outputs:
         sgn <Vector of 1s and -1s> One element for each [x,y] pair - if 1 then the angle at that vertex is convex,
         if it is -1 then the angle is concave.
 """
-function convex_angle_test(coords::RingVec{T}, t::Type{T} = Float64) where T
+function convex_angle_test(coords::RingVec{T}, ::Type{T} = Float64) where T
     valid_ringvec!(coords)
     L = 10^25
     # Extreme points used in following loop, apended by a 1 for dot product
@@ -511,24 +511,84 @@ function intersect_lines(l1, l2)
     return P
 end
 
-function cutpolygon(poly_coords, xp, yp)
-    xcoords, y_coords = seperate(poly_coords)
-    cut_poly_coords = deepcopy(poly_coords)[1]
-    for i in each_index(y_coords[1:end-1])
-        y1 = ycoords[i]
-        y2 = ycoords[i+1]
-        x1 = xcoords[i]
-        x2 = xcoords[i+1]
+function cutpolygon_coords(poly_coords, yp, ::Type{T} = Float64) where T
+    # Loop through each edge
+    coord1 = poly_coords[1][1:end-1]
+    coord2 = poly_coords[1][2:end]
+    for i in eachindex(coord1)
+        x1, y1 = coord1[i]
+        x2, y2 = coord2[i]
+        # If both edge endpoints are above cut line, remove edge
         if y1 > yp && y2 > yp
-            cut_poly_coords[i] .= [NaN, NaN]
-            cut_poly_coords[i + 1] .= [NaN, NaN]
+            coord1[i] = [NaN, NaN]
+            coord2[i] = [NaN, NaN]
+        # If start point is above cut line, move down to intersection point
         elseif y1 > yp
-            cut_poly_coords[i] .= [(yp - y2)/(y1 - y2) * (x1 - x2) + x2, yp]
+            coord1[i] = [(yp - y2)/(y1 - y2) * (x1 - x2) + x2, yp]
+        # If end point is above cut line, move down to intersection point
         elseif y2 > yp
-            cut_poly_coords[i + 1] .= [(yp - y1)/(y2 - y1) * (x2 - x1) + x1, yp]
+            coord2[i] = [(yp - y1)/(y2 - y1) * (x2 - x1) + x1, yp]
+        end
+    end
+    # Add unique points to coordinate list for new polygon
+    new_poly_coords = [coord1[1]]
+    for i in eachindex(coord1)
+        if !isequal(coord1[i], new_poly_coords[end])
+            push!(new_poly_coords, coord1[i])
+        end
+        if !isequal(coord2[i], new_poly_coords[end])
+            push!(new_poly_coords, coord2[i])
         end
     end
 
+    new_polygons = Vector{PolyVec{T}}()
+    # Multiple NaN's indicate new polygon if they seperate coordinates
+    nanidx_all = findall(c -> isnan(sum(c)), new_poly_coords)
+    # If no NaNs, just add to list
+    if isempty(nanidx_all)
+        if new_poly_coords[1] != new_poly_coords[end]
+            push!(new_poly_coords, new_poly_coords[1])
+        end
+        if length(new_poly_coords) > 3
+            push!(new_polygons, [new_poly_coords])
+        end
+    # Seperate out NaNs to seperate out polygons multiple polygons and add to list
+    else
+        if new_poly_coords[1] == new_poly_coords[end]
+            new_poly_coords = new_poly_coords[1:end-1]
+        end
+        # Shift so each polygon's vertices are together in a section
+        new_poly_coords = circshift(new_poly_coords, -nanidx_all[1] + 1)
+        nanidx_all .-= (nanidx_all[1] - 1)
+        # Determine start and stop point for each polygon's coordinates
+        start_poly = nanidx_all .+ 1
+        end_poly = [nanidx_all[2:end] .- 1; length(new_poly_coords)]
+        for i in eachindex(start_poly)
+            if start_poly[i] <= end_poly[i]
+                poly = new_poly_coords[start_poly[i]:end_poly[i]]
+                if poly[1] != poly[end]
+                    push!(poly, poly[1])
+                end
+                if length(poly) > 3
+                    push!(new_polygons, [poly])
+                end
+            end
+        end
+    end
 
+    return new_polygons
+end
 
+"""
+Assumes that polygon provided has a hole! If not, it will error.
+"""
+function split_polygon_hole(poly::LG.Polygon, ::Type{T} = Float64) where T
+    poly_coords = LG.GeoInterface.coordinates(poly)
+    full_coords = [poly_coords[1]]  # Without any holes
+    h1 = LG.Polygon([poly_coords[2]])
+    h1_center = LG.GeoInterface.coordinates(LG.centroid(h1))
+    poly_bottom = LG.MultiPolygon(cutpolygon_coords(full_coords, h1_center[2], T))
+    poly_bottom =  LG.intersection(poly_bottom, poly)
+    poly_top = LG.difference(poly, poly_bottom)
+    return poly_bottom, poly_top
 end
