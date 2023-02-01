@@ -381,7 +381,7 @@ function floe_domain_element_interaction!(floe, element::Union{CollisionBoundary
             # Calculate total forces and update ifloe's interactions
             forces = normal_forces .+ friction_forces
             if sum(abs.(forces)) != 0
-                floe.interactions = [floe.interactions; fill(Inf, np) forces fpoints zeros(np) overlaps']
+                floe.interactions = [floe.interactions; fill(Inf, np) forces fpoints zeros(np) overlaps]
                 floe.overarea += sum(overlaps)
             end
         end
