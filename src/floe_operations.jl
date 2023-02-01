@@ -590,5 +590,5 @@ function split_polygon_hole(poly::LG.Polygon, ::Type{T} = Float64) where T
     poly_bottom = LG.MultiPolygon(cutpolygon_coords(full_coords, h1_center[2], T))
     poly_bottom =  LG.intersection(poly_bottom, poly)
     poly_top = LG.difference(poly, poly_bottom)
-    return poly_bottom, poly_top
+    return LG.getGeometries(poly_bottom), LG.getGeometries(poly_top)
 end

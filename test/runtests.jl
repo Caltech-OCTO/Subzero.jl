@@ -7,5 +7,5 @@ using Test
     include("test_coupling.jl")
     include("test_collisions.jl")
     include("test_output.jl")
-    #include("test_simulation.jl")
+    include("test_simulation.jl")
 end

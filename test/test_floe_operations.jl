@@ -100,7 +100,7 @@
     @test Subzero.calc_point_poly_dist(Float64[], Float64[], rect_coords) == Float64[]
     @test_throws AssertionError Subzero.calc_point_poly_dist(Float64[], [1.0, 2.0], rect_coords)
 
-    # Test intersection of lines
+    # ------------------------- Test intersection of lines -------------------------
     l1 = [[[0.0, 0.0], [2.5, 0.0], [5.0, 0.0]]]
     l2 = [[[2.0, -3.0], [3.0, 0.0], [4.0, 3.0]]]
     @test Subzero.intersect_lines(l1, l2) == [3.0 0.0]
@@ -110,7 +110,7 @@
     l2 = [[[10., 10]]]
     @test Subzero.intersect_lines(l1, l2) == zeros(2,0)
 
-    # Test cutting polygon through horizontal line
+    # ------------------------- Test cutting polygon through horizontal line -------------------------
     # Cut a hexagon through the line y = -1
     poly_coords = [[[2.0, -3.0], [0.0, 0.0], [2.0, 2.0], [6.0, 2.0], [8.0, 0.0], [6.0, -3.0], [2.0, -3.0]]]
     poly = LibGEOS.Polygon(Subzero.cutpolygon_coords(poly_coords, -1)[1])
@@ -143,4 +143,28 @@
     # Cut a rectangle through the line y = -10 so no polygon is left
     poly = Subzero.cutpolygon_coords(poly_coords, -10)
     @test isempty(poly)
+
+    # ------------------------- Test polygon splitting through hole -------------------------
+    poly_coords = [[[0.0, 0.0], [0.0, 5.0], [10.0, 5.0], [10.0, 0.0], [0.0, 0.0]],
+                   [[3.0, 2.0], [3.0, 4.0], [6.0, 4.0], [6.0, 2.0], [3.0, 2.0]]]  # hole!
+    poly_bottom, poly_top = Subzero.split_polygon_hole(LibGEOS.Polygon(poly_coords))
+    poly_bottom_coords = [[[0.0, 0.0], [0.0, 3.0], [3.0, 3.0], [3.0, 2.0], [6.0, 2.0], [6.0, 3.0], [10.0, 3.0], [10.0, 0.0], [0.0, 0.0]]]
+    poly_top_coords = [[[0.0, 3.0], [0.0, 5.0], [10.0, 5.0], [10.0, 3.0], [6.0, 3.0], [ 6.0, 4.0], [3.0, 4.0], [3.0, 3.0], [0.0, 3.0]]]
+    @test length(poly_bottom) == length(poly_top) == 1
+    @test LibGEOS.area(LibGEOS.difference(poly_bottom[1], LibGEOS.Polygon(poly_bottom_coords))) == 0
+    @test LibGEOS.area(LibGEOS.difference(poly_top[1], LibGEOS.Polygon(poly_top_coords))) == 0
+
+    poly_coords = [[[0.0, 0.0], [0.0, 10.0], [10.0, 10.0], [10.0, 0.0], [4.0, 0.0],
+                    [4.0, 6.0], [2.0, 6.0], [2.0, 0.0], [0.0, 0.0]], 
+                   [[6.0, 4.0], [6.0, 6.0], [7.0, 6.0], [7.0, 4.0], [6.0, 4.0]]]
+    poly_bottom, poly_top = Subzero.split_polygon_hole(LibGEOS.Polygon(poly_coords))
+    poly_bottom1_coords = [[[4.0, 0.0], [4.0, 5.0], [6.0, 5.0], [6.0, 4.0], [7.0, 4.0], [7.0, 5.0], [10.0, 5.0], [10.0, 0.0], [4.0, 0.0]]]
+    poly_bottom2_coords = [[[0.0, 0.0], [0.0, 5.0], [2.0, 5.0], [2.0, 0.0], [0.0, 0.0]]]
+    poly_top_coords = [[[0.0, 5.0], [0.0, 10.0], [10.0, 10.0], [10.0, 5.0], [7.0, 5.0], [7.0, 6.0], [6.0, 6.0],
+                        [6.0, 5.0], [4.0, 5.0], [4.0, 6.0], [2.0, 6.0], [2.0, 5.0], [0.0, 5.0]]]
+    @test length(poly_top) == 1
+    @test length(poly_bottom) == 2
+    @test LibGEOS.area(LibGEOS.difference(poly_bottom[1], LibGEOS.Polygon(poly_bottom1_coords))) == 0
+    @test LibGEOS.area(LibGEOS.difference(poly_bottom[2], LibGEOS.Polygon(poly_bottom2_coords))) == 0
+    @test LibGEOS.area(LibGEOS.difference(poly_top[1], LibGEOS.Polygon(poly_top_coords))) == 0
 end
