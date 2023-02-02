@@ -834,10 +834,14 @@ function initialize_floe_field(coords::Vector{PolyVec}, h_mean, Δh; ρi = 920.0
     return StructArray([Floe(c, h_mean, Δh, ρi = ρi, mc_n = mc_n, t = T) for c in coords])
 end
 
-function initialize_floe_field(nfloes::Int, concentrations::Matrix, domain, h_mean, Δh; ρi = 920.0, mc_n = 1000, t::Type{T} = Float64) where T
+
+"""nfloes is a proxy for floe size. It is now many floes you would want to fit in the domain at your given concentrations without any topography.
+Topography decreases the number of floes that will be created, so increase n floes accordingly 
+"""
+function initialize_floe_field(nfloes::Int, concentrations, domain, h_mean, Δh; ρi = 920.0, mc_n = 1000, t::Type{T} = Float64) where T
     floe_arr = StructArray{Floe{T}}(undef, 0)
     # Split domain into cells with given concentrations
-    nrows, ncols = size(concentrations)
+    nrows, ncols = size(concentrations[:, :])
     rowlen = (domain.north.val - domain.south.val) / nrows
     collen = (domain.east.val - domain.west.val) / ncols
     # Availible space in whole domain
@@ -847,8 +851,8 @@ function initialize_floe_field(nfloes::Int, concentrations::Matrix, domain, h_me
     end
     open_water_area = LG.area(open_water)
     # Loop over cells
-    for i in nrows
-        for j in ncols
+    for i in range(1, nrows)
+        for j in range(1, ncols)
             c = concentrations[i, j]
             if c > 0
                 # Grid cell bounds
@@ -862,27 +866,30 @@ function initialize_floe_field(nfloes::Int, concentrations::Matrix, domain, h_me
                 open_area = LG.area(open_cell)::T
                 # Create points to seed floes
                 ncell = ceil(Int, nfloes * open_area / open_water_area / c)
-                xpoints = rand(T, ncell) * 1/ncols
-                ypoints = rand(T, ncell) * 1/nrows
+                xpoints = rand(T, ncell)
+                ypoints = rand(T, ncell)
                 in_points = inpoly2(hcat(collen * xpoints .+ trans_vec[1], rowlen * ypoints .+ trans_vec[2]), reduce(vcat, open_coords))
                 in_idx = in_points[:, 1] .|  in_points[:, 2]
                 # Create floes
-                tess_floes = voronoicells(xpoints[in_idx], ypoints[in_idx], Rectangle(Point2(0.0, 0.0), Point2(1/ncols, 1/nrows))).Cells 
+                tess_floes = voronoicells(xpoints[in_idx], ypoints[in_idx], Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0))).Cells 
                 floes_area = T(0.0)
-                while !isempty(tess_floes) && floes_area/open_area <= c
-                    floe_coords = [valid_ringvec!([Vector(f) .* [collen, rowlen] .+ trans_vec for f in pop!(tess_floes)])]
+                floe_idx = shuffle(range(1, length(tess_floes)))
+                while !isempty(floe_idx) && floes_area/open_area <= c
+                    idx = pop!(floe_idx)
+                    floe_coords = [valid_ringvec!([Vector(f) .* [collen, rowlen] .+ trans_vec for f in tess_floes[idx]])]
                     floe_poly = LG.intersection(LG.Polygon(floe_coords), open_cell)
                     if LG.area(floe_poly) > 0
                         regions = LG.getGeometries(floe_poly)
-                        for r in regions
+                        while !isempty(regions)
+                            r = pop!(regions)
                             if !hashole(r)
                                 floe = Floe(r, h_mean, Δh, ρi = ρi, mc_n = mc_n, t = T)
                                 push!(floe_arr, floe)
                                 floes_area += floe.area
                             else
                                 region_bottom, region_top = split_polygon_hole(r, T)
-                                append!(tess_floes, LG.getGeometries(region_bottom))
-                                append!(tess_floes, LG.getGeometries(region_top))
+                                append!(regions, region_bottom)
+                                append!(regions, region_top)
                             end
                         end
                     end
