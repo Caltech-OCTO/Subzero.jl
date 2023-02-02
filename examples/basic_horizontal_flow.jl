@@ -1,24 +1,6 @@
 using Subzero, StructArrays, Statistics, JLD2, SplitApplyCombine
 import LibGEOS as LG
 
-Lx = 1e5
-Ly = Lx
-h_mean = 0.25
-Δh = 0.0
-grid = RegRectilinearGrid(-Lx, Lx, -Ly, Ly, 1e4, 1e4)
-nboundary = PeriodicBoundary(grid, North())
-sboundary = PeriodicBoundary(grid, South())
-eboundary = CollisionBoundary(grid, East())
-wboundary = OpenBoundary(grid, West())
-domain = Domain(nboundary, sboundary, eboundary, wboundary)
-
-cfloe = Floe([[[9.5e4, 7e4], [9.5e4, 9e4], [1.05e5, 9e4], [1.05e5, 8.5e4], [9.9e4, 8.5e4],
-                       [9.9e4, 8e4], [1.05e5, 8e4], [1.05e5, 7e4], [9.5e4, 7e4]]], h_mean, Δh)
-cfloe.v = -0.1
-floe_arr = StructArray([cfloe])
-consts = Constants()
-Subzero.floe_domain_interaction!(cfloe, domain, consts, 10)
-
 # User Inputs
 const type = Float64::DataType
 const Lx = 1e5
@@ -31,18 +13,9 @@ const newfloe_Δt = 500
 const coarse_nx = 10
 const coarse_ny = 10
 
-tri = Floe([[[0.0, 0.0], [1e4, 3e4], [2e4, 0], [0.0, 0.0]]], h_mean, Δh)
-tri.u = 0.1
-rect = Floe([[[0.0, 2.5e4], [0.0, 2.9e4], [2e4, 2.9e4], [2e4, 2.5e4], [0.0, 2.5e4]]], h_mean, Δh)
-rect.v = -0.1
-cfloe = Floe([[[0.5e4, 2.7e4], [0.5e4, 3.5e4], [1.5e4, 3.5e4], [1.5e4, 2.7e4], [1.25e4, 2.7e4],
-[1.25e4, 3e4], [1e4, 3e4], [1e4, 2.7e4], [0.5e4, 2.7e4]]], h_mean, Δh)
-cfloe.u = 0.3
-consts = Constants()
-Subzero.floe_floe_interaction!(cfloe, 1, rect, 2, 2, consts, 10)
 # Model instantiation
 grid = RegRectilinearGrid(-Lx, Lx, 0, Ly, Δgrid, Δgrid)
-ocean = Ocean(grid, 1.0, 0.0, 0.0)
+ocean = Ocean(grid, 0.0, -1.0, 0.0)
 atmos = Atmos(zeros(grid.dims .+ 1), zeros(grid.dims .+ 1), fill(0.0, grid.dims .+ 1))
 
 # Domain creation - boundaries and topography
@@ -58,13 +31,15 @@ topo_arr = StructVector([topo for i in 1:1])
 domain = Domain(nboundary, sboundary, eboundary, wboundary)
 
 # Floe instantiation
-floe1_coords = [[[9.75e4, 7e4], [9.75e4, 5e4], [10.05e4, 5e4], 
-                    [10.05e4, 7e4], [9.75e4, 7e4]]]
+#floe1_coords = [[[9.75e4, 7e4], [9.75e4, 5e4], [10.05e4, 5e4], 
+#                    [10.05e4, 7e4], [9.75e4, 7e4]]]
 #floe2_coords = [[[6.5e4, 4.5e4], [6.5e4, 6.5e4], [8.5e4, 6.5e4], 
 #                 [8.5e4, 4.5e4], [6.5e4, 4.5e4]]]
-floe_arr = StructArray([Floe(c, h_mean, Δh) for c in [floe1_coords]])
-floe_arr.u[1] = 1
-floe_arr.v[1] = 0
+floe_arr = load("output/sim/initial_state_voronoi", "hello")
+
+#floe_arr = StructArray([Floe(c, h_mean, Δh) for c in [floe1_coords]])
+#floe_arr.u[1] = 1
+#floe_arr.v[1] = 0
 #floe_arr.u[2] = 1
 model = Model(grid, ocean, atmos, domain, floe_arr)
 
