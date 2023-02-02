@@ -50,8 +50,10 @@ consts = Constants(E = modulus)
 simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 3000, COLLISION = true)
 
 # Output setup
-gridwriter = GridOutputWriter([GridOutput(i) for i in 1:9], 10, "g.nc", grid, (10, 10))
-floewriter = FloeOutputWriter([FloeOutput(i) for i in [3:4; 6; 9:11; 22:26]], 30, "f.nc", grid)
+initwriter = InitialStateOutputWriter(dir = "output/sim", filename = "initial_state.jld2", overwrite = true)
+gridwriter = GridOutputWriter(50, grid, (10, 10), dir = "output/sim", filename = "g.nc", overwrite = true)
+floewriter = FloeOutputWriter([:alive, :coords, :area, :mass, :u, :v], 50, dir = "output/sim", filename = "f.jld2", overwrite = true)
+checkpointwriter = CheckpointOutputWriter(1000, dir = "output/sim", overwrite = true)
 
 # Run simulation
-run!(simulation, [floewriter])
+run!(simulation, [initwriter, floewriter, checkpointwriter, gridwriter])

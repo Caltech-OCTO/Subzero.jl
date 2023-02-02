@@ -29,8 +29,10 @@ export
     Simulation,
     run!,
     AbstractOutputWriter,
+    CheckpointOutputWriter,
     GridOutputWriter, 
     FloeOutputWriter,
+    InitialStateOutputWriter,
     GridOutput,
     FloeOutput,
     add_ghosts!,
@@ -48,7 +50,6 @@ import LibGEOS as LG
 import Base.@kwdef # this is being exported as of version 1.9
 using NCDatasets, Plots, StructArrays, Statistics, LinearAlgebra
 using PolygonInbounds, NamedArrays, Interpolations, JLD2
-
 
 """
 Coordinates are vector of vector of vector of points of the form:

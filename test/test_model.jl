@@ -52,19 +52,19 @@
         fx = fill(0.0, g.dims .+ 1)
         fy = fx
         si_area = fx
-        hflx = fx
-        ocn = Subzero.Ocean(uocn, vocn, tempocn, hflx, fx, fy, si_area)
+        hflx_factor = fx
+        ocn = Subzero.Ocean(uocn, vocn, tempocn, hflx_factor, fx, fy, si_area)
         @test ocn.u == uocn
         @test ocn.v == vocn
         @test ocn.temp == tempocn
-        @test ocn.fx == fx == ocn.fy == ocn.si_area == ocn.hflx
+        @test ocn.fx == fx == ocn.fy == ocn.si_area == ocn.hflx_factor
         # Default constructor fails for non-matching dimensions
-        @test_throws ArgumentError Subzero.Ocean(Matrix{Float64}(undef, 0, 0), vocn, tempocn, hflx, fx, fy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, Matrix{Float64}(undef, 0, 0), tempocn, hflx, fx, fy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, Matrix{Float64}(undef, 0, 0), hflx, fx, fy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(Matrix{Float64}(undef, 0, 0), vocn, tempocn, hflx_factor, fx, fy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, Matrix{Float64}(undef, 0, 0), tempocn, hflx_factor, fx, fy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, Matrix{Float64}(undef, 0, 0), hflx_factor, fx, fy, si_area)
         @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, Matrix{Float64}(undef, 0, 0), fx, fy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, Matrix{Float64}(undef, 0, 0), fy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, fx, fy, Matrix{Float64}(undef, 0, 0))
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx_factor, Matrix{Float64}(undef, 0, 0), fy, si_area)
+        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx_factor, fx, fy, Matrix{Float64}(undef, 0, 0))
         # Custom constructor
         ocn2 = Subzero.Ocean(g, 3.0, 4.0, -2.0)
         @test ocn.u == ocn2.u
@@ -72,7 +72,7 @@
         @test ocn.temp == ocn2.temp
         @test ocn.fx == ocn2.fx
         @test ocn.si_area == ocn2.si_area
-        @test ocn.hflx == ocn2.hflx
+        @test ocn.hflx_factor == ocn2.hflx_factor
         # Custom constructor Float32
         @test typeof(Subzero.Ocean(g, 3.0, 4.0, -2.0, Float32)) ==
               Subzero.Ocean{Float32}

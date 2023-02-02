@@ -101,7 +101,8 @@ same size as the model's grid. The struct has the following fields:
 - u is the ocean velocities in the x-direction for each grid cell
 - v is the ocean velocities in the y-direction for each grid cell
 - temp is the ocean temperature for each grid cell
-- hflx is the ocean-atmosphere heat flux for each grid cell
+- hflx_factor is a factor to calculate the ocean-atmosphere heat flux for a 
+  cell in that grid cell by multiplying by its height
 - fx is the x-stress from the ice onto the ocean averaged over each grid cell
 - fy is the y-stress from the ice onto the ocean averaged over each grid cell
 - si_area is the total sea-ice area in each grid cell
@@ -118,7 +119,7 @@ struct Ocean{FT<:AbstractFloat}
     u::Matrix{FT}
     v::Matrix{FT}
     temp::Matrix{FT}
-    hflx::Matrix{FT} 
+    hflx_factor::Matrix{FT} 
     fx::Matrix{FT}
     fy::Matrix{FT}
     si_area::Matrix{FT}
@@ -708,7 +709,7 @@ Singular sea ice floe with fields describing current state.
     fxOA::FT = 0.0          # force from ocean and atmos in x direction
     fyOA::FT = 0.0          # force from ocean and atmos in y direction
     trqOA::FT = 0.0         # torque from ocean and Atmos
-    hflx::FT = 0.0          # heat flux under the floe
+    hflx_factor::FT = 0.0   # heat flux factor can be multiplied by floe height to get the heatflux
     overarea::FT = 0.0      # total overlap with other floe
     collision_force::Matrix{FT} = [0.0 0.0] 
     collision_trq::FT = 0.0

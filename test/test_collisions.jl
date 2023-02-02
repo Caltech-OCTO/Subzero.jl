@@ -122,6 +122,9 @@
         # TODO: this has issues. Need to check on it. 
 
     end
+    @testset "Floe Floe Interactions" begin
+        
+    end
     
     @testset "Add Ghosts" begin
         Lx = 1e5
