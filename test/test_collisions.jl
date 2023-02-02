@@ -11,17 +11,18 @@
         cfloe.u = 0.3
         consts = Constants()
         # Triange tip intersected with a rectangle
-        Subzero.floe_floe_interaction!(tri, 1, rect, 2, 2, consts, 10)
+        r, t = Subzero.floe_floe_interaction!(tri, 1, rect, 2, 2, consts, 10)
         @test isapprox(tri.interactions[1, xforce], -64613382.47, atol = 1e-2)
         @test isapprox(tri.interactions[1, yforce], -521498991.51, atol = 1e-2)
         @test isapprox(tri.interactions[1, xpoint], 10000.00, atol = 1e-2)
         @test isapprox(tri.interactions[1, ypoint], 26555.55, atol = 1e-2)
         @test isapprox(tri.interactions[1, overlap], 8000000, atol = 1e-2)
+        @test r == t == 0
         Subzero.calc_torque!(tri)
         @test isapprox(tri.interactions[1, torque], 1069710443203.99, atol = 1e-2)
-
+        tri.interactions = zeros(0, 7)
         # Sideways C intersected with rectangle so there are two areas of overlap
-        Subzero.floe_floe_interaction!(cfloe, 1, rect, 2, 2, consts, 10)
+        r, t = Subzero.floe_floe_interaction!(cfloe, 1, rect, 2, 2, consts, 10)
         @test isapprox(cfloe.interactions[1, xforce],-163013665.41, atol = 1e-2)
         @test isapprox(cfloe.interactions[2, xforce],-81506832.70, atol = 1e-2)
         @test isapprox(cfloe.interactions[1, yforce], 804819565.60, atol = 1e-2)
@@ -32,9 +33,19 @@
         @test isapprox(cfloe.interactions[2, ypoint], 28000.00, atol = 1e-2)
         @test isapprox(cfloe.interactions[1, overlap], 10000000, atol = 1e-2)
         @test isapprox(cfloe.interactions[2, overlap], 5000000, atol = 1e-2)
+        @test r == t == 0
         Subzero.calc_torque!(cfloe)
         @test isapprox(cfloe.interactions[1, torque], -2439177121266.03, atol = 1e-2)
         @test isapprox(cfloe.interactions[2, torque], 1295472581868.05, atol = 1e-2)
+        cfloe.interactions = zeros(0, 7)
+        # Floes overlapping more than 55%  - rectangle and shifted rectangle
+        shift_rect = deepcopy(rect)
+        shift_rect.coords = Subzero.translate(shift_rect.coords, [0.5e4, 0.0])
+        r, t = Subzero.floe_floe_interaction!(rect, 1, shift_rect, 2, 2, consts, 10)
+        @test r == 1
+        @test t == 2
+        @test isempty(rect.interactions)
+
     end
 
 
@@ -58,6 +69,10 @@
         efloe_large = Floe([[[9e4, -7e4], [9e4, -5e4], [1.4e5, -5e4], [1.4e5, -7e4], [9e4, -7e4]]], h_mean, Δh)
         efloe_large.u = 0.1
         efloe_large.v = -0.35
+        # Floe overlapping with boundary with more than one region
+        cfloe = Floe([[[9.5e4, 7e4], [9.5e4, 9e4], [1.05e5, 9e4], [1.05e5, 8.5e4], [9.9e4, 8.5e4],
+                       [9.9e4, 8e4], [1.05e5, 8e4], [1.05e5, 7e4], [9.5e4, 7e4]]], h_mean, Δh)
+        cfloe.v = -0.1
         # Floe overlapping with western open boundary
         wfloe = Floe([[[-9.75e4, 7e4], [-9.75e4, 5e4], [-10.05e4, 5e4], [-10.05e4, 7e4], [-9.75e4, 7e4]]], h_mean, Δh)
         # Floe overlapping with northern periodic boundary
@@ -66,18 +81,30 @@
         tfloe = Floe([[[-0.5e4, 0.0], [-0.5e4, 0.75e4], [0.5e4, 0.75e4], [0.5e4, 0.0], [-0.5e4, 0.0]]], h_mean, Δh)
         efloe_large.u = -0.4
         efloe_large.v = 0.2
-        floe_arr = StructArray([efloe_small, efloe_large, wfloe, nfloe, tfloe])
+
+        floe_arr = StructArray([efloe_small, efloe_large, wfloe, nfloe, tfloe, cfloe])
         consts = Constants()
 
         # Test floe overlapping slightly with collision boundary
         Subzero.floe_domain_interaction!(efloe_small, domain, consts, 10)
         @test efloe_small.interactions[1, floeidx] == Inf
         @test isapprox(efloe_small.interactions[1, xforce], -311304795.629, atol = 1e-3)
-        # if we want to zero out then should be 0
         @test isapprox(efloe_small.interactions[1, yforce], -23618874.648, atol = 1e-3)
         @test isapprox(efloe_small.interactions[1, overlap], 1704545.454, atol = 1e-3)
         @test isapprox(efloe_small.interactions[1, xpoint], 100166.666, atol = 1e-3)
         @test isapprox(efloe_small.interactions[1, ypoint], 21060.606, atol = 1e-3)
+
+        Subzero.floe_domain_interaction!(cfloe, domain, consts, 10)
+        @test isapprox(cfloe.interactions[1, xforce], -2876118708.17, atol = 1e-2)
+        @test isapprox(cfloe.interactions[2, xforce], -5752237416.35, atol = 1e-2)
+        @test isapprox(cfloe.interactions[1, yforce], 575223741.63, atol = 1e-2)
+        @test isapprox(cfloe.interactions[2, yforce], 1150447483.27, atol = 1e-2)
+        @test isapprox(cfloe.interactions[1, xpoint], 102500, atol = 1e-2)
+        @test isapprox(cfloe.interactions[2, xpoint], 102500, atol = 1e-2)
+        @test isapprox(cfloe.interactions[1, ypoint], 87500, atol = 1e-2)
+        @test isapprox(cfloe.interactions[2, ypoint], 75000, atol = 1e-2)
+        @test isapprox(cfloe.interactions[1, overlap], 25000000, atol = 1e-2)
+        @test isapprox(cfloe.interactions[2, overlap], 50000000, atol = 1e-2)
 
         # Test floe overlapping >75% with collision boundary
         Subzero.floe_domain_interaction!(efloe_large, domain, consts, 10)

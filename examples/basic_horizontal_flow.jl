@@ -1,6 +1,24 @@
 using Subzero, StructArrays, Statistics, JLD2, SplitApplyCombine
 import LibGEOS as LG
 
+Lx = 1e5
+Ly = Lx
+h_mean = 0.25
+Δh = 0.0
+grid = RegRectilinearGrid(-Lx, Lx, -Ly, Ly, 1e4, 1e4)
+nboundary = PeriodicBoundary(grid, North())
+sboundary = PeriodicBoundary(grid, South())
+eboundary = CollisionBoundary(grid, East())
+wboundary = OpenBoundary(grid, West())
+domain = Domain(nboundary, sboundary, eboundary, wboundary)
+
+cfloe = Floe([[[9.5e4, 7e4], [9.5e4, 9e4], [1.05e5, 9e4], [1.05e5, 8.5e4], [9.9e4, 8.5e4],
+                       [9.9e4, 8e4], [1.05e5, 8e4], [1.05e5, 7e4], [9.5e4, 7e4]]], h_mean, Δh)
+cfloe.v = -0.1
+floe_arr = StructArray([cfloe])
+consts = Constants()
+Subzero.floe_domain_interaction!(cfloe, domain, consts, 10)
+
 # User Inputs
 const type = Float64::DataType
 const Lx = 1e5

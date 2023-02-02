@@ -72,13 +72,9 @@ function calc_normal_force(c1, c2, region, area, ipoints, force_factor, ::Type{T
         c1new = [[c .+ vec(force_dir) for c in c1[1]]]
         # Floe/boudary intersection after being moved in force direction
         new_inter_floe = LG.intersection(LG.Polygon(c1new), LG.Polygon(c2))
-
-        # Need to find which new overlap region corresponds to region k
-        new_region_overlaps = LG.getGeometries(LG.intersection(new_inter_floe, region))
-        if !isempty(new_region_overlaps)
-            ~, max_idx = findmax(LG.area, new_region_overlaps)
-            new_overlap_area = LG.area(LG.getGeometries(new_inter_floe)[max_idx])
-            if new_overlap_area/area > 1  # Force increased overlap
+        # See if the area of overlap has increased in corresponding region
+        for new_region in LG.getGeometries(new_inter_floe)
+            if LG.intersects(new_region, region) && LG.area(new_region)/area > 1
                 force_dir *= -1 
             end
         end
