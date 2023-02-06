@@ -95,21 +95,22 @@ function timestep_floe!(floe, Δt)
     # Update ice coordinates with velocities and rotation
     Δx = 1.5Δt*floe.u - 0.5Δt*floe.p_dxdt
     Δy = 1.5Δt*floe.v - 0.5Δt*floe.p_dydt
-    floe.centroid .+= [Δx, Δy]
-    floe.coords = translate(floe.coords, [Δx, Δy])
-    floe.p_dxdt = floe.u
-    floe.p_dydt = floe.v
-
     Δα = 1.5Δt*floe.ξ - 0.5Δt*floe.p_dαdt
     floe.α += Δα
+
+    coords0 = translate(floe.coords, -floe.centroid)
+    coords0 = [map(p -> [cos(Δα)*p[1] - sin(Δα)*p[2],
+                         sin(Δα)*p[1] + cos(Δα)p[2]], coords0[1])]
+    floe.centroid .+= [Δx, Δy]
+    floe.coords = translate(coords0, floe.centroid)
+
+    floe.p_dxdt = floe.u
+    floe.p_dydt = floe.v
     floe.p_dαdt = floe.ξ
-    floe.coords = [map(p -> [cos(Δα)*p[1] - sin(Δα)*p[2],
-                              sin(Δα)*p[1] + cos(Δα)p[2]], floe.coords[1])]
 
     # Update ice velocities with forces and torques
     dudt = (floe.fxOA + cforce[1])/floe.mass
     dvdt = (floe.fyOA + cforce[2])/floe.mass
-
     frac = if abs(Δt*dudt) > (h/2) && abs(Δt*dvdt) > (h/2)
         frac1 = (sign(dudt)*h/2Δt)/dudt
         frac2 = (sign(dvdt)*h/2Δt)/dvdt

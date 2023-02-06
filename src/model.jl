@@ -358,12 +358,12 @@ Boundary types will control behavior of sea ice floes at edges of domain.
 The direction given by type D denotes which edge of a domain this boundary could be.
 
 Each boundary type has the coordinates of the boudnary as a field. These should
-be shapes that completely seal the domain, and should overlap on the corners as
+be shapes that completely seal the domain, but should not overlap on the corners as
 seen  in the example below:
  ________________
-|__|____val___|__| <- North coordinates must include corners
+|  |____val___|  | <- North coordinates don't include corners
 |  |          |  |
-|  |          |  | <- East coordinates must ALSO include corners
+|  |          |  | <- East and west coordinates include corners
 |  |          |  |
 Each bounday type also has a field called "val" that holds value that defines
 the line y = val or x = val (depending on boundary direction), such that if the
