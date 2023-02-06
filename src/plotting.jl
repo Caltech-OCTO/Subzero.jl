@@ -63,7 +63,7 @@ Inputs:
         plot_size   <Tuple(Int, Int)> size of output gif in pixels - default (1500, 1500)
 Outputs: Saves simulation gif with floes and topography plotted.
 """
-function create_sim_gif(floe_pn, init_pn, output_fn, plot_size = (1500, 1500))
+function create_sim_gif(floe_pn, init_pn, output_fn; plot_size = (1500, 1500), fps = 15)
     # Get floe data
     floe_data = jldopen(floe_pn, "r")
     alive = floe_data["alive"]
@@ -81,7 +81,7 @@ function create_sim_gif(floe_pn, init_pn, output_fn, plot_size = (1500, 1500))
         end
     end
     JLD2.close(floe_data)
-    gif(anim, output_fn, fps = 15)
+    gif(anim, output_fn, fps = fps)
     return
 end
 

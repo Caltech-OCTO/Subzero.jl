@@ -790,8 +790,8 @@ function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 
     h = hmean + (-1)^rand(0:1) * rand() * Δh  # floe height
     area = LG.area(floe)::Float64  # floe area
     mass = area * h * ρi  # floe mass
-    moment = calc_moment_inertia(floe, h, ρi = ρi)
     coords = LG.GeoInterface.coordinates(floe)::PolyVec{Float64}
+    moment = calc_moment_inertia(coords, centroid, h, ρi = ρi)
     origin_coords = translate(coords, -centroid)
     ox, oy = seperate_xy(origin_coords)
     rmax = sqrt(maximum([sum(c.^2) for c in origin_coords[1]]))

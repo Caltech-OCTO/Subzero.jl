@@ -166,14 +166,10 @@ function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
     # Update ocean heatflux
     m.ocean.hflx_factor .= sim.Δt * sim.consts.k/(sim.consts.ρi*sim.consts.L) .* (m.ocean.temp .- m.atmos.temp)
 
+    # Add ghosts
     n_init_floes = length(m.floes) # number of floes before ghost floes
     add_ghosts!(m.floes, m.domain)
-    remove = zeros(Int, n_init_floes)
-    transfer = zeros(Int, n_init_floes)
 
-    if sim.COLLISION
-        remove, transfer = timestep_collisions!(m.floes, n_init_floes, m.domain, remove, transfer, sim.consts, sim.Δt, T)
-    end
     # Output at given timestep
     for w in writers
         if hasfield(typeof(w), :Δtout) && mod(tstep, w.Δtout) == 0
@@ -181,13 +177,20 @@ function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
         end
     end
 
+    # Collisions
+    remove = zeros(Int, n_init_floes)
+    transfer = zeros(Int, n_init_floes)
+    if sim.COLLISION
+        remove, transfer = timestep_collisions!(m.floes, n_init_floes, m.domain, remove, transfer, sim.consts, sim.Δt, T)
+    end
+
     m.floes = m.floes[1:n_init_floes] # remove the ghost floes
     empty!.(m.floes.ghosts) 
     for i in 1:n_init_floes
         ifloe = m.floes[i]
-        if mod(tstep, sim.Δtocn) == 0
-            floe_OA_forcings!(ifloe, m, sim.consts, sim.Δd)
-        end
+        #if mod(tstep-1, sim.Δtocn) == 0
+        floe_OA_forcings!(ifloe, m, sim.consts, sim.Δd)
+        #end
         timestep_floe!(ifloe, sim.Δt)
         m.floes[i] = ifloe
     end
