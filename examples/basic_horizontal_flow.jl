@@ -2,16 +2,13 @@ using Subzero, StructArrays, Statistics, JLD2, SplitApplyCombine
 import LibGEOS as LG
 
 
-# Lx = 1e5
-# Ly = Lx
-# h_mean = 0.25
-# Δh = 0.0
-# consts = Constants()
-# grid = RegRectilinearGrid(-Lx, Lx, -Ly, Ly, 1e4, 1e4)
-# collision_domain = Domain(CollisionBoundary(grid, North()), CollisionBoundary(grid, South()),
-# CollisionBoundary(grid, East()), CollisionBoundary(grid, West()))
-# corner_floe = Floe([[[9.5e4, 7e4], [9e4, 7.5e4], [10e4, 1.05e5], [10.05e4, 9.5e4], [9.5e4, 7e4]]], h_mean, Δh)
-# Subzero.floe_domain_interaction!(corner_floe, collision_domain, consts, 10)
+h_mean = 0.25
+Δh = 0.0
+rect = Floe([[[0.0, 2.5e4], [0.0, 2.9e4], [2e4, 2.9e4], [2e4, 2.5e4], [0.0, 2.5e4]]], h_mean, Δh)
+rect.v = -0.1
+shift_rect = deepcopy(rect)
+shift_rect.coords = Subzero.translate(shift_rect.coords, [1.9999999e4, 0.0])
+Subzero.floe_floe_interaction!(shift_rect, 1, rect, 2, 2, Constants(), 10)
 
 
 # User Inputs

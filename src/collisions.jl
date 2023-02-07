@@ -201,14 +201,14 @@ function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, ::Type{
         total_area = sum(region_areas)
         # Floes overlap too much - remove floe or transfer floe mass to other floe
         if total_area/ifloe.area > 0.55
-            if i <= nfloes
+            if i <= nfloes  # If i is not a ghost floe
                 remove = i
-                transfer = j
-            elseif j <= nfloes
+                transfer = j  # Will transfer mass to jfloe
+            elseif j <= nfloes  # If j is not a ghost floe
                 remove = j  # Will transfer mass to ifloe - can't be updated here due to parallelization
             end
         elseif total_area/jfloe.area > 0.55
-            if j <= nfloes
+            if j <= nfloes  # If j is not a ghost floe
                 remove = j  # Will transfer mass to ifloe - can't be updated here due to parallelization
             end
         else
@@ -227,14 +227,16 @@ function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, ::Type{
                                         inter_regions, region_areas, force_factor, T)
             # Calculate frictional forces at each force point - based on velocities at force points
             np = size(fpoints, 1)
-            iv = repeat([ifloe.u ifloe.v], outer = np) .+ ifloe.ξ*(fpoints .- repeat(ifloe.centroid', outer = np)) 
-            jv = repeat([jfloe.u jfloe.v], outer = np) .+ jfloe.ξ*(fpoints .- repeat(jfloe.centroid', outer = np))
-            friction_forces = calc_friction_forces(iv, jv, normal_forces, Δl, consts, Δt, T)
-            # Calculate total forces and update ifloe's interactions
-            forces = normal_forces .+ friction_forces
-            if sum(abs.(forces)) != 0
-                ifloe.interactions = [ifloe.interactions; fill(j, np) forces fpoints zeros(np) overlaps]
-                ifloe.overarea += sum(overlaps)
+            if np > 0
+                iv = repeat([ifloe.u ifloe.v], outer = np) .+ ifloe.ξ*(fpoints .- repeat(ifloe.centroid', outer = np)) 
+                jv = repeat([jfloe.u jfloe.v], outer = np) .+ jfloe.ξ*(fpoints .- repeat(jfloe.centroid', outer = np))
+                friction_forces = calc_friction_forces(iv, jv, normal_forces, Δl, consts, Δt, T)
+                # Calculate total forces and update ifloe's interactions
+                forces = normal_forces .+ friction_forces
+                if sum(abs.(forces)) != 0
+                    ifloe.interactions = [ifloe.interactions; fill(j, np) forces fpoints zeros(np) overlaps]
+                    ifloe.overarea += sum(overlaps)
+                end
             end
         end
     end

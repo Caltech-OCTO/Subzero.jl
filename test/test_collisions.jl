@@ -23,8 +23,8 @@
         tri.interactions = zeros(0, 7)
         # Sideways C intersected with rectangle so there are two areas of overlap
         r, t = Subzero.floe_floe_interaction!(cfloe, 1, rect, 2, 2, consts, 10)
-        @test isapprox(cfloe.interactions[1, xforce],-163013665.41, atol = 1e-2)
-        @test isapprox(cfloe.interactions[2, xforce],-81506832.70, atol = 1e-2)
+        @test isapprox(cfloe.interactions[1, xforce], -163013665.41, atol = 1e-2)
+        @test isapprox(cfloe.interactions[2, xforce], -81506832.70, atol = 1e-2)
         @test isapprox(cfloe.interactions[1, yforce], 804819565.60, atol = 1e-2)
         @test isapprox(cfloe.interactions[2, yforce], 402409782.80, atol = 1e-2)
         @test isapprox(cfloe.interactions[1, xpoint], 7500.00, atol = 1e-2)
@@ -45,7 +45,17 @@
         @test r == 1
         @test t == 2
         @test isempty(rect.interactions)
-
+        # Floe 2 (small rectangle) is overlapping with rectangle by more than 55%
+        small_rect = Floe([[[1.8e4, 2.7e4], [1.8e4, 2.8e4], [2.1e4, 2.8e4], [2.1e4, 2.7e4], [1.8e4, 2.7e4]]], h_mean, Δh)
+        r, t = Subzero.floe_floe_interaction!(rect, 1, small_rect, 2, 2, consts, 10)
+        @test r == 2
+        @test t == 0
+        
+        # Overlapping barely floes - such a small overlap that forces are not calculated
+        shift_rect = deepcopy(rect)
+        shift_rect.coords = Subzero.translate(shift_rect.coords, [1.9999999e4, 0.0])
+        Subzero.floe_floe_interaction!(shift_rect, 1, rect, 2, 2, consts, 10)
+        @test isempty(shift_rect.interactions)
     end
 
 
@@ -116,22 +126,21 @@
         nfloe_copy = deepcopy(nfloe)
         Subzero.floe_domain_interaction!(nfloe, domain, consts, 10)
         @test nfloe_copy.alive == nfloe.alive &&  nfloe_copy.interactions == nfloe.interactions
-        # Test floe overlapping with topography
+        # Test floe overlapping with topography -> different from Subzero since topography are now boundaries
         Subzero.floe_domain_interaction!(tfloe, domain, consts, 10)
-        # TODO: this has issues. Need to check on it. 
+        @test tfloe.interactions[1, xforce] < 0
+        @test tfloe.interactions[1, yforce] < 0
 
-        # Test floe hitting more than one wall at once --> NOT THE SAME AS SUBZERO
+        # Test floe hitting more than one wall at once -> different from Subzero
         collision_domain = Domain(CollisionBoundary(grid, North()), CollisionBoundary(grid, South()),
                         CollisionBoundary(grid, East()), CollisionBoundary(grid, West()))
         corner_floe = Floe([[[9.5e4, 7e4], [9e4, 7.5e4], [10e4, 1.05e5], [10.05e4, 9.5e4], [9.5e4, 7e4]]], h_mean, Δh)
         Subzero.floe_domain_interaction!(corner_floe, collision_domain, consts, 10)
-        #@test isapprox(sum(corner_floe.interactions[:, xforce]), -914658911.36, atol = 1e-2)
-        #@test isapprox(sum(corner_floe.interactions[:, yforce]), -209609333.85, atol = 1e-2)
-        #@test isapprox(sum(corner_floe.interactions[:, overlap]), 7234848.48, atol = 1e-2)
+        println(corner_floe.interactions[:, xforce])
+        println(corner_floe.interactions[:, yforce])
+        @test all(corner_floe.interactions[:, xforce] .<= 0)
+        @test all(corner_floe.interactions[:, yforce] .<= 0)
 
-    end
-    @testset "Floe Floe Interactions" begin
-        
     end
     
     @testset "Add Ghosts" begin
