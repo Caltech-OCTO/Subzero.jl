@@ -359,11 +359,11 @@ The direction given by type D denotes which edge of a domain this boundary could
 
 Each boundary type has the coordinates of the boudnary as a field. These should
 be shapes that completely seal the domain, and should overlap on the corners as
-seen  in the example below:
+seen in the example below:
  ________________
-|__|____val___|__| <- North coordinates must include corners
+|__|____val___|__| <- North coordinates include corners
 |  |          |  |
-|  |          |  | <- East coordinates must ALSO include corners
+|  |          |  | <- East and west coordinates ALSO include corners
 |  |          |  |
 Each bounday type also has a field called "val" that holds value that defines
 the line y = val or x = val (depending on boundary direction), such that if the
@@ -684,7 +684,7 @@ Domain(north, south, east, west, ::Type{T} = Float64) where T =
 Singular sea ice floe with fields describing current state.
 """
 @kwdef mutable struct Floe{FT<:AbstractFloat}
-    # Physical Properties
+    # Physical Properties -------------------------------------------------
     centroid::Vector{FT}    # center of mass of floe (might not be in floe!)
     coords::PolyVec{FT}     # floe coordinates
     height::FT              # floe height (m)
@@ -693,19 +693,20 @@ Singular sea ice floe with fields describing current state.
     rmax::FT                # distance of vertix farthest from centroid (m)
     moment::FT              # mass moment of intertia
     angles::Vector{FT}      # interior angles of floe
-    # Monte Carlo Points
+    # Monte Carlo Points ---------------------------------------------------
     mc_x::Vector{FT}        # x-coordinates for monte carlo integration
     mc_y::Vector{FT}        # y-coordinates for monte carlo integration
-    # Velocity/Orientation
+    # Velocity/Orientation -------------------------------------------------
     α::FT = 0.0             # floe rotation from starting position in radians
     u::FT = 0.0             # floe x-velocity
     v::FT = 0.0             # floe y-velocity
     ξ::FT = 0.0             # floe angular velocity
-    # Status
-    alive::Int = 1          # floe is still active in simulation
+    # Status ---------------------------------------------------------------
+    alive::Bool = true      # floe is still active in simulation
     id::Int = 0             # floe id - set to index in floe array at start of sim
+    ghost_id::Int = 0       # ghost id - if floe is a ghost, ghost_id > 0 representing which ghost it is
     ghosts::Vector{Int} = Vector{Int}()  # indices of ghost floes of given floe
-    # Forces/Collisions
+    # Forces/Collisions ----------------------------------------------------
     fxOA::FT = 0.0          # force from ocean and atmos in x direction
     fyOA::FT = 0.0          # force from ocean and atmos in y direction
     trqOA::FT = 0.0         # torque from ocean and Atmos
@@ -713,9 +714,8 @@ Singular sea ice floe with fields describing current state.
     overarea::FT = 0.0      # total overlap with other floe
     collision_force::Matrix{FT} = [0.0 0.0] 
     collision_trq::FT = 0.0
-    interactions::NamedMatrix{FT} = NamedArray(zeros(7),
-    (["floeidx", "xforce", "yforce", "xpoint", "ypoint", "torque", "overlap"]))'
-    # Previous values for timestepping
+    interactions::Matrix{FT} = zeros(0, 7)
+    # Previous values for timestepping  -------------------------------------
     p_dxdt::FT = 0.0        # previous timestep x-velocity
     p_dydt::FT = 0.0        # previous timestep y-velocity
     p_dudt::FT = 0.0        # previous timestep x-acceleration
@@ -723,6 +723,18 @@ Singular sea ice floe with fields describing current state.
     p_dξdt::FT = 0.0        # previous timestep time derivative of ξ
     p_dαdt::FT = 0.0        # previous timestep ξ
 end
+
+@enum InteractionFields begin
+    floeidx = 1
+    xforce = 2
+    yforce = 3
+    xpoint = 4
+    ypoint = 5
+    torque = 6
+    overlap = 7
+end
+
+Base.to_index(s::InteractionFields) = Int(s)
 
 """
     generate_mc_points(npoints, xfloe, yfloe, rmax, area, ::Type{T} = Float64)
@@ -779,22 +791,22 @@ function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 
     h = hmean + (-1)^rand(0:1) * rand() * Δh  # floe height
     area = LG.area(floe)::Float64  # floe area
     mass = area * h * ρi  # floe mass
-    moment = calc_moment_inertia(floe, h, ρi = ρi)
     coords = LG.GeoInterface.coordinates(floe)::PolyVec{Float64}
+    moment = calc_moment_inertia(coords, centroid, h, ρi = ρi)
     origin_coords = translate(coords, -centroid)
     ox, oy = seperate_xy(origin_coords)
     rmax = sqrt(maximum([sum(c.^2) for c in origin_coords[1]]))
     angles = calc_poly_angles(coords, T)
     # Generate Monte Carlo Points
     count = 1
-    alive = 1
+    alive = true
     mc_x, mc_y, mc_in, err = generate_mc_points(mc_n, ox, oy, rmax, area, T)
     while err > 0.1
         mc_x, mc_y, mc_in, err = generate_mc_points(mc_n, ox, oy, rmax, area, T)
         count += 1
         if count > 10
             err = 0.0
-            alive = 0
+            alive = false
         end
     end
     mc_x = mc_x[mc_in[:, 1] .|  mc_in[:, 2]]

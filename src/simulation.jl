@@ -74,7 +74,7 @@ function timestep_floe!(floe, Δt)
     # TODO: Make variable to user input
     if floe.mass < 100
         floe.mass = 1e3
-        floe.alive = 0
+        floe.alive = false
     end
 
     while maximum(abs.(cforce)) > floe.mass/(5Δt)
@@ -95,21 +95,22 @@ function timestep_floe!(floe, Δt)
     # Update ice coordinates with velocities and rotation
     Δx = 1.5Δt*floe.u - 0.5Δt*floe.p_dxdt
     Δy = 1.5Δt*floe.v - 0.5Δt*floe.p_dydt
-    floe.centroid .+= [Δx, Δy]
-    floe.coords = translate(floe.coords, [Δx, Δy])
-    floe.p_dxdt = floe.u
-    floe.p_dydt = floe.v
-
     Δα = 1.5Δt*floe.ξ - 0.5Δt*floe.p_dαdt
     floe.α += Δα
+
+    coords0 = translate(floe.coords, -floe.centroid)
+    coords0 = [map(p -> [cos(Δα)*p[1] - sin(Δα)*p[2],
+                         sin(Δα)*p[1] + cos(Δα)p[2]], coords0[1])]
+    floe.centroid .+= [Δx, Δy]
+    floe.coords = translate(coords0, floe.centroid)
+
+    floe.p_dxdt = floe.u
+    floe.p_dydt = floe.v
     floe.p_dαdt = floe.ξ
-    floe.coords = [map(p -> [cos(Δα)*p[1] - sin(Δα)*p[2],
-                              sin(Δα)*p[1] + cos(Δα)p[2]], floe.coords[1])]
 
     # Update ice velocities with forces and torques
     dudt = (floe.fxOA + cforce[1])/floe.mass
     dvdt = (floe.fyOA + cforce[2])/floe.mass
-
     frac = if abs(Δt*dudt) > (h/2) && abs(Δt*dvdt) > (h/2)
         frac1 = (sign(dudt)*h/2Δt)/dudt
         frac2 = (sign(dvdt)*h/2Δt)/dvdt
@@ -166,14 +167,10 @@ function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
     # Update ocean heatflux
     m.ocean.hflx_factor .= sim.Δt * sim.consts.k/(sim.consts.ρi*sim.consts.L) .* (m.ocean.temp .- m.atmos.temp)
 
+    # Add ghosts
     n_init_floes = length(m.floes) # number of floes before ghost floes
     add_ghosts!(m.floes, m.domain)
-    remove = zeros(Int, n_init_floes)
-    transfer = zeros(Int, n_init_floes)
 
-    if sim.COLLISION
-        remove, transfer = timestep_collisions!(m.floes, n_init_floes, m.domain, remove, transfer, sim.consts, sim.Δt, T)
-    end
     # Output at given timestep
     for w in writers
         if hasfield(typeof(w), :Δtout) && mod(tstep, w.Δtout) == 0
@@ -181,18 +178,25 @@ function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
         end
     end
 
+    # Collisions
+    remove = zeros(Int, n_init_floes)
+    transfer = zeros(Int, n_init_floes)
+    if sim.COLLISION
+        remove, transfer = timestep_collisions!(m.floes, n_init_floes, m.domain, remove, transfer, sim.consts, sim.Δt, T)
+    end
+
     m.floes = m.floes[1:n_init_floes] # remove the ghost floes
     empty!.(m.floes.ghosts) 
     for i in 1:n_init_floes
         ifloe = m.floes[i]
-        if mod(tstep, sim.Δtocn) == 0
-            floe_OA_forcings!(ifloe, m, sim.consts, sim.Δd)
-        end
+        #if mod(tstep-1, sim.Δtocn) == 0
+        floe_OA_forcings!(ifloe, m, sim.consts, sim.Δd)
+        #end
         timestep_floe!(ifloe, sim.Δt)
         m.floes[i] = ifloe
     end
     
-    remove_idx = findall(f -> f.alive == 0, m.floes)
+    remove_idx = findall(f -> !f.alive, m.floes)
     for idx in remove_idx
         StructArrays.foreachfield(f -> deleteat!(f, idx), m.floes)
     end
@@ -220,11 +224,8 @@ function run!(sim, writers, ::Type{T} = Float64) where T
 
     # Initialize floe IDs
     for i in eachindex(sim.model.floes)
-        sim.model.floes.id[i] = i
+        sim.model.floes.id[i] = T(i)
     end
-    
-    # Add topography elements crossing through periodic boundaries
-    add_ghosts!(sim.model.domain.topography, sim.model.domain)
 
     # output intial state for all writers
     for w in writers
