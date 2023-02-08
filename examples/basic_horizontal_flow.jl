@@ -2,14 +2,22 @@ using Subzero, StructArrays, Statistics, JLD2, SplitApplyCombine
 import LibGEOS as LG
 
 
-h_mean = 0.25
-Δh = 0.0
-rect = Floe([[[0.0, 2.5e4], [0.0, 2.9e4], [2e4, 2.9e4], [2e4, 2.5e4], [0.0, 2.5e4]]], h_mean, Δh)
-rect.v = -0.1
-shift_rect = deepcopy(rect)
-shift_rect.coords = Subzero.translate(shift_rect.coords, [1.9999999e4, 0.0])
-Subzero.floe_floe_interaction!(shift_rect, 1, rect, 2, 2, Constants(), 10)
+Lx = 1e5
+grid = RegRectilinearGrid(-Lx, Lx, -Lx, Lx, 1e4, 1e4)
+double_periodic_domain = Domain(PeriodicBoundary(grid, North()), PeriodicBoundary(grid, South()),
+                                        PeriodicBoundary(grid, East()), PeriodicBoundary(grid, West()))
 
+small_rect = Floe([[[-1.1e5, -1.1e5], [-1.1e5, -9.5e4], [-9.5e4, -9.5e4], [-9.5e4, -1.1e5], [-1.1e5, -1.1e5]]], 0.5, 0.0)
+# triangle in the middle of the domain with no ghosts - touches 3/4 corners
+large_tri = Floe([[[-1e5, -1e5], [-1e5, 1e5], [1e5, -1e5], [-1e5, -1e5]]], 0.5, 0.0)
+# rectangle along south boundary, ghost along north boundary
+bound_rect = Floe([[[-9.8e4, -1.1e5], [-9.8e4, -9.5e4], [9.8e4, -9.5e4], [9.8e4, -1.1e5], [-9.8e4, -1.1e5]]], 0.5, 0.0)
+floe_arr = StructArray([small_rect, large_tri])
+for i in eachindex(floe_arr)
+    floe_arr.id[i] = Float64(i)
+end
+add_ghosts!(floe_arr, double_periodic_domain)
+Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
 
 # User Inputs
 const type = Float64::DataType

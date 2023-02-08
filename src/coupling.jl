@@ -473,7 +473,7 @@ function floe_OA_forcings!(floe, m, c, Δd, ::Type{T} = Float64) where T
     # Filter points outside of non-periodic boundaries and check if floe overlaps through periodic bounds
     mc_p, mc_xr, mc_yr = filter_oob_points(mc_p, mc_xr, mc_yr, m.grid, m.domain.east, m.domain.north)
     if isempty(mc_p)
-        floe.alive = 0
+        floe.alive = false
     else
         # Find point indices for cells centered on grid lines
         mc_cols, mc_rows = find_cell_indices(mc_xr, mc_yr, m.grid)

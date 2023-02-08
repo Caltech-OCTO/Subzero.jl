@@ -260,8 +260,8 @@ function floe_domain_element_interaction!(floe, boundary::OpenBoundary, consts, 
     floe_poly = LG.Polygon(floe.coords)
     bounds_poly = LG.Polygon(boundary.coords)
     # Check if the floe and boundary actually overlap
-    if LG.intersects(floe_poly, bounds_poly)
-        floe.alive = 0
+    if LG.area(LG.intersection(floe_poly, bounds_poly)) > 0
+        floe.alive = false
     end
     return
 end
@@ -363,7 +363,7 @@ function floe_domain_element_interaction!(floe, element::Union{CollisionBoundary
         region_areas = [LG.area(poly) for poly in inter_regions]::Vector{Float64}
         # Regions overlap too much
         if maximum(region_areas)/floe.area > 0.75
-            floe.alive = 0
+            floe.alive = false
         else
             # Constant needed for force calculations
             force_factor = consts.E * floe.height / sqrt(floe.area)
@@ -455,26 +455,36 @@ function calc_torque!(floe, ::Type{T} = Float64) where T
 end
 
 function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, consts, Δt, ::Type{T} = Float64) where T
-    collide_pairs = Set{Tuple{Int, Int}}()
+    collide_pairs = Dict{Tuple{Int, Int}, Tuple{Int, Int}}()
     # floe-floe collisions for floes i and j where i<j
     for i in eachindex(floes)
         ifloe = floes[i]
-        iid = abs(ifloe.id)
         # reset collision values
         ifloe.collision_force = zeros(T, 1, 2)
         ifloe.collision_trq = T(0.0)
         ifloe.interactions = zeros(T, 0, 7)
         for j in i+1:length(floes)
-            jid = abs(floes[j].id)
-            # Confirm that this collision hasn't already occured with parent/ghost floes using ids
-            # If it hasn't occured, check if floes are in close proximity
-            if (jid != iid) && !((jid, iid) in collide_pairs) && !((iid, jid) in collide_pairs) &&
-            (sum((ifloe.centroid .- floes[j].centroid).^2) < (ifloe.rmax + floes[j].rmax)^2)
-                push!(collide_pairs, (iid, jid))  # add ids to collide_pairs list so collision isn't repeated with ghosts
-                iremove, itransfer = floe_floe_interaction!(ifloe, i, floes[j], j, n_init_floes, consts, Δt)
-                if iremove != 0 || itransfer != 0
-                    remove[i] = iremove
-                    transfer[i] = itransfer
+            id_pair = (ifloe.id, floes.id[j])
+            ghost_id_pair = (ifloe.ghost_id, floes.ghost_id[j])
+            if id_pair[1] > id_pair[2]
+                id_pair = reverse(id_pair)
+                ghost_id_pair = reverse(ghost_id_pair)
+            end
+            # If checking two distinct floes (i.e. not a parent ghost pair) and they are in close proximity continue
+            if (id_pair[1] != id_pair[2]) && (sum((ifloe.centroid .- floes.centroid[j]).^2) < (ifloe.rmax + floes.rmax[j])^2)
+                # Never seen any combo of these floes/ghosts
+                new_collision = !(id_pair in keys(collide_pairs))
+                # New collision or floe and ghost colliding with same floe - not a repeat collision
+                if new_collision || (ghost_id_pair[1] == collide_pairs[id_pair][1]) ⊻ (ghost_id_pair[2] == collide_pairs[id_pair][2])
+                    iremove, itransfer = floe_floe_interaction!(ifloe, i, floes[j], j, n_init_floes, consts, Δt)
+                    if iremove != 0 || itransfer != 0
+                        remove[i] = iremove
+                        transfer[i] = itransfer
+                    end
+                    # If this is a new collision, add to collide_pairs
+                    if new_collision
+                        collide_pairs[id_pair] = ghost_id_pair
+                    end
                 end
             end
         end
@@ -500,7 +510,7 @@ function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, con
             end
         end
     end
-    # reverse loop so ghost torques and foreces are calculated before parents
+    # Calculate total force and torque on parents by summing interactins on parent and children
     for i in range(1, n_init_floes)
         ifloe = floes[i]
         for g in ifloe.ghosts
@@ -533,7 +543,7 @@ Outputs:
 """
 function ghosts_on_bounds(element, ghosts, boundary, trans_vec)
     new_ghosts = StructArray(Vector{typeof(element)}())
-    if LG.intersects(LG.Polygon(element.coords), LG.Polygon(boundary.coords))
+    if LG.area(LG.intersection(LG.Polygon(element.coords), LG.Polygon(boundary.coords))) > 0
         # ghosts of existing ghosts and original element
         append!(new_ghosts, deepcopy.(ghosts))
         push!(new_ghosts, deepcopy(element))
@@ -628,14 +638,15 @@ function add_floe_ghosts!(floes::StructArray{Floe{T}}, max_boundary, min_boundar
     nfloes = length(floes)
     for i in eachindex(floes)  # uses initial length of floes so we can append to list
         f = floes[i]
-        if f.alive == 1 && f.id >= 0
+        if f.alive && f.ghost_id == 0  # the floe is alive and a parent floe
             f, new_ghosts = find_ghosts(f, floes[f.ghosts], max_boundary, min_boundary, T)
             if !isempty(new_ghosts)
-                new_ghosts.id .= -abs.(new_ghosts.id)  # ghosts have negative index of parent floe
+                nghosts = length(new_ghosts)
+                new_ghosts.ghost_id .= range(1, nghosts) .+ length(f.ghosts)
                 empty!.(new_ghosts.ghosts)  # remove ghost floes ghosts as these were added to parent
                 append!(floes, new_ghosts)  # add ghosts to floe list
-                append!(f.ghosts, nfloes+1:nfloes+length(new_ghosts))  # index of ghosts floes saved in parent
-                nfloes += length(new_ghosts)
+                append!(f.ghosts, (nfloes + 1):(nfloes + nghosts))  # index of ghosts floes saved in parent
+                nfloes += nghosts
                 floes[i] = f
             end
         end

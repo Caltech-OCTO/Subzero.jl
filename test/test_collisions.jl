@@ -118,14 +118,14 @@
         # Test floe overlapping >75% with collision boundary
         Subzero.floe_domain_interaction!(efloe_large, domain, consts, 10)
         @test isempty(efloe_large.interactions)
-        @test efloe_large.alive == 0
+        @test !efloe_large.alive
         # Test floe passing through open boundary is killed
         Subzero.floe_domain_interaction!(wfloe, domain, consts, 10)
-        @test wfloe.alive == 0
+        @test !wfloe.alive
         # Test floes not not interact with periodic boundary
         nfloe_copy = deepcopy(nfloe)
         Subzero.floe_domain_interaction!(nfloe, domain, consts, 10)
-        @test nfloe_copy.alive == nfloe.alive &&  nfloe_copy.interactions == nfloe.interactions
+        @test nfloe_copy.alive == nfloe.alive && nfloe_copy.interactions == nfloe.interactions
         # Test floe overlapping with topography -> different from Subzero since topography are now boundaries
         Subzero.floe_domain_interaction!(tfloe, domain, consts, 10)
         @test tfloe.interactions[1, xforce] < 0
@@ -136,8 +136,6 @@
                         CollisionBoundary(grid, East()), CollisionBoundary(grid, West()))
         corner_floe = Floe([[[9.5e4, 7e4], [9e4, 7.5e4], [10e4, 1.05e5], [10.05e4, 9.5e4], [9.5e4, 7e4]]], h_mean, Δh)
         Subzero.floe_domain_interaction!(corner_floe, collision_domain, consts, 10)
-        println(corner_floe.interactions[:, xforce])
-        println(corner_floe.interactions[:, yforce])
         @test all(corner_floe.interactions[:, xforce] .<= 0)
         @test all(corner_floe.interactions[:, yforce] .<= 0)
 
@@ -162,7 +160,7 @@
 
         floe_arr = StructArray([Floe(c, 0.5, 0.0) for c in [coords1, coords2, coords3, coords4]])
         for i in eachindex(floe_arr)
-            floe_arr.id[i] = i
+            floe_arr.id[i] = Float64(i)
         end
 
         nonperiodic_domain = Domain(OpenBoundary(grid, North()), OpenBoundary(grid, South()),
@@ -191,7 +189,8 @@
         @test new_floe_arr.coords[2:4] == floe_arr.coords[2:4]
         @test new_floe_arr.coords[5] == floe_arr.coords[1]
         @test new_floe_arr.coords[6] == Subzero.translate(floe_arr.coords[2], [2e5, 0.0])
-        @test new_floe_arr.id == [1, 2, 3, 4, -1, -2]
+        @test new_floe_arr.id == [1, 2, 3, 4, 1, 2]
+        @test new_floe_arr.ghost_id == [0, 0, 0, 0, 1, 1]
         @test new_floe_arr.ghosts[1] == [5]
         @test new_floe_arr.ghosts[2] == [6]
         @test new_floe_arr.ghosts[3:6] == [[], [], [], []]
@@ -206,7 +205,8 @@
         @test new_floe_arr.coords[[2, 4]] == floe_arr.coords[[2, 4]]
         @test new_floe_arr.coords[5] == floe_arr.coords[1]
         @test new_floe_arr.coords[6] == floe_arr.coords[3]
-        @test new_floe_arr.id == [1, 2, 3, 4, -1, -3]
+        @test new_floe_arr.id == [1, 2, 3, 4, 1, 3]
+        @test new_floe_arr.ghost_id == [0, 0, 0, 0, 1, 1]
         @test new_floe_arr.ghosts[1] == [5]
         @test new_floe_arr.ghosts[3] == [6]
         @test new_floe_arr.ghosts[[2; 4:6]] == [[], [], [], []]
@@ -224,7 +224,8 @@
         @test new_floe_arr.coords[7] == Subzero.translate(floe_arr.coords[1], [0.0, -2e5])
         @test new_floe_arr.coords[8] == Subzero.translate(floe_arr.coords[1], [-2e5, 0.0])
         @test new_floe_arr.coords[9] == floe_arr.coords[3]
-        @test new_floe_arr.id == [1, 2, 3, 4, -1, -2, -1, -1, -3]
+        @test new_floe_arr.id == [1, 2, 3, 4, 1, 2, 1, 1, 3]
+        @test new_floe_arr.ghost_id == [0, 0, 0, 0, 1, 1, 2, 3, 1]
         @test new_floe_arr.ghosts[1] == [5, 7, 8]
         @test new_floe_arr.ghosts[2] == [6]
         @test new_floe_arr.ghosts[3] == [9]
@@ -245,7 +246,7 @@
 
         floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
         for i in eachindex(floe_arr)
-            floe_arr.id[i] = i
+            floe_arr.id[i] = Float64(i)
         end
         Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
         xforce = abs(floe_arr[1].collision_force[1])
@@ -269,12 +270,12 @@
         coords2 = splitdims(vcat(-[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000], -[7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8]))
         floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
         for i in eachindex(floe_arr)
-            floe_arr.id[i] = i
+            floe_arr.id[i] = Float64(i)
         end
         trans_arr = StructArray([Floe(Subzero.translate([coords1], [0.0, -2Ly]), 0.5, 0.0),
                                  Floe(Subzero.translate([coords2], [2Lx, 0.0]), 0.5, 0.0)])
         for i in eachindex(trans_arr)
-            trans_arr.id[i] = i
+            trans_arr.id[i] = Float64(i)
         end
         Subzero.timestep_collisions!(trans_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
         xforce = abs(trans_arr[1].collision_force[1])
@@ -298,12 +299,12 @@
         coords2 = splitdims(vcat(-[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000], [7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8]))
         floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
         for i in eachindex(floe_arr)
-            floe_arr.id[i] = i
+            floe_arr.id[i] = Float64(i)
         end
         trans_arr = StructArray([Floe(Subzero.translate([coords1], [-2Lx, 0.0]), 0.5, 0.0),
                                  Floe([coords2], 0.5, 0.0)])
         for i in eachindex(trans_arr)
-            trans_arr.id[i] = i
+            trans_arr.id[i] = Float64(i)
         end
         Subzero.timestep_collisions!(trans_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
         xforce = abs(trans_arr[1].collision_force[1])
@@ -319,6 +320,36 @@
         @test f2_torque == floe_arr[2].collision_trq
         @test floe_arr[2].interactions[:, [1:5; 7]] == floe_arr[3].interactions[:, [1:5; 7]]
         @test isempty(floe_arr[4].interactions)
-    end
 
+        # Parent and ghosts hitting the same floe
+        # small rectangle in the corner that has 3 ghosts in all other corners
+        small_rect = Floe([[[-1.1e5, -1.1e5], [-1.1e5, -9.5e4], [-9.5e4, -9.5e4], [-9.5e4, -1.1e5], [-1.1e5, -1.1e5]]], 0.5, 0.0)
+        # triangle in the middle of the domain with no ghosts - touches 3/4 corners
+        large_tri = Floe([[[-1e5, -1e5], [-1e5, 1e5], [1e5, -1e5], [-1e5, -1e5]]], 0.5, 0.0)
+        # rectangle along south boundary, ghost along north boundary
+        bound_rect =  Floe([[[-9.8e4, -1.1e5], [-9.8e4, -9.5e4], [9.8e4, -9.5e4], [9.8e4, -1.1e5], [-9.8e4, -1.1e5]]], 0.5, 0.0)
+        floe_arr = StructArray([small_rect, large_tri])
+        for i in eachindex(floe_arr)
+            floe_arr.id[i] = Float64(i)
+        end
+        add_ghosts!(floe_arr, double_periodic_domain)
+        @test length(floe_arr) == 5
+        Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
+        @test size(floe_arr[1].interactions)[1] == 3
+        @test size(floe_arr[2].interactions)[1] == 3
+        @test floe_arr[1].interactions[1, Subzero.xforce] != floe_arr[1].interactions[2, Subzero.xforce] && floe_arr[1].interactions[1, Subzero.xforce] != floe_arr[1].interactions[3,Subzero.xforce]
+        @test floe_arr[1].interactions[1, Subzero.yforce] != floe_arr[1].interactions[2, Subzero.yforce] && floe_arr[1].interactions[1, Subzero.yforce] != floe_arr[1].interactions[3, Subzero.yforce]
+
+        floe_arr = StructArray([small_rect, bound_rect])
+        for i in eachindex(floe_arr)
+            floe_arr.id[i] = Float64(i)
+        end
+        add_ghosts!(floe_arr, double_periodic_domain)
+        @test length(floe_arr) == 6
+        Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
+        @test size(floe_arr[1].interactions)[1] == 2
+        @test size(floe_arr[2].interactions)[1] == 2
+        @test floe_arr[1].interactions[1, Subzero.xpoint] != floe_arr[1].interactions[2, Subzero.xpoint]
+        @test floe_arr[1].interactions[1, Subzero.ypoint] == floe_arr[1].interactions[2, Subzero.ypoint]
+    end
 end

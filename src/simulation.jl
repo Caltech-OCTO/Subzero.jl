@@ -74,7 +74,7 @@ function timestep_floe!(floe, Δt)
     # TODO: Make variable to user input
     if floe.mass < 100
         floe.mass = 1e3
-        floe.alive = 0
+        floe.alive = false
     end
 
     while maximum(abs.(cforce)) > floe.mass/(5Δt)
@@ -196,7 +196,7 @@ function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
         m.floes[i] = ifloe
     end
     
-    remove_idx = findall(f -> f.alive == 0, m.floes)
+    remove_idx = findall(f -> !f.alive, m.floes)
     for idx in remove_idx
         StructArrays.foreachfield(f -> deleteat!(f, idx), m.floes)
     end
@@ -224,7 +224,7 @@ function run!(sim, writers, ::Type{T} = Float64) where T
 
     # Initialize floe IDs
     for i in eachindex(sim.model.floes)
-        sim.model.floes.id[i] = i
+        sim.model.floes.id[i] = T(i)
     end
 
     # output intial state for all writers

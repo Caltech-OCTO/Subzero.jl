@@ -75,7 +75,7 @@ function create_sim_gif(floe_pn, init_pn, output_fn; plot_size = (1500, 1500), f
         new_frame = plot(plt)
         verts = Subzero.seperate_xy.(coords[t])
         for i in eachindex(verts)
-            if alive[t][i] == 1
+            if alive[t][i]
                 plot!(new_frame, first(verts[i])./1000, last(verts[i])./1000, seriestype = [:shape,], fill = :lightblue, legend=false)
             end
         end
@@ -146,7 +146,7 @@ function plot_sim_timestep(model, plt, time)
     # Plot Floes --> only plot "alive" floes
     floe_coords = model.floes.coords
     floe_alive = model.floes.alive
-    plot!(plt_new, [LG.Polygon([floe_coords[i][1] ./ 1000]) for i in eachindex(floe_coords) if floe_alive[i] == 1], fill = :lightblue)
+    plot!(plt_new, [LG.Polygon([floe_coords[i][1] ./ 1000]) for i in eachindex(floe_coords) if floe_alive[i]], fill = :lightblue)
           
     # Save plot
     Plots.savefig(plt_new, "figs/collisions/plot_$time.png")

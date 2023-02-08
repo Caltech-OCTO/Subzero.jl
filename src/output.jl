@@ -219,7 +219,7 @@ Output:
         Writes desired fields writer.outputs to file with name writer.fn for current timestep
 """
 function write_data!(writer::GridOutputWriter, tstep, sim)
-    live_floes = filter(f -> f.alive == 1, sim.model.floes)
+    live_floes = filter(f -> f.alive, sim.model.floes)
     if length(live_floes) > 0
         calc_eulerian_data!(live_floes, sim.model.domain.topography, writer)
         istep = div(tstep, writer.Δtout) + 1  # Julia indicies start at 1
@@ -481,7 +481,8 @@ function getattrs(output::Symbol)
         output == :v ? ("m/s", "Floe y-direction velocity") :
         output == :ξ ? ("rad/s", "Floe angular velocity") :
         output == :alive ? ("unitless", "Flag if floe is still active in simulation") :
-        output == :id ? ("unitless", "Floe ID -  ghosts have negative ID of parents") :
+        output == :id ? ("unitless", "Floe ID - represents unique floe (ghosts have the same as parents since they are copies)") :
+        output == :ghost_id ? ("unitless", "Ghost ID - represents individual ghosts so every ghost of 1 parent has unique ID (parents have ghost ID of 0)") :
         output == :ghosts ? ("unitless", "Index of floe's ghost floes in list") :
         output == :fxOA ? ("N", "X-directional forces on floe from the ocean and atmosphere") :
         output == :fyOA ? ("N", "Y-directional forces on floe from the ocean and atmosphere") :
