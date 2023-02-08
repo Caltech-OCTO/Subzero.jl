@@ -1,24 +1,6 @@
 using Subzero, StructArrays, Statistics, JLD2, SplitApplyCombine
 import LibGEOS as LG
 
-
-Lx = 1e5
-grid = RegRectilinearGrid(-Lx, Lx, -Lx, Lx, 1e4, 1e4)
-double_periodic_domain = Domain(PeriodicBoundary(grid, North()), PeriodicBoundary(grid, South()),
-                                        PeriodicBoundary(grid, East()), PeriodicBoundary(grid, West()))
-
-small_rect = Floe([[[-1.1e5, -1.1e5], [-1.1e5, -9.5e4], [-9.5e4, -9.5e4], [-9.5e4, -1.1e5], [-1.1e5, -1.1e5]]], 0.5, 0.0)
-# triangle in the middle of the domain with no ghosts - touches 3/4 corners
-large_tri = Floe([[[-1e5, -1e5], [-1e5, 1e5], [1e5, -1e5], [-1e5, -1e5]]], 0.5, 0.0)
-# rectangle along south boundary, ghost along north boundary
-bound_rect = Floe([[[-9.8e4, -1.1e5], [-9.8e4, -9.5e4], [9.8e4, -9.5e4], [9.8e4, -1.1e5], [-9.8e4, -1.1e5]]], 0.5, 0.0)
-floe_arr = StructArray([small_rect, large_tri])
-for i in eachindex(floe_arr)
-    floe_arr.id[i] = Float64(i)
-end
-add_ghosts!(floe_arr, double_periodic_domain)
-Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, zeros(Int, 2), zeros(Int, 2), Subzero.Constants(), 10)
-
 # User Inputs
 const type = Float64::DataType
 const Lx = 1e5
@@ -34,7 +16,7 @@ const coarse_ny = 10
 # Model instantiation
 grid = RegRectilinearGrid(0, Lx, 0, Ly, Δgrid, Δgrid)
 ocean = Ocean(grid, 0.0, -0.2, 0.0)
-atmos = Atmos(zeros(grid.dims .+ 1), zeros(grid.dims .+ 1), fill(0.0, grid.dims .+ 1))
+atmos = Atmos(zeros(grid.dims .+ 1), zeros(grid.dims .+ 1), zeros(grid.dims .+ 1))
 
 # Domain creation - boundaries and topography
 nboundary = PeriodicBoundary(grid, North())
@@ -86,7 +68,7 @@ model = Model(grid, ocean, atmos, domain, floe_arr)
 #modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 consts = Constants()
 #consts = Constants(E = modulus, Cd_io = 0.0, Cd_ia = 0.0, Cd_ao = 0.0, f = 0.0, μ = 0.0)  # collisions without friction 
-simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 5000, COLLISION = true, verbose = true)
+simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 1500, COLLISION = true, verbose = true)
 
 # Output setup
 initwriter = InitialStateOutputWriter(dir = "output/voronoi", filename = "initial_state_debugged.jld2", overwrite = true)

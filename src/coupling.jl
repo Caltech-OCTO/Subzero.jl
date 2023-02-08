@@ -3,6 +3,37 @@ Functions needed for coupling the ice, ocean, and atmosphere.
 """
 
 """
+    timestep_ocean!(m, c, Δt)
+
+Update model's ocean from affects of atmsophere and ice
+Input:
+        m   <Model> simulation model
+        c   <Constants> simulation constants
+        Δt  <Int> simulation timestep
+Outputs: 
+        None. The ocean stress fields are updated from atmos stress.
+        Heatflux is also updated with ocean and atmos temperatures. 
+"""
+function timestep_ocean!(m, c, Δt)
+    # Atmospheric stress on ocean - resets ocean stresses
+    Δu_AO = m.atmos.u .- m.ocean.u
+    Δv_AO = m.atmos.v .- m.ocean.v
+    m.ocean.τx .= c.ρa  *c.Cd_ao * sqrt.(Δu_AO.^2 + Δv_AO.^2) .* Δu_AO
+    m.ocean.τy .= c.ρa * c.Cd_ao * sqrt.(Δu_AO.^2 + Δv_AO.^2) .* Δv_AO
+    # Add ice stress on ocean
+    cell_area = (m.grid.xg[2] - m.grid.xg[1]) * (m.grid.yg[2] - m.grid.yg[1])
+    open_area_frac = 1 .- (m.ocean.si_area ./ cell_area)
+    m.ocean.τx .= (m.ocean.fx ./ m.ocean.si_area) .+ (m.ocean.τx .* open_area_frac)
+    m.ocean.τy .= (m.ocean.fy ./ m.ocean.si_area) .+ (m.ocean.τy .* open_area_frac)
+    # Update ocean heatflux
+    m.ocean.hflx_factor .= Δt * c.k/(c.ρi*c.L) .* (m.ocean.temp .- m.atmos.temp)
+    # Clear ocean forces and area fractions
+    m.ocean.fx .= zeros(size(m.ocean.fx))
+    m.ocean.fy .= zeros(size(m.ocean.fy))
+    m.ocean.si_area .= zeros(size(m.ocean.si_area))
+end
+
+"""
     find_cell_indices(xp, yp, grid::RegRectilinearGrid)
 
 Find indicies of cells centered on grid lines of the given RegRectilinearGrid
@@ -384,10 +415,7 @@ The nlines+1 grid line is equivalent to the 2nd grid line.
 """
 function shift_cell_idx(idx, nlines, ::PeriodicBoundary)
     ncells = nlines - 1
-    return idx < 1 ? (idx + ncells) :
-                     ncells < idx ?
-                        (idx - ncells) :
-                        idx
+    return idx < 1 ? (idx + ncells) : ncells < idx ? (idx - ncells) : idx
 end
 
 """

@@ -143,30 +143,8 @@ function timestep_floe!(floe, Δt)
     # TODO: Floe stress - Calc_trajectory lines 9-21
 end
 
-"""
-    timestep_atm!(m)
-
-Update model's ocean and heat flux from atmosphere effects. 
-Input:
-        m <Model>
-Outputs: 
-        None. The ocean stress fields are updated from atmos stress.
-        Heatflux is also updated with ocean and atmos temperatures. 
-"""
-function timestep_atm!(m, c)
-    Δu_AO = m.atmos.u .- m.ocean.u
-    Δv_AO = m.atmos.v .- m.ocean.v
-    m.ocean.taux .= c.ρa  *c.Cd_ao * sqrt.(Δu_AO.^2 + Δv_OI.^2) .* Δu_AO
-    m.ocean.tauy .= c.ρa * c.Cd_ao * sqrt.(Δu_AO.^2 + Δv_OI.^2) .* Δv_AO
-    m.hflx .= c.k/(c.ρi*c.L) .* (atmos.temp .- ocean.temp)
-end
-
 function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
     m = sim.model
-    m.ocean.si_area .= zeros(T, 1)
-    # Update ocean heatflux
-    m.ocean.hflx_factor .= sim.Δt * sim.consts.k/(sim.consts.ρi*sim.consts.L) .* (m.ocean.temp .- m.atmos.temp)
-
     # Add ghosts
     n_init_floes = length(m.floes) # number of floes before ghost floes
     add_ghosts!(m.floes, m.domain)
@@ -195,6 +173,9 @@ function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
         timestep_floe!(ifloe, sim.Δt)
         m.floes[i] = ifloe
     end
+
+    # Timestep ocean
+    timestep_ocean!(m, sim.consts, sim.Δt)
     
     remove_idx = findall(f -> !f.alive, m.floes)
     for idx in remove_idx

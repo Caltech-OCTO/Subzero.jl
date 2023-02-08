@@ -119,22 +119,24 @@ struct Ocean{FT<:AbstractFloat}
     u::Matrix{FT}
     v::Matrix{FT}
     temp::Matrix{FT}
-    hflx_factor::Matrix{FT} 
+    hflx_factor::Matrix{FT}
+    τx::Matrix{FT}
+    τy::Matrix{FT}
     fx::Matrix{FT}
     fy::Matrix{FT}
     si_area::Matrix{FT}
 
-    function Ocean{FT}(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}, hflx::Matrix{FT},
+    function Ocean{FT}(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}, hflx::Matrix{FT}, τx::Matrix{FT}, τy::Matrix{FT},
                    fx::Matrix{FT}, fy::Matrix{FT}, si_area::Matrix{FT}) where {FT <: AbstractFloat}
-        if !(size(u) == size(v) == size(temp) == size(hflx) == size(fx) == size(fy) == size(si_area))
-            throw(ArgumentError("All ocean fields matricies must have the same dimensions."))
+        if !all(-3 .<= temp .<= 0)
+            @warn "Ocean temperatures are above the range for freezing. The thermodynamics aren't currently setup for these conditions."
         end
-        new{FT}(u, v, temp, hflx, fx, fy, si_area)
+        new{FT}(u, v, temp, hflx, τx, τy, fx, fy, si_area)
     end
 
-    Ocean(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}, hflx::Matrix{FT},
+    Ocean(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}, hflx::Matrix{FT}, τx::Matrix{FT}, τy::Matrix{FT},
           fx::Matrix{FT}, fy::Matrix{FT}, si_area::Matrix{FT}) where {FT<:AbstractFloat} =
-        Ocean{FT}(u, v, temp, hflx, fx, fy, si_area)
+        Ocean{FT}(u, v, temp, hflx, τx, τy, fx, fy, si_area)
 end
 
 """
@@ -152,9 +154,8 @@ Output:
 function Ocean(u, v, temp, ::Type{T} = Float64) where {T}
     nvals = size(u)
     return Ocean((convert(Matrix{T}, u)), convert(Matrix{T}, v),
-                  convert(Matrix{T}, temp),
-                  zeros(T, nvals), zeros(T, nvals), 
-                  zeros(T, nvals), zeros(T, nvals))
+                  convert(Matrix{T}, temp), zeros(T, nvals), zeros(T, nvals),
+                  zeros(T, nvals), zeros(T, nvals), zeros(T, nvals), zeros(T, nvals))
 end
 
 """
@@ -184,16 +185,6 @@ struct Atmos{FT<:AbstractFloat}
     u::Matrix{FT}
     v::Matrix{FT}
     temp::Matrix{FT}
-
-    function Atmos{FT}(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}) where {FT <: AbstractFloat}
-        if !(size(u) == size(v) == size(temp))
-            throw(ArgumentError("All atmos fields matricies must have the same dimensions."))
-        end
-        new{FT}(u, v, temp)
-    end
-
-    Atmos(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}) where {FT<:AbstractFloat} =
-        Atmos{FT}(u, v, temp)
 end
 
 """
@@ -888,8 +879,11 @@ mutable struct Model{FT<:AbstractFloat, GT<:AbstractGrid{FT}, DT<:Domain{FT, <:A
     GT<:AbstractGrid{FT}, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}}
         if !domain_in_grid(domain, grid)
             throw(ArgumentError("Domain does not fit within grid."))
-        elseif !((grid.dims .+ 1) == size(ocean.u) == size(atmos.u))
-            throw(ArgumentError("Size of grid does not match with size of ocean and/or atmos"))
+        elseif size(ocean.u) != size(atmos.u) || size(ocean.v) != size(atmos.v) || size(ocean.temp) != size(atmos.temp)
+            throw(ArgumentError("Ocean and atmosphere are not on the same grid. This is not supported yet."))
+        end
+        if any(ocean.temp .< atmos.temp)
+            @warn "In at least one grid cell the atmosphere temperature is warmer than the ocean. This is not a situation in which the thermodynamics are setup for right now."
         end
         new{FT, GT, DT}(grid, ocean, atmos, domain, floes)
     end
