@@ -151,7 +151,7 @@ function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
 
     # Output at given timestep
     for w in writers
-        if hasfield(typeof(w), :Δtout) && mod(tstep, w.Δtout) == 0
+        if tstep == 0 || (hasfield(typeof(w), :Δtout) && mod(tstep, w.Δtout) == 0)
             write_data!(w, tstep, sim)
         end
     end
@@ -202,20 +202,9 @@ Outputs:
         None. The simulation will be run and outputs will be saved in the output folder. 
 """
 function run!(sim, writers, ::Type{T} = Float64) where T
-
-    # Initialize floe IDs
-    for i in eachindex(sim.model.floes)
-        sim.model.floes.id[i] = T(i)
-    end
-
-    # output intial state for all writers
-    for w in writers
-        write_data!(w, 0, sim)
-    end
-    
     # Start simulation
     sim.verbose && println(string(sim.name ," running!"))
-    tstep = 1
+    tstep = 0
     while tstep <= sim.nΔt
         if sim.verbose && mod(tstep, 50) == 0
             println(tstep, " timesteps")

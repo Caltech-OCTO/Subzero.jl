@@ -6,8 +6,7 @@
     poly_hole1 = LibGEOS.Polygon([ext, hole1])
     poly_hole2 = LibGEOS.Polygon([ext, hole1, hole2])
     multipoly_hole1 = LibGEOS.MultiPolygon([poly_nohole, poly_hole1])
-    multipoly_hole2 = LibGEOS.MultiPolygon([poly_nohole, poly_hole1,
-                                                         poly_hole2])
+    multipoly_hole2 = LibGEOS.MultiPolygon([poly_nohole, poly_hole1, poly_hole2])
 
     # Test validating/correcting RingVecs and PolyVecs
     @test Subzero.valid_ringvec!(ext) == ext
@@ -83,6 +82,12 @@
     tri_moment = Subzero.calc_moment_inertia(LibGEOS.Polygon(tri_coords), 0.5)
     @test isapprox(tri_moment, 50581.145, atol = 0.001)
 
+    # Test orient_coords
+    coords = Subzero.orient_coords([[9.75e4, 7e4], [9.75e4, 5e4], [9.75e4, 5e4], [10.05e4, 5e4], [10.05e4, 7e4]])
+    @test coords == [[97500.0, 50000.0], [97500.0, 70000.0], [100500.0, 70000.0], [100500.0, 50000.0], [97500.0, 50000.0]]
+    coords = Subzero.orient_coords([[6.5e4, 6.5e4], [8.5e4, 6.5e4], [8.5e4, 4.5e4], [8.5e4, 4.5e4], [6.5e4, 4.5e4]])
+    @test coords == [[6.5e4, 4.5e4], [6.5e4, 6.5e4], [8.5e4, 6.5e4], [8.5e4, 4.5e4], [6.5e4, 4.5e4]]
+
     # Test polygon angles - some basic shapes and then compared to values from MATLAB
     rect_coords = [[[1.0, 1.0], [1.0, 2.0], [2.0, 2.0], [2.0, 1.0]]]
     @test Subzero.calc_poly_angles(rect_coords) == [90.0, 90.0, 90.0, 90.0]
@@ -90,6 +95,11 @@
     @test prod(isapprox.(Subzero.calc_poly_angles(tri_coords), [90.0, 36.8699, 53.1301], atol = 0.001))
     concave_tri_coords = [[[-3.0, -2.0], [0.0,0.0], [5.0, 0.0]]]
     @test prod(isapprox.(Subzero.calc_poly_angles(concave_tri_coords), [19.6538, 146.3099, 14.0362], atol = 0.001))
+    # generate list of random polygons
+    polygon_lst = voronoicells(rand(10), rand(10), Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0))).Cells
+    for poly in polygon_lst
+        @test isapprox(sum(Subzero.calc_poly_angles([Vector{Vector{Float64}}(poly)])), 180 * (length(poly) - 2), atol = 1e-3)
+    end
 
     # Test calc_point_poly_dist - some basic shapes and compared to values from MATLAB
     xpoints = [0.0, 1.1, 1.1, 2.0]

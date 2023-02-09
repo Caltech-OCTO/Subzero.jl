@@ -8,10 +8,10 @@ Also asserts that the ring as at least three elements or else it cannot be made 
 """
 function valid_ringvec!(ring::RingVec{FT}) where {FT<:AbstractFloat}
     deleteat!(ring, findall(i->ring[i]==ring[i+1], collect(1:length(ring)-1)))
-    @assert length(ring) > 2 "Polgon needs at least 3 distinct points."
     if ring[1] != ring[end]
         push!(ring, ring[1])
     end
+    @assert length(ring) > 3 "Polgon needs at least 3 distinct points."
     return ring
 end
 
@@ -254,6 +254,39 @@ function polyedge(p1, p2, t::Type{T} = Float64) where T
 end
 
 """
+    orient_coords(coords::RingVec{T}) where T
+
+Take given coordinates and make it so that the first point has the smallest x-coordiante
+and so that the coordinates are ordered in a clockwise sequence. Duplicates vertices will
+be removed and the coordiantes will be closed (first and last point are the same).
+
+Input:
+        coords  <RingVec> vector of points [x, y]
+Output:
+        coords  <RingVec> oriented clockwise with smallest x-coordinate first
+"""
+function orient_coords(coords::RingVec{T}) where T
+    extreem_idx = 1  # find point with smallest x-value - if tie, choose lowest y-value
+    for i in eachindex(coords)
+        ipoint = coords[i]
+        epoint = coords[extreem_idx]
+        if ipoint[1] < epoint[1]
+            extreem_idx = i
+        elseif ipoint[1] == epoint[1] && ipoint[2] < epoint[2]
+            extreem_idx = i
+        end
+    end
+    coords = circshift(coords, -extreem_idx + 1) # extreem point is first point in list
+    valid_ringvec!(coords)  # delete repeats and make sure ringvec is closed
+
+    orient_matrix = hcat(ones(T, 3), vcat(coords[1]', coords[2]', coords[end-1]'))
+    if det(orient_matrix) > 0  # if coords are counterclockwise, switch to clockwise
+        reverse!(coords)
+    end
+    return coords
+end
+
+"""
     convex_angle_test(coords::RingVec{T}, t::Type{T} = Float64)
 
 Determine which angles in the polygon are convex, with the assumption that the first angle is convex, no other
@@ -268,7 +301,6 @@ Outputs:
         if it is -1 then the angle is concave.
 """
 function convex_angle_test(coords::RingVec{T}, ::Type{T} = Float64) where T
-    valid_ringvec!(coords)
     L = 10^25
     # Extreme points used in following loop, apended by a 1 for dot product
     top_left = [-L, -L, 1]
@@ -318,13 +350,13 @@ end
 """
     calc_poly_angles(coords::PolyVec{T}, ::Type{T} = Float64))
 
-Computes internal polygon angles (in degrees) of an arbitrary polygon given the coordinates ordered in a clockwise manner.
+Computes internal polygon angles (in degrees) of an arbitrary simple polygon.
 The program eliminates duplicate points, except that the first row must equal the last, so that the polygon is closed.
 Inputs:
         coords  <PolyVec{Float}> coordinates from a polygon
         t       <AbstractFloat> datatype to run model with - must be a Float!
 Outputs:
-        Vector of polygon's interior angles
+        Vector of polygon's interior angles in degrees
 
 Note - Translated into Julia from the following program (including helper functions convex_angle_test and polyedge):
 Copyright 2002-2004 R. C. Gonzalez, R. E. Woods, & S. L. Eddins
@@ -332,7 +364,7 @@ Digital Image Processing Using MATLAB, Prentice-Hall, 2004
 Revision: 1.6 Date: 2003/11/21 14:44:06
 """
 function calc_poly_angles(coords::PolyVec{T}, ::Type{T} = Float64) where {T<:AbstractFloat}
-    ext = valid_polyvec!(coords)[1]
+    ext = orient_coords(coords[1]) # ignore any holes in the polygon
     # Calculate needed vectors
     pdiff = diff(ext)
     npoints = length(pdiff)

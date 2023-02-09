@@ -834,7 +834,10 @@ Floe(coords::PolyVec{<:Real}, h_mean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0
 
 
 function initialize_floe_field(coords::Vector{PolyVec}, h_mean, Δh; ρi = 920.0, mc_n = 1000, t::Type{T} = Float64) where T
-    return StructArray([Floe(c, h_mean, Δh, ρi = ρi, mc_n = mc_n, t = T) for c in coords])
+    floe_arr = StructArray([Floe(c, h_mean, Δh, ρi = ρi, mc_n = mc_n, t = T) for c in coords])
+    # Initialize floe IDs
+    floe_arr.id .= range(1, length(floe_arr))
+    return floe_arr
 end
 
 
@@ -899,7 +902,9 @@ function initialize_floe_field(nfloes::Int, concentrations, domain, h_mean, Δh;
                 end
             end
         end
-    end  
+    end
+    # Initialize floe IDs
+    floe_arr.id .= range(1, length(floe_arr))
     return floe_arr
 end
 
