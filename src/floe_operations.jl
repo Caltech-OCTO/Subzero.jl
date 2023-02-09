@@ -199,10 +199,12 @@ Note: Assumes that first and last point within the coordinates are the same. Wil
 
 Based on paper: Marin, Joaquin."Computing columns, footings and gates through moments of area." Computers & Structures 18.2 (1984): 343-349.
 """
-function calc_moment_inertia(coords::PolyVec{T}, h; ρi = 920.0) where {T<:AbstractFloat}
+function calc_moment_inertia(coords::PolyVec{T}, centroid, h; ρi = 920.0) where {T<:AbstractFloat}
     x, y = seperate_xy(coords)
+    x .-= centroid[1]
+    y .-= centroid[2]
     N = length(x)
-    wi = x[1:N-1] .* y[2:N] - x[2:N] .* y[1:N-1];
+    wi = x[1:N-1] .* y[2:N] - x[2:N] .* y[1:N-1]
     Ixx = 1/12 * sum(wi .* ((y[1:N-1] + y[2:N]).^2 - y[1:N-1] .* y[2:N]))
     Iyy = 1/12 * sum(wi .* ((x[1:N-1] + x[2:N]).^2 - x[1:N-1] .* x[2:N]))
     return abs(Ixx + Iyy)*h*ρi;
@@ -217,10 +219,8 @@ Inputs: poly      LibGEOS.Polygon
         rhoice      <Real> Density of ice
 Output: mass moment of inertia <Float>
 """
-function calc_moment_inertia(poly::LG.Polygon, h; ρi = 920.0)
-    return calc_moment_inertia(LG.GeoInterface.coordinates(poly),
-                               h, ρi = 920.0)
-end
+calc_moment_inertia(poly::LG.Polygon, h; ρi = 920.0) = 
+    calc_moment_inertia(LG.GeoInterface.coordinates(poly), LG.GeoInterface.coordinates(LG.centroid(poly)), h, ρi = ρi)
 
 """
     polyedge(p1, p2, t::Type{T} = Float64)

@@ -35,7 +35,16 @@ export
     InitialStateOutputWriter,
     GridOutput,
     FloeOutput,
-    add_ghosts!
+    add_ghosts!,
+    # Interaction field enum and elements
+    InteractionFields,
+    floeidx,
+    xforce,
+    yforce,
+    xpoint,
+    ypoint,
+    torque,
+    overlap
 
 import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG

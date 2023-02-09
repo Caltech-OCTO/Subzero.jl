@@ -76,13 +76,12 @@
     @test y_ext == [1.0, 0.0, 0.0, 1.0, 1.0]
 
     # Test moment of intertia calculations - compared to values output my MATLAB
-    poly_moment = Subzero.calc_moment_inertia([ext], 0.25)
-    @test isapprox(poly_moment, 153.333, atol = 0.001)
+    poly_moment = Subzero.calc_moment_inertia([ext], [0.5, 0.5], 0.25)
+    @test isapprox(poly_moment, 38.333, atol = 0.001)
     @test Subzero.calc_moment_inertia(poly_nohole, 0.25) == poly_moment
-    @test Subzero.calc_moment_inertia(poly_hole1, 0.25) == poly_moment
     tri_coords = [[[0, 1], [0, 0], [1, 0], [0, 1]]] .* 6.67
-    tri_moment = Subzero.calc_moment_inertia(tri_coords, 0.5)
-    @test isapprox(tri_moment, 151743.437, atol = 0.001)
+    tri_moment = Subzero.calc_moment_inertia(LibGEOS.Polygon(tri_coords), 0.5)
+    @test isapprox(tri_moment, 50581.145, atol = 0.001)
 
     # Test polygon angles - some basic shapes and then compared to values from MATLAB
     rect_coords = [[[1.0, 1.0], [1.0, 2.0], [2.0, 2.0], [2.0, 1.0]]]

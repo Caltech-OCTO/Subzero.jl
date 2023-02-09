@@ -63,7 +63,7 @@ Inputs:
         plot_size   <Tuple(Int, Int)> size of output gif in pixels - default (1500, 1500)
 Outputs: Saves simulation gif with floes and topography plotted.
 """
-function create_sim_gif(floe_pn, init_pn, output_fn, plot_size = (1500, 1500))
+function create_sim_gif(floe_pn, init_pn, output_fn; plot_size = (1500, 1500), fps = 15)
     # Get floe data
     floe_data = jldopen(floe_pn, "r")
     alive = floe_data["alive"]
@@ -76,14 +76,13 @@ function create_sim_gif(floe_pn, init_pn, output_fn, plot_size = (1500, 1500))
         new_frame = plot(plt)
         verts = Subzero.seperate_xy.(coords[t])
         for i in eachindex(verts)
-            if alive[t][i] == 1
+            if alive[t][i]
                 plot!(new_frame, first(verts[i])./1000, last(verts[i])./1000, seriestype = [:shape,], fill = :lightblue, legend=false)
             end
         end
     end
     JLD2.close(floe_data)
-    println("closed file")
-    gif(anim, output_fn, fps = 15)
+    gif(anim, output_fn, fps = fps)
     return
 end
 
@@ -148,7 +147,7 @@ function plot_sim_timestep(model, plt, time)
     # Plot Floes --> only plot "alive" floes
     floe_coords = model.floes.coords
     floe_alive = model.floes.alive
-    plot!(plt_new, [LG.Polygon([floe_coords[i][1] ./ 1000]) for i in eachindex(floe_coords) if floe_alive[i] == 1], fill = :lightblue)
+    plot!(plt_new, [LG.Polygon([floe_coords[i][1] ./ 1000]) for i in eachindex(floe_coords) if floe_alive[i]], fill = :lightblue)
           
     # Save plot
     Plots.savefig(plt_new, "figs/collisions/plot_$time.png")
