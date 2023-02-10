@@ -44,7 +44,8 @@ export
     xpoint,
     ypoint,
     torque,
-    overlap
+    overlap, 
+    initialize_floe_field
 
 import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG
@@ -69,7 +70,8 @@ This form is for each conversion to LibGEOS LinearRings, which can also be made 
 """
 const RingVec{T} = Vector{Vector{T}} where T<:AbstractFloat
 
-include("floe_operations.jl")
+include("floe.jl")
+include("floe_utils.jl")
 include("model.jl")
 include("simulation.jl")
 include("plotting.jl")

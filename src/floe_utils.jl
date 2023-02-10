@@ -543,7 +543,20 @@ function intersect_lines(l1, l2)
     return P
 end
 
-function cutpolygon_coords(poly_coords, yp, ::Type{T} = Float64) where T
+"""
+    cut_polygon_coords(poly_coords::PolyVec, yp, ::Type{T} = Float64)
+
+Cut polygon through the line y = yp and return the polygon(s) coordinates below the line
+Inputs:
+        poly_coords <PolyVec>   polygon coordinates
+        yp          <Float>     value of line to split polygon through using line y = yp
+                    <Type>      Type of abstract float to run simulation with
+Outputs:
+        new_polygons <Vector{PolyVec}> List of coordinates of polygons below line y = yp. 
+Note: Code translated from MATLAB to Julia. Credit for initial code to Dominik Brands (2010)
+       and Jasper Menger (2009). Only needed pieces of function are translated (horizonal cut).
+"""
+function cut_polygon_coords(poly_coords::PolyVec, yp, ::Type{T} = Float64) where T
     # Loop through each edge
     coord1 = poly_coords[1][1:end-1]
     coord2 = poly_coords[1][2:end]
@@ -562,7 +575,7 @@ function cutpolygon_coords(poly_coords, yp, ::Type{T} = Float64) where T
             coord2[i] = [(yp - y1)/(y2 - y1) * (x2 - x1) + x1, yp]
         end
     end
-    # Add unique points to coordinate list for new polygon
+    # Add non-repeat points to coordinate list for new polygon
     new_poly_coords = [coord1[1]]
     for i in eachindex(coord1)
         if !isequal(coord1[i], new_poly_coords[end])
@@ -576,7 +589,7 @@ function cutpolygon_coords(poly_coords, yp, ::Type{T} = Float64) where T
     new_polygons = Vector{PolyVec{T}}()
     # Multiple NaN's indicate new polygon if they seperate coordinates
     nanidx_all = findall(c -> isnan(sum(c)), new_poly_coords)
-    # If no NaNs, just add to list
+    # If no NaNs, just add coordiantes to list
     if isempty(nanidx_all)
         if new_poly_coords[1] != new_poly_coords[end]
             push!(new_poly_coords, new_poly_coords[1])
@@ -612,15 +625,31 @@ function cutpolygon_coords(poly_coords, yp, ::Type{T} = Float64) where T
 end
 
 """
-Assumes that polygon provided has a hole! If not, it will error.
+    split_polygon_hole(poly::LG.Polygon, ::Type{T} = Float64)
+
+Splits polygon horizontally through first hole and return lists of polygons created by split.
+Inputs:
+        poly    <LG.Polygon> polygon to split
+                <Type> Float type to run simulation with
+Outputs:
+    <(Vector{LibGEOS.Polyon}, (Vector{LibGEOS.Polyon}>
+    list of polygons created from split through first hole below line and polygons through first hole above line.
+    Note that if there is no hole, a list of the original polygon and an empty list will be returned
 """
 function split_polygon_hole(poly::LG.Polygon, ::Type{T} = Float64) where T
-    poly_coords = LG.GeoInterface.coordinates(poly)
-    full_coords = [poly_coords[1]]  # Without any holes
-    h1 = LG.Polygon([poly_coords[2]])
-    h1_center = LG.GeoInterface.coordinates(LG.centroid(h1))
-    poly_bottom = LG.MultiPolygon(cutpolygon_coords(full_coords, h1_center[2], T))
-    poly_bottom =  LG.intersection(poly_bottom, poly)
-    poly_top = LG.difference(poly, poly_bottom)
-    return LG.getGeometries(poly_bottom), LG.getGeometries(poly_top)
+    bottom_list = Vector{LG.Polygon}()
+    top_list = Vector{LG.Polygon}()
+    if hashole(poly)  # Polygon has a hole
+        poly_coords = LG.GeoInterface.coordinates(poly)
+        full_coords = [poly_coords[1]]
+        h1 = LG.Polygon([poly_coords[2]])  # First hole
+        h1_center = LG.GeoInterface.coordinates(LG.centroid(h1))
+        poly_bottom = LG.MultiPolygon(cut_polygon_coords(full_coords, h1_center[2], T))
+        poly_bottom =  LG.intersection(poly_bottom, poly)  # Adds in any other holes in poly
+        poly_top = LG.difference(poly, poly_bottom)
+        bottom_list, top_list = LG.getGeometries(poly_bottom), LG.getGeometries(poly_top)
+    else  # No hole
+        bottom_list, top_list = Vector{LG.Polygon}([poly]), Vector{LG.Polygon}()
+    end
+    return bottom_list, top_list
 end

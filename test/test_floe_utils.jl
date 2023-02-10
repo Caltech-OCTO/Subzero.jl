@@ -1,4 +1,4 @@
-@testset "Floe Operations" begin
+@testset "Floe Utils" begin
     ext = [[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
     hole1 = [[0.2, 0.3], [0.2, 0.2], [0.3, 0.2], [0.3, 0.3], [0.2, 0.3]]
     hole2 = [[0.5, 0.6], [0.5, 0.5], [0.6, 0.5], [0.6, 0.6], [0.5, 0.6]]
@@ -122,7 +122,7 @@
     # ------------------------- Test cutting polygon through horizontal line -------------------------
     # Cut a hexagon through the line y = -1
     poly_coords = [[[2.0, -3.0], [0.0, 0.0], [2.0, 2.0], [6.0, 2.0], [8.0, 0.0], [6.0, -3.0], [2.0, -3.0]]]
-    poly = LibGEOS.Polygon(Subzero.cutpolygon_coords(poly_coords, -1)[1])
+    poly = LibGEOS.Polygon(Subzero.cut_polygon_coords(poly_coords, -1)[1])
     @test LibGEOS.isValid(poly)
     cut_coords = [[[2.0, -3.0], [2-4/3, -1.0], [22/3, -1.0], [6.0, -3.0], [2.0, -3.0]]]
     @test Set(cut_coords[1]) == Set(LibGEOS.GeoInterface.coordinates(poly)[1])
@@ -131,7 +131,7 @@
     # Cut a c-shaped polygon through the line y = 5, creating two polygons
     poly_coords = [[[0.0, 0.0], [0.0, 10.0], [10.0, 10.0], [10.0, 0.0], [4.0, 0.0],
                     [4.0, 6.0], [2.0, 6.0], [2.0, 0.0], [0.0, 0.0]]]
-    poly1_coords, poly2_coords = Subzero.cutpolygon_coords(poly_coords, 5)
+    poly1_coords, poly2_coords = Subzero.cut_polygon_coords(poly_coords, 5)
     poly1 = LibGEOS.Polygon(poly1_coords)
     poly2 = LibGEOS.Polygon(poly2_coords)
     @test LibGEOS.isValid(poly1)
@@ -141,19 +141,26 @@
 
     # Cut a triangle through the line y = -10 so only its tip is left -> No polygon
     poly_coords = [[[0.0, 0.0], [10.0, 0.0], [5.0, -10.0], [0.0, 0.0]]]
-    poly = Subzero.cutpolygon_coords(poly_coords, -10)
+    poly = Subzero.cut_polygon_coords(poly_coords, -10)
     @test isempty(poly)
 
     # Cut a rectangle through the line y = 0 so only its bottom edge is left -> No polygon
     poly_coords = [[[0.0, 0.0], [0.0, 5.0], [10.0, 5.0], [10.0, 0.0], [0.0, 0.0]]]
-    poly = Subzero.cutpolygon_coords(poly_coords, 0)
+    poly = Subzero.cut_polygon_coords(poly_coords, 0)
     @test isempty(poly)
 
     # Cut a rectangle through the line y = -10 so no polygon is left
-    poly = Subzero.cutpolygon_coords(poly_coords, -10)
+    poly = Subzero.cut_polygon_coords(poly_coords, -10)
     @test isempty(poly)
 
     # ------------------------- Test polygon splitting through hole -------------------------
+    # Polygon with no holes -> returns original polygon and an empty list
+    poly_coords = [[[0.0, 0.0], [0.0, 5.0], [10.0, 5.0], [10.0, 0.0], [0.0, 0.0]]]
+    poly_bottom, poly_top = Subzero.split_polygon_hole(LibGEOS.Polygon(poly_coords))
+    @test length(poly_bottom) == 1
+    @test length(poly_top) == 0
+    @test LibGEOS.area(LibGEOS.difference(poly_bottom[1], LibGEOS.Polygon(poly_coords))) == 0
+    # Polygon with one hole -> creates two polygons
     poly_coords = [[[0.0, 0.0], [0.0, 5.0], [10.0, 5.0], [10.0, 0.0], [0.0, 0.0]],
                    [[3.0, 2.0], [3.0, 4.0], [6.0, 4.0], [6.0, 2.0], [3.0, 2.0]]]  # hole!
     poly_bottom, poly_top = Subzero.split_polygon_hole(LibGEOS.Polygon(poly_coords))
@@ -162,7 +169,7 @@
     @test length(poly_bottom) == length(poly_top) == 1
     @test LibGEOS.area(LibGEOS.difference(poly_bottom[1], LibGEOS.Polygon(poly_bottom_coords))) == 0
     @test LibGEOS.area(LibGEOS.difference(poly_top[1], LibGEOS.Polygon(poly_top_coords))) == 0
-
+    # Polygon with one holes -> creates three polygons 
     poly_coords = [[[0.0, 0.0], [0.0, 10.0], [10.0, 10.0], [10.0, 0.0], [4.0, 0.0],
                     [4.0, 6.0], [2.0, 6.0], [2.0, 0.0], [0.0, 0.0]], 
                    [[6.0, 4.0], [6.0, 6.0], [7.0, 6.0], [7.0, 4.0], [6.0, 4.0]]]

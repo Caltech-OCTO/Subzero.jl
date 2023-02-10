@@ -2,7 +2,7 @@ using Subzero, LibGEOS, JLD2, NCDatasets, StructArrays, SplitApplyCombine, Stati
 using Test
 
 @testset "Subzero.jl" begin
-    include("test_floe_operations.jl")
+    include("test_floe_utils.jl")
     include("test_model.jl")
     #include("test_coupling.jl")
     #include("test_collisions.jl")
