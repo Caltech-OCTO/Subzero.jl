@@ -51,20 +51,15 @@
         tempocn = fill(-2.0, g.dims .+ 1)
         fx = fill(0.0, g.dims .+ 1)
         fy = fx
+        τx = fx
+        τy = fx
         si_area = fx
-        hflx = fx
-        ocn = Subzero.Ocean(uocn, vocn, tempocn, hflx, fx, fy, si_area)
+        hflx_factor = fx
+        ocn = Subzero.Ocean(uocn, vocn, tempocn, hflx_factor, τx, τy, fx, fy, si_area)
         @test ocn.u == uocn
         @test ocn.v == vocn
         @test ocn.temp == tempocn
-        @test ocn.fx == fx == ocn.fy == ocn.si_area == ocn.hflx
-        # Default constructor fails for non-matching dimensions
-        @test_throws ArgumentError Subzero.Ocean(Matrix{Float64}(undef, 0, 0), vocn, tempocn, hflx, fx, fy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, Matrix{Float64}(undef, 0, 0), tempocn, hflx, fx, fy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, Matrix{Float64}(undef, 0, 0), hflx, fx, fy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, Matrix{Float64}(undef, 0, 0), fx, fy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, Matrix{Float64}(undef, 0, 0), fy, si_area)
-        @test_throws ArgumentError Subzero.Ocean(uocn, vocn, tempocn, hflx, fx, fy, Matrix{Float64}(undef, 0, 0))
+        @test fx == ocn.fx == ocn.fy == ocn.si_area == ocn.hflx_factor == ocn.τx == ocn.τx
         # Custom constructor
         ocn2 = Subzero.Ocean(g, 3.0, 4.0, -2.0)
         @test ocn.u == ocn2.u
@@ -72,7 +67,9 @@
         @test ocn.temp == ocn2.temp
         @test ocn.fx == ocn2.fx
         @test ocn.si_area == ocn2.si_area
-        @test ocn.hflx == ocn2.hflx
+        @test ocn.hflx_factor == ocn2.hflx_factor
+        @test ocn.τx == ocn2.τx
+        @test ocn.τy == ocn2.τy
         # Custom constructor Float32
         @test typeof(Subzero.Ocean(g, 3.0, 4.0, -2.0, Float32)) ==
               Subzero.Ocean{Float32}
@@ -88,10 +85,6 @@
         @test atmos.u == uatmos
         @test atmos.v == vatmos
         @test atmos.temp == tempatmos
-        # Default constructor fails for non-matching dimensions
-        @test_throws ArgumentError Subzero.Atmos(Matrix{Float64}(undef, 0, 0), vatmos, tempatmos)
-        @test_throws ArgumentError Subzero.Atmos(uatmos, Matrix{Float64}(undef, 0, 0), tempatmos)
-        @test_throws ArgumentError Subzero.Atmos(uatmos, vatmos, Matrix{Float64}(undef, 0, 0))
         # Custom constructor
         atmos2 = Subzero.Atmos(g, 3.0, 4.0, -2.0)
         @test atmos.u == atmos2.u

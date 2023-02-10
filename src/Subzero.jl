@@ -29,17 +29,27 @@ export
     Simulation,
     run!,
     AbstractOutputWriter,
+    CheckpointOutputWriter,
     GridOutputWriter, 
     FloeOutputWriter,
+    InitialStateOutputWriter,
     GridOutput,
     FloeOutput,
-    add_ghosts!
+    add_ghosts!,
+    # Interaction field enum and elements
+    InteractionFields,
+    floeidx,
+    xforce,
+    yforce,
+    xpoint,
+    ypoint,
+    torque,
+    overlap
 
 import LibGEOS as LG
 import Base.@kwdef # this is being exported as of version 1.9
 using NCDatasets, Plots, StructArrays, Statistics, LinearAlgebra
 using PolygonInbounds, NamedArrays, Interpolations, JLD2, DataStructures
-
 
 """
 Coordinates are vector of vector of vector of points of the form:

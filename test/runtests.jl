@@ -1,4 +1,4 @@
-using Subzero, LibGEOS, JLD2, StructArrays, SplitApplyCombine
+using Subzero, LibGEOS, JLD2, NCDatasets, StructArrays, SplitApplyCombine, Statistics
 using Test
 
 @testset "Subzero.jl" begin
@@ -6,5 +6,6 @@ using Test
     include("test_model.jl")
     include("test_coupling.jl")
     include("test_collisions.jl")
+    include("test_output.jl")
     #include("test_simulation.jl")
 end

@@ -13,60 +13,7 @@ function grids_from_lines(xlines, ylines)
     return xgrid, ygrid
 end
 
-"""
-    domain_xycoords(domain::Domain)
-
-X-y coordinates for a rectangle in shape of given domain to be used for plotting.
-Inputs:
-        domain <Domain>
-Outputs:
-        x-coordinates <Float Vector>
-        y-coordinates <Float Vector>
-"""
-function domain_xycoords(domain::Domain)
-    north = domain.north.val
-    south = domain.south.val
-    east = domain.east.val
-    west = domain.west.val
-    return [west, west, east, east, west], [north, south, south, north, north]
-end
-
-"""
-    setup_plot(model::Model)
-
-Plots grid lines, model domain, and model topology on a plot with a ratio determined by the grid coordinates.
-Used for plotting during simulation, mainly for debugging purposes. 
-These qualities only need to be plotted/set once as they cannot change during the simulation.
-
-Inputs:
-        model <Model>
-Output:
-        plt <Plots.Plot> with gridlines and aspect ratio set and model domain and topology plotted
-"""
-function setup_plot(model::Model)
-    # Plot Grid Lines and set image ratio
-    xmax = model.grid.xg[end]/1000  # kilometers
-    ymax = model.grid.yg[end]/1000 # kilometers
-    ratio = ymax/xmax
-    plt = Plots.plot(xlims = (model.grid.xg[1]/1000, xmax),
-                     ylims = (model.grid.yg[1]/1000, ymax),
-                     size = (1500, 1200),
-                     aspect_ratio=ratio,
-                     xlabel = "[km]",
-                     ylabel = "[km]")
-    # Plot Domain Border
-    domainx, domainy = domain_xycoords(model.domain)
-    plot!(plt, domainx./1000, domainy./1000 , seriestype = [:shape],
-          linecolor = :black, fillalpha = 0.0, lw = 2, legend=false)
-
-    # Plot Topology
-    if !isempty(model.domain.topography)
-        topo_coords = model.domain.topography.coords
-        plot!(plt, [LG.Polygon([c[1] ./ 1000]) for c in topo_coords],
-              fill = :grey)
-    end
-    return plt
-end
+#------------------ Plotting from FloeWriter Files Post-Simulation ------------------#
 
 """
     setup_plot(domain_data::String, plot_size = (1500, 1200))
@@ -79,11 +26,10 @@ Inputs:
 Outputs:
         Plot with x and y xlim determed by domain and including all topography. 
 """
-function setup_plot(domain_fn::String, plot_size = (1500, 1500))
+function setup_plot(init_pn::String, plot_size = (1500, 1500))
     # Open file to get needed values
-    file = jldopen(domain_fn, "r")
-    d = file["domain"]
-    JLD2.close(file)
+    file = jldopen(init_pn, "r")
+    d = file["sim"].model.domain
     
     xmin = d.west.val/1000
     xmax = d.east.val/1000
@@ -99,8 +45,80 @@ function setup_plot(domain_fn::String, plot_size = (1500, 1500))
                         xlabel = "[km]",
                         ylabel = "[km]")
     if !isempty(d.topography)
-        topo_coords = d.topography.coords
-        plot!(plt, [LG.Polygon([c[1] ./ 1000]) for c in topo_coords], fillcolor = :grey)
+        topo_coords = seperate_xy.(d.topography.coords)
+        plot!(plt, first.(topo_coords)./1000, last.(topo_coords)./1000, seriestype = [:shape,], fill = :grey, legend=false)
+    end
+    JLD2.close(file)
+    return plt
+end
+
+"""
+    create_sim_gif(floes_pn, domain_fn, output_fn, plot_size = (1500, 1500))
+
+Create a gif of a simulation given a file with domain information and floe information from a floe output writer.
+Inputs:
+        floes_pn    <String> file path to file output by floe output writer that inclues coordinate and alive fields
+        init_pn   <String> file path to JLD2 file holding domain struct information
+        output_fn   <String> file path to save gif
+        plot_size   <Tuple(Int, Int)> size of output gif in pixels - default (1500, 1500)
+Outputs: Saves simulation gif with floes and topography plotted.
+"""
+function create_sim_gif(floe_pn, init_pn, output_fn; plot_size = (1500, 1500), fps = 15)
+    # Get floe data
+    floe_data = jldopen(floe_pn, "r")
+    alive = floe_data["alive"]
+    coords = floe_data["coords"]
+    # Plot floe data
+    plt = setup_plot(init_pn, plot_size)
+    times = keys(alive)
+    anim = @animate for t in times
+        new_frame = plot(plt)
+        verts = Subzero.seperate_xy.(coords[t])
+        for i in eachindex(verts)
+            if alive[t][i]
+                plot!(new_frame, first(verts[i])./1000, last(verts[i])./1000, seriestype = [:shape,], fill = :lightblue, legend=false)
+            end
+        end
+    end
+    JLD2.close(floe_data)
+    gif(anim, output_fn, fps = fps)
+    return
+end
+
+#------------------ Plotting for Debugging During Simulation Run ------------------#
+
+"""
+    setup_plot(model::Model)
+
+Plots grid lines, model domain, and model topology on a plot with a ratio determined by the grid coordinates.
+Used for plotting during simulation, mainly for debugging purposes. 
+These qualities only need to be plotted/set once as they cannot change during the simulation.
+
+Inputs:
+        model <Model>
+Output:
+        plt <Plots.Plot> with gridlines and aspect ratio set and model domain and topology plotted
+"""
+function setup_plot(model::Model)
+    # Plot Grid Lines and set image ratio
+    xmin = model.domain.west.val/1000
+    xmax = model.domain.east.val/1000
+    ymin = model.domain.south.val/1000
+    ymax = model.domain.north.val/1000
+
+    # Plot domain using file data
+    ratio = (ymax-ymin)/(xmax-xmin)
+    plt = Plots.plot(xlims = (xmin, xmax),
+                        ylims = (ymin, ymax),
+                        size = plot_size,
+                        aspect_ratio=ratio,
+                        xlabel = "[km]",
+                        ylabel = "[km]")
+
+    # Plot Topology
+    if !isempty(model.domain.topography)
+        topo_coords = model.domain.topography.coords
+        plot!(plt, [LG.Polygon([c[1] ./ 1000]) for c in topo_coords], fill = :grey)
     end
     return plt
 end
@@ -128,35 +146,8 @@ function plot_sim_timestep(model, plt, time)
     # Plot Floes --> only plot "alive" floes
     floe_coords = model.floes.coords
     floe_alive = model.floes.alive
-    plot!(plt_new, [LG.Polygon([floe_coords[i][1] ./ 1000]) for i in eachindex(floe_coords) if floe_alive[i] == 1], fill = :lightblue)
+    plot!(plt_new, [LG.Polygon([floe_coords[i][1] ./ 1000]) for i in eachindex(floe_coords) if floe_alive[i]], fill = :lightblue)
           
     # Save plot
     Plots.savefig(plt_new, "figs/collisions/plot_$time.png")
-end
-
-"""
-    create_sim_gif(floes_fn, domian_fn)
-
-Create a gif of a simulation given a file with domain information and floe information from a floe output writer.
-Inputs:
-        floes_fn    <String> file path to file output by floe output writer that inclues coordinate and alive fields
-        domain_fn   <String> file path to JLD2 file holding domain struct information
-Outputs: Saves simulation gif with floes and topography plotted.
-"""
-function create_sim_gif(floes_fn, domain_fn, output_fn, plot_size = (1500, 1500))
-    NCDataset(floes_fn) do sim_data # TODO: Change this if we don't want NetCDFs
-        plt = setup_plot(domain_fn, plot_size)  # Uses JLD2
-        anim = @animate for tstep in eachindex(sim_data["time"][:])
-            new_frame = plot(plt)
-            for i in eachindex(sim_data["floes"][:])
-                if sim_data["alive"][tstep, i] == 1
-                    plot!(new_frame, sim_data["xcoords"][tstep, i, :]./1000,
-                                     sim_data["ycoords"][tstep, i, :]./1000,
-                                     seriestype = [:shape,], fill = :lightblue, legend=false)
-                end
-            end
-        end
-        gif(anim, output_fn, fps = 15)
-    end
-    return
 end
