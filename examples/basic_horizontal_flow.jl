@@ -1,4 +1,4 @@
-using Subzero, StructArrays, Statistics, JLD2, SplitApplyCombine
+using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero
 import LibGEOS as LG
 
 # User Inputs
@@ -45,7 +45,7 @@ domain = Domain(nboundary, sboundary, eboundary, wboundary)
 #floe_arr.u[1] = 1
 #floe_arr.v[1] = 1
 #floe_arr.u[2] = 1
-floe_arr = initialize_floe_field(50, [1], domain, 0.5, 0.0)
+floe_arr = initialize_floe_field(50, [1], domain, 0.5, 0.0, rng = Xoshiro(1))
 #model = Model(grid, ocean, atmos, domain, floe_arr)
 
 # Simulation setup

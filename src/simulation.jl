@@ -31,9 +31,8 @@ Simulation which holds a model and parameters needed for running the simulation.
     RAFTING (floe rafting enabled), RIDGING (floe ridging enabled), and WELDING (floe welding enabled). All are false by default.
 """
 @kwdef struct Simulation{FT<:AbstractFloat, GT<:AbstractGrid, DT<:Domain}
-    model::Model{FT, GT, DT}            # Model to simulate
-    consts::Constants{FT}           # Constants used in simulation
-    name::String = "sim"            # Simulation name for saving output
+    model::Model{FT, GT, DT}        # Model to simulate
+    consts::Constants{FT}           # Constants used in Simulation
     Δd::Int = 1                     # Number of buffer grid cells on each side of floe for monte carlo interpolation
     verbose::Bool = false           # String output printed during run
     # Timesteps ----------------------------------------------------------------
@@ -203,7 +202,7 @@ Outputs:
 """
 function run!(sim, writers, ::Type{T} = Float64) where T
     # Start simulation
-    sim.verbose && println(string(sim.name ," running!"))
+    sim.verbose && println("Simulation running!")
     tstep = 0
     while tstep <= sim.nΔt
         if sim.verbose && mod(tstep, 50) == 0
@@ -213,5 +212,5 @@ function run!(sim, writers, ::Type{T} = Float64) where T
         timestep_sim!(sim, tstep, writers, T)
         tstep+=1
     end
-    sim.verbose && println(string(sim.name ," done running!"))
+    sim.verbose && println("Simulation done running!")
 end

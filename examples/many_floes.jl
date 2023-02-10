@@ -34,7 +34,7 @@ domain = Subzero.Domain(nboundary, sboundary, eboundary, wboundary)
 nfloes = 100
 file = jldopen("examples/floe_shapes.jld2", "r")
 nfloes = nfloes > size(file["floe_vertices"], 1) ? size(file["floe_vertices"], 1) : nfloes
-floe_coords = file["floe_vertices"][1:nfloes]
+floe_coords = file["floe_vertices"][1:1]
 floe_arr = initialize_floe_field(floe_coords, domain, h_mean, Δh)
 close(file)
 

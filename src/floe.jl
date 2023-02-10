@@ -16,8 +16,8 @@ Singular sea ice floe with fields describing current state.
     moment::FT              # mass moment of intertia
     angles::Vector{FT}      # interior angles of floe
     # Monte Carlo Points ---------------------------------------------------
-    mc_x::Vector{FT}        # x-coordinates for monte carlo integration
-    mc_y::Vector{FT}        # y-coordinates for monte carlo integration
+    mc_x::Vector{FT}        # x-coordinates for monte carlo integration centered at origin
+    mc_y::Vector{FT}        # y-coordinates for monte carlo integration centered at origin
     # Velocity/Orientation -------------------------------------------------
     α::FT = 0.0             # floe rotation from starting position in radians
     u::FT = 0.0             # floe x-velocity
@@ -69,24 +69,41 @@ Base.to_index(s::InteractionFields) = Int(s)
 Generate monte carlo points, determine which are within the given floe, and the error associated with the points
 Inputs:
         npoints     <Int> number of points to generate
-        xfloe       <Vector{Float}> vector of floe x-coordinates
-        yfloe       <Vector{Float}> vector of floe y-coordinates
+        xfloe       <Vector{Float}> vector of floe x-coordinates centered on the origin
+        yfloe       <Vector{Float}> vector of floe y-coordinates centered on the origin
         rmax        <Int> floe maximum radius
         area        <Int> floe area
+        alive       <Bool> true if floe is alive (i.e. will continue in the simulation), else false
+        rng         <RNG> random number generator to generate monte carlo points
         T           <Float> datatype simulation is run in - either Float64 of Float32
 Outputs:
-        mc_x        <Vector{T}> vector of monte carlo point x-coordinates
-        mc_y        <Vector{T}> vector of monte carlo point y-coordinates
-        mc_in       <Vector{Bool}> vector of bools representing if each
-                                   monte carlo point is within the given polygon
-        err         <Float> error associated with given monte carlo points
+        mc_x        <Vector{T}> vector of monte carlo point x-coordinates that are within floe
+        mc_y        <Vector{T}> vector of monte carlo point y-coordinates that are within floe
+        alive       <Bool> true if floe is alive (i.e. will continue in the simulation), else false
+Note: You will not end up with npoints. This is the number originally generated, but any not in the floe are deleted.
+The more oblong the floe shape, the less points. 
 """
-function generate_mc_points(npoints, xfloe, yfloe, rmax, area, ::Type{T} = Float64) where T
-    mc_x = rmax * (2rand(T, Int(npoints)) .- 1)
-    mc_y = rmax * (2rand(T, Int(npoints)) .- 1)
-    mc_in = inpoly2(hcat(mc_x, mc_y), hcat(xfloe, yfloe))
-    err = abs(sum(mc_in)/npoints * 4 * rmax^2 - area)/area
-    return mc_x, mc_y, mc_in, err
+function generate_mc_points(npoints, xfloe, yfloe, rmax, area, alive, rng, ::Type{T} = Float64) where T
+    count = 1
+    err = T(1)
+    mc_x = zeros(T, npoints)
+    mc_y = zeros(T, npoints)
+    mc_in = fill(false, npoints)
+    while err > 0.1
+        if count > 10
+            err = 0.0
+            alive = false
+        else
+            mc_x .= rmax * (2rand(rng, T, Int(npoints)) .- 1)
+            mc_y .= rmax * (2rand(rng, T, Int(npoints)) .- 1)
+            in_on = inpoly2(hcat(mc_x, mc_y), hcat(xfloe, yfloe))
+            mc_in .= in_on[:, 1] .|  in_on[:, 2]
+            err = abs(sum(mc_in)/npoints * 4 * rmax^2 - area)/area
+            count += 1
+        end
+    end
+
+    return mc_x[mc_in], mc_y[mc_in], alive
 end
 
 """
@@ -97,12 +114,14 @@ Inputs:
         poly        <LibGEOS.Polygon> 
         h_mean      <Real> mean height for floes
         Δh          <Real> variability in height for floes
-        grid        <Grid>
+        grid        <Grid> simulation grid
         ρi          <Real> ice density kg/m3 - default 920
         u           <Real> x-velocity of the floe - default 0.0
         v           <Real> y-velcoity of the floe - default 0.0
-        ksi         <Real> angular velocity of the floe - default 0.0
+        ξ         <Real> angular velocity of the floe - default 0.0
         mc_n        <Real> number of monte carlo points
+        rng         <RNG> random number generator to generate random floe attributes -
+                          default is RNG using Xoshiro256++ algorithm
         t           <Float> datatype to run simulation with - either Float32 or Float64
 Output:
         Floe with needed fields defined - all default field values used so all forcings start at 0 and floe is "alive".
@@ -112,11 +131,11 @@ Note:
         When this is fixed, this annotation will need to be updated.
         We should only run the model with Float64 right now or else we will be converting the Polygon back and forth all of the time. 
 """
-function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n = 1000.0, t::Type{T} = Float64) where T
+function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n = 1000.0, rng = Xoshiro(), t::Type{T} = Float64) where T
     floe = rmholes(poly)
     # Floe physical properties
     centroid = LG.GeoInterface.coordinates(LG.centroid(floe))::Vector{Float64}
-    height = hmean + (-1)^rand(0:1) * rand() * Δh
+    height = hmean + (-1)^rand(rng, 0:1) * rand(rng) * Δh
     area = LG.area(floe)::Float64
     mass = area * height * ρi
     coords = LG.GeoInterface.coordinates(floe)::PolyVec{Float64}
@@ -124,21 +143,10 @@ function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 
     angles = calc_poly_angles(coords, T)
     origin_coords = translate(coords, -centroid)
     rmax = sqrt(maximum([sum(c.^2) for c in origin_coords[1]]))
+    alive = true
     # Generate Monte Carlo Points
     ox, oy = seperate_xy(origin_coords)
-    count = 0
-    alive = true
-    mc_x, mc_y, mc_in, err = generate_mc_points(mc_n, ox, oy, rmax, area, T)
-    while err > 0.1
-        mc_x, mc_y, mc_in, err = generate_mc_points(mc_n, ox, oy, rmax, area, T)
-        count += 1
-        if count > 10
-            err = 0.0
-            alive = false
-        end
-    end
-    mc_x = mc_x[mc_in[:, 1] .|  mc_in[:, 2]]
-    mc_y = mc_y[mc_in[:, 1] .|  mc_in[:, 2]]
+    mc_x, mc_y, alive = generate_mc_points(mc_n, ox, oy, rmax, area, alive, rng, T)
 
     return Floe(centroid = convert(Vector{T}, centroid), coords = convert(PolyVec{T}, coords),
                 height = convert(T, height), area = convert(T, area), mass = convert(T, mass),
@@ -155,17 +163,20 @@ Inputs:
         coords      <Vector{Vector{Vector{Float64}}}> floe coordinates
         h_mean      <Real> mean height for floes
         Δh          <Real> variability in height for floes
-        grid        <Grid>
-        rho_ice     <Real> ice density kg/m3
+        grid        <Grid> simulationg grid
+        ρi          <Real> ice density kg/m3 - default 920
         u           <Real> x-velocity of the floe - default 0.0
         v           <Real> y-velcoity of the floe - default 0.0
-        ksi         <Real> angular velocity of the floe - default 0.0
-        t           <Type> datatype to convert ocean fields - must be a Float!
+        ξ           <Real> angular velocity of the floe - default 0.0
+        mc_n        <Real> number of monte carlo points
+        rng         <RNG> random number generator to generate random floe attributes -
+                          default is RNG using Xoshiro256++ algorithm
+        t           <Float> datatype to run simulation with - either Float32 or Float64
 Output:
         Floe with needed fields defined - all default field values used so all forcings and velocities start at 0 and floe is "alive"
 """
-Floe(coords::PolyVec, h_mean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n = 1000, t::Type{T} = Float64) where T =
-    Floe(LG.Polygon(convert(PolyVec{Float64}, valid_polyvec!(rmholes(coords)))), h_mean, Δh; ρi = ρi, u = u, v = v, ξ = ξ, mc_n = mc_n, t = T) 
+Floe(coords::PolyVec, h_mean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T =
+    Floe(LG.Polygon(convert(PolyVec{Float64}, valid_polyvec!(rmholes(coords)))), h_mean, Δh; ρi = ρi, u = u, v = v, ξ = ξ, mc_n = mc_n, rng = rng, t = T) 
     # Polygon convert is needed since LibGEOS only takes Float64 - when this is fixed convert can be removed
 
 """
@@ -178,19 +189,23 @@ Inputs:
         h_mean          <Float>             average floe height
         Δh              <Float>             height range - floes will range in height from h_mean - Δh to h_mean + Δh
         ρi              <Float> ice density
-        min_floe_area   <Float> minimum area for floe creation
+        mc_n            <Real> number of monte carlo points
+        rng             <RNG> random number generator to generate random floe attributes -
+                              default is RNG using Xoshiro256++ algorithm
+        min_floe_area   <Float> minimum area for floe creation - default is 0
+        t               <Float> datatype to run simulation with - either Float32 or Float64
 Output:
         Vector{Floe} vector of floes making up input polygon(s) with area above given minimum floe area.
         Floe polygons split around holes if needed. 
 """
-function poly_to_floes(floe_poly, h_mean, Δh, ρi, mc_n, min_floe_area = 0, t::Type{T} = Float64) where T
+function poly_to_floes(floe_poly, h_mean, Δh, ρi, mc_n, rng, min_floe_area = 0, t::Type{T} = Float64) where T
     floes = StructArray{Floe{T}}(undef, 0)
     regions = LG.getGeometries(floe_poly)
     while !isempty(regions)
         r = pop!(regions)
         if LG.area(r) > min_floe_area
             if !hashole(r)
-                floe = Floe(r, h_mean, Δh, ρi = ρi, mc_n = mc_n, t = T)
+                floe = Floe(r, h_mean, Δh, ρi = ρi, mc_n = mc_n, rng = rng, t = T)
                 push!(floes, floe)
             else
                 region_bottom, region_top = split_polygon_hole(r, T)
@@ -217,11 +232,13 @@ Inputs:
         ρi              <Float>             ice density (optional) - default is 920.0
         mc_n            <Int>               number of monte carlo points to intially generate for each floe (optional) - 
                                             default is 1000 - note that this is not the number you will end up with as some will be outside of the floe
+        rng             <RNG>               random number generator to generate random floe attributes -
+                                            default is RNG using Xoshiro256++ algorithm
         T               <Type>              An abstract float type to run the simulation in (optional) - default is Float64
 Output:
         floe_arr <StructArray> list of floes created from given polygon coordinates
 """
-function initialize_floe_field(coords::Vector{PolyVec{T}}, domain, h_mean, Δh; min_floe_area = 0.0, ρi = 920.0, mc_n::Int = 1000, t::Type{T} = Float64) where T
+function initialize_floe_field(coords::Vector{PolyVec{T}}, domain, h_mean, Δh; min_floe_area = 0.0, ρi = 920.0, mc_n::Int = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T
     floe_arr = StructArray{Floe{T}}(undef, 0)
     floe_polys = [LG.Polygon(valid_polyvec!(c)) for c in coords]
     # Remove overlaps with topography
@@ -231,7 +248,7 @@ function initialize_floe_field(coords::Vector{PolyVec{T}}, domain, h_mean, Δh; 
     end
     # Turn polygons into floes
     for p in floe_polys
-        append!(floe_arr, poly_to_floes(p, h_mean, Δh, ρi, mc_n, min_floe_area, T))
+        append!(floe_arr, poly_to_floes(p, h_mean, Δh, ρi, mc_n, rng, min_floe_area, T))
     end
     # Warn about floes with area less than minimum floe size
     min_floe_area = min_floe_area > 0 ? min_floe_area : T(4 * (domain.east.val - domain.west.val) * (domain.north.val - domain.south.val) / 1e4)
@@ -266,11 +283,13 @@ Inputs:
         ρi              <Float>     ice density (optional) - default is 920.0
         mc_n            <Int>       number of monte carlo points to intially generate for each floe (optional) - 
                                     default is 1000 - note that this is not the number you will end up with as some will be outside of the floe
+        rng             <RNG>       random number generator to generate random floe attributes -
+                                    default is RNG using Xoshiro256++ algorithm
         T               <Type>      An abstract float type to run the simulation in (optional) - default is Float64
 Output:
         floe_arr <StructArray> list of floes created using Voronoi Tesselation of the domain with given concentrations.
 """
-function initialize_floe_field(nfloes::Int, concentrations, domain, h_mean, Δh; min_floe_area = 0.0, ρi = 920.0, mc_n::Int = 1000, t::Type{T} = Float64) where T
+function initialize_floe_field(nfloes::Int, concentrations, domain, h_mean, Δh; min_floe_area = 0.0, ρi = 920.0, mc_n::Int = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T
     floe_arr = StructArray{Floe{T}}(undef, 0)
     # Split domain into cells with given concentrations
     nrows, ncols = size(concentrations[:, :])
@@ -302,8 +321,8 @@ function initialize_floe_field(nfloes::Int, concentrations, domain, h_mean, Δh;
                 open_area = LG.area(open_cell)::T
                 # Create points to seed floes
                 ncell = ceil(Int, nfloes * open_area / open_water_area / c)
-                xpoints = rand(T, ncell)
-                ypoints = rand(T, ncell)
+                xpoints = rand(rng, T, ncell)
+                ypoints = rand(rng, T, ncell)
                 in_points = inpoly2(hcat(collen * xpoints .+ trans_vec[1], rowlen * ypoints .+ trans_vec[2]), reduce(vcat, open_coords))
                 in_idx = in_points[:, 1] .|  in_points[:, 2]
                 # Create floes
@@ -314,7 +333,7 @@ function initialize_floe_field(nfloes::Int, concentrations, domain, h_mean, Δh;
                     idx = pop!(floe_idx)
                     floe_coords = [valid_ringvec!([Vector(f) .* [collen, rowlen] .+ trans_vec for f in tess_floes[idx]])]
                     floe_poly = LG.intersection(LG.Polygon(floe_coords), open_cell)
-                    floes = poly_to_floes(floe_poly, h_mean, Δh, ρi, mc_n, min_floe_area, T)
+                    floes = poly_to_floes(floe_poly, h_mean, Δh, ρi, mc_n, rng, min_floe_area, T)
                     append!(floe_arr, floes)
                     floes_area += sum(floes.area)
                 end
