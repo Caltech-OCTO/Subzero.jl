@@ -7,7 +7,7 @@ const T = Float64::DataType
 const Lx = 1e5
 const Ly = 1e5
 const Δgrid = 10000
-const h_mean = 0.25
+const hmean = 0.25
 const Δh = 0.0
 const Δt = 20
 const newfloe_Δt = 500
@@ -35,7 +35,7 @@ nfloes = 100
 file = jldopen("examples/floe_shapes.jld2", "r")
 nfloes = nfloes > size(file["floe_vertices"], 1) ? size(file["floe_vertices"], 1) : nfloes
 floe_coords = file["floe_vertices"][1:1]
-floe_arr = initialize_floe_field(floe_coords, domain, h_mean, Δh)
+floe_arr = initialize_floe_field(floe_coords, domain, hmean, Δh)
 close(file)
 
 model = Model(grid, ocean, atmos, domain, floe_arr)

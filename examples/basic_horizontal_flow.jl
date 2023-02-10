@@ -6,7 +6,7 @@ const type = Float64::DataType
 const Lx = 1e5
 const Ly = 1e5
 const Δgrid = 10000
-const h_mean = 0.25
+const hmean = 0.25
 const Δh = 0.0
 const Δt = 20
 const newfloe_Δt = 500
@@ -41,7 +41,7 @@ domain = Domain(nboundary, sboundary, eboundary, wboundary)
 #                    [9.5e4, 7.5e4], [7.5e4, 7.5e4]]]
 #floe2_coords = [[[6.5e4, 4.5e4], [6.5e4, 6.5e4], [8.5e4, 6.5e4], 
 #                 [8.5e4, 4.5e4], [6.5e4, 4.5e4]]]
-#floe_arr = StructArray([Floe(c, h_mean, Δh) for c in [floe1_coords, floe2_coords]])
+#floe_arr = StructArray([Floe(c, hmean, Δh) for c in [floe1_coords, floe2_coords]])
 #floe_arr.u[1] = 1
 #floe_arr.v[1] = 1
 #floe_arr.u[2] = 1
@@ -59,12 +59,12 @@ floe_arr = initialize_floe_field(50, [1], domain, 0.5, 0.0, rng = Xoshiro(1))
 #floe_mcy = floe_info["mc_y"]
 # floe_arr = Vector{Floe}()
 # for i in eachindex(floe_coords)
-#    floe = Floe(floe_coords[i], h_mean, Δh)
+#    floe = Floe(floe_coords[i], hmean, Δh)
 #     floe.mc_x = floe_mcx[i]
 #     floe.mc_y = floe_mcy[i]
 #     push!(floe_arr, floe)
 # end
-#floe_arr = StructArray([Floe(c, h_mean, Δh) for c in floe_coords])
+#floe_arr = StructArray([Floe(c, hmean, Δh) for c in floe_coords])
 #floe_arr.mc_x .= floe_mcx
 #floe_arr.mc_y .= floe_mcy
 #floe_arr.u[1] = 1
@@ -72,7 +72,7 @@ floe_arr = initialize_floe_field(50, [1], domain, 0.5, 0.0, rng = Xoshiro(1))
 #floe_arr.u[2] = 1
 
 #coords = load("output/voronoi/voronoi_escape_floe.jld2")["floes/2246"].coords[1]
-#floe = Floe(coords, h_mean, Δh)
+#floe = Floe(coords, hmean, Δh)
 model = Model(grid, ocean, atmos, domain, floe_arr)
 
 # Simulation setup

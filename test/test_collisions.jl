@@ -1,13 +1,13 @@
 @testset "Collisions" begin
     @testset "Floe-Floe Interactions" begin
-        h_mean = 0.25
+        hmean = 0.25
         Δh = 0.0
-        tri = Floe([[[0.0, 0.0], [1e4, 3e4], [2e4, 0], [0.0, 0.0]]], h_mean, Δh)
+        tri = Floe([[[0.0, 0.0], [1e4, 3e4], [2e4, 0], [0.0, 0.0]]], hmean, Δh)
         tri.u = 0.1
-        rect = Floe([[[0.0, 2.5e4], [0.0, 2.9e4], [2e4, 2.9e4], [2e4, 2.5e4], [0.0, 2.5e4]]], h_mean, Δh)
+        rect = Floe([[[0.0, 2.5e4], [0.0, 2.9e4], [2e4, 2.9e4], [2e4, 2.5e4], [0.0, 2.5e4]]], hmean, Δh)
         rect.v = -0.1
         cfloe = Floe([[[0.5e4, 2.7e4], [0.5e4, 3.5e4], [1.5e4, 3.5e4], [1.5e4, 2.7e4], [1.25e4, 2.7e4],
-                       [1.25e4, 3e4], [1e4, 3e4], [1e4, 2.7e4], [0.5e4, 2.7e4]]], h_mean, Δh)
+                       [1.25e4, 3e4], [1e4, 3e4], [1e4, 2.7e4], [0.5e4, 2.7e4]]], hmean, Δh)
         cfloe.u = 0.3
         consts = Constants()
         # Triange tip intersected with a rectangle
@@ -46,7 +46,7 @@
         @test t == 2
         @test isempty(rect.interactions)
         # Floe 2 (small rectangle) is overlapping with rectangle by more than 55%
-        small_rect = Floe([[[1.8e4, 2.7e4], [1.8e4, 2.8e4], [2.1e4, 2.8e4], [2.1e4, 2.7e4], [1.8e4, 2.7e4]]], h_mean, Δh)
+        small_rect = Floe([[[1.8e4, 2.7e4], [1.8e4, 2.8e4], [2.1e4, 2.8e4], [2.1e4, 2.7e4], [1.8e4, 2.7e4]]], hmean, Δh)
         r, t = Subzero.floe_floe_interaction!(rect, 1, small_rect, 2, 2, consts, 10)
         @test r == 2
         @test t == 0
@@ -62,7 +62,7 @@
     @testset "Floe Boundary Interactions" begin
         Lx = 1e5
         Ly = Lx
-        h_mean = 0.25
+        hmean = 0.25
         Δh = 0.0
         grid = RegRectilinearGrid(-Lx, Lx, -Ly, Ly, 1e4, 1e4)
         nboundary = PeriodicBoundary(grid, North())
@@ -72,23 +72,23 @@
         topo_elem = TopographyElement([[[1e4, 0.0], [0.0, 1e4], [1e4, 2e4], [2e4, 1e4], [1e4, 0.0]]])
         domain = Domain(nboundary, sboundary, eboundary, wboundary, StructArray([topo_elem]))
         # Diagonal floe barely overlaping with eastern collision boundary
-        efloe_small = Floe([[[9.5e4, 0.0], [9e4, 0.5e4], [10e4, 2.5e4], [10.05e4, 2e4], [9.5e4, 0.0]]], h_mean, Δh)
+        efloe_small = Floe([[[9.5e4, 0.0], [9e4, 0.5e4], [10e4, 2.5e4], [10.05e4, 2e4], [9.5e4, 0.0]]], hmean, Δh)
         efloe_small.u = 0.5
         efloe_small.v = 0.25
         # Floe overlapping with eastern collision boundary by more than 75% to trigger overlap condition
-        efloe_large = Floe([[[9e4, -7e4], [9e4, -5e4], [1.4e5, -5e4], [1.4e5, -7e4], [9e4, -7e4]]], h_mean, Δh)
+        efloe_large = Floe([[[9e4, -7e4], [9e4, -5e4], [1.4e5, -5e4], [1.4e5, -7e4], [9e4, -7e4]]], hmean, Δh)
         efloe_large.u = 0.1
         efloe_large.v = -0.35
         # Floe overlapping with boundary with more than one region
         cfloe = Floe([[[9.5e4, 7e4], [9.5e4, 9e4], [1.05e5, 9e4], [1.05e5, 8.5e4], [9.9e4, 8.5e4],
-                       [9.9e4, 8e4], [1.05e5, 8e4], [1.05e5, 7e4], [9.5e4, 7e4]]], h_mean, Δh)
+                       [9.9e4, 8e4], [1.05e5, 8e4], [1.05e5, 7e4], [9.5e4, 7e4]]], hmean, Δh)
         cfloe.v = -0.1
         # Floe overlapping with western open boundary
-        wfloe = Floe([[[-9.75e4, 7e4], [-9.75e4, 5e4], [-10.05e4, 5e4], [-10.05e4, 7e4], [-9.75e4, 7e4]]], h_mean, Δh)
+        wfloe = Floe([[[-9.75e4, 7e4], [-9.75e4, 5e4], [-10.05e4, 5e4], [-10.05e4, 7e4], [-9.75e4, 7e4]]], hmean, Δh)
         # Floe overlapping with northern periodic boundary
-        nfloe = Floe([[[5e4, 9.75e4], [5e4, 10.05e4], [7e4, 10.05e4], [7e4, 9.75e4], [5e4, 9.75e4]]], h_mean, Δh)
+        nfloe = Floe([[[5e4, 9.75e4], [5e4, 10.05e4], [7e4, 10.05e4], [7e4, 9.75e4], [5e4, 9.75e4]]], hmean, Δh)
         # Floe overlapping with topography element
-        tfloe = Floe([[[-0.5e4, 0.0], [-0.5e4, 0.75e4], [0.5e4, 0.75e4], [0.5e4, 0.0], [-0.5e4, 0.0]]], h_mean, Δh)
+        tfloe = Floe([[[-0.5e4, 0.0], [-0.5e4, 0.75e4], [0.5e4, 0.75e4], [0.5e4, 0.0], [-0.5e4, 0.0]]], hmean, Δh)
         efloe_large.u = -0.4
         efloe_large.v = 0.2
 
@@ -134,7 +134,7 @@
         # Test floe hitting more than one wall at once -> different from Subzero
         collision_domain = Domain(CollisionBoundary(grid, North()), CollisionBoundary(grid, South()),
                         CollisionBoundary(grid, East()), CollisionBoundary(grid, West()))
-        corner_floe = Floe([[[9.5e4, 7e4], [9e4, 7.5e4], [10e4, 1.05e5], [10.05e4, 9.5e4], [9.5e4, 7e4]]], h_mean, Δh)
+        corner_floe = Floe([[[9.5e4, 7e4], [9e4, 7.5e4], [10e4, 1.05e5], [10.05e4, 9.5e4], [9.5e4, 7e4]]], hmean, Δh)
         Subzero.floe_domain_interaction!(corner_floe, collision_domain, consts, 10)
         @test all(corner_floe.interactions[:, xforce] .<= 0)
         @test all(corner_floe.interactions[:, yforce] .<= 0)

@@ -35,6 +35,7 @@ Simulation which holds a model and parameters needed for running the simulation.
     consts::Constants{FT}           # Constants used in Simulation
     Δd::Int = 1                     # Number of buffer grid cells on each side of floe for monte carlo interpolation
     verbose::Bool = false           # String output printed during run
+    name::String = "sim"            # Simulation name for printing/saving
     # Timesteps ----------------------------------------------------------------
     Δt::Int = 10                    # Simulation timestep (seconds)
     nΔt::Int = 7500                 # Total timesteps simulation runs for
@@ -202,7 +203,7 @@ Outputs:
 """
 function run!(sim, writers, ::Type{T} = Float64) where T
     # Start simulation
-    sim.verbose && println("Simulation running!")
+    sim.verbose && println(string(sim.name, "is  running!"))
     tstep = 0
     while tstep <= sim.nΔt
         if sim.verbose && mod(tstep, 50) == 0
@@ -212,5 +213,5 @@ function run!(sim, writers, ::Type{T} = Float64) where T
         timestep_sim!(sim, tstep, writers, T)
         tstep+=1
     end
-    sim.verbose && println("Simulation done running!")
+    sim.verbose && println(string(sim.name, " done running!"))
 end
