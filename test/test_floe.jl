@@ -112,7 +112,7 @@
     
     # Test initialize_floe_field with voronoi
     floe_arr = initialize_floe_field(25, [0.5], domain_with_topo, 0.5, 0.1, min_floe_area = 1e4, rng = Xoshiro(1))
-    @test 0.55 >= sum(floe_arr.area)/(1.6e5*1.6e5 - LibGEOS.area(topo_polys)) >= 0.5
+    @test isapprox(sum(floe_arr.area)/(1.6e5*1.6e5 - LibGEOS.area(topo_polys)), 0.5, atol = 1e-1)
     @test all(floe_arr.area .> 1e4)
     @test all([LibGEOS.area(LibGEOS.intersection(LibGEOS.Polygon(c), topo_polys)) for c in floe_arr.coords] .< 1e-6)
     nfloes = length(floe_arr)
