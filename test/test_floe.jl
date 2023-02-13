@@ -120,6 +120,7 @@
 
     concentrations = [1 0.3; 0 0.5]
     floe_arr = initialize_floe_field(25, concentrations, domain_with_topo, 0.5, 0.1, min_floe_area = 1e4, rng = Xoshiro(2))
+    nfloes = length(floe_arr)
     floe_polys = [LibGEOS.Polygon(f) for f in floe_arr.coords]
     first_cell = [[[-8e4, -8e4], [-8e4, 0], [0, 0], [0, -8e4], [-8e4, -8e4]]]
     for j in 1:2
@@ -133,4 +134,5 @@
     end
     @test all([LibGEOS.area(LibGEOS.intersection(p, topo_polys)) for p in floe_polys] .< 1e-3)
     @test all([LibGEOS.isValid(p) for p in floe_polys])
+    @test all(floe_arr.id .== range(1, nfloes)) 
 end
