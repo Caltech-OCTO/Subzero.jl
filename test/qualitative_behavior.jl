@@ -9,7 +9,7 @@ const T = Float64::DataType
 const Lx = 1e5
 const Ly = 1e5
 const Δgrid = 10000
-const h_mean = 0.25
+const hmean = 0.25
 const Δh = 0.0
 const nΔt = 4000
 const newfloe_Δt = 500
@@ -43,14 +43,14 @@ collision_domain_topo = Subzero.Domain(CollisionBoundary(grid, North()),
                                        StructArray([topography]))
 
 stationary_rect_floe = StructArray([Floe([[[0.0, 0.0], [0.0, 2e4], [0.5e4, 2e4],
-                                          [0.5e4, 0.0], [0.0, 0.0]]], h_mean, Δh)])
+                                          [0.5e4, 0.0], [0.0, 0.0]]], hmean, Δh)])
 
 zonal_2rect_floe = StructArray([Floe([[[-5e4, 0.0], [-5e4, 2e4], [-5.5e4, 2e4],
-                                          [-5.5e4, 0.0], [-5e4, 0.0]]], h_mean, Δh, u = 3.0),
+                                          [-5.5e4, 0.0], [-5e4, 0.0]]], hmean, Δh, u = 3.0),
                                 Floe([[[0.0, 0.0], [0.0, 2e4], [0.5e4, 2e4],
-                                          [0.5e4, 0.0], [0.0, 0.0]]], h_mean, Δh, u = -3.0),
+                                          [0.5e4, 0.0], [0.0, 0.0]]], hmean, Δh, u = -3.0),
                                 Floe([[[3.e4, 0.0], [3e4, 2e4], [3.5e4, 2e4],
-                                          [3.5e4, 0.0], [3e4, 0.0]]], h_mean, Δh, u = 0.0)])
+                                          [3.5e4, 0.0], [3e4, 0.0]]], hmean, Δh, u = 0.0)])
 standard_consts = Constants()
 no_ocndrag_consts = Constants(Cd_io = 0.0, Cd_ao = 0.0, μ = 0.0)
 no_drag_consts = Constants(Cd_io = 0.0, Cd_ao = 0.0, Cd_ia = 0.0, μ = 0.0, f = 0.0)
@@ -102,7 +102,7 @@ p1_coords = [[[7.5e4, 7.5e4], [7.5e4, 9.5e4], [9.5e4, 9.5e4],
                  [9.5e4, 7.5e4], [7.5e4, 7.5e4]]]
 p2_coords = [[[6.5e4, 4.5e4], [6.5e4, 6.5e4], [8.5e4, 6.5e4], 
                  [8.5e4, 4.5e4], [6.5e4, 4.5e4]]]
-p_floe_arr = StructArray([Floe(c, h_mean, Δh) for c in [floe1_coords, floe2_coords]])
+p_floe_arr = StructArray([Floe(c, hmean, Δh) for c in [floe1_coords, floe2_coords]])
 p_floe_arr.u[1] = 1
 p_floe_arr.v[1] = 1
 p_floe_arr.u[2] = 1

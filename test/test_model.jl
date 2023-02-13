@@ -186,13 +186,6 @@
         @test_throws ArgumentError Subzero.Domain(b1, b4, b2, Subzero.OpenBoundary(Subzero.PolyVec{Float64}(undef, 0), 6e5, Subzero.West()))
     end
 
-    @testset "Floe" begin
-        # test generate MC points
-        # test with polygon inputs
-        # test with coords input
-        
-    end
-
     @testset "Model" begin
         # test domain in grid
         # test basic working model

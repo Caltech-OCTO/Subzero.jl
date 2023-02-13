@@ -31,11 +31,11 @@ Simulation which holds a model and parameters needed for running the simulation.
     RAFTING (floe rafting enabled), RIDGING (floe ridging enabled), and WELDING (floe welding enabled). All are false by default.
 """
 @kwdef struct Simulation{FT<:AbstractFloat, GT<:AbstractGrid, DT<:Domain}
-    model::Model{FT, GT, DT}            # Model to simulate
-    consts::Constants{FT}           # Constants used in simulation
-    name::String = "sim"            # Simulation name for saving output
+    model::Model{FT, GT, DT}        # Model to simulate
+    consts::Constants{FT}           # Constants used in Simulation
     Δd::Int = 1                     # Number of buffer grid cells on each side of floe for monte carlo interpolation
     verbose::Bool = false           # String output printed during run
+    name::String = "sim"            # Simulation name for printing/saving
     # Timesteps ----------------------------------------------------------------
     Δt::Int = 10                    # Simulation timestep (seconds)
     nΔt::Int = 7500                 # Total timesteps simulation runs for
@@ -151,7 +151,7 @@ function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
 
     # Output at given timestep
     for w in writers
-        if hasfield(typeof(w), :Δtout) && mod(tstep, w.Δtout) == 0
+        if tstep == 0 || (hasfield(typeof(w), :Δtout) && mod(tstep, w.Δtout) == 0)
             write_data!(w, tstep, sim)
         end
     end
@@ -202,20 +202,9 @@ Outputs:
         None. The simulation will be run and outputs will be saved in the output folder. 
 """
 function run!(sim, writers, ::Type{T} = Float64) where T
-
-    # Initialize floe IDs
-    for i in eachindex(sim.model.floes)
-        sim.model.floes.id[i] = T(i)
-    end
-
-    # output intial state for all writers
-    for w in writers
-        write_data!(w, 0, sim)
-    end
-    
     # Start simulation
-    sim.verbose && println(string(sim.name ," running!"))
-    tstep = 1
+    sim.verbose && println(string(sim.name, "is  running!"))
+    tstep = 0
     while tstep <= sim.nΔt
         if sim.verbose && mod(tstep, 50) == 0
             println(tstep, " timesteps")
@@ -224,5 +213,5 @@ function run!(sim, writers, ::Type{T} = Float64) where T
         timestep_sim!(sim, tstep, writers, T)
         tstep+=1
     end
-    sim.verbose && println(string(sim.name ," done running!"))
+    sim.verbose && println(string(sim.name, " done running!"))
 end

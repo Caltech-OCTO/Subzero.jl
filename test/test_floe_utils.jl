@@ -1,4 +1,4 @@
-@testset "Floe Operations" begin
+@testset "Floe Utils" begin
     ext = [[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
     hole1 = [[0.2, 0.3], [0.2, 0.2], [0.3, 0.2], [0.3, 0.3], [0.2, 0.3]]
     hole2 = [[0.5, 0.6], [0.5, 0.5], [0.6, 0.5], [0.6, 0.6], [0.5, 0.6]]
@@ -6,8 +6,7 @@
     poly_hole1 = LibGEOS.Polygon([ext, hole1])
     poly_hole2 = LibGEOS.Polygon([ext, hole1, hole2])
     multipoly_hole1 = LibGEOS.MultiPolygon([poly_nohole, poly_hole1])
-    multipoly_hole2 = LibGEOS.MultiPolygon([poly_nohole, poly_hole1,
-                                                         poly_hole2])
+    multipoly_hole2 = LibGEOS.MultiPolygon([poly_nohole, poly_hole1, poly_hole2])
 
     # Test validating/correcting RingVecs and PolyVecs
     @test Subzero.valid_ringvec!(ext) == ext
@@ -83,6 +82,12 @@
     tri_moment = Subzero.calc_moment_inertia(LibGEOS.Polygon(tri_coords), 0.5)
     @test isapprox(tri_moment, 50581.145, atol = 0.001)
 
+    # Test orient_coords
+    coords = Subzero.orient_coords([[9.75e4, 7e4], [9.75e4, 5e4], [9.75e4, 5e4], [10.05e4, 5e4], [10.05e4, 7e4]])
+    @test coords == [[97500.0, 50000.0], [97500.0, 70000.0], [100500.0, 70000.0], [100500.0, 50000.0], [97500.0, 50000.0]]
+    coords = Subzero.orient_coords([[6.5e4, 6.5e4], [8.5e4, 6.5e4], [8.5e4, 4.5e4], [8.5e4, 4.5e4], [6.5e4, 4.5e4]])
+    @test coords == [[6.5e4, 4.5e4], [6.5e4, 6.5e4], [8.5e4, 6.5e4], [8.5e4, 4.5e4], [6.5e4, 4.5e4]]
+
     # Test polygon angles - some basic shapes and then compared to values from MATLAB
     rect_coords = [[[1.0, 1.0], [1.0, 2.0], [2.0, 2.0], [2.0, 1.0]]]
     @test Subzero.calc_poly_angles(rect_coords) == [90.0, 90.0, 90.0, 90.0]
@@ -90,6 +95,11 @@
     @test prod(isapprox.(Subzero.calc_poly_angles(tri_coords), [90.0, 36.8699, 53.1301], atol = 0.001))
     concave_tri_coords = [[[-3.0, -2.0], [0.0,0.0], [5.0, 0.0]]]
     @test prod(isapprox.(Subzero.calc_poly_angles(concave_tri_coords), [19.6538, 146.3099, 14.0362], atol = 0.001))
+    # generate list of random polygons
+    polygon_lst = voronoicells(rand(10), rand(10), Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0))).Cells
+    for poly in polygon_lst
+        @test isapprox(sum(Subzero.calc_poly_angles([Vector{Vector{Float64}}(poly)])), 180 * (length(poly) - 2), atol = 1e-3)
+    end
 
     # Test calc_point_poly_dist - some basic shapes and compared to values from MATLAB
     xpoints = [0.0, 1.1, 1.1, 2.0]
@@ -99,7 +109,7 @@
     @test Subzero.calc_point_poly_dist(Float64[], Float64[], rect_coords) == Float64[]
     @test_throws AssertionError Subzero.calc_point_poly_dist(Float64[], [1.0, 2.0], rect_coords)
 
-    # Test intersection of lines
+    # ------------------------- Test intersection of lines -------------------------
     l1 = [[[0.0, 0.0], [2.5, 0.0], [5.0, 0.0]]]
     l2 = [[[2.0, -3.0], [3.0, 0.0], [4.0, 3.0]]]
     @test Subzero.intersect_lines(l1, l2) == [3.0 0.0]
@@ -108,4 +118,69 @@
     @test Subzero.intersect_lines(l1, l2) == [0.5 0; 1.5 0; 2.5 0]
     l2 = [[[10., 10]]]
     @test Subzero.intersect_lines(l1, l2) == zeros(2,0)
+
+    # ------------------------- Test cutting polygon through horizontal line -------------------------
+    # Cut a hexagon through the line y = -1
+    poly_coords = [[[2.0, -3.0], [0.0, 0.0], [2.0, 2.0], [6.0, 2.0], [8.0, 0.0], [6.0, -3.0], [2.0, -3.0]]]
+    poly = LibGEOS.Polygon(Subzero.cut_polygon_coords(poly_coords, -1)[1])
+    @test LibGEOS.isValid(poly)
+    cut_coords = [[[2.0, -3.0], [2-4/3, -1.0], [22/3, -1.0], [6.0, -3.0], [2.0, -3.0]]]
+    @test Set(cut_coords[1]) == Set(LibGEOS.GeoInterface.coordinates(poly)[1])
+    @test isapprox(LibGEOS.GeoInterface.coordinates(LibGEOS.centroid(poly)), LibGEOS.GeoInterface.coordinates(LibGEOS.centroid(LibGEOS.Polygon(cut_coords))), atol = 1e-6)
+
+    # Cut a c-shaped polygon through the line y = 5, creating two polygons
+    poly_coords = [[[0.0, 0.0], [0.0, 10.0], [10.0, 10.0], [10.0, 0.0], [4.0, 0.0],
+                    [4.0, 6.0], [2.0, 6.0], [2.0, 0.0], [0.0, 0.0]]]
+    poly1_coords, poly2_coords = Subzero.cut_polygon_coords(poly_coords, 5)
+    poly1 = LibGEOS.Polygon(poly1_coords)
+    poly2 = LibGEOS.Polygon(poly2_coords)
+    @test LibGEOS.isValid(poly1)
+    @test LibGEOS.isValid(poly2)
+    @test Set([[4.0, 0.0], [4.0, 5.0], [10.0, 5.0], [10.0, 0.0], [4.0, 0.0]]) == Set(LibGEOS.GeoInterface.coordinates(poly1)[1])
+    @test Set([[0.0, 0.0], [0.0, 5.0], [2.0, 5.0], [2.0, 0.0], [0.0, 0.0]]) == Set(LibGEOS.GeoInterface.coordinates(poly2)[1])
+
+    # Cut a triangle through the line y = -10 so only its tip is left -> No polygon
+    poly_coords = [[[0.0, 0.0], [10.0, 0.0], [5.0, -10.0], [0.0, 0.0]]]
+    poly = Subzero.cut_polygon_coords(poly_coords, -10)
+    @test isempty(poly)
+
+    # Cut a rectangle through the line y = 0 so only its bottom edge is left -> No polygon
+    poly_coords = [[[0.0, 0.0], [0.0, 5.0], [10.0, 5.0], [10.0, 0.0], [0.0, 0.0]]]
+    poly = Subzero.cut_polygon_coords(poly_coords, 0)
+    @test isempty(poly)
+
+    # Cut a rectangle through the line y = -10 so no polygon is left
+    poly = Subzero.cut_polygon_coords(poly_coords, -10)
+    @test isempty(poly)
+
+    # ------------------------- Test polygon splitting through hole -------------------------
+    # Polygon with no holes -> returns original polygon and an empty list
+    poly_coords = [[[0.0, 0.0], [0.0, 5.0], [10.0, 5.0], [10.0, 0.0], [0.0, 0.0]]]
+    poly_bottom, poly_top = Subzero.split_polygon_hole(LibGEOS.Polygon(poly_coords))
+    @test length(poly_bottom) == 1
+    @test length(poly_top) == 0
+    @test LibGEOS.area(LibGEOS.difference(poly_bottom[1], LibGEOS.Polygon(poly_coords))) == 0
+    # Polygon with one hole -> creates two polygons
+    poly_coords = [[[0.0, 0.0], [0.0, 5.0], [10.0, 5.0], [10.0, 0.0], [0.0, 0.0]],
+                   [[3.0, 2.0], [3.0, 4.0], [6.0, 4.0], [6.0, 2.0], [3.0, 2.0]]]  # hole!
+    poly_bottom, poly_top = Subzero.split_polygon_hole(LibGEOS.Polygon(poly_coords))
+    poly_bottom_coords = [[[0.0, 0.0], [0.0, 3.0], [3.0, 3.0], [3.0, 2.0], [6.0, 2.0], [6.0, 3.0], [10.0, 3.0], [10.0, 0.0], [0.0, 0.0]]]
+    poly_top_coords = [[[0.0, 3.0], [0.0, 5.0], [10.0, 5.0], [10.0, 3.0], [6.0, 3.0], [ 6.0, 4.0], [3.0, 4.0], [3.0, 3.0], [0.0, 3.0]]]
+    @test length(poly_bottom) == length(poly_top) == 1
+    @test LibGEOS.area(LibGEOS.difference(poly_bottom[1], LibGEOS.Polygon(poly_bottom_coords))) == 0
+    @test LibGEOS.area(LibGEOS.difference(poly_top[1], LibGEOS.Polygon(poly_top_coords))) == 0
+    # Polygon with one holes -> creates three polygons 
+    poly_coords = [[[0.0, 0.0], [0.0, 10.0], [10.0, 10.0], [10.0, 0.0], [4.0, 0.0],
+                    [4.0, 6.0], [2.0, 6.0], [2.0, 0.0], [0.0, 0.0]], 
+                   [[6.0, 4.0], [6.0, 6.0], [7.0, 6.0], [7.0, 4.0], [6.0, 4.0]]]
+    poly_bottom, poly_top = Subzero.split_polygon_hole(LibGEOS.Polygon(poly_coords))
+    poly_bottom1_coords = [[[4.0, 0.0], [4.0, 5.0], [6.0, 5.0], [6.0, 4.0], [7.0, 4.0], [7.0, 5.0], [10.0, 5.0], [10.0, 0.0], [4.0, 0.0]]]
+    poly_bottom2_coords = [[[0.0, 0.0], [0.0, 5.0], [2.0, 5.0], [2.0, 0.0], [0.0, 0.0]]]
+    poly_top_coords = [[[0.0, 5.0], [0.0, 10.0], [10.0, 10.0], [10.0, 5.0], [7.0, 5.0], [7.0, 6.0], [6.0, 6.0],
+                        [6.0, 5.0], [4.0, 5.0], [4.0, 6.0], [2.0, 6.0], [2.0, 5.0], [0.0, 5.0]]]
+    @test length(poly_top) == 1
+    @test length(poly_bottom) == 2
+    @test LibGEOS.area(LibGEOS.difference(poly_bottom[1], LibGEOS.Polygon(poly_bottom1_coords))) == 0
+    @test LibGEOS.area(LibGEOS.difference(poly_bottom[2], LibGEOS.Polygon(poly_bottom2_coords))) == 0
+    @test LibGEOS.area(LibGEOS.difference(poly_top[1], LibGEOS.Polygon(poly_top_coords))) == 0
 end

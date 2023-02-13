@@ -283,42 +283,48 @@ end
 """
     normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{North, <:AbstractFloat}, ::Type{T} = Float64)
 
-Zero-out forces that point in direction not perpendicular to North or South boundary wall.
+Zero-out forces that point in direction not perpendicular to North boundary wall.
 Inputs:
         force       <Array{Float, n, 2}> normal forces on each of the n regions greater than a minimum area
         fpoint      <Array{Float, n, 2}> point force is applied on each of the n regions greater than a minimum area
         boundary    <AbstractBoundary{North, <:AbstractFloat}> domain's northern boundary 
                     <Type> Float type model is running on (Float64 or Float32) - not needed here
-Outputs: None. All forces in the x direction set to 0 if the point the force is applied is the northern or southern boundary value.
+Outputs: None. All forces in the x direction set to 0 if the point the force is applied to is in the northern boundary.
 """
 function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{North, <:AbstractFloat}, ::Type{T} = Float64) where T
     forces[fpoints[:, 2] .>= boundary.val, 1] .= T(0.0)
     return
 end
 
+"""
+    normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{South, <:AbstractFloat}, ::Type{T} = Float64)
+
+Zero-out forces that point in direction not perpendicular to South boundary wall.
+See normal_direction_correct! on northern wall for more information
+"""
 function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{South, <:AbstractFloat}, ::Type{T} = Float64) where T
         forces[fpoints[:, 2] .<= boundary.val, 1] .= T(0.0)
         return
     end
 
 """
-    normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{Union{East, West}, <:AbstractFloat}, ::Type{T} = Float64)
+    normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{East, <:AbstractFloat}, ::Type{T} = Float64)
 
-Zero-out forces that point in direction not perpendicular to East or West boundary wall.
-Inputs:
-        force       <Array{Float, n, 2}> normal forces on each of the n regions greater than a minimum area
-        fpoint      <Array{Float, n, 2}> point force is applied on each of the n regions greater than a minimum area
-        boundary    <AbstractBoundary{East, <:AbstractFloat}> domain's southern boundary 
-                    <Type> Float type model is running on (Float64 or Float32) - not needed here
-Outputs: None. All forces in the y direction set to 0 if the point the force is applied is the eastern or western boundary value.
+Zero-out forces that point in direction not perpendicular to East boundary wall.
+See normal_direction_correct! on northern wall for more information
 """
 function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{East, <:AbstractFloat}, ::Type{T} = Float64) where T
     forces[fpoints[:, 1] .>= boundary.val, 2] .= T(0.0)
     return
 end
 
-function normal_direction_correct!(forces, fpoints, boundary::Union{AbstractBoundary{East, <:AbstractFloat},
-    AbstractBoundary{West, <:AbstractFloat}}, ::Type{T} = Float64) where T
+"""
+    normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{West, <:AbstractFloat}, ::Type{T} = Float64)
+
+Zero-out forces that point in direction not perpendicular to West boundary wall.
+See normal_direction_correct! on northern wall for more information
+"""
+function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{West, <:AbstractFloat}, ::Type{T} = Float64) where T
 forces[fpoints[:, 1] .<= boundary.val, 2] .= T(0.0)
 return
 end

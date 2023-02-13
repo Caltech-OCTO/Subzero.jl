@@ -44,12 +44,14 @@ export
     xpoint,
     ypoint,
     torque,
-    overlap
+    overlap, 
+    initialize_floe_field
 
-import LibGEOS as LG
 import Base.@kwdef # this is being exported as of version 1.9
-using NCDatasets, Plots, StructArrays, Statistics, LinearAlgebra
-using PolygonInbounds, NamedArrays, Interpolations, JLD2
+import LibGEOS as LG
+using GeometryBasics, Interpolations, JLD2, LinearAlgebra, NamedArrays,
+      NCDatasets, Plots, PolygonInbounds, Random, Statistics, StructArrays,
+      VoronoiCells
 
 """
 Coordinates are vector of vector of vector of points of the form:
@@ -68,7 +70,8 @@ This form is for each conversion to LibGEOS LinearRings, which can also be made 
 """
 const RingVec{T} = Vector{Vector{T}} where T<:AbstractFloat
 
-include("floe_operations.jl")
+include("floe.jl")
+include("floe_utils.jl")
 include("model.jl")
 include("simulation.jl")
 include("plotting.jl")
