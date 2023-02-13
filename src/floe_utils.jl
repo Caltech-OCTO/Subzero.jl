@@ -8,10 +8,10 @@ Also asserts that the ring as at least three elements or else it cannot be made 
 """
 function valid_ringvec!(ring::RingVec{FT}) where {FT<:AbstractFloat}
     deleteat!(ring, findall(i->ring[i]==ring[i+1], collect(1:length(ring)-1)))
-    @assert length(ring) > 2 "Polgon needs at least 3 distinct points."
     if ring[1] != ring[end]
         push!(ring, ring[1])
     end
+    @assert length(ring) > 3 "Polgon needs at least 3 distinct points."
     return ring
 end
 
@@ -254,6 +254,39 @@ function polyedge(p1, p2, t::Type{T} = Float64) where T
 end
 
 """
+    orient_coords(coords::RingVec{T}) where T
+
+Take given coordinates and make it so that the first point has the smallest x-coordiante
+and so that the coordinates are ordered in a clockwise sequence. Duplicates vertices will
+be removed and the coordiantes will be closed (first and last point are the same).
+
+Input:
+        coords  <RingVec> vector of points [x, y]
+Output:
+        coords  <RingVec> oriented clockwise with smallest x-coordinate first
+"""
+function orient_coords(coords::RingVec{T}) where T
+    extreem_idx = 1  # find point with smallest x-value - if tie, choose lowest y-value
+    for i in eachindex(coords)
+        ipoint = coords[i]
+        epoint = coords[extreem_idx]
+        if ipoint[1] < epoint[1]
+            extreem_idx = i
+        elseif ipoint[1] == epoint[1] && ipoint[2] < epoint[2]
+            extreem_idx = i
+        end
+    end
+    coords = circshift(coords, -extreem_idx + 1) # extreem point is first point in list
+    valid_ringvec!(coords)  # delete repeats and make sure ringvec is closed
+
+    orient_matrix = hcat(ones(T, 3), vcat(coords[1]', coords[2]', coords[end-1]'))
+    if det(orient_matrix) > 0  # if coords are counterclockwise, switch to clockwise
+        reverse!(coords)
+    end
+    return coords
+end
+
+"""
     convex_angle_test(coords::RingVec{T}, t::Type{T} = Float64)
 
 Determine which angles in the polygon are convex, with the assumption that the first angle is convex, no other
@@ -267,8 +300,7 @@ Outputs:
         sgn <Vector of 1s and -1s> One element for each [x,y] pair - if 1 then the angle at that vertex is convex,
         if it is -1 then the angle is concave.
 """
-function convex_angle_test(coords::RingVec{T}, t::Type{T} = Float64) where T
-    valid_ringvec!(coords)
+function convex_angle_test(coords::RingVec{T}, ::Type{T} = Float64) where T
     L = 10^25
     # Extreme points used in following loop, apended by a 1 for dot product
     top_left = [-L, -L, 1]
@@ -318,13 +350,13 @@ end
 """
     calc_poly_angles(coords::PolyVec{T}, ::Type{T} = Float64))
 
-Computes internal polygon angles (in degrees) of an arbitrary polygon given the coordinates ordered in a clockwise manner.
+Computes internal polygon angles (in degrees) of an arbitrary simple polygon.
 The program eliminates duplicate points, except that the first row must equal the last, so that the polygon is closed.
 Inputs:
         coords  <PolyVec{Float}> coordinates from a polygon
         t       <AbstractFloat> datatype to run model with - must be a Float!
 Outputs:
-        Vector of polygon's interior angles
+        Vector of polygon's interior angles in degrees
 
 Note - Translated into Julia from the following program (including helper functions convex_angle_test and polyedge):
 Copyright 2002-2004 R. C. Gonzalez, R. E. Woods, & S. L. Eddins
@@ -332,7 +364,7 @@ Digital Image Processing Using MATLAB, Prentice-Hall, 2004
 Revision: 1.6 Date: 2003/11/21 14:44:06
 """
 function calc_poly_angles(coords::PolyVec{T}, ::Type{T} = Float64) where {T<:AbstractFloat}
-    ext = valid_polyvec!(coords)[1]
+    ext = orient_coords(coords[1]) # ignore any holes in the polygon
     # Calculate needed vectors
     pdiff = diff(ext)
     npoints = length(pdiff)
@@ -509,4 +541,115 @@ function intersect_lines(l1, l2)
                     (Δy2t[j] .* S1[i] - Δy1[i] .* S2t[j]) ./ L), dims = 1)
     end
     return P
+end
+
+"""
+    cut_polygon_coords(poly_coords::PolyVec, yp, ::Type{T} = Float64)
+
+Cut polygon through the line y = yp and return the polygon(s) coordinates below the line
+Inputs:
+        poly_coords <PolyVec>   polygon coordinates
+        yp          <Float>     value of line to split polygon through using line y = yp
+                    <Type>      Type of abstract float to run simulation with
+Outputs:
+        new_polygons <Vector{PolyVec}> List of coordinates of polygons below line y = yp. 
+Note: Code translated from MATLAB to Julia. Credit for initial code to Dominik Brands (2010)
+       and Jasper Menger (2009). Only needed pieces of function are translated (horizonal cut).
+"""
+function cut_polygon_coords(poly_coords::PolyVec, yp, ::Type{T} = Float64) where T
+    # Loop through each edge
+    coord1 = poly_coords[1][1:end-1]
+    coord2 = poly_coords[1][2:end]
+    for i in eachindex(coord1)
+        x1, y1 = coord1[i]
+        x2, y2 = coord2[i]
+        # If both edge endpoints are above cut line, remove edge
+        if y1 > yp && y2 > yp
+            coord1[i] = [NaN, NaN]
+            coord2[i] = [NaN, NaN]
+        # If start point is above cut line, move down to intersection point
+        elseif y1 > yp
+            coord1[i] = [(yp - y2)/(y1 - y2) * (x1 - x2) + x2, yp]
+        # If end point is above cut line, move down to intersection point
+        elseif y2 > yp
+            coord2[i] = [(yp - y1)/(y2 - y1) * (x2 - x1) + x1, yp]
+        end
+    end
+    # Add non-repeat points to coordinate list for new polygon
+    new_poly_coords = [coord1[1]]
+    for i in eachindex(coord1)
+        if !isequal(coord1[i], new_poly_coords[end])
+            push!(new_poly_coords, coord1[i])
+        end
+        if !isequal(coord2[i], new_poly_coords[end])
+            push!(new_poly_coords, coord2[i])
+        end
+    end
+
+    new_polygons = Vector{PolyVec{T}}()
+    # Multiple NaN's indicate new polygon if they seperate coordinates
+    nanidx_all = findall(c -> isnan(sum(c)), new_poly_coords)
+    # If no NaNs, just add coordiantes to list
+    if isempty(nanidx_all)
+        if new_poly_coords[1] != new_poly_coords[end]
+            push!(new_poly_coords, new_poly_coords[1])
+        end
+        if length(new_poly_coords) > 3
+            push!(new_polygons, [new_poly_coords])
+        end
+    # Seperate out NaNs to seperate out polygons multiple polygons and add to list
+    else
+        if new_poly_coords[1] == new_poly_coords[end]
+            new_poly_coords = new_poly_coords[1:end-1]
+        end
+        # Shift so each polygon's vertices are together in a section
+        new_poly_coords = circshift(new_poly_coords, -nanidx_all[1] + 1)
+        nanidx_all .-= (nanidx_all[1] - 1)
+        # Determine start and stop point for each polygon's coordinates
+        start_poly = nanidx_all .+ 1
+        end_poly = [nanidx_all[2:end] .- 1; length(new_poly_coords)]
+        for i in eachindex(start_poly)
+            if start_poly[i] <= end_poly[i]
+                poly = new_poly_coords[start_poly[i]:end_poly[i]]
+                if poly[1] != poly[end]
+                    push!(poly, poly[1])
+                end
+                if length(poly) > 3
+                    push!(new_polygons, [poly])
+                end
+            end
+        end
+    end
+
+    return new_polygons
+end
+
+"""
+    split_polygon_hole(poly::LG.Polygon, ::Type{T} = Float64)
+
+Splits polygon horizontally through first hole and return lists of polygons created by split.
+Inputs:
+        poly    <LG.Polygon> polygon to split
+                <Type> Float type to run simulation with
+Outputs:
+    <(Vector{LibGEOS.Polyon}, (Vector{LibGEOS.Polyon}>
+    list of polygons created from split through first hole below line and polygons through first hole above line.
+    Note that if there is no hole, a list of the original polygon and an empty list will be returned
+"""
+function split_polygon_hole(poly::LG.Polygon, ::Type{T} = Float64) where T
+    bottom_list = Vector{LG.Polygon}()
+    top_list = Vector{LG.Polygon}()
+    if hashole(poly)  # Polygon has a hole
+        poly_coords = LG.GeoInterface.coordinates(poly)
+        full_coords = [poly_coords[1]]
+        h1 = LG.Polygon([poly_coords[2]])  # First hole
+        h1_center = LG.GeoInterface.coordinates(LG.centroid(h1))
+        poly_bottom = LG.MultiPolygon(cut_polygon_coords(full_coords, h1_center[2], T))
+        poly_bottom =  LG.intersection(poly_bottom, poly)  # Adds in any other holes in poly
+        poly_top = LG.difference(poly, poly_bottom)
+        bottom_list, top_list = LG.getGeometries(poly_bottom), LG.getGeometries(poly_top)
+    else  # No hole
+        bottom_list, top_list = Vector{LG.Polygon}([poly]), Vector{LG.Polygon}()
+    end
+    return bottom_list, top_list
 end

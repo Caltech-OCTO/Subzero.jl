@@ -348,9 +348,9 @@ Output:
     PolyVect coordinates for edges of rectangle with given minimums and maximums
 """
 function rect_coords(xmin, xmax, ymin, ymax)
-return [[[xmin, ymax], [xmin, ymin],
-         [xmax, ymin], [xmax, ymax],
-         [xmin, ymax]]]
+return [[[xmin, ymin], [xmin, ymax],
+         [xmax, ymax], [xmax, ymin],
+         [xmin, ymin]]]
 end
 
 """

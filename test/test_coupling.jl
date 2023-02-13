@@ -153,7 +153,7 @@
         [-1.25e4, 5e4], [-1.75e4, 5e4]]], 0.25, 0.0)
         area = floe.area
         # Standard Monte Carlo points for below floe - used to compare with MATLAB
-        jldopen("test_mc_points.jld2", "r") do f
+        jldopen("inputs/test_mc_points.jld2", "r") do f
             floe.mc_x = f["X"]
             floe.mc_y = f["Y"]
         end
