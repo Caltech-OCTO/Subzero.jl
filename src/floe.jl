@@ -199,7 +199,7 @@ Output:
         Vector{Floe} vector of floes making up input polygon(s) with area above given minimum floe area.
         Floe polygons split around holes if needed. 
 """
-function poly_to_floes(floe_poly, hmean, Δh, ρi, mc_n::Int, rng, min_floe_area = 0, t::Type{T} = Float64) where T
+function poly_to_floes(floe_poly, hmean, Δh; ρi = 920.0, mc_n::Int = 1000, rng = Xoshiro(), min_floe_area = 0, t::Type{T} = Float64) where T
     floes = StructArray{Floe{T}}(undef, 0)
     regions = LG.getGeometries(floe_poly)
     while !isempty(regions)
@@ -245,19 +245,19 @@ function initialize_floe_field(coords::Vector{PolyVec{T}}, domain, hmean, Δh; m
     # Remove overlaps with topography
     if !isempty(domain.topography)
         topo_poly = LG.MultiPolygon(domain.topography.coords)
-        floe_polys = [LG.difference.(f, topo_poly) for f in floes]
+        floe_polys = [LG.difference(f, topo_poly) for f in floe_polys]
     end
     # Turn polygons into floes
     for p in floe_polys
-        append!(floe_arr, poly_to_floes(p, hmean, Δh, ρi, mc_n, rng, min_floe_area, T))
+        append!(floe_arr, poly_to_floes(p, hmean, Δh; ρi = ρi, mc_n = mc_n, rng = rng, min_floe_area = min_floe_area, t = T))
     end
     # Warn about floes with area less than minimum floe size
     min_floe_area = min_floe_area > 0 ? min_floe_area : T(4 * (domain.east.val - domain.west.val) * (domain.north.val - domain.south.val) / 1e4)
     if any(floe_arr.area .< min_floe_area)
-        @warn "Some user input floe areas are less than the suggested minimum floe size."
+        @warn "Some user input floe areas are less than the suggested minimum floe area."
     end
     # Warn about floes with centroids outside of domain
-    if any(domain.west.val .< first.(floe_arr.centroid) .< domain.east.val) || any(domain.south.val .< last.(floe_arr.centroid) .< domain.north.val)
+    if !all(domain.west.val .< first.(floe_arr.centroid) .< domain.east.val) && !all(domain.south.val .< last.(floe_arr.centroid) .< domain.north.val)
         @warn "Some floe centroids are out of the domain."
     end
     # Initialize floe IDs
@@ -306,8 +306,8 @@ function initialize_floe_field(nfloes::Int, concentrations, domain, hmean, Δh; 
     open_water_area = LG.area(open_water)
     min_floe_area = min_floe_area >= 0 ? min_floe_area : T(4 * Lx * Lx / 1e4)
     # Loop over cells
-    for i in range(1, nrows)
-        for j in range(1, ncols)
+    for j in range(1, ncols)
+        for i in range(1, nrows)
             c = concentrations[i, j]
             if c > 0
                 c = c > 1 ? 1 : c
@@ -334,7 +334,7 @@ function initialize_floe_field(nfloes::Int, concentrations, domain, hmean, Δh; 
                     idx = pop!(floe_idx)
                     floe_coords = [valid_ringvec!([Vector(f) .* [collen, rowlen] .+ trans_vec for f in tess_floes[idx]])]
                     floe_poly = LG.intersection(LG.Polygon(floe_coords), open_cell)
-                    floes = poly_to_floes(floe_poly, hmean, Δh, ρi, mc_n, rng, min_floe_area, T)
+                    floes = poly_to_floes(floe_poly, hmean, Δh; ρi = ρi, mc_n = mc_n, rng = rng, min_floe_area = min_floe_area, t = T)
                     append!(floe_arr, floes)
                     floes_area += sum(floes.area)
                 end
