@@ -110,6 +110,12 @@ struct GridOutputWriter{FT<:AbstractFloat}<:AbstractOutputWriter
     average::Bool
 end
 
+function get_known_grid_outputs()
+    return Set([:u_grid, :v_grid, :dudt_grid, :dvdt_grid, :overarea_grid, :mass_grid,
+                :area_grid, :height_grid, :si_frac_grid, :stress_xx_grid, :stress_yx_grid, 
+                :stress_xy_grid, :stress_yy_grid, :stress_eig_grid, :strain_ux_grid, :strain_vx_grid, :strain_uy_grid,
+                :strain_vy_grid])
+end
 """
     GridOutputWriter(outputs, Δtout, fn, grid::Grid, dims)
 
@@ -126,7 +132,7 @@ Output:
 """
 function GridOutputWriter(outputs::Vector{Symbol}, Δtout, grid::AbstractGrid, dims; dir = ".", filename = "gridded_data.nc", overwrite = false, average = false, t::Type{T} = Float64) where T
     # Check for known outputs - need routine to calculate in calc_eulerian_data
-    known_grid_outputs = Set([:u_grid, :v_grid, :dudt_grid, :dvdt_grid, :overarea_grid, :mass_grid, :area_grid, :height_grid, :si_frac_grid])
+    known_grid_outputs = get_known_grid_outputs()
     remove_idx = []
     for i in eachindex(outputs)
         if !(outputs[i] in known_grid_outputs)
@@ -153,7 +159,7 @@ function GridOutputWriter(outputs::Vector{Symbol}, Δtout, grid::AbstractGrid, d
 end
 
 GridOutputWriter(Δtout::Int, grid::AbstractGrid, dims; dir = ".", filename = "gridded_data.nc", overwrite = false, average = false, t::Type{T} = Float64) where T =
-    GridOutputWriter([:u_grid, :v_grid, :dudt_grid, :dvdt_grid, :overarea_grid, :mass_grid, :area_grid, :height_grid, :si_frac_grid], Δtout, grid, dims, dir = dir,
+    GridOutputWriter(collect(get_known_grid_outputs()), Δtout, grid, dims, dir = dir,
                     filename = filename, overwrite = overwrite, average = average, t = T)
 
 #----------------------- Write Data -----------------------#
@@ -433,8 +439,33 @@ function calc_eulerian_data!(floes, topography, writer)
                             area_tot
                         elseif outputs[k] == :height_grid
                             sum(fic.height .* ma_ratios)
+                        elseif outputs[k] == :stress_xx_grid
+                            sum([s[1, 1] for s in fic.stress] .* ma_ratios)
+                        elseif outputs[k] == :stress_yx_grid
+                            sum([s[1, 2] for s in fic.stress] .* ma_ratios)
+                        elseif outputs[k] == :stress_xy_grid
+                            sum([s[2, 1] for s in fic.stress] .* ma_ratios)
+                        elseif outputs[k] == :stress_yy_grid
+                            sum([s[2, 2] for s in fic.stress] .* ma_ratios)
+                        elseif outputs[k] == :stress_eig_grid
+                            xx = sum([s[1, 1] for s in fic.stress] .* ma_ratios)
+                            yx = sum([s[1, 2] for s in fic.stress] .* ma_ratios)
+                            xy = sum([s[2, 1] for s in fic.stress] .* ma_ratios)
+                            yy = sum([s[2, 2] for s in fic.stress] .* ma_ratios)
+                            stress = maximum(eigvals([xx yx; xy yy]))
+                            if abs(stress) > 1e8
+                                stress = 0.0
+                            end
+                            stress
+                        elseif outputs[k] == :strain_ux_grid
+                            sum([s[1, 1] for s in fic.strain] .* ma_ratios)
+                        elseif outputs[k] == :strain_vx_grid
+                            sum([s[1, 2] for s in fic.strain] .* ma_ratios)
+                        elseif outputs[k] == :strain_uy_grid
+                            sum([s[2, 1] for s in fic.strain] .* ma_ratios)
+                        elseif outputs[k] == :strain_vy_grid
+                            sum([s[2, 2] for s in fic.strain] .* ma_ratios)
                         end
-                        # need to add stress and strain!
                         writer.data[i, j, k] = data
                     end
                 else
@@ -495,6 +526,9 @@ function getattrs(output::Symbol)
                                     "Matrix of floe's interactions with following columns: ID of floe interacted with,
                                     collision x-force on floe, collision y-force on floe, collision x-point, collision y-point,
                                     collision torque on floe, overlap with other floe") :
+        output == :stress ? ("N/m^2", "Stress on the floe in the form [xx yx; xy, yy]") :
+        output == :stress_history ? ("N/m^2", "List of last stresses felt on the floe from previous timesteps") :
+        output == :strain ? ("unitless", "Strain on the floe in the form [ux vx; uy vy]") :
         output == :p_dxdt ? ("m/s", "Floe x-velocity from previous time step") :
         output == :p_dydt ? ("m/s", "Floe y-velocity from previous time step") :
         output == :p_dudt ? ("m/s^2", "Floe x-acceleration from previous time step") :
@@ -511,6 +545,15 @@ function getattrs(output::Symbol)
         output == :area_grid ? ("m^2", "Average area of floes in grid cell") :
         output == :height_grid ? ("m", "Average height of floes in grid cell") :
         output == :si_frac_grid ? ("unitless", "Fraction of grid cell covered by floes") :
+        output == :stress_xx_grid ? ("N/m^2", "Average xx stress on floes in a given grid cell") :
+        output == :stress_yx_grid ? ("N/m^2", "Average yx stress on floes in a given grid cell") :
+        output == :stress_xy_grid ? ("N/m^2", "Average xy stress on floes in a given grid cell") :
+        output == :stress_yy_grid ? ("N/m^2", "Average yy stress on floes in a given grid cell") :
+        output == :stress_eig_grid ? ("N/m^2", "Maximum eigenvalue of the stress matricies [xx yx; xy yy]") :
+        output == :strain_ux_grid ? ("unitless", "Average ux strain on floes in a grid cell") :
+        output == :strain_vx_grid ? ("unitless", "Average vx strain on floes in a grid cell") :
+        output == :strain_uy_grid ? ("unitless", "Average uy strain on floes in a grid cell") :
+        output == :strain_vy_grid ? ("unitless", "Average vy strain on floes in a grid cell") :
         ("", "") # if symbol isn't found, return empty attributes
     return unit, comment
 end
