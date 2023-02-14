@@ -78,4 +78,5 @@ include("plotting.jl")
 include("output.jl")
 include("collisions.jl")
 include("coupling.jl")
+include("fractures.jl")
 end
