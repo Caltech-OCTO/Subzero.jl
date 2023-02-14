@@ -69,7 +69,7 @@ function calc_stress_strain!(floe)
     end
 
     # Strain calculations
-    xcoords, ycoords = seperate_xy(floe.coords)
+    xcoords, ycoords = seperate_xy(translate(floe.coords, -floe.centroid))
     # Needed copy of first coordinate at end for calculation of strain at each coordinate
     push!(xcoords, xcoords[1])
     push!(ycoords, ycoords[1])

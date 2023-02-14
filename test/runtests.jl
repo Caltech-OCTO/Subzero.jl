@@ -8,4 +8,5 @@ using Test
     include("test_floe_utils.jl")
     include("test_model.jl")
     include("test_output.jl")
+    include("test_simulation.jl")
 end
