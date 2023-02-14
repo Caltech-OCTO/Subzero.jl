@@ -34,9 +34,12 @@ Singular sea ice floe with fields describing current state.
     trqOA::FT = 0.0         # torque from ocean and Atmos
     hflx_factor::FT = 0.0   # heat flux factor can be multiplied by floe height to get the heatflux
     overarea::FT = 0.0      # total overlap with other floe
-    collision_force::Matrix{FT} = [0.0 0.0] 
+    collision_force::Matrix{FT} = zeros(1, 2)
     collision_trq::FT = 0.0
     interactions::Matrix{FT} = zeros(0, 7)
+    stress::Matrix{FT} = zeros(2, 2)
+    stress_history::CircularBuffer{Matrix{FT}} = CircularBuffer(1000)
+    strain::Matrix{FT} = zeros(2, 2)
     # Previous values for timestepping  -------------------------------------
     p_dxdt::FT = 0.0        # previous timestep x-velocity
     p_dydt::FT = 0.0        # previous timestep y-velocity
@@ -131,7 +134,7 @@ Note:
         When this is fixed, this annotation will need to be updated.
         We should only run the model with Float64 right now or else we will be converting the Polygon back and forth all of the time. 
 """
-function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n::Int = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T
+function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n::Int = 1000, history_n = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T
     floe = rmholes(poly)
     # Floe physical properties
     centroid = LG.GeoInterface.coordinates(LG.centroid(floe))::Vector{Float64}
@@ -147,13 +150,16 @@ function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 
     # Generate Monte Carlo Points
     ox, oy = seperate_xy(origin_coords)
     mc_x, mc_y, alive = generate_mc_points(mc_n, ox, oy, rmax, area, alive, rng, T)
-    
+
+    # Generate Stress History
+    stress_history = CircularBuffer{Matrix{T}}(history_n)
+    fill!(stress_history, zeros(T, 2, 2))
 
     return Floe(centroid = convert(Vector{T}, centroid), coords = convert(PolyVec{T}, coords),
                 height = convert(T, height), area = convert(T, area), mass = convert(T, mass),
                 rmax = convert(T, rmax), moment = convert(T, moment), angles = angles,
                 u = convert(T, u), v = convert(T, v), ξ = convert(T, ξ),
-                mc_x = mc_x, mc_y = mc_y, alive = alive)
+                mc_x = mc_x, mc_y = mc_y, stress_history = stress_history,alive = alive)
 end
 
 """
@@ -176,8 +182,8 @@ Inputs:
 Output:
         Floe with needed fields defined - all default field values used so all forcings and velocities start at 0 and floe is "alive"
 """
-Floe(coords::PolyVec, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n::Int = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T =
-    Floe(LG.Polygon(convert(PolyVec{Float64}, valid_polyvec!(rmholes(coords)))), hmean, Δh; ρi = ρi, u = u, v = v, ξ = ξ, mc_n = mc_n, rng = rng, t = T) 
+Floe(coords::PolyVec, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n::Int = 1000, history_n = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T =
+    Floe(LG.Polygon(convert(PolyVec{Float64}, valid_polyvec!(rmholes(coords)))), hmean, Δh; ρi = ρi, u = u, v = v, ξ = ξ, mc_n = mc_n, history_n = history_n, rng = rng, t = T) 
     # Polygon convert is needed since LibGEOS only takes Float64 - when this is fixed convert can be removed
 
 """
@@ -199,14 +205,14 @@ Output:
         Vector{Floe} vector of floes making up input polygon(s) with area above given minimum floe area.
         Floe polygons split around holes if needed. 
 """
-function poly_to_floes(floe_poly, hmean, Δh; ρi = 920.0, mc_n::Int = 1000, rng = Xoshiro(), min_floe_area = 0, t::Type{T} = Float64) where T
+function poly_to_floes(floe_poly, hmean, Δh; ρi = 920.0, mc_n::Int = 1000, history_n::Int = 1000, rng = Xoshiro(), min_floe_area = 0, t::Type{T} = Float64) where T
     floes = StructArray{Floe{T}}(undef, 0)
     regions = LG.getGeometries(floe_poly)
     while !isempty(regions)
         r = pop!(regions)
         if LG.area(r) > min_floe_area
             if !hashole(r)
-                floe = Floe(r, hmean, Δh, ρi = ρi, mc_n = mc_n, rng = rng, t = T)
+                floe = Floe(r, hmean, Δh, ρi = ρi, mc_n = mc_n, history_n = history_n, rng = rng, t = T)
                 push!(floes, floe)
             else
                 region_bottom, region_top = split_polygon_hole(r, T)
@@ -239,7 +245,7 @@ Inputs:
 Output:
         floe_arr <StructArray> list of floes created from given polygon coordinates
 """
-function initialize_floe_field(coords::Vector{PolyVec{T}}, domain, hmean, Δh; min_floe_area = 0.0, ρi = 920.0, mc_n::Int = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T
+function initialize_floe_field(coords::Vector{PolyVec{T}}, domain, hmean, Δh; min_floe_area = 0.0, ρi = 920.0, mc_n::Int = 1000, history_n::Int = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T
     floe_arr = StructArray{Floe{T}}(undef, 0)
     floe_polys = [LG.Polygon(valid_polyvec!(c)) for c in coords]
     # Remove overlaps with topography
@@ -290,7 +296,7 @@ Inputs:
 Output:
         floe_arr <StructArray> list of floes created using Voronoi Tesselation of the domain with given concentrations.
 """
-function initialize_floe_field(nfloes::Int, concentrations, domain, hmean, Δh; min_floe_area = 0.0, ρi = 920.0, mc_n::Int = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T
+function initialize_floe_field(nfloes::Int, concentrations, domain, hmean, Δh; min_floe_area = 0.0, ρi = 920.0, mc_n::Int = 1000, history_n::Int = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T
     floe_arr = StructArray{Floe{T}}(undef, 0)
     # Split domain into cells with given concentrations
     nrows, ncols = size(concentrations[:, :])

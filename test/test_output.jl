@@ -44,10 +44,12 @@ function test_basic_outputwriters()
     close(file)
     rm(fn)
 
-    # Test Floe Output Writer
+    # Test Grid Output Writer
     fn = joinpath(dir, "grid.nc")
     file = Dataset(fn, "r")
-    @test Set(keys(file)) == Set(["u_grid", "v_grid", "dudt_grid", "dvdt_grid", "overarea_grid", "mass_grid", "area_grid", "height_grid", "si_frac_grid", "time", "x", "y"])
+    @test Set(keys(file)) == Set(["u_grid", "v_grid", "dudt_grid", "dvdt_grid", "overarea_grid", "mass_grid", "area_grid", "height_grid", "si_frac_grid",
+                                  "stress_xx_grid", "stress_yx_grid", "stress_xy_grid", "stress_yy_grid", "stress_eig_grid", "strain_ux_grid",
+                                  "strain_vx_grid", "strain_uy_grid", "strain_vy_grid", "time", "x", "y"])
     @test length(file["x"][:]) == 10
     @test length(file["y"][:]) == 5
     @test length(file["time"][:]) == 6

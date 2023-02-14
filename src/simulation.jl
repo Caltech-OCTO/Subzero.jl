@@ -55,6 +55,36 @@ Simulation which holds a model and parameters needed for running the simulation.
     WELDING::Bool = false           # If true, floe welding is enabled
 end
 
+function calc_stress_strain!(floe)
+    # Stress calcultions
+    if !isempty(floe.interactions)
+        inters = floe.interactions[:, :]
+        xi, yi = floe.centroid
+        stress = 1/(2*floe.area*floe.height) * ([sum((inters[:, xpoint] .- xi) .* inters[:, xforce]) sum((inters[:, ypoint] .- yi) .* inters[:, xforce]);
+                                                 sum((inters[:, xpoint] .- xi) .* inters[:, yforce]) sum((inters[:, ypoint] .- yi) .* inters[:, yforce])] .+
+                                                [sum(inters[:, xforce] .* (inters[:, xpoint] .- xi)) sum(inters[:, yforce] .* (inters[:, xpoint] .- xi));
+                                                 sum(inters[:, xforce] .* (inters[:, ypoint] .- yi)) sum(inters[:, yforce] .* (inters[:, ypoint] .- yi))])
+        push!(floe.stress_history, stress)
+        floe.stress = mean(floe.stress_history)
+    end
+
+    # Strain calculations
+    xcoords, ycoords = seperate_xy(translate(floe.coords, -floe.centroid))
+    # Needed copy of first coordinate at end for calculation of strain at each coordinate
+    push!(xcoords, xcoords[1])
+    push!(ycoords, ycoords[1])
+    # u and v velocities of floes at each vertex
+    rad_coords = sqrt.(xcoords.^2 .+ ycoords.^2)
+    θ_coords = atan.(ycoords, xcoords)
+    ucoords = floe.u .- floe.ξ * rad_coords .* sin.(θ_coords)
+    vcoords = floe.v .+ floe.ξ * rad_coords .* cos.(θ_coords)
+    dudx = 0.5 * sum(diff(ucoords) .* diff(ycoords))/floe.area
+    dudy = 0.5 * sum(diff(ucoords) .* diff(xcoords))/floe.area
+    dvdx = 0.5 * sum(diff(vcoords) .* diff(ycoords))/floe.area
+    dvdy = 0.5 * sum(diff(vcoords) .* diff(xcoords))/floe.area
+    floe.strain = 0.5 * ([dudx dudy; dvdx dvdy] + [dudx dvdx; dudy dvdy])
+    return
+end
 """
     timestep_floe(floe)
 
@@ -67,6 +97,8 @@ Output:
 function timestep_floe!(floe, Δt)
     cforce = floe.collision_force
     ctrq = floe.collision_trq
+
+    calc_stress_strain!(floe)
 
     if floe.height > 10
         floe.height = 10
@@ -138,9 +170,8 @@ function timestep_floe!(floe, Δt)
     end
     floe.ξ = ξ
     floe.p_dξdt = dξdt
+
     return
-    # TODO: Floe strain - Calc_trajectory lines 216-288
-    # TODO: Floe stress - Calc_trajectory lines 9-21
 end
 
 function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T

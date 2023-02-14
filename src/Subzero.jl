@@ -49,7 +49,7 @@ export
 
 import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG
-using GeometryBasics, Interpolations, JLD2, LinearAlgebra, NamedArrays,
+using DataStructures, GeometryBasics, Interpolations, JLD2, LinearAlgebra, NamedArrays,
       NCDatasets, Plots, PolygonInbounds, Random, Statistics, StructArrays,
       VoronoiCells
 

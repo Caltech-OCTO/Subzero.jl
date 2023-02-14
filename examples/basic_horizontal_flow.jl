@@ -83,10 +83,10 @@ consts = Constants()
 simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 100, COLLISION = true, verbose = true)
 
 # Output setup
-initwriter = InitialStateOutputWriter(dir = "output/voronoi", filename = "initial_state.jld2", overwrite = true)
-gridwriter = GridOutputWriter(50, grid, (10, 10), dir = "output/voronoi", filename = "g.nc", overwrite = true)
-floewriter = FloeOutputWriter(10, dir = "output/voronoi", filename = "f.jld2", overwrite = true)
-checkpointwriter = CheckpointOutputWriter(2246, dir = "output/voronoi", overwrite = true)
+initwriter = InitialStateOutputWriter(dir = "output/sim", filename = "initial_state.jld2", overwrite = true)
+gridwriter = GridOutputWriter(50, grid, (10, 10), dir = "output/sim", filename = "g.nc", overwrite = true)
+floewriter = FloeOutputWriter(50, dir = "output/sim", filename = "f.jld2", overwrite = true)
+checkpointwriter = CheckpointOutputWriter(50, dir = "output/sim", overwrite = true)
 
 # Run simulation
-run!(simulation, [initwriter, floewriter])
+run!(simulation, [initwriter, floewriter, checkpointwriter, gridwriter])
