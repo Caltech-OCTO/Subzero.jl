@@ -21,6 +21,7 @@ StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 VoronoiCells = "e3e34ffb-84e9-5012-9490-92c94d0c60a4"
 
 [compat]
+GR = "0.71"
 Interpolations = "0.14"
 JLD2 = "0.4"
 LibGEOS = "0.7.3"
