@@ -69,6 +69,13 @@ function scale(poly::LG.Polygon, factor)
     return LG.Polygon(coords .* factor)
 end
 
+function rotate_radians(coords::PolyVec, α)
+    return [map(p -> [cos(α)*p[1] - sin(α)*p[2],
+                         sin(α)*p[1] + cos(α)p[2]], coords[1])]
+end
+
+rotate_degrees(coords::PolyVec, α) = rotate_radians(coords, α * π/180)
+
 """
     hashole(coords::PolyVec{FT})
 
@@ -407,7 +414,7 @@ p_poly_dist by Michael Yoshpe - last updated in 2006.
 We mimic version 1 functionality with 4 inputs and 1 output.
 Only needed code was translated.
 """
-function calc_point_poly_dist(xp::Vector{T},yp::Vector{T}, vec_poly::PolyVec{T}) where {T<:AbstractFloat}
+function calc_point_poly_dist(xp::Vector{T}, yp::Vector{T}, vec_poly::PolyVec{T}) where {T<:AbstractFloat}
     @assert length(xp) == length(yp)
     min_lst = if !isempty(xp)
         # Vertices in polygon and given points

@@ -14,7 +14,7 @@ Singular sea ice floe with fields describing current state.
     mass::FT                # floe mass (kg)
     rmax::FT                # distance of vertix farthest from centroid (m)
     moment::FT              # mass moment of intertia
-    angles::Vector{FT}      # interior angles of floe
+    angles::Vector{FT}      # interior angles of floe in degrees
     # Monte Carlo Points ---------------------------------------------------
     mc_x::Vector{FT}        # x-coordinates for monte carlo integration centered at origin
     mc_y::Vector{FT}        # y-coordinates for monte carlo integration centered at origin
@@ -202,17 +202,17 @@ Inputs:
         min_floe_area   <Float> minimum area for floe creation - default is 0
         t               <Float> datatype to run simulation with - either Float32 or Float64
 Output:
-        Vector{Floe} vector of floes making up input polygon(s) with area above given minimum floe area.
+        StructArray{Floe} vector of floes making up input polygon(s) with area above given minimum floe area.
         Floe polygons split around holes if needed. 
 """
-function poly_to_floes(floe_poly, hmean, Δh; ρi = 920.0, mc_n::Int = 1000, history_n::Int = 1000, rng = Xoshiro(), min_floe_area = 0, t::Type{T} = Float64) where T
+function poly_to_floes(floe_poly, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n::Int = 1000, history_n::Int = 1000, rng = Xoshiro(), min_floe_area = 0, t::Type{T} = Float64) where T
     floes = StructArray{Floe{T}}(undef, 0)
     regions = LG.getGeometries(floe_poly)
     while !isempty(regions)
         r = pop!(regions)
         if LG.area(r) > min_floe_area
             if !hashole(r)
-                floe = Floe(r, hmean, Δh, ρi = ρi, mc_n = mc_n, history_n = history_n, rng = rng, t = T)
+                floe = Floe(r, hmean, Δh, ρi = ρi, u = u, v = v, ξ = ξ, mc_n = mc_n, history_n = history_n, rng = rng, t = T)
                 push!(floes, floe)
             else
                 region_bottom, region_top = split_polygon_hole(r, T)
@@ -271,6 +271,34 @@ function initialize_floe_field(coords::Vector{PolyVec{T}}, domain, hmean, Δh; m
     return floe_arr
 end
 
+function generate_voronoi_coords(npoints, scale_fac, trans_vec, domain_coords, rng; max_tries = 10, t::Type{T} = Float64) where T
+    xpoints = Vector{T}()
+    ypoints = Vector{T}()
+    current_points = 0
+    tries = 0
+    while current_points < npoints && tries <= max_tries
+        x = rand(rng, T, npoints)
+        y = rand(rng, T, npoints)
+        in_on = inpoly2(hcat(scale_fac[1] * x .+ trans_vec[1],
+                             scale_fac[2] * y .+ trans_vec[2]),
+                        reduce(vcat, domain_coords))
+        in_idx = in_on[:, 1] .|  in_on[:, 2]
+        current_points += sum(in_idx)
+        tries += 1
+        append!(xpoints, x[in_idx])
+        append!(ypoints, y[in_idx])
+    end
+    if npoints > current_points
+        @warn "Only $current_points out of $npoints were able to be generated in $max_tries during voronoi tesselation."
+    else
+        xpoints = xpoints[1:npoints]
+        ypoints = ypoints[1:npoints]
+    end
+    tess_floes = voronoicells(xpoints, ypoints, Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0))).Cells 
+    floe_coords = [[valid_ringvec!([Vector(f) .* scale_fac .+ trans_vec for f in tess])] for tess in tess_floes]
+    return floe_coords
+end
+
 """
     initialize_floe_field(nfloes::Int, concentrations, domain, hmean, Δh; min_floe_area = -1.0, ρi = 920.0, mc_n::Int = 1000, t::Type{T} = Float64)
 
@@ -326,21 +354,15 @@ function initialize_floe_field(nfloes::Int, concentrations, domain, hmean, Δh; 
                 open_cell = LG.intersection(LG.Polygon(cell_bounds), open_water)
                 open_coords = LG.GeoInterface.coordinates(open_cell)::PolyVec{T}
                 open_area = LG.area(open_cell)::T
-                # Create points to seed floes
-                ncell = ceil(Int, nfloes * open_area / open_water_area / c)
-                xpoints = rand(rng, T, ncell)
-                ypoints = rand(rng, T, ncell)
-                in_points = inpoly2(hcat(collen * xpoints .+ trans_vec[1], rowlen * ypoints .+ trans_vec[2]), reduce(vcat, open_coords))
-                in_idx = in_points[:, 1] .|  in_points[:, 2]
-                # Create floes
-                tess_floes = voronoicells(xpoints[in_idx], ypoints[in_idx], Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0))).Cells 
+                # Generate coords with voronoi tesselation and make into floes
+                ncells = ceil(Int, nfloes * open_area / open_water_area / c)
+                floe_coords = generate_voronoi_coords(ncells, [collen, rowlen], trans_vec, open_coords, rng, t = T)
                 floes_area = T(0.0)
-                floe_idx = shuffle(range(1, length(tess_floes)))
+                floe_idx = shuffle(range(1, length(floe_coords)))
                 while !isempty(floe_idx) && floes_area/open_area <= c
                     idx = pop!(floe_idx)
-                    floe_coords = [valid_ringvec!([Vector(f) .* [collen, rowlen] .+ trans_vec for f in tess_floes[idx]])]
-                    floe_poly = LG.intersection(LG.Polygon(floe_coords), open_cell)
-                    floes = poly_to_floes(floe_poly, hmean, Δh; ρi = ρi, mc_n = mc_n, rng = rng, min_floe_area = min_floe_area, t = T)
+                    floe_poly = LG.intersection(LG.Polygon(floe_coords[idx]), open_cell)
+                    floes = poly_to_floes(floe_poly, hmean, Δh; ρi = ρi, mc_n = mc_n, history_n = history_n, rng = rng, min_floe_area = min_floe_area, t = T)
                     append!(floe_arr, floes)
                     floes_area += sum(floes.area)
                 end
