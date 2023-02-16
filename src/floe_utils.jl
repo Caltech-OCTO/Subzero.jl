@@ -654,7 +654,8 @@ function split_polygon_hole(poly::LG.Polygon, ::Type{T} = Float64) where T
         poly_bottom = LG.MultiPolygon(cut_polygon_coords(full_coords, h1_center[2], T))
         poly_bottom =  LG.intersection(poly_bottom, poly)  # Adds in any other holes in poly
         poly_top = LG.difference(poly, poly_bottom)
-        bottom_list, top_list = LG.getGeometries(poly_bottom), LG.getGeometries(poly_top)
+        bottom_list = LG.getGeometries(poly_bottom)::Vector{LG.Polygon}
+        top_list = LG.getGeometries(poly_top)::Vector{LG.Polygon}
     else  # No hole
         bottom_list, top_list = Vector{LG.Polygon}([poly]), Vector{LG.Polygon}()
     end

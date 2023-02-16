@@ -2,9 +2,9 @@
 Structs and functions for fracturing floes
 """
 
-abstract type AbstractFractureCriteria{FT<:AbstractFloat} end
+abstract type AbstractFractureCriteria end
 
-struct HiblerYieldCurve{FT}<:AbstractFractureCriteria{FT}
+struct HiblerYieldCurve{FT<:AbstractFloat}<:AbstractFractureCriteria
     pstar::FT
     c::FT
     vertices::PolyVec{FT}
@@ -26,9 +26,9 @@ function calculate_hibler(floes, pstar, c)
 end
 
 HiblerYieldCurve(floes, pstar = 2.25e5, c = 20.0) =
-    HiblerYieldCurve(pstar, c, calculate_hibler(floe, pstar, c))
+    HiblerYieldCurve(pstar, c, calculate_hibler(floes, pstar, c))
 
-struct MohrCone{FT}<:AbstractFractureCriteria{FT}
+struct MohrCone{FT<:AbstractFloat}<:AbstractFractureCriteria
     sig1::FT
     sig2::FT
     sig3::FT
@@ -36,7 +36,7 @@ struct MohrCone{FT}<:AbstractFractureCriteria{FT}
     vertices::PolyVec{FT}
 end
 
-struct NoFracture{FT}<:AbstractFractureCriteria{FT} end
+struct NoFracture<:AbstractFractureCriteria end
 
 function update_criteria!(criteria::HiblerYieldCurve, floes)
     criteria.vertices = calculate_hibler(floes, criteria.pstar, criteria.c)
@@ -51,7 +51,7 @@ function determine_fractures(floes, criteria::AbstractFractureCriteria, min_floe
     # If stresses are outside of criteria regions, fracture the floe
     frac_idx = ![in_on[:, 1] .|  in_on[:, 2], :]
     frac_idx[floes.area .< min_floe_area] .= false
-    return frac_idx
+    return range(1, length(floes))[frac_idx]
 end
 
 function deform_floe!(floe, deformer_coords, deforming_forces)
@@ -100,7 +100,8 @@ end
 
 function fracture_floes(floes, criteria::AbstractFractureCriteria, rng, npieces = 3, min_floe_area = 0, ::Type{T} = Float64) where T
     frac_idx = determine_fractures(floes, min_floe_area, criteria)
-    fractured_list = Vector{StructVector{Floes}}(undef, sum(frac_idx))
+    nfloes2frac = length(frac_idx)
+    fractured_list = Vector{StructVector{Floes}}(undef, nfloes2frac)
     for i in frac_idx
         ifloe = floes[i]
         inters = ifloe.interactions
@@ -108,15 +109,14 @@ function fracture_floes(floes, criteria::AbstractFractureCriteria, rng, npieces 
         if !isempty(inters)
             _, max_inters_idx = findmax(inters[:, overlap])
             deforming_inter = inters[max_inters_idx, :]
-            deforming_floe_idx = floes[deforming_inter[floeidx]]
-            if deforming_floe_idx <= length(floes)
+            deforming_floe_idx = deforming_inter[floeidx]
+            if frac_info.deform_on && deforming_floe_idx <= length(floes)
                 deform_floe!(ifloe, floes.coords[deforming_floe_idx], deforming_inter[xforce:yforce])
             end
         end
         fractured_list[i] = split_floe(ifloe, npieces, rng, T)
-        floes[i] = ifloe
     end
-    for idx in frac_idx
+    for idx in range(1, nfloes2frac)
         if !isempty(fractured_list[idx])
             StructArrays.foreachfield(f -> deleteat!(f, idx), floes)
             append!(floes, fractured_list[idx])
@@ -124,6 +124,4 @@ function fracture_floes(floes, criteria::AbstractFractureCriteria, rng, npieces 
         end
     end
 end
-
-
 

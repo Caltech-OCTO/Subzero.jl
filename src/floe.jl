@@ -207,7 +207,7 @@ Output:
 """
 function poly_to_floes(floe_poly, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n::Int = 1000, history_n::Int = 1000, rng = Xoshiro(), min_floe_area = 0, t::Type{T} = Float64) where T
     floes = StructArray{Floe{T}}(undef, 0)
-    regions = LG.getGeometries(floe_poly)
+    regions = LG.getGeometries(floe_poly)::Vector{LG.Polygon}
     while !isempty(regions)
         r = pop!(regions)
         if LG.area(r) > min_floe_area
@@ -255,7 +255,7 @@ function initialize_floe_field(coords::Vector{PolyVec{T}}, domain, hmean, Δh; m
     end
     # Turn polygons into floes
     for p in floe_polys
-        append!(floe_arr, poly_to_floes(p, hmean, Δh; ρi = ρi, mc_n = mc_n, rng = rng, min_floe_area = min_floe_area, t = T))
+        append!(floe_arr, poly_to_floes(p, hmean, Δh; ρi = ρi, mc_n = mc_n, history_n = history_n, rng = rng, min_floe_area = min_floe_area, t = T))
     end
     # Warn about floes with area less than minimum floe size
     min_floe_area = min_floe_area > 0 ? min_floe_area : T(4 * (domain.east.val - domain.west.val) * (domain.north.val - domain.south.val) / 1e4)
@@ -358,7 +358,7 @@ function initialize_floe_field(nfloes::Int, concentrations, domain, hmean, Δh; 
                 ncells = ceil(Int, nfloes * open_area / open_water_area / c)
                 floe_coords = generate_voronoi_coords(ncells, [collen, rowlen], trans_vec, open_coords, rng, t = T)
                 floes_area = T(0.0)
-                floe_idx = shuffle(range(1, length(floe_coords)))
+                floe_idx = shuffle(rng, range(1, length(floe_coords)))
                 while !isempty(floe_idx) && floes_area/open_area <= c
                     idx = pop!(floe_idx)
                     floe_poly = LG.intersection(LG.Polygon(floe_coords[idx]), open_cell)

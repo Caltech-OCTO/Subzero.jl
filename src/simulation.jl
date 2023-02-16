@@ -30,29 +30,19 @@ Simulation which holds a model and parameters needed for running the simulation.
     COLLISION (enable floe collisions), CORNERS (floe corners can break), FRACTURES (floes can fracture), KEEPMIN (small floes don't dissolve), PACKING (floe packing enabled),
     RAFTING (floe rafting enabled), RIDGING (floe ridging enabled), and WELDING (floe welding enabled). All are false by default.
 """
-@kwdef struct Simulation{FT<:AbstractFloat, GT<:AbstractGrid, DT<:Domain}
-    model::Model{FT, GT, DT}        # Model to simulate
-    consts::Constants{FT}           # Constants used in Simulation
-    Δd::Int = 1                     # Number of buffer grid cells on each side of floe for monte carlo interpolation
-    verbose::Bool = false           # String output printed during run
-    name::String = "sim"            # Simulation name for printing/saving
+@kwdef struct Simulation{FT<:AbstractFloat, GT<:AbstractGrid, DT<:Domain, CT<:AbstractFractureCriteria}
+    model::Model{FT, GT, DT}            # Model to simulate
+    consts::Constants{FT} = Constants() # Constants used in Simulation
+    Δd::Int = 1                         # Number of buffer grid cells on each side of floe for monte carlo interpolation
+    verbose::Bool = false               # String output printed during run
+    name::String = "sim"                # Simulation name for printing/saving
     # Timesteps ----------------------------------------------------------------
-    Δt::Int = 10                    # Simulation timestep (seconds)
-    nΔt::Int = 7500                 # Total timesteps simulation runs for
-    Δtsimp::Int = 20                # Timesteps between floe simplification
-    Δtpack::Int = 500               # Timesteps between thermodynamic floe 
-                                    # creation
-    Δtocn::Int = 10                 # Timesteps between updating ocean forces
-    # Flags --------------------------------------------------------------------
-    COLLISION::Bool = false         # If true, collisions are enabled for floes
-    CORNERS::Bool = false           # If true, corners of floes can break
-    FRACTURES::Bool = false         # If true, fracturing of floes is enabled
-    KEEPMIN::Bool = false           # If true, retain small floes that would 
-                                    # normally "dissolve"
-    PACKING::Bool = false           # If true, floe packing is enabled
-    RAFTING::Bool = false           # If true, floe rafting is enabled
-    RIDGING::Bool = false           # If true, floe ridging is enabled
-    WELDING::Bool = false           # If true, floe welding is enabled
+    Δt::Int = 10                        # Simulation timestep (seconds)
+    nΔt::Int = 7500                     # Total timesteps simulation runs for
+    # Physical Processes --------------------------------------------------------
+    coupling_info::CouplingInfo = CouplingInfo()
+    collision_info::CollisionInfo{FT} = CollisionInfo()
+    fracture_info::FractureInfo{CT} = FractureInfo()
 end
 
 function calc_stress_strain!(floe)
@@ -190,8 +180,8 @@ function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
     # Collisions
     remove = zeros(Int, n_init_floes)
     transfer = zeros(Int, n_init_floes)
-    if sim.COLLISION
-        remove, transfer = timestep_collisions!(m.floes, n_init_floes, m.domain, remove, transfer, sim.consts, sim.Δt, T)
+    if sim.collision_info.collisions_on
+        remove, transfer = timestep_collisions!(m.floes, n_init_floes, m.domain, remove, transfer, sim.consts, sim.Δt, sim.collision_info, T)
     end
 
     m.floes = m.floes[1:n_init_floes] # remove the ghost floes

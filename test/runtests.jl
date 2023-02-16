@@ -9,4 +9,5 @@ using Test
     include("test_model.jl")
     include("test_output.jl")
     include("test_simulation.jl")
+    include("test_process_info.jl")
 end

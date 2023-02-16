@@ -45,7 +45,14 @@ export
     ypoint,
     torque,
     overlap, 
-    initialize_floe_field
+    initialize_floe_field,
+    AbstractFractureCriteria,
+    NoFracture,
+    HiblerYieldCurve,
+    CollisionInfo,
+    FractureInfo,
+    CouplingInfo,
+    PolyVec
 
 import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG
@@ -62,6 +69,7 @@ Coordinates are vector of vector of vector of points of the form:
  This form is for easy conversion to LibGEOS Polygons.
 """
 const PolyVec{T} = Vector{Vector{Vector{T}}} where T<:AbstractFloat
+
 """
 Coordinates are vector of vector of points of the form:
 [[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]] where the xy coordinates form a
@@ -70,13 +78,18 @@ This form is for each conversion to LibGEOS LinearRings, which can also be made 
 """
 const RingVec{T} = Vector{Vector{T}} where T<:AbstractFloat
 
+# Model
 include("floe.jl")
 include("floe_utils.jl")
 include("model.jl")
+# Physical Processes
+include("coupling.jl")
+include("collisions.jl")
+include("fractures.jl")
+include("process_info.jl")
+# Simulation
 include("simulation.jl")
+# Tools
 include("plotting.jl")
 include("output.jl")
-include("collisions.jl")
-include("coupling.jl")
-include("fractures.jl")
 end
