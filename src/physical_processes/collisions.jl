@@ -467,7 +467,7 @@ function calc_torque!(floe, ::Type{T} = Float64) where T
     end
 end
 
-function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, consts, Δt, collision_info, ::Type{T} = Float64) where T
+function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, consts, Δt, collision_settings, ::Type{T} = Float64) where T
     collide_pairs = Dict{Tuple{Int, Int}, Tuple{Int, Int}}()
     # floe-floe collisions for floes i and j where i<j
     for i in eachindex(floes)
@@ -489,7 +489,7 @@ function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, con
                 new_collision = !(id_pair in keys(collide_pairs))
                 # New collision or floe and ghost colliding with same floe - not a repeat collision
                 if new_collision || (ghost_id_pair[1] == collide_pairs[id_pair][1]) ⊻ (ghost_id_pair[2] == collide_pairs[id_pair][2])
-                    iremove, itransfer = floe_floe_interaction!(ifloe, i, floes[j], j, n_init_floes, consts, Δt, collision_info.floe_floe_max_overlap)
+                    iremove, itransfer = floe_floe_interaction!(ifloe, i, floes[j], j, n_init_floes, consts, Δt, collision_settings.floe_floe_max_overlap)
                     if iremove != 0 || itransfer != 0
                         remove[i] = iremove
                         transfer[i] = itransfer
@@ -501,7 +501,7 @@ function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, con
                 end
             end
         end
-        floe_domain_interaction!(ifloe, domain, consts, Δt, collision_info.floe_domain_max_overlap, T)
+        floe_domain_interaction!(ifloe, domain, consts, Δt, collision_settings.floe_domain_max_overlap, T)
         floes[i] = ifloe
     end
     # Update floes not directly calculated above where i>j - can't be parallelized

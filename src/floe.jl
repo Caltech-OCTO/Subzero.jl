@@ -25,8 +25,11 @@ Singular sea ice floe with fields describing current state.
     ξ::FT = 0.0             # floe angular velocity
     # Status ---------------------------------------------------------------
     alive::Bool = true      # floe is still active in simulation
-    id::Int = 0             # floe id - set to index in floe array at start of sim
+    id::Int = 0             # floe id - set to index in floe array at start of sim - unique to all floes
     ghost_id::Int = 0       # ghost id - if floe is a ghost, ghost_id > 0 representing which ghost it is
+                            # if floe is not a ghost, ghost_id = 0
+    fracture_id = 0         # fracture id - if the floe originated as a fractured piece of another floe
+                            # keep track of parent id - else id = 0
     ghosts::Vector{Int} = Vector{Int}()  # indices of ghost floes of given floe
     # Forces/Collisions ----------------------------------------------------
     fxOA::FT = 0.0          # force from ocean and atmos in x direction

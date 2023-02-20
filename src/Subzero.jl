@@ -49,9 +49,10 @@ export
     AbstractFractureCriteria,
     NoFracture,
     HiblerYieldCurve,
-    CollisionInfo,
-    FractureInfo,
-    CouplingInfo,
+    CollisionSettings,
+    FractureSettings,
+    CouplingSettings,
+    SimplificationSettings,
     PolyVec
 
 import Base.@kwdef # this is being exported as of version 1.9
@@ -83,10 +84,10 @@ include("floe.jl")
 include("floe_utils.jl")
 include("model.jl")
 # Physical Processes
-include("coupling.jl")
-include("collisions.jl")
-include("fractures.jl")
-include("process_info.jl")
+include("physical_processes/coupling.jl")
+include("physical_processes/collisions.jl")
+include("physical_processes/fractures.jl")
+include("physical_processes/process_info.jl")
 # Simulation
 include("simulation.jl")
 # Tools

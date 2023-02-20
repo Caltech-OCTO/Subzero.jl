@@ -40,9 +40,10 @@ Simulation which holds a model and parameters needed for running the simulation.
     Δt::Int = 10                        # Simulation timestep (seconds)
     nΔt::Int = 7500                     # Total timesteps simulation runs for
     # Physical Processes --------------------------------------------------------
-    coupling_info::CouplingInfo = CouplingInfo()
-    collision_info::CollisionInfo{FT} = CollisionInfo()
-    fracture_info::FractureInfo{CT} = FractureInfo()
+    coupling_settings::CouplingSettings = CouplingSettings()
+    collision_settings::CollisionSettings{FT} = CollisionSettings()
+    fracture_settings::FractureSettings{CT} = FractureSettings()
+    simp_settings::SimplificationSettings{FT} = SimplificationSettings()
 end
 
 function calc_stress_strain!(floe)
@@ -180,17 +181,23 @@ function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
     # Collisions
     remove = zeros(Int, n_init_floes)
     transfer = zeros(Int, n_init_floes)
-    if sim.collision_info.collisions_on
-        remove, transfer = timestep_collisions!(m.floes, n_init_floes, m.domain, remove, transfer, sim.consts, sim.Δt, sim.collision_info, T)
+    if sim.collision_settings.collisions_on
+        remove, transfer = timestep_collisions!(m.floes, n_init_floes, m.domain, remove, transfer, sim.consts, sim.Δt, sim.collision_settings, T)
     end
 
-    m.floes = m.floes[1:n_init_floes] # remove the ghost floes
+    # Remove the ghost floes
+    m.floes = m.floes[1:n_init_floes]
     empty!.(m.floes.ghosts) 
+
+    # Physical processes without ghost floes
     for i in 1:n_init_floes
         ifloe = m.floes[i]
-        #if mod(tstep-1, sim.Δtocn) == 0
-        floe_OA_forcings!(ifloe, m, sim.consts, sim.Δd)
-        #end
+        if sim.coupling_settings.coupling_on && mod(tstep, sim.coupling_settings.Δt) == 0
+            floe_OA_forcings!(ifloe, m, sim.consts, sim.Δd)
+        end
+        if sim.fracture_settings.fractures_on && mod(tstep, sim.fracture_settings.Δt) == 0
+            fracture_floes!()
+        end
         timestep_floe!(ifloe, sim.Δt)
         m.floes[i] = ifloe
     end

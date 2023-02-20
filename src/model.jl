@@ -703,7 +703,10 @@ end
 """
 Model which holds grid, ocean, atmos structs, each with the same underlying float type (either Float32 of Float64) and size.
 It also holds the domain information, which includes the topography and the boundaries.
-Finally, it holds an StructArray of floe structs, again each relying on the same underlying float type.
+It holds an StructArray of floe structs, again each relying on the same
+underlying float type.
+Finally, it also holds the maximum floe id used thus far in the simulation. This
+should be the length of the floes array at the beginning of the run. 
 """
 mutable struct Model{FT<:AbstractFloat, GT<:AbstractGrid{FT}, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}}
     grid::GT
@@ -711,8 +714,9 @@ mutable struct Model{FT<:AbstractFloat, GT<:AbstractGrid{FT}, DT<:Domain{FT, <:A
     atmos::Atmos{FT}
     domain::DT
     floes::StructArray{Floe{FT}}  # See floes.jl for floe creation
+    max_floe_id::Int              # Maximum id used by any floe
 
-    function Model{FT, GT, DT}(grid::GT, ocean::Ocean{FT}, atmos::Atmos{FT}, domain::DT, floes::StructArray{Floe{FT}}) where {FT<:AbstractFloat,
+    function Model{FT, GT, DT}(grid::GT, ocean::Ocean{FT}, atmos::Atmos{FT}, domain::DT, floes::StructArray{Floe{FT}}, max_floe_id) where {FT<:AbstractFloat,
     GT<:AbstractGrid{FT}, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}}
         if !domain_in_grid(domain, grid)
             throw(ArgumentError("Domain does not fit within grid."))
@@ -722,10 +726,13 @@ mutable struct Model{FT<:AbstractFloat, GT<:AbstractGrid{FT}, DT<:Domain{FT, <:A
         if any(ocean.temp .< atmos.temp)
             @warn "In at least one grid cell the atmosphere temperature is warmer than the ocean. This is not a situation in which the thermodynamics are setup for right now."
         end
-        new{FT, GT, DT}(grid, ocean, atmos, domain, floes)
+        new{FT, GT, DT}(grid, ocean, atmos, domain, floes, max_floe_id)
     end
 
-    Model(grid::GT, ocean::Ocean{FT}, atmos::Atmos{FT}, domain::DT, floes::StructArray{Floe{FT}}) where {FT<:AbstractFloat,
+    Model(grid::GT, ocean::Ocean{FT}, atmos::Atmos{FT}, domain::DT, floes::StructArray{Floe{FT}}, max_floe_id) where {FT<:AbstractFloat,
     GT<:AbstractGrid{FT}, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}} = 
-        Model{FT, GT, DT}(grid, ocean, atmos, domain, floes)
+        Model{FT, GT, DT}(grid, ocean, atmos, domain, floes, max_floe_id)
 end
+
+Model(grid, ocean, atmos, domain, floes) = 
+    Model(grid, ocean, atmos, domain, floes, length(floes))

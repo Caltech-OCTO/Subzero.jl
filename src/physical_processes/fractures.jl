@@ -98,29 +98,32 @@ function split_floe(floe, npieces, rng, ::Type{T} = Float64) where T
     return new_floes
 end
 
-function fracture_floes(floes, criteria::AbstractFractureCriteria, rng, npieces = 3, min_floe_area = 0, ::Type{T} = Float64) where T
-    frac_idx = determine_fractures(floes, min_floe_area, criteria)
+function fracture_floes!(floes, rng, fracture_settings, min_floe_area = 0, t::Type{T} = Float64) where T
+    frac_idx = determine_fractures(floes, min_floe_area, fracture_settings.criteria)
     nfloes2frac = length(frac_idx)
     fractured_list = Vector{StructVector{Floes}}(undef, nfloes2frac)
     for i in frac_idx
         ifloe = floes[i]
-        inters = ifloe.interactions
-        inters = inters[!isinf(inters[:, floeidx])]
-        if !isempty(inters)
-            _, max_inters_idx = findmax(inters[:, overlap])
-            deforming_inter = inters[max_inters_idx, :]
-            deforming_floe_idx = deforming_inter[floeidx]
-            if frac_info.deform_on && deforming_floe_idx <= length(floes)
-                deform_floe!(ifloe, floes.coords[deforming_floe_idx], deforming_inter[xforce:yforce])
+        if fracture_settings.deform_on
+            inters = ifloe.interactions
+            inters = inters[!isinf(inters[:, floeidx])]
+            if !isempty(inters)
+                _, max_inters_idx = findmax(inters[:, overlap])
+                deforming_inter = inters[max_inters_idx, :]
+                deforming_floe_idx = deforming_inter[floeidx]
+                if deforming_floe_idx <= length(floes)
+                    deform_floe!(ifloe, floes.coords[deforming_floe_idx], deforming_inter[xforce:yforce])
+                end
             end
         end
-        fractured_list[i] = split_floe(ifloe, npieces, rng, T)
+        fractured_list[i] = split_floe(ifloe, fracture_settings.npieces, rng, T)
     end
     for idx in range(1, nfloes2frac)
         if !isempty(fractured_list[idx])
             StructArrays.foreachfield(f -> deleteat!(f, idx), floes)
+            new_floes = fractured_list[idx]
+            new_floes.id .= 
             append!(floes, fractured_list[idx])
-            # TODO: need to set IDs
         end
     end
 end

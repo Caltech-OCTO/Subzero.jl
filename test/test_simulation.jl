@@ -1,6 +1,6 @@
 @testset "Simulation" begin
     @testset "Stress/Strain" begin
-        floes = load("inputs/test_floes.jld2", "stress_strain_floe1", "stress_strain_floe2")
+        floes = load("inputs/test_floes2.jld2", "stress_strain_floe1", "stress_strain_floe2")
         stresses = [[-10.065, 36.171, 36.171, -117.458], [7.905, 21.913, 21.913, -422.242]]
         stress_histories = [[-4971.252, 17483.052, 17483.052, -57097.458], [4028.520, 9502.886, 9502.886, -205199.791]]
         strains = [[-3.724, 0, 0, 0], [7.419, 0, 0,	-6.987]]
