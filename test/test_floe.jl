@@ -129,7 +129,7 @@
             open_cell_area = LibGEOS.area(LibGEOS.difference(cell, topo_polys))
             c = concentrations[i, j]
             floes_in_cell = [LibGEOS.intersection(p, cell) for p in floe_polys]
-            @test isapprox(sum(LibGEOS.area.(floes_in_cell))/open_cell_area, c, atol = 1e-1)
+            @test c - 1e-3 <= sum(LibGEOS.area.(floes_in_cell))/open_cell_area < c + 2e-1
         end
     end
     @test all([LibGEOS.area(LibGEOS.intersection(p, topo_polys)) for p in floe_polys] .< 1e-3)
