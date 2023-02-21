@@ -30,6 +30,30 @@ function valid_polyvec!(coords::PolyVec{FT}) where {FT<:AbstractFloat}
 end
 
 """
+    find_poly_centroid(poly)
+
+Syntactic sugar for using LibGEOS to find a polygon's centroid
+Input:
+    poly    <LibGEOS.Polygon or LibGEOS. MultiPolygon>
+Output:
+    Vector{Float64} [x, y] where this represents the centroid in the xy plane
+"""
+find_poly_centroid(poly) =
+    find_poly_coords(LG.centroid(poly))::Vector{Float64}
+
+"""
+    find_poly_coords(poly)
+
+Syntactic sugar for using LibGEOS to find a polygon's coordinates
+Input:
+    poly    <LibGEOS.Polygon or LibGEOS. MultiPolygon>
+Output:
+    <PolyVec> representing the floe's coordinates xy plane
+"""
+find_poly_coords(poly) =
+    find_poly_coords(poly)::PolyVec{Float64}  
+
+"""
     translate(coords::PolyVec{T}, vec
 
 Translate each of the given coodinates by given vector -
@@ -51,7 +75,7 @@ Inputs: coords <LibGEOS.Polygon>
 Output: <LibGEOS.Polygon>
 """
 function translate(poly::LG.Polygon, vec)
-    coords = LG.GeoInterface.coordinates(poly)::PolyVec{Float64}
+    coords = find_poly_coords(poly)
     return LG.Polygon(translate(coords, convert(Vector{Float64}, vec)))
 end
 
@@ -65,7 +89,7 @@ Inputs: coords <LibGEOS.Polygon>
 Output: <LibGEOS.Polygon>
 """
 function scale(poly::LG.Polygon, factor)
-    coords = LG.GeoInterface.coordinates(poly)::PolyVec{Float64}
+    coords = find_poly_coords(poly)
     return LG.Polygon(coords .* factor)
 end
 
@@ -227,7 +251,7 @@ Inputs: poly      LibGEOS.Polygon
 Output: mass moment of inertia <Float>
 """
 calc_moment_inertia(poly::LG.Polygon, h; ρi = 920.0) = 
-    calc_moment_inertia(LG.GeoInterface.coordinates(poly), LG.GeoInterface.coordinates(LG.centroid(poly)), h, ρi = ρi)
+    calc_moment_inertia(find_poly_coords(poly), find_poly_centroid(poly), h, ρi = ρi)
 
 """
     polyedge(p1, p2, t::Type{T} = Float64)
@@ -647,10 +671,10 @@ function split_polygon_hole(poly::LG.Polygon, ::Type{T} = Float64) where T
     bottom_list = Vector{LG.Polygon}()
     top_list = Vector{LG.Polygon}()
     if hashole(poly)  # Polygon has a hole
-        poly_coords = LG.GeoInterface.coordinates(poly)
+        poly_coords = find_poly_coords(poly)
         full_coords = [poly_coords[1]]
         h1 = LG.Polygon([poly_coords[2]])  # First hole
-        h1_center = LG.GeoInterface.coordinates(LG.centroid(h1))
+        h1_center = find_poly_centroid(h1)
         poly_bottom = LG.MultiPolygon(cut_polygon_coords(full_coords, h1_center[2], T))
         poly_bottom =  LG.intersection(poly_bottom, poly)  # Adds in any other holes in poly
         poly_top = LG.difference(poly, poly_bottom)

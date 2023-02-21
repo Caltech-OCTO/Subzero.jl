@@ -22,7 +22,7 @@ Outputs:
 """
 function calc_normal_force(c1, c2, region, area, ipoints, force_factor, ::Type{T} = Float64) where T
     force_dir = zeros(T, 2)
-    coords = LG.GeoInterface.coordinates(region)::PolyVec{Float64}
+    coords = find_poly_coords(region)
     n_ipoints = size(ipoints, 1)
     # Identify which region coordinates are the intersection points (ipoints)
     verts = zeros(Int64, n_ipoints)
@@ -119,7 +119,7 @@ function calc_elastic_forces(c1, c2, regions, region_areas, force_factor, ::Type
         for k in 1:ncontact
             normal_force = zeros(T, 1, 2)
             if region_areas[k] != 0
-                cx, cy = LG.GeoInterface.coordinates(LG.centroid(regions[k]))::Vector{Float64}
+                cx, cy = find_poly_centroid(regions[k])::Vector{Float64}
                 fpoint[k, :] = [cx, cy]
                 normal_force, Δl = calc_normal_force(c1, c2, regions[k], region_areas[k], ipoints, force_factor, T)
             end

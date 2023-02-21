@@ -28,7 +28,7 @@ Singular sea ice floe with fields describing current state.
     id::Int = 0             # floe id - set to index in floe array at start of sim - unique to all floes
     ghost_id::Int = 0       # ghost id - if floe is a ghost, ghost_id > 0 representing which ghost it is
                             # if floe is not a ghost, ghost_id = 0
-    fracture_id = 0         # fracture id - if the floe originated as a fractured piece of another floe
+    fracture_id::Int = 0         # fracture id - if the floe originated as a fractured piece of another floe
                             # keep track of parent id - else id = 0
     ghosts::Vector{Int} = Vector{Int}()  # indices of ghost floes of given floe
     # Forces/Collisions ----------------------------------------------------
@@ -140,11 +140,11 @@ Note:
 function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n::Int = 1000, history_n = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T
     floe = rmholes(poly)
     # Floe physical properties
-    centroid = LG.GeoInterface.coordinates(LG.centroid(floe))::Vector{Float64}
+    centroid = find_poly_centroid(floe)
     height = hmean + (-1)^rand(rng, 0:1) * rand(rng) * Δh
     area = LG.area(floe)::Float64
     mass = area * height * ρi
-    coords = LG.GeoInterface.coordinates(floe)::PolyVec{Float64}
+    coords = find_poly_coords(floe)
     moment = calc_moment_inertia(coords, centroid, height, ρi = ρi)
     angles = calc_poly_angles(coords, T)
     origin_coords = translate(coords, -centroid)
@@ -355,7 +355,7 @@ function initialize_floe_field(nfloes::Int, concentrations, domain, hmean, Δh; 
                 trans_vec = [xmin, ymin]
                 # Open water in cell
                 open_cell = LG.intersection(LG.Polygon(cell_bounds), open_water)
-                open_coords = LG.GeoInterface.coordinates(open_cell)::PolyVec{T}
+                open_coords = find_poly_coords(open_cell)
                 open_area = LG.area(open_cell)::T
                 # Generate coords with voronoi tesselation and make into floes
                 ncells = ceil(Int, nfloes * open_area / open_water_area / c)

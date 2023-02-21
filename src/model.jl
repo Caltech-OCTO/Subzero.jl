@@ -584,8 +584,8 @@ Constructor for topographic element with LibGEOS Polygon
 """
 function TopographyElement(poly::LG.Polygon, ::Type{T} = Float64) where T
     topo = rmholes(poly)
-    centroid = convert(Vector{T}, LG.GeoInterface.coordinates(LG.centroid(topo))::Vector{Float64})
-    coords = convert(PolyVec{T}, LG.GeoInterface.coordinates(topo)::PolyVec{Float64})
+    centroid = convert(Vector{T}, find_poly_centroid(topo))
+    coords = convert(PolyVec{T}, find_poly_coords(topo))
     origin_coords = translate(coords, -centroid)
     rmax = sqrt(maximum([sum(c.^2) for c in origin_coords[1]]))
     return TopographyElement(coords, centroid, rmax)
