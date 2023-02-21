@@ -32,6 +32,7 @@ Plots = "1"
 PolygonInbounds = "0.2"
 SplitApplyCombine = "1"
 StructArrays = "0.6"
+VoronoiCells = "0.3"
 julia = "1.6"
 
 [extras]
