@@ -39,7 +39,7 @@ Output:
     Vector{Float64} [x, y] where this represents the centroid in the xy plane
 """
 find_poly_centroid(poly) =
-    find_poly_coords(LG.centroid(poly))::Vector{Float64}
+    LG.GeoInterface.coordinates(LG.centroid(poly))::Vector{Float64}
 
 """
     find_poly_coords(poly)
@@ -51,7 +51,7 @@ Output:
     <PolyVec> representing the floe's coordinates xy plane
 """
 find_poly_coords(poly) =
-    find_poly_coords(poly)::PolyVec{Float64}  
+    LG.GeoInterface.coordinates(poly)::PolyVec{Float64}  
 
 """
     translate(coords::PolyVec{T}, vec

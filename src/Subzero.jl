@@ -57,9 +57,8 @@ export
 
 import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG
-using DataStructures, GeometryBasics, Interpolations, JLD2, LinearAlgebra, NamedArrays,
-      NCDatasets, Plots, PolygonInbounds, Random, Statistics, StructArrays,
-      VoronoiCells
+using DataStructures, GeometryBasics, Interpolations, JLD2, LinearAlgebra,  
+    Measures, NamedArrays, NCDatasets, Plots, PolygonInbounds, Random, Statistics, StructArrays, VoronoiCells
 
 """
 Coordinates are vector of vector of vector of points of the form:
