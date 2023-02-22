@@ -43,9 +43,10 @@ consts = Constants(E = modulus)
 fracture_settings = FractureSettings(
         fractures_on = true,
         criteria = HiblerYieldCurve(floe_arr),
-        Δt = 1,
+        Δt = 75,
         npieces = 3,
         nhistory = 1000,
+        deform_on = true,
     )
 simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 7000, verbose = true, fracture_settings = fracture_settings)
 

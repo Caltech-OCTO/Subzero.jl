@@ -116,18 +116,19 @@ function deform_floe!(
     deformer_coords,
     deforming_forces,
 )
+    println("in deform!!")
     poly = LG.Polygon(floe.coords)
     deformer_poly = LG.Polygon(deformer_coords)
     overlap_region = sortregions(LG.intersection(poly, deformer_poly))[1]
     if LG.area(overlap_region) > 0
         rcent = find_poly_centroid(overlap_region)
         dist = calc_point_poly_dist(
-            rcent[1],
-            rcent[2],
+            [rcent[1]],
+            [rcent[2]],
             find_poly_coords(overlap_region),
         )
         force_fracs = deforming_forces ./ 2norm(deforming_forces)
-        Δx, Δy = abs(dist) .* force_fracs
+        Δx, Δy = abs.(dist)[1] .* force_fracs
         deformer_poly = LG.Polygon(translate(deformer_coords, [Δx, Δy]))
         new_floe = sortregions(LG.difference(poly, deformer_poly))[1]
         new_floe_area = LG.area(new_floe)
@@ -180,6 +181,7 @@ function split_floe(
         rng;
         t = T
     )
+    println("floes breaking!")
     # Intersect voronoi tesselation pieces with floe
     floe_poly = LG.Polygon(floe.coords)
     for p in pieces
@@ -258,11 +260,11 @@ function fracture_floes!(
         # Deform floe around largest impact site
         if fracture_settings.deform_on
             inters = ifloe.interactions
-            inters = inters[!isinf(inters[:, floeidx])]
+            inters = inters[.!(isinf.(inters[:, floeidx])), :]
             if !isempty(inters)
                 _, max_inters_idx = findmax(inters[:, overlap])
                 deforming_inter = inters[max_inters_idx, :]
-                deforming_floe_idx = deforming_inter[floeidx]
+                deforming_floe_idx = Int(deforming_inter[floeidx])
                 if deforming_floe_idx <= length(floes)
                     deform_floe!(
                         ifloe, 

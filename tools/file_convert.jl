@@ -49,3 +49,23 @@ for x in eachslice(vars["floe"]["StressH"], dims = 3)
 end
 
 jldsave("test/inputs/test_floes.jld2"; stress_strain_floe = floe)
+
+
+# JLD2 to MATLAB
+mc_x_lst = floes.mc_x
+mc_y_lst = floes.mc_y
+coords = Subzero.seperate_xy.(floes.coords)
+xcoords = first.(coords)
+ycoords = last.(coords)
+reshaped_x = Vector{Matrix{Float64}}()
+reshaped_y = Vector{Matrix{Float64}}()
+for i in range(1, length(xcoords))
+    push!(reshaped_x, reshape(xcoords[i], (1, length(xcoords[i]))) .- 5e4)
+    push!(reshaped_y, reshape(ycoords[i], (1, length(ycoords[i]))) .- 5e4)
+end
+file = matopen("output/simple_strait/simple_strait.mat", "w")
+write(file, "mc_x", mc_x_lst)
+write(file, "mc_y", mc_y_lst)
+write(file, "xcoords", reshaped_x)
+write(file, "ycoords", reshaped_y)
+close(file)
