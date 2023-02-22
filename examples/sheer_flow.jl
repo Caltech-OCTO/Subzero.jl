@@ -9,9 +9,6 @@ const Δgrid = 2e3
 const hmean = 0.25
 const Δh = 0.0
 const Δt = 20
-const newfloe_Δt = 500
-const coarse_nx = 10
-const coarse_ny = 10
 
 # Model instantiation
 grid = RegRectilinearGrid(0, Lx, 0, Ly, Δgrid, Δgrid)
@@ -36,7 +33,7 @@ model = Model(grid, ocean, atmos, domain, floe_arr)
 # Simulation setup
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 consts = Constants(E = modulus)
-simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 7000, COLLISION = true, verbose = true)
+simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 7000, verbose = true)
 
 # Output setup
 dir = "output/sheer_flow"

@@ -137,7 +137,7 @@ Note:
         When this is fixed, this annotation will need to be updated.
         We should only run the model with Float64 right now or else we will be converting the Polygon back and forth all of the time. 
 """
-function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n::Int = 1000, history_n = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T
+function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n::Int = 1000, nhistory = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T
     floe = rmholes(poly)
     # Floe physical properties
     centroid = find_poly_centroid(floe)
@@ -155,7 +155,7 @@ function Floe(poly::LG.Polygon, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 
     mc_x, mc_y, alive = generate_mc_points(mc_n, ox, oy, rmax, area, alive, rng, T)
 
     # Generate Stress History
-    stress_history = CircularBuffer{Matrix{T}}(history_n)
+    stress_history = CircularBuffer{Matrix{T}}(nhistory)
     fill!(stress_history, zeros(T, 2, 2))
 
     return Floe(centroid = convert(Vector{T}, centroid), coords = convert(PolyVec{T}, coords),
@@ -185,8 +185,8 @@ Inputs:
 Output:
         Floe with needed fields defined - all default field values used so all forcings and velocities start at 0 and floe is "alive"
 """
-Floe(coords::PolyVec, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n::Int = 1000, history_n = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T =
-    Floe(LG.Polygon(convert(PolyVec{Float64}, valid_polyvec!(rmholes(coords)))), hmean, Δh; ρi = ρi, u = u, v = v, ξ = ξ, mc_n = mc_n, history_n = history_n, rng = rng, t = T) 
+Floe(coords::PolyVec, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n::Int = 1000, nhistory = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T =
+    Floe(LG.Polygon(convert(PolyVec{Float64}, valid_polyvec!(rmholes(coords)))), hmean, Δh; ρi = ρi, u = u, v = v, ξ = ξ, mc_n = mc_n, nhistory = nhistory, rng = rng, t = T) 
     # Polygon convert is needed since LibGEOS only takes Float64 - when this is fixed convert can be removed
 
 """
@@ -208,14 +208,14 @@ Output:
         StructArray{Floe} vector of floes making up input polygon(s) with area above given minimum floe area.
         Floe polygons split around holes if needed. 
 """
-function poly_to_floes(floe_poly, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n::Int = 1000, history_n::Int = 1000, rng = Xoshiro(), min_floe_area = 0, t::Type{T} = Float64) where T
+function poly_to_floes(floe_poly, hmean, Δh; ρi = 920.0, u = 0.0, v = 0.0, ξ = 0.0, mc_n::Int = 1000, nhistory::Int = 1000, rng = Xoshiro(), min_floe_area = 0, t::Type{T} = Float64) where T
     floes = StructArray{Floe{T}}(undef, 0)
     regions = LG.getGeometries(floe_poly)::Vector{LG.Polygon}
     while !isempty(regions)
         r = pop!(regions)
         if LG.area(r) > min_floe_area
             if !hashole(r)
-                floe = Floe(r, hmean, Δh, ρi = ρi, u = u, v = v, ξ = ξ, mc_n = mc_n, history_n = history_n, rng = rng, t = T)
+                floe = Floe(r, hmean, Δh, ρi = ρi, u = u, v = v, ξ = ξ, mc_n = mc_n, nhistory = nhistory, rng = rng, t = T)
                 push!(floes, floe)
             else
                 region_bottom, region_top = split_polygon_hole(r, T)
@@ -248,7 +248,7 @@ Inputs:
 Output:
         floe_arr <StructArray> list of floes created from given polygon coordinates
 """
-function initialize_floe_field(coords::Vector{PolyVec{T}}, domain, hmean, Δh; min_floe_area = 0.0, ρi = 920.0, mc_n::Int = 1000, history_n::Int = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T
+function initialize_floe_field(coords::Vector{PolyVec{T}}, domain, hmean, Δh; min_floe_area = 0.0, ρi = 920.0, mc_n::Int = 1000, nhistory::Int = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T
     floe_arr = StructArray{Floe{T}}(undef, 0)
     floe_polys = [LG.Polygon(valid_polyvec!(c)) for c in coords]
     # Remove overlaps with topography
@@ -258,7 +258,7 @@ function initialize_floe_field(coords::Vector{PolyVec{T}}, domain, hmean, Δh; m
     end
     # Turn polygons into floes
     for p in floe_polys
-        append!(floe_arr, poly_to_floes(p, hmean, Δh; ρi = ρi, mc_n = mc_n, history_n = history_n, rng = rng, min_floe_area = min_floe_area, t = T))
+        append!(floe_arr, poly_to_floes(p, hmean, Δh; ρi = ρi, mc_n = mc_n, nhistory = nhistory, rng = rng, min_floe_area = min_floe_area, t = T))
     end
     # Warn about floes with area less than minimum floe size
     min_floe_area = min_floe_area > 0 ? min_floe_area : T(4 * (domain.east.val - domain.west.val) * (domain.north.val - domain.south.val) / 1e4)
@@ -297,8 +297,13 @@ function generate_voronoi_coords(npoints, scale_fac, trans_vec, domain_coords, r
         xpoints = xpoints[1:npoints]
         ypoints = ypoints[1:npoints]
     end
-    tess_floes = voronoicells(xpoints, ypoints, Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0))).Cells 
-    floe_coords = [[valid_ringvec!([Vector(f) .* scale_fac .+ trans_vec for f in tess])] for tess in tess_floes]
+    floe_coords = 
+        if current_points > 1
+            tess_floes = voronoicells(xpoints, ypoints, Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0))).Cells 
+            [[valid_ringvec!([Vector(f) .* scale_fac .+ trans_vec for f in tess])] for tess in tess_floes]
+        else
+            Vector{Vector{Vector{T}}}()
+        end
     return floe_coords
 end
 
@@ -327,7 +332,7 @@ Inputs:
 Output:
         floe_arr <StructArray> list of floes created using Voronoi Tesselation of the domain with given concentrations.
 """
-function initialize_floe_field(nfloes::Int, concentrations, domain, hmean, Δh; min_floe_area = 0.0, ρi = 920.0, mc_n::Int = 1000, history_n::Int = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T
+function initialize_floe_field(nfloes::Int, concentrations, domain, hmean, Δh; min_floe_area = 0.0, ρi = 920.0, mc_n::Int = 1000, nhistory::Int = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T
     floe_arr = StructArray{Floe{T}}(undef, 0)
     # Split domain into cells with given concentrations
     nrows, ncols = size(concentrations[:, :])
@@ -365,7 +370,7 @@ function initialize_floe_field(nfloes::Int, concentrations, domain, hmean, Δh; 
                 while !isempty(floe_idx) && floes_area/open_area <= c
                     idx = pop!(floe_idx)
                     floe_poly = LG.intersection(LG.Polygon(floe_coords[idx]), open_cell)
-                    floes = poly_to_floes(floe_poly, hmean, Δh; ρi = ρi, mc_n = mc_n, history_n = history_n, rng = rng, min_floe_area = min_floe_area, t = T)
+                    floes = poly_to_floes(floe_poly, hmean, Δh; ρi = ρi, mc_n = mc_n, nhistory = nhistory, rng = rng, min_floe_area = min_floe_area, t = T)
                     append!(floe_arr, floes)
                     floes_area += sum(floes.area)
                 end

@@ -8,24 +8,33 @@ Types to hold parameters for simulation's physical processes
 Settings needed for coupling within the model.
 If coupling_on is true, the model will be coupled with the simulation's ocean
 and atmosphere. The Δt determines how many simulation timesteps between
-calculating ocean and atmospheric forces on the floes. If calc_ocnτ is true then
-the simulation calculates the stress the ice and atmosphere put on the ocean. 
+calculating ocean and atmospheric forces on the floes. Δd number of buffer grid
+cells on each side of floe for monte carlo interpolation and mc_n is the number
+of monte carlo points to attempt to generage for each floe. If calc_ocnτ_on is
+true then the simulation calculates the stress the ice/atmosphere put on the
+ocean. 
 """
 @kwdef struct CouplingSettings
     coupling_on::Bool = true
     Δt::Int = 10
-    calc_ocnτ::Bool = false
+    Δd::Int = 1
+    mc_n::Int = 1000
+    calc_ocnτ_on::Bool = false
 
-    function CouplingSettings(coupling_on, Δt, calc_ocnτ)
+    function CouplingSettings(coupling_on, Δt, Δd, mc_n, calc_ocnτ_on)
         if coupling_on && Δt < 0
             @warn "Coupling can't occur on a multiple of negative timesteps. Turning coupling off."
             coupling_on = false
         end
-        if !coupling_on && calc_ocnτ
-            @warn "Can't calculate stresses on ocean from ice and atmosphere without coupling. Turning calc_ocnτ off."
-            calc_ocnτ = false
+        if !coupling_on && calc_ocnτ_on
+            @warn "Can't calculate stresses on ocean from ice and atmosphere without coupling. Turning calc_ocnτ_on off."
+            calc_ocnτ_on = false
         end
-        new(coupling_on, Δt, calc_ocnτ)
+        if Δd < 0
+            @warn "Can't complete interpolation of ocean and atmosphere forces with a buffer of less than 0 grid cells. Setting Δd = 0."
+            Δd = 0
+        end
+        new(coupling_on, Δt, Δd, mc_n, calc_ocnτ_on)
     end
 end
 
@@ -98,7 +107,9 @@ to fracture. The Δt determines how many simulation timesteps between fracturing
 floes. If deform_on is true, then the floe will be deformed around floe
 primarily causing the fracture, identified by the largest overlap area on the
 most recent set of collisions. Npieces denotes how many pieces to try to split a
-fractured floe into - 3 is suggested value.
+fractured floe into - 3 is suggested value. nhistory is the number of previous
+stress values to hold in each floe's stress history field. The higher the
+number, the longer it will take for a floe to fracture.
 """
 @kwdef struct FractureSettings{CT<:AbstractFractureCriteria}
     fractures_on::Bool = false
@@ -106,6 +117,7 @@ fractured floe into - 3 is suggested value.
     Δt::Int = 0
     deform_on::Bool = false
     npieces::Int = 1
+    nhistory::Int = 1000
 
     function FractureSettings{CT}(
         fractures_on,
@@ -113,6 +125,7 @@ fractured floe into - 3 is suggested value.
         Δt,
         deform_on,
         npieces,
+        nhistory,
     ) where {CT <: AbstractFractureCriteria}
         if fractures_on
             if Δt < 0
@@ -130,7 +143,11 @@ fractured floe into - 3 is suggested value.
             @warn "Deformation can't occur on without fracturing. Turning deformation off."
             deform_on = false
         end
-        new{CT}(fractures_on, criteria, Δt, deform_on, npieces)
+        if nhistory < 1
+            @warn "Stress history must have at least one element. Setting nhistory = 1."
+            nhistory = 1
+        end
+        new{CT}(fractures_on, criteria, Δt, deform_on, npieces, nhistory)
     end
     FractureSettings(
         fractures_on,
@@ -138,6 +155,7 @@ fractured floe into - 3 is suggested value.
         Δt,
         deform_on,
         npieces,
+        nhistory,
     ) where {CT <: AbstractFractureCriteria} = 
         FractureSettings{CT}(
             fractures_on,
@@ -145,6 +163,7 @@ fractured floe into - 3 is suggested value.
             Δt,
             deform_on,
             npieces,
+            nhistory,
         )
 end
 

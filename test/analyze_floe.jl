@@ -48,3 +48,10 @@ plot(range(2246, 2360), frac)
 savefig("output/voronoi/frac.png")
 
 close(f)
+
+#  plotting voronoi w/ labels
+scatter(xp, yp, markersize = 6, label = "centroids")
+annotate!([(xp[n] + 0.2, yp[n] + 0.03, Plots.text(floes.id[n])) for n in 1:36])
+verts = [Subzero.seperate_xy(c) for c in coords]
+plot!(first.(verts), last.(verts), seriestype = [:shape])
+savefig("output/sim/labeled_voronoi.png")

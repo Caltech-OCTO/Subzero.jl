@@ -472,25 +472,33 @@ function aggregate_grid_force!(mc_cols, mc_rows, τx_ocn, τy_ocn, floe, ocean, 
 end
 
 """
-    floe_OA_forcings!(floe, m, c, Δd, ::Type{T} = Float64)
+    floe_OA_forcings!(floe, m, c, coupling_settings, ::Type{T} = Float64)
 
-Calculate the effects on the ocean and atmpshere on floe i within the given model
-and the effects of the ice floe on the ocean grid.
+Calculate the effects on the ocean and atmpshere on floe i within the given
+model and the effects of the ice floe on the ocean grid.
 
 Inputs:
-        floe    <Floe> floe
-        m       <Model> given model
-        c       <Constants> constants within simulation
-        Δd      <Int> buffer for monte carlo interpolation knots
-                <Float> Type for running the simulation calculation - Float32 or Float64
+        floe              <Floe> floe
+        m                 <Model> given model
+        c                 <Constants> constants within simulation
+        coupling_settings <CouplingSettings> settings for simulation coupling
+                          <Float> Type for running the simulation calculation - 
+                                either Float32 or Float64
 Outputs:
         None. Both floe and ocean fields are updated in-place.
-        Floe fields fxOA, fyOA, and trqOA are updated with effects of the ocean and atmosphere.
-        Ocean fields fx, fy, and si_area are updated with effects from this floe. fx and fy are
-        equal but opposite values from the force of ocean on the ice floe. si_area adds area of floe
-        segment in each grid cell to grid cell field. 
+        Floe fields fxOA, fyOA, and trqOA are updated with effects of the ocean
+        and atmosphere. Ocean fields fx, fy, and si_area are updated with
+        effects from this floe. fx and fy are equal but opposite values from the
+        force of ocean on the ice floe. si_area adds area of floe segment in
+        each grid cell to grid cell field. 
 """
-function floe_OA_forcings!(floe, m, c, Δd, ::Type{T} = Float64) where T
+function floe_OA_forcings!(
+    floe,
+    m,
+    c,
+    coupling_settings,
+    ::Type{T} = Float64
+) where T
     # Rotate and translate Monte Carlo points to current floe location
     α = floe.α
     α_rot = [cos(α) -sin(α); sin(α) cos(α)]
@@ -507,8 +515,8 @@ function floe_OA_forcings!(floe, m, c, Δd, ::Type{T} = Float64) where T
         mc_cols, mc_rows = find_cell_indices(mc_xr, mc_yr, m.grid)
 
         # Find knots and indices of knots for monte carlo interpolation
-        xknots, xknot_idx = find_interp_knots(mc_cols, m.grid.xg, Δd, m.domain.east, T)
-        yknots, yknot_idx = find_interp_knots(mc_rows, m.grid.yg, Δd, m.domain.north, T)
+        xknots, xknot_idx = find_interp_knots(mc_cols, m.grid.xg, coupling_settings.Δd, m.domain.east, T)
+        yknots, yknot_idx = find_interp_knots(mc_rows, m.grid.yg, coupling_settings.Δd, m.domain.north, T)
 
         # Atmos Interpolation for Monte Carlo Points
         uatm_interp = linear_interpolation((yknots, xknots), m.atmos.u[yknot_idx, xknot_idx])
@@ -547,7 +555,20 @@ function floe_OA_forcings!(floe, m, c, Δd, ::Type{T} = Float64) where T
         τy_ocn = c.ρo*c.Cd_io*sqrt.(Δu_OI.^2 + Δv_OI.^2) .* (sin(c.turnθ) .* Δu_OI .+ cos(c.turnθ) * Δv_OI)
 
         # Update ocean with froce from floes per grid cell
-        aggregate_grid_force!(mc_cols, mc_rows, -τx_ocn, -τy_ocn, floe, m.ocean, m.grid, m.domain.east, m.domain.north, T)
+        if coupling_settings.calc_ocnτ_on
+            aggregate_grid_force!(
+                mc_cols,
+                mc_rows,
+                -τx_ocn,
+                -τy_ocn,
+                floe,
+                m.ocean,
+                m.grid,
+                m.domain.east,
+                m.domain.north,
+                T,
+            )
+        end
 
         # Sum above stresses and find stress from torque
         τx = τx_atm .+ τx_pressure∇ .+ τx_ocn

@@ -33,7 +33,7 @@ Simulation which holds a model and parameters needed for running the simulation.
 @kwdef struct Simulation{FT<:AbstractFloat, GT<:AbstractGrid, DT<:Domain, CT<:AbstractFractureCriteria}
     model::Model{FT, GT, DT}            # Model to simulate
     consts::Constants{FT} = Constants() # Constants used in Simulation
-    Δd::Int = 1                         # Number of buffer grid cells on each side of floe for monte carlo interpolation
+    rng = Xoshiro()                     # Random number generator 
     verbose::Bool = false               # String output printed during run
     name::String = "sim"                # Simulation name for printing/saving
     # Timesteps ----------------------------------------------------------------
@@ -166,49 +166,62 @@ function timestep_floe!(floe, Δt)
 end
 
 function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
-    m = sim.model
-    # Add ghosts
-    n_init_floes = length(m.floes) # number of floes before ghost floes
-    add_ghosts!(m.floes, m.domain)
+    if !isempty(sim.model.floes)
+        # Add ghosts
+        n_init_floes = length(sim.model.floes) # number of floes before ghost floes
+        add_ghosts!(sim.model.floes, sim.model.domain)
 
-    # Output at given timestep
-    for w in writers
-        if tstep == 0 || (hasfield(typeof(w), :Δtout) && mod(tstep, w.Δtout) == 0)
-            write_data!(w, tstep, sim)
+        # Output at given timestep
+        for w in writers
+            if tstep == 0 || (hasfield(typeof(w), :Δtout) && mod(tstep, w.Δtout) == 0)
+                write_data!(w, tstep, sim)
+            end
         end
-    end
 
-    # Collisions
-    remove = zeros(Int, n_init_floes)
-    transfer = zeros(Int, n_init_floes)
-    if sim.collision_settings.collisions_on
-        remove, transfer = timestep_collisions!(m.floes, n_init_floes, m.domain, remove, transfer, sim.consts, sim.Δt, sim.collision_settings, T)
-    end
-
-    # Remove the ghost floes
-    m.floes = m.floes[1:n_init_floes]
-    empty!.(m.floes.ghosts) 
-
-    # Physical processes without ghost floes
-    for i in 1:n_init_floes
-        ifloe = m.floes[i]
-        if sim.coupling_settings.coupling_on && mod(tstep, sim.coupling_settings.Δt) == 0
-            floe_OA_forcings!(ifloe, m, sim.consts, sim.Δd)
+        # Collisions
+        remove = zeros(Int, n_init_floes)
+        transfer = zeros(Int, n_init_floes)
+        if sim.collision_settings.collisions_on
+            remove, transfer = timestep_collisions!(sim.model.floes, n_init_floes, sim.model.domain, remove, transfer, sim.consts, sim.Δt, sim.collision_settings, T)
         end
+
+        # Remove the ghost floes
+        sim.model.floes = sim.model.floes[1:n_init_floes]
+        empty!.(sim.model.floes.ghosts) 
+
+        # Physical processes without ghost floes
+        for i in 1:n_init_floes
+            ifloe = sim.model.floes[i]
+            if sim.coupling_settings.coupling_on && mod(tstep, sim.coupling_settings.Δt) == 0
+                floe_OA_forcings!(ifloe, sim.model, sim.consts, sim.coupling_settings, T)
+            end
+            timestep_floe!(ifloe, sim.Δt)
+            sim.model.floes[i] = ifloe
+        end
+
+        # Fracture Floes
         if sim.fracture_settings.fractures_on && mod(tstep, sim.fracture_settings.Δt) == 0
-            fracture_floes!()
+            fracture_floes!(
+                sim.model.floes,
+                sim.model.max_floe_id,
+                sim.rng,
+                sim.fracture_settings,
+                sim.coupling_settings,
+                sim.simp_settings,
+                sim.consts,
+                T
+            )
         end
-        timestep_floe!(ifloe, sim.Δt)
-        m.floes[i] = ifloe
-    end
 
-    # Timestep ocean
-    timestep_ocean!(m, sim.consts, sim.Δt)
-    
-    remove_idx = findall(f -> !f.alive, m.floes)
-    for idx in remove_idx
-        StructArrays.foreachfield(f -> deleteat!(f, idx), m.floes)
+        remove_idx = findall(f -> !f.alive || f.area < sim.simp_settings.min_floe_area, sim.model.floes)
+        while !isempty(remove_idx)
+            idx =  pop!(remove_idx)
+            StructArrays.foreachfield(col -> deleteat!(col, idx), sim.model.floes)
+        end
     end
+    # Timestep ocean
+    timestep_ocean!(sim.model, sim.consts, sim.Δt)
+
     # h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx)))
     # mean(h0)
 
@@ -231,7 +244,7 @@ Outputs:
 """
 function run!(sim, writers, ::Type{T} = Float64) where T
     # Start simulation
-    sim.verbose && println(string(sim.name, "is  running!"))
+    sim.verbose && println(string(sim.name, " is running!"))
     tstep = 0
     while tstep <= sim.nΔt
         if sim.verbose && mod(tstep, 50) == 0

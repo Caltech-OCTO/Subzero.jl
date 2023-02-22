@@ -32,7 +32,7 @@ topo_arr = StructVector([TopographyElement(t) for t in [island, topo1, topo2]])
 domain = Domain(nboundary, sboundary, eboundary, wboundary, topo_arr)
 
 # Floe creation
-floe_arr = initialize_floe_field(50, [0.7], domain, 0.25, 0.0, rng = Xoshiro(1))
+floe_arr = initialize_floe_field(50, [0.7], domain, 0.25, 0.0, rng = Xoshiro(7))
 
 # Model creation
 model = Model(grid, ocean, atmos, domain, floe_arr)
@@ -40,7 +40,14 @@ model = Model(grid, ocean, atmos, domain, floe_arr)
 # Simulation setup
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 consts = Constants(E = modulus)
-simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 7000, verbose = true)
+fracture_settings = FractureSettings(
+        fractures_on = true,
+        criteria = HiblerYieldCurve(floe_arr),
+        Δt = 1,
+        npieces = 3,
+        nhistory = 1000,
+    )
+simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 7000, verbose = true, fracture_settings = fracture_settings)
 
 # Output setup
 dir = "output/simple_strait"

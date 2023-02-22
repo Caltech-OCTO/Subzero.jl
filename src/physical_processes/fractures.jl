@@ -41,7 +41,7 @@ Fields:
     c           <AbstractFloat>
     verticies   <PolyVec> vertices of criteria in principal stress space
 """
-struct HiblerYieldCurve{FT<:AbstractFloat}<:AbstractFractureCriteria
+mutable struct HiblerYieldCurve{FT<:AbstractFloat}<:AbstractFractureCriteria
     pstar::FT
     c::FT
     vertices::PolyVec{FT}
@@ -56,7 +56,7 @@ function calculate_hibler(floes, pstar, c)
     b = a/2
     x = a*cos.(t)
     y = b*sin.(t)
-    vertices = splitdims([x'; y'])
+    vertices = [splitdims([x'; y'])]
     vertices = rotate_degrees(vertices, 45)
     vertices = translate(vertices, fill(-p/2, 2))
     return vertices
@@ -92,17 +92,24 @@ function determine_fractures(
 )
     # Determine if floe stresses are in or out of criteria allowable regions
     update_criteria!(criteria, floes)
-    σ_min, σ_max = extrema.(eigvals.(floes.stress))
+    σvals = combinedims(sort.(eigvals.(floes.stress)))'
     x, y = seperate_xy(criteria.vertices)
-    in_on = inpoly2(hcat(σ_min, σ_max), hcat(x, y))
+    in_on = inpoly2(σvals, hcat(x, y))
     # If stresses are outside of criteria regions, we will fracture the floe
-    frac_idx = ![in_on[:, 1] .|  in_on[:, 2], :]
+    frac_idx = .!(in_on[:, 1] .|  in_on[:, 2])
     frac_idx[floes.area .< min_floe_area] .= false
     return range(1, length(floes))[frac_idx]
 end
 
 """
+    deform_floe!(
+        floe,
+        deformer_coords,
+        deforming_forces,
+    )
 
+Deform a floe around the area of its collision with largest area overlap within
+the last timestep.
 """
 function deform_floe!(
     floe,
@@ -155,16 +162,18 @@ Outputs:
 """
 function split_floe(
     floe,
-    npieces,
     rng,
-    ::Type{T} = Float64
+    fracture_settings,
+    coupling_settings,
+    consts,
+    ::Type{T} = Float64,
 ) where T
     new_floes = StructArray{Floe{T}}(undef, 0)
     # Generate voronoi tesselation in floe's bounding box
     scale_fac = fill(2floe.rmax, 2)
     trans_vec = [floe.centroid[1] - floe.rmax, floe.centroid[2] - floe.rmax]
     pieces = generate_voronoi_coords(
-        npieces,
+        fracture_settings.npieces,
         scale_fac,
         trans_vec,
         floe.coords,
@@ -172,31 +181,34 @@ function split_floe(
         t = T
     )
     # Intersect voronoi tesselation pieces with floe
-    floe_poly = LibGEOS.Polygon(floe.coords)
+    floe_poly = LG.Polygon(floe.coords)
     for p in pieces
         piece_poly = LG.intersection(LG.Polygon(p), floe_poly)
         pieces_floes = poly_to_floes(
             piece_poly,
-            floe.h,
-            0;
-            ρi = ρi,
+            floe.height,
+            0;  # Δh - range of random height difference between floes
+            ρi = consts.ρi,
             u = floe.u,
             v = floe.v,
             ξ = floe.ξ,
-            mc_n = mc_n,
+            mc_n = coupling_settings.mc_n,
+            nhistory = fracture_settings.nhistory,
             rng = rng,
-            t = T
+            t = T,
         )
         append!(new_floes, pieces_floes)
     end
 
     # Update new floe pieces with parent information
-    new_floes.strain .= floe.strain
     new_floes.p_dxdt .= floe.p_dxdt
     new_floes.p_dydt .= floe.p_dydt
     new_floes.p_dudt .= floe.p_dudt
     new_floes.p_dvdt .= floe.p_dvdt
     new_floes.p_dξdt .= floe.p_dξdt
+    for s in new_floes.strain
+        s .= floe.strain
+    end
 
     return new_floes
 end
@@ -223,21 +235,23 @@ Outputs:
 """
 function fracture_floes!(
     floes,
+    max_floe_id,
     rng,
     fracture_settings,
+    coupling_settings,
     simp_settings,
-    max_floe_id,
+    consts,
     ::Type{T} = Float64
 ) where T
     # Determine which floes will fracture
     frac_idx = determine_fractures(
         floes,
-        simp_settings.min_floe_area,
         fracture_settings.criteria,
+        simp_settings.min_floe_area,
     )
     nfloes2frac = length(frac_idx)
     # Initialize list for new floes created from fracturing existing floes
-    fractured_list = Vector{StructVector{Floes}}(undef, nfloes2frac)
+    fractured_list = Vector{StructArray{Floe{T}}}(undef, 0)
     # Fracture floes that meet criteria 
     for i in frac_idx
         ifloe = floes[i]
@@ -259,12 +273,15 @@ function fracture_floes!(
             end
         end
         # Split flie into pieces
-        fractured_list[i] = split_floe(
+        new_floes = split_floe(
             ifloe,
-            fracture_settings.npieces,
             rng,
+            fracture_settings,
+            coupling_settings,
+            consts,
             T,
         )
+        push!(fractured_list, new_floes)
     end
     # Remove old (unfractured) floes and add fractured pieces
     for i in range(1, nfloes2frac)
@@ -277,8 +294,9 @@ function fracture_floes!(
             max_floe_id += n_new_floes
         end
     end
-    for i in frac_idx
-        StructArrays.foreachfield(f -> deleteat!(f, i), floes)
+    while !isempty(frac_idx)
+        idx = pop!(frac_idx)
+        StructArrays.foreachfield(f -> deleteat!(f, idx), floes)
     end
     return max_floe_id
 end
