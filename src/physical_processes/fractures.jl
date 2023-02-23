@@ -65,6 +65,17 @@ end
 HiblerYieldCurve(floes, pstar = 2.25e5, c = 20.0) =
     HiblerYieldCurve(pstar, c, calculate_hibler(floes, pstar, c))
 
+"""
+    update_criteria!(criteria::HiblerYieldCurve, floes)
+
+Update the Hibler Yield Curve vertices based on the current set of floes. The
+criteria changes based off of the average height of the floes.
+Inputs:
+    criteria    <HiblerYieldCurve> simulation's fracture criteria
+    floes       <StructArray{Floe}> model's list of floes
+Outputs:
+    None. Updates the criteria's vertices field to update new criteria. 
+"""
 function update_criteria!(criteria::HiblerYieldCurve, floes)
     criteria.vertices = calculate_hibler(floes, criteria.pstar, criteria.c)
 end
@@ -76,7 +87,7 @@ end
         min_floe_area,
     )
 
-Determines which floes will fracture depending on the criteria provided.
+Determines which floes will fracture depending on the principal stress criteria.
 Inputs:
     floes           <StructArray{Floe}> model's list of floes
     criteria        <AbstractFractureCriteria> fracture criteria
@@ -110,17 +121,28 @@ end
 
 Deform a floe around the area of its collision with largest area overlap within
 the last timestep.
+Inputs:
+        floe                <Floe> floe to deform
+        deformer_coords     <PolyVec> coords of floe that is deforming floe
+                                argument
+        deforming_forces    <Vector{AbstractFloat}> 1x2 matrix of forces between
+                                floe and the deforming floe - of the form: 
+                                [xforce yforce] 
+Outputs:
+        None. The input floe's centroid, coordinates, and area are updated to
+        reflect a deformation due to the collision with the deforming floe. 
 """
 function deform_floe!(
     floe,
     deformer_coords,
     deforming_forces,
 )
-    println("in deform!!")
     poly = LG.Polygon(floe.coords)
     deformer_poly = LG.Polygon(deformer_coords)
     overlap_region = sortregions(LG.intersection(poly, deformer_poly))[1]
+    # If floe and the deformer floe have an overlap area
     if LG.area(overlap_region) > 0
+        # Determine displacement of deformer floe
         rcent = find_poly_centroid(overlap_region)
         dist = calc_point_poly_dist(
             [rcent[1]],
@@ -129,10 +151,13 @@ function deform_floe!(
         )
         force_fracs = deforming_forces ./ 2norm(deforming_forces)
         Δx, Δy = abs.(dist)[1] .* force_fracs
+        # Temporarily move deformer floe to find new shape of floe
         deformer_poly = LG.Polygon(translate(deformer_coords, [Δx, Δy]))
         new_floe = sortregions(LG.difference(poly, deformer_poly))[1]
         new_floe_area = LG.area(new_floe)
+        # If floes still overlap and didn't change floe area by more than 90%
         if new_floe_area > 0 && new_floe_area/floe.area > 0.9
+            # Update floe to new position
             new_floe_centroid = find_poly_centroid(new_floe)
             floe.centroid = new_floe_centroid
             floe.coords = find_poly_coords(new_floe)
@@ -181,14 +206,16 @@ function split_floe(
         rng;
         t = T
     )
-    println("floes breaking!")
     # Intersect voronoi tesselation pieces with floe
     floe_poly = LG.Polygon(floe.coords)
     for p in pieces
         piece_poly = LG.intersection(LG.Polygon(p), floe_poly)
+        full_piece_poly = rmholes(piece_poly)
+        pmass = (floe.mass * LG.area(piece_poly) / floe.area)
+        pheight = pmass / (consts.ρi * LG.area(full_piece_poly))
         pieces_floes = poly_to_floes(
-            piece_poly,
-            floe.height,
+            full_piece_poly,
+            pheight,
             0;  # Δh - range of random height difference between floes
             ρi = consts.ρi,
             u = floe.u,
@@ -251,6 +278,7 @@ function fracture_floes!(
         fracture_settings.criteria,
         simp_settings.min_floe_area,
     )
+    init_mass = sum(floes.mass)
     nfloes2frac = length(frac_idx)
     # Initialize list for new floes created from fracturing existing floes
     fractured_list = Vector{StructArray{Floe{T}}}(undef, 0)
@@ -286,7 +314,7 @@ function fracture_floes!(
         push!(fractured_list, new_floes)
     end
     # Remove old (unfractured) floes and add fractured pieces
-    for i in range(1, nfloes2frac)
+    for i in range(nfloes2frac, 1, step = -1)
         new_floes = fractured_list[i]
         if !isempty(new_floes)
             n_new_floes = length(new_floes)
@@ -294,12 +322,10 @@ function fracture_floes!(
             new_floes.fracture_id .= floes.id[frac_idx[i]]
             append!(floes, new_floes)
             max_floe_id += n_new_floes
+            StructArrays.foreachfield(f -> deleteat!(f, frac_idx[i]), floes)
         end
     end
-    while !isempty(frac_idx)
-        idx = pop!(frac_idx)
-        StructArrays.foreachfield(f -> deleteat!(f, idx), floes)
-    end
+    println(init_mass - sum(floes.mass))
     return max_floe_id
 end
 

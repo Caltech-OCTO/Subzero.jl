@@ -46,9 +46,10 @@ fracture_settings = FractureSettings(
         Δt = 75,
         npieces = 3,
         nhistory = 1000,
-        deform_on = true,
+        deform_on = false,
     )
-simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 7000, verbose = true, fracture_settings = fracture_settings)
+simp_settings = SimplificationSettings()
+simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 10000, verbose = true, fracture_settings = fracture_settings)
 
 # Output setup
 dir = "output/simple_strait"

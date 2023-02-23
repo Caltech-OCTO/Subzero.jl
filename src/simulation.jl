@@ -94,7 +94,7 @@ function timestep_floe!(floe, Δt)
     if floe.height > 10
         floe.height = 10
     end
-    # TODO: Make variable to user input
+
     if floe.mass < 100
         floe.mass = 1e3
         floe.alive = false
@@ -108,7 +108,6 @@ function timestep_floe!(floe, Δt)
     h = floe.height
     # Update floe based on thermodynamic growth
     Δh = floe.hflx_factor / h
-    #Δh = 0 # for collision testing
     hfrac = (h + Δh) / h
     floe.mass *= hfrac
     floe.moment *= hfrac
@@ -201,24 +200,27 @@ function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
 
         # Fracture Floes
         if sim.fracture_settings.fractures_on && mod(tstep, sim.fracture_settings.Δt) == 0
-            fracture_floes!(
-                sim.model.floes,
-                sim.model.max_floe_id,
-                sim.rng,
-                sim.fracture_settings,
-                sim.coupling_settings,
-                sim.simp_settings,
-                sim.consts,
-                T
-            )
+            sim.model.max_floe_id =
+                fracture_floes!(
+                    sim.model.floes,
+                    sim.model.max_floe_id,
+                    sim.rng,
+                    sim.fracture_settings,
+                    sim.coupling_settings,
+                    sim.simp_settings,
+                    sim.consts,
+                    T
+                )
         end
-
+        
+        # Remove floes that were killed or are too small in this timestep
         remove_idx = findall(f -> !f.alive || f.area < sim.simp_settings.min_floe_area, sim.model.floes)
         while !isempty(remove_idx)
             idx =  pop!(remove_idx)
             StructArrays.foreachfield(col -> deleteat!(col, idx), sim.model.floes)
         end
     end
+
     # Timestep ocean
     timestep_ocean!(sim.model, sim.consts, sim.Δt)
 

@@ -178,7 +178,7 @@ more vertices than max_vertices will be simplified every Δt_smooth timesteps.
 """
 @kwdef struct SimplificationSettings{FT<:AbstractFloat}
     dissolve_on::Bool = true
-    min_floe_area::FT = 1e4
+    min_floe_area::FT = 1e6
     smooth_vertices_on::Bool = true
     max_vertices::Int = 30
     Δt_smooth::Int = 20

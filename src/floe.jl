@@ -302,14 +302,14 @@ function generate_voronoi_coords(npoints, scale_fac, trans_vec, domain_coords, r
         xpoints = xpoints[1:npoints]
         ypoints = ypoints[1:npoints]
     end
-    floe_coords = 
+    coords = 
         if current_points > 1
-            tess_floes = voronoicells(xpoints, ypoints, Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0))).Cells 
-            [[valid_ringvec!([Vector(f) .* scale_fac .+ trans_vec for f in tess])] for tess in tess_floes]
+            tess_cells = voronoicells(xpoints, ypoints, Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0))).Cells 
+            [[valid_ringvec!([Vector(c) .* scale_fac .+ trans_vec for c in tess])] for tess in tess_cells]
         else
             Vector{Vector{Vector{T}}}()
         end
-    return floe_coords
+    return coords
 end
 
 """
@@ -370,14 +370,17 @@ function initialize_floe_field(nfloes::Int, concentrations, domain, hmean, Δh; 
                 # Generate coords with voronoi tesselation and make into floes
                 ncells = ceil(Int, nfloes * open_area / open_water_area / c)
                 floe_coords = generate_voronoi_coords(ncells, [collen, rowlen], trans_vec, open_coords, rng, t = T)
-                floes_area = T(0.0)
-                floe_idx = shuffle(rng, range(1, length(floe_coords)))
-                while !isempty(floe_idx) && floes_area/open_area <= c
-                    idx = pop!(floe_idx)
-                    floe_poly = LG.intersection(LG.Polygon(floe_coords[idx]), open_cell)
-                    floes = poly_to_floes(floe_poly, hmean, Δh; ρi = ρi, mc_n = mc_n, nhistory = nhistory, rng = rng, min_floe_area = min_floe_area, t = T)
-                    append!(floe_arr, floes)
-                    floes_area += sum(floes.area)
+                nfloes = length(floe_coords)
+                if nfloes > 0
+                    floes_area = T(0.0)
+                    floe_idx = shuffle(rng, range(1, nfloes))
+                    while !isempty(floe_idx) && floes_area/open_area <= c
+                        idx = pop!(floe_idx)
+                        floe_poly = LG.intersection(LG.Polygon(floe_coords[idx]), open_cell)
+                        floes = poly_to_floes(floe_poly, hmean, Δh; ρi = ρi, mc_n = mc_n, nhistory = nhistory, rng = rng, min_floe_area = min_floe_area, t = T)
+                        append!(floe_arr, floes)
+                        floes_area += sum(floes.area)
+                    end
                 end
             end
         end
