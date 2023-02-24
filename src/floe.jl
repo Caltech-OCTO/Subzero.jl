@@ -279,33 +279,98 @@ function initialize_floe_field(coords::Vector{PolyVec{T}}, domain, hmean, Δh; m
     return floe_arr
 end
 
-function generate_voronoi_coords(npoints, scale_fac, trans_vec, domain_coords, rng; max_tries = 10, t::Type{T} = Float64) where T
+"""
+    function generate_voronoi_coords(
+        desired_points,
+        scale_fac,
+        trans_vec,
+        domain_coords,
+        rng;
+        max_tries = 10,
+        t::Type{T} = Float64,
+    ) where T
+
+Generate voronoi coords within a bounding box defined by its lower left corner
+and its height and width. Attempt to generate `npieces` cells within the box.
+Inputs:
+    desired_points  <Int> desired number of voronoi cells
+    scale_fac       <Vector{AbstractFloat}> width and height of bounding box -
+                        formatted as [w, h] 
+    trans_vec       <Vector{AbstractFloat}> lower left corner of bounding box -
+                        formatted as [x, y] 
+    domain_coords   <PolyVec{AbstractFloat}> polygon that will eventually be
+                        filled with/intersected with the voronoi cells - 
+                        such as topography
+    rng             <RNG> random number generator to generate voronoi cells
+    min_to_warn     <Int> minimum number of points to warn if not generated to
+                        seed voronoi
+    max_tries       <Int> number of tires to generate desired number of points
+                        within domain_coords to seed voronoi cell creation
+    T               <Type> An abstract float type to run the simulation in
+                        (optional) - default is Float64
+"""
+function generate_voronoi_coords(
+    desired_points,
+    scale_fac,
+    trans_vec,
+    domain_coords,
+    rng,
+    min_to_warn;
+    max_tries = 10,
+    t::Type{T} = Float64,
+) where T
     xpoints = Vector{T}()
     ypoints = Vector{T}()
+    area_frac = LG.area(LG.MultiPolygon(domain_coords)) / reduce(*, trans_vec)
+    # Increase the number of points based on availible percent of bounding box
+    npoints = desired_points / area_frac
     current_points = 0
     tries = 0
-    while current_points < npoints && tries <= max_tries
+    while current_points < desired_points && tries <= max_tries
         x = rand(rng, T, npoints)
         y = rand(rng, T, npoints)
-        in_on = inpoly2(hcat(scale_fac[1] * x .+ trans_vec[1],
-                             scale_fac[2] * y .+ trans_vec[2]),
-                        reduce(vcat, domain_coords))
-        in_idx = in_on[:, 1] .|  in_on[:, 2]
+        # Scaled and translated points
+        st_xy = hcat(
+            scale_fac[1] * x .+ trans_vec[1],
+            scale_fac[2] * y .+ trans_vec[2]
+        )
+        # Check which of the points are within the domain coords
+        in_idx = fill(false, length(x))
+        for i in eachindex(domain_coords)
+            coords = domain_coords[i]
+            for j in eachindex(coords)
+                in_on = inpoly2(st_xy, reduce(vcat, coords[j]))
+                if j == 1  # Domain polygon exterior - place points here
+                    in_idx = in_idx .|| (in_on[:, 1] .|  in_on[:, 2])
+                else  # Holes in domain polygon - don't place points here
+                    in_idx = in_idx .&& .!(in_on[:, 1] .|  in_on[:, 2])
+                end
+            end
+        end
         current_points += sum(in_idx)
         tries += 1
         append!(xpoints, x[in_idx])
         append!(ypoints, y[in_idx])
     end
-    if npoints > current_points
-        @warn "Only $current_points out of $npoints were able to be generated in $max_tries during voronoi tesselation."
-    else
-        xpoints = xpoints[1:npoints]
-        ypoints = ypoints[1:npoints]
+    if current_points <= min_to_warn
+        @warn "Only $current_points out of $desired_points were able to be \
+            generated in $max_tries during voronoi tesselation."
     end
-    coords = 
+    if current_points > desired_points
+        xpoints = xpoints[1:desired_points]
+        ypoints = ypoints[1:desired_points]
+    end
+    coords =
         if current_points > 1
-            tess_cells = voronoicells(xpoints, ypoints, Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0))).Cells 
-            [[valid_ringvec!([Vector(c) .* scale_fac .+ trans_vec for c in tess])] for tess in tess_cells]
+            tess_cells = voronoicells(
+                xpoints,
+                ypoints,
+                Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0))
+            ).Cells
+            # Scale and translate voronoi coordinates
+            [[valid_ringvec!([
+                Vector(c) .* scale_fac .+ trans_vec for c in tess
+            ])] for tess in tess_cells]
         else
             Vector{Vector{Vector{T}}}()
         end
@@ -313,31 +378,64 @@ function generate_voronoi_coords(npoints, scale_fac, trans_vec, domain_coords, r
 end
 
 """
-    initialize_floe_field(nfloes::Int, concentrations, domain, hmean, Δh; min_floe_area = -1.0, ρi = 920.0, mc_n::Int = 1000, t::Type{T} = Float64)
+    initialize_floe_field(
+        nfloes::Int,
+        concentrations,
+        domain,
+        hmean,
+        Δh;
+        min_floe_area = -1.0,
+        ρi = 920.0,
+        mc_n::Int = 1000,
+        t::Type{T} = Float64)
 
 Create a field of floes using Voronoi Tesselation.
 Inputs:
-        nfloes          <Int>       number of floes to try to create - note you might not end up with this number of floes -
-                                    topography in domain and multiple concentrations can decrease number of floes created
-        concentrations  <Matrix>    matrix of concentrations to fill domain. If size(concentrations) = N, M then split the
-                                    domain into NxM cells, each to be filled with the corresponding concentration. 
-                                    If concentration is below 0, it will default to 0. If it is above 1, it will default to 1
-        domain          <Domain>    model domain 
-        hmean          <Float>     average floe height
-        Δh              <Float>     height range - floes will range in height from hmean - Δh to hmean + Δh
-        min_floe_area   <Float>     if a floe below this minimum floe size is created it will be deleted (optional) -
-                                    default is 0, but if a negative is provided it will be replaced with 4*Lx*Ly/1e4
-                                    where Lx and Ly are the size of the domain edges
-        ρi              <Float>     ice density (optional) - default is 920.0
-        mc_n            <Int>       number of monte carlo points to intially generate for each floe (optional) - 
-                                    default is 1000 - note that this is not the number you will end up with as some will be outside of the floe
-        rng             <RNG>       random number generator to generate random floe attributes -
-                                    default is RNG using Xoshiro256++ algorithm
-        T               <Type>      An abstract float type to run the simulation in (optional) - default is Float64
+        nfloes          <Int> number of floes to try to create - note you
+                            might not end up with this number of floes -
+                            topography in domain and multiple concentrations can
+                            decrease number of floes created
+        concentrations  <Matrix> matrix of concentrations to fill domain. If
+                            size(concentrations) = N, M then split the domain
+                            into NxM cells, each to be filled with the
+                            corresponding concentration. If concentration is
+                            below 0, it will default to 0. If it is above 1, it
+                            will default to 1
+        domain          <Domain> model domain 
+        hmean           <Float> average floe height
+        Δh              <Float> height range - floes will range in height from
+                            hmean - Δh to hmean + Δh
+        min_floe_area   <Float> if a floe below this minimum floe size is
+                            created it will be deleted (optional) - default is
+                            0, but if a negative is provided it will be replaced
+                            with 4*Lx*Ly/1e4 where Lx and Ly are the size of the
+                            domain edges
+        ρi              <Float> ice density (optional) - default is 920.0
+        mc_n            <Int> number of monte carlo points to intially generate
+                            for each floe (optional) - default is 1000 - note
+                            that this is not the number you will end up with as
+                            some will be outside of the floe
+        rng             <RNG> random number generator to generate random floe
+                            attributes - default is RNG using Xoshiro256++
+        T               <Type> an abstract float type to run the simulation in
+                            (optional) - default is Float64
 Output:
-        floe_arr <StructArray> list of floes created using Voronoi Tesselation of the domain with given concentrations.
+        floe_arr <StructArray> list of floes created using Voronoi Tesselation
+            of the domain with given concentrations.
 """
-function initialize_floe_field(nfloes::Int, concentrations, domain, hmean, Δh; min_floe_area = 0.0, ρi = 920.0, mc_n::Int = 1000, nhistory::Int = 1000, rng = Xoshiro(), t::Type{T} = Float64) where T
+function initialize_floe_field(
+    nfloes::Int,
+    concentrations,
+    domain,
+    hmean,
+    Δh;
+    min_floe_area = 0.0,
+    ρi = 920.0,
+    mc_n::Int = 1000,
+    nhistory::Int = 1000,
+    rng = Xoshiro(),
+    t::Type{T} = Float64
+) where T
     floe_arr = StructArray{Floe{T}}(undef, 0)
     # Split domain into cells with given concentrations
     nrows, ncols = size(concentrations[:, :])
@@ -346,9 +444,17 @@ function initialize_floe_field(nfloes::Int, concentrations, domain, hmean, Δh; 
     rowlen = Ly / nrows
     collen = Lx / ncols
     # Availible space in whole domain
-    open_water = LG.Polygon(rect_coords(domain.west.val, domain.east.val, domain.south.val, domain.north.val))
+    open_water = LG.Polygon(rect_coords(
+        domain.west.val,
+        domain.east.val,
+        domain.south.val,
+        domain.north.val
+    ))
     if !isempty(domain.topography)
-        open_water = LG.difference(open_water, LG.MultiPolygon(domain.topography.coords))
+        open_water = LG.difference(
+            open_water, 
+            LG.MultiPolygon(domain.topography.coords)
+        )
     end
     open_water_area = LG.area(open_water)
     min_floe_area = min_floe_area >= 0 ? min_floe_area : T(4 * Lx * Lx / 1e4)
@@ -365,11 +471,19 @@ function initialize_floe_field(nfloes::Int, concentrations, domain, hmean, Δh; 
                 trans_vec = [xmin, ymin]
                 # Open water in cell
                 open_cell = LG.intersection(LG.Polygon(cell_bounds), open_water)
-                open_coords = find_poly_coords(open_cell)
+                open_coords = find_multipoly_coords(open_cell)
                 open_area = LG.area(open_cell)::T
                 # Generate coords with voronoi tesselation and make into floes
                 ncells = ceil(Int, nfloes * open_area / open_water_area / c)
-                floe_coords = generate_voronoi_coords(ncells, [collen, rowlen], trans_vec, open_coords, rng, t = T)
+                floe_coords = generate_voronoi_coords(
+                    ncells,
+                    [collen, rowlen],
+                    trans_vec,
+                    open_coords,
+                    rng,
+                    ncells,
+                    t = T,
+                )
                 nfloes = length(floe_coords)
                 if nfloes > 0
                     floes_area = T(0.0)
@@ -377,7 +491,17 @@ function initialize_floe_field(nfloes::Int, concentrations, domain, hmean, Δh; 
                     while !isempty(floe_idx) && floes_area/open_area <= c
                         idx = pop!(floe_idx)
                         floe_poly = LG.intersection(LG.Polygon(floe_coords[idx]), open_cell)
-                        floes = poly_to_floes(floe_poly, hmean, Δh; ρi = ρi, mc_n = mc_n, nhistory = nhistory, rng = rng, min_floe_area = min_floe_area, t = T)
+                        floes = poly_to_floes(
+                            floe_poly,
+                            hmean,
+                            Δh;
+                            ρi = ρi,
+                            mc_n = mc_n,
+                            nhistory = nhistory,
+                            rng = rng,
+                            min_floe_area = min_floe_area,
+                            t = T,
+                        )
                         append!(floe_arr, floes)
                         floes_area += sum(floes.area)
                     end

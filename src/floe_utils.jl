@@ -46,12 +46,39 @@ find_poly_centroid(poly) =
 
 Syntactic sugar for using LibGEOS to find a polygon's coordinates
 Input:
-    poly    <LibGEOS.Polygon or LibGEOS. MultiPolygon>
+    poly    <LibGEOS.Polygon>
 Output:
     <PolyVec> representing the floe's coordinates xy plane
 """
-find_poly_coords(poly) =
-    LG.GeoInterface.coordinates(poly)::PolyVec{Float64}  
+find_poly_coords(poly::LG.Polygon) =
+    LG.GeoInterface.coordinates(poly)::PolyVec{Float64}
+
+
+"""
+    find_multipoly_coords(poly)
+
+Syntactic sugar for using LibGEOS to find a multipolygon's coordinates
+Input:
+    poly    <LibGEOS.Polygon>
+Output:
+    <Vector{PolyVec}> representing the floe's coordinates xy plane
+"""
+find_multipoly_coords(poly::LG.Polygon) =
+    [LG.GeoInterface.coordinates(poly)::PolyVec{Float64}]
+
+
+"""
+    find_multipoly_coords(multipoly)
+
+Syntactic sugar for using LibGEOS to find a multi-polygon's coordinates
+Input:
+    poly    <LibGEOS. MultiPolygon>
+Output:
+    <Vector{PolyVec}> representing the floe's coordinates xy plane
+"""
+find_multipoly_coords(multipoly::LG.MultiPolygon) =
+    LG.GeoInterface.coordinates(multipoly)::Vector{PolyVec{Float64}}
+
 
 """
     translate(coords::PolyVec{T}, vec

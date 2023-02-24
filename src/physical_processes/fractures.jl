@@ -47,6 +47,21 @@ mutable struct HiblerYieldCurve{FT<:AbstractFloat}<:AbstractFractureCriteria
     vertices::PolyVec{FT}
 end
 
+"""
+    calculate_hibler(floes, pstar, c)
+
+Calculate Hibler's Elliptical Yield Curve as described in his 1979 paper
+"A Dynamic Thermodynamic Sea Ice Model".
+Inputs:
+    floes   <StructArray{Floes}> model's list of floes
+    pstar   <AbstractFloat> used to tune ellipse for optimal fracturing
+    c       <AbstractFloat> used to tune ellipse for optimal fracturing
+Outputs:
+    vertices <PolyVec{AbstractFloat}> vertices of elliptical yield curve
+Note: Hibler's paper says that: Both pstar and c relate the ice strength to the
+ice thickness and compactness. c is determined to that 10% open water reduces
+the strength substantially and pstar is considered a free parameter. 
+"""
 function calculate_hibler(floes, pstar, c)
     compactness = 1
     h = mean(floes.height)
@@ -202,31 +217,43 @@ function split_floe(
         fracture_settings.npieces,
         scale_fac,
         trans_vec,
-        floe.coords,
+        [floe.coords],
+        1,  # Warn if only 1 point is identified as the floe won't be split
         rng;
         t = T
     )
-    # Intersect voronoi tesselation pieces with floe
-    floe_poly = LG.Polygon(floe.coords)
-    for p in pieces
-        piece_poly = LG.intersection(LG.Polygon(p), floe_poly)
-        full_piece_poly = rmholes(piece_poly)
-        pmass = (floe.mass * LG.area(piece_poly) / floe.area)
-        pheight = pmass / (consts.ρi * LG.area(full_piece_poly))
-        pieces_floes = poly_to_floes(
-            full_piece_poly,
-            pheight,
-            0;  # Δh - range of random height difference between floes
-            ρi = consts.ρi,
-            u = floe.u,
-            v = floe.v,
-            ξ = floe.ξ,
-            mc_n = coupling_settings.mc_n,
-            nhistory = fracture_settings.nhistory,
-            rng = rng,
-            t = T,
-        )
-        append!(new_floes, pieces_floes)
+    if !isempty(pieces)
+        # Intersect voronoi tesselation pieces with floe
+        floe_poly = LG.Polygon(floe.coords)
+        pieces_polys = [rmholes(
+            LG.intersection(LG.Polygon(p), floe_poly)
+        ) for p in pieces]
+        # Conserve mass within pieces
+        piece_areas = [LG.area(p) for p in pieces_polys]
+        area_fracs = piece_areas/sum(piece_areas)
+        piece_masses = floe.mass * area_fracs
+        piece_heights = piece_masses ./ (consts.ρi * piece_areas)
+        # Create floes out of each piece
+        for i in eachindex(pieces_polys)
+            # piece_poly = LG.intersection(LG.Polygon(p), floe_poly)
+            # full_piece_poly = rmholes(piece_poly)
+            # pmass = (floe.mass * LG.area(piece_poly) / floe.area)
+            # pheight = pmass / (consts.ρi * LG.area(full_piece_poly))
+            pieces_floes = poly_to_floes(
+                pieces_polys[i],
+                piece_heights[i],
+                0;  # Δh - range of random height difference between floes
+                ρi = consts.ρi,
+                u = floe.u,
+                v = floe.v,
+                ξ = floe.ξ,
+                mc_n = coupling_settings.mc_n,
+                nhistory = fracture_settings.nhistory,
+                rng = rng,
+                t = T,
+            )
+            append!(new_floes, pieces_floes)
+        end
     end
 
     # Update new floe pieces with parent information
@@ -325,7 +352,6 @@ function fracture_floes!(
             StructArrays.foreachfield(f -> deleteat!(f, frac_idx[i]), floes)
         end
     end
-    println(init_mass - sum(floes.mass))
     return max_floe_id
 end
 
