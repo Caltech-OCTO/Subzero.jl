@@ -321,9 +321,9 @@ function generate_voronoi_coords(
 ) where T
     xpoints = Vector{T}()
     ypoints = Vector{T}()
-    area_frac = LG.area(LG.MultiPolygon(domain_coords)) / reduce(*, trans_vec)
+    area_frac = LG.area(LG.MultiPolygon(domain_coords)) / reduce(*, scale_fac)
     # Increase the number of points based on availible percent of bounding box
-    npoints = desired_points / area_frac
+    npoints = ceil(Int, desired_points / area_frac)
     current_points = 0
     tries = 0
     while current_points < desired_points && tries <= max_tries
@@ -339,7 +339,8 @@ function generate_voronoi_coords(
         for i in eachindex(domain_coords)
             coords = domain_coords[i]
             for j in eachindex(coords)
-                in_on = inpoly2(st_xy, reduce(vcat, coords[j]))
+                c = reduce(hcat, coords[j])'
+                in_on = inpoly2(st_xy, reduce(hcat, coords[j])')
                 if j == 1  # Domain polygon exterior - place points here
                     in_idx = in_idx .|| (in_on[:, 1] .|  in_on[:, 2])
                 else  # Holes in domain polygon - don't place points here

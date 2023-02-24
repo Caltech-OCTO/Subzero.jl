@@ -37,9 +37,13 @@ struct NoFracture<:AbstractFractureCriteria end
 Type of AbstractFractureCriteria using TODO: finish! 
 
 Fields:
-    pstar       <AbstractFloat>
-    c           <AbstractFloat>
+    pstar       <AbstractFloat> used to tune ellipse for optimal fracturing
+    c           <AbstractFloat> used to tune ellipse for optimal fracturing
     verticies   <PolyVec> vertices of criteria in principal stress space
+Note:
+    Hibler's paper says that: Both pstar and c relate the ice strength to the
+    ice thickness and compactness. c is determined to that 10% open water
+    reduces the strength substantially and pstar is considered a free parameter
 """
 mutable struct HiblerYieldCurve{FT<:AbstractFloat}<:AbstractFractureCriteria
     pstar::FT
@@ -58,9 +62,10 @@ Inputs:
     c       <AbstractFloat> used to tune ellipse for optimal fracturing
 Outputs:
     vertices <PolyVec{AbstractFloat}> vertices of elliptical yield curve
-Note: Hibler's paper says that: Both pstar and c relate the ice strength to the
-ice thickness and compactness. c is determined to that 10% open water reduces
-the strength substantially and pstar is considered a free parameter. 
+Note:
+    Hibler's paper says that: Both pstar and c relate the ice strength to the
+    ice thickness and compactness. c is determined to that 10% open water
+    reduces the strength substantially and pstar is considered a free parameter. 
 """
 function calculate_hibler(floes, pstar, c)
     compactness = 1
@@ -77,6 +82,19 @@ function calculate_hibler(floes, pstar, c)
     return vertices
 end
 
+"""
+    HiblerYieldCurve(floes, pstar = 2.25e5, c = 20.0)
+
+Calculates Hibler's Elliptical Yield curve using parameters pstar, c, and the
+current floe field. 
+Inputs:
+    floes   <StructArray{Floes}> model's list of floes
+    pstar   <AbstractFloat> used to tune ellipse for optimal fracturing
+    c       <AbstractFloat> used to tune ellipse for optimal fracturing
+Outputs:
+    HiblerYieldCurve struct with vertices determined using the calculate_hibler
+    function.
+"""
 HiblerYieldCurve(floes, pstar = 2.25e5, c = 20.0) =
     HiblerYieldCurve(pstar, c, calculate_hibler(floes, pstar, c))
 
@@ -218,8 +236,8 @@ function split_floe(
         scale_fac,
         trans_vec,
         [floe.coords],
-        1,  # Warn if only 1 point is identified as the floe won't be split
-        rng;
+        rng,
+        1;  # Warn if only 1 point is identified as the floe won't be split
         t = T
     )
     if !isempty(pieces)
