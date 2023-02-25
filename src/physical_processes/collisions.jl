@@ -588,7 +588,7 @@ function find_ghosts(elem, current_ghosts, ebound::PeriodicBoundary{East, <:Abst
 ::Type{T} = Float64) where T
     Lx = ebound.val - wbound.val
     new_ghosts =
-        if elem.centroid[1] - elem.rmax < wbound.val  # passing through western boundary
+        if (elem.centroid[1] - elem.rmax < wbound.val)  # passing through western boundary
             ghosts_on_bounds(elem, current_ghosts, wbound, [Lx, T(0)])
         elseif (elem.centroid[1] + elem.rmax > ebound.val) # passing through eastern boundary
             ghosts_on_bounds(elem, current_ghosts, ebound, [-Lx, T(0)])

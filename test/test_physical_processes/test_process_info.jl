@@ -4,27 +4,27 @@
         default_info = CouplingSettings()
         @test default_info.coupling_on &&
             default_info.Δt == 10 &&
-            !default_info.calc_ocnτ
+            !default_info.calc_ocnτ_on
         # Test custom correct
         custom_info = CouplingSettings(
             coupling_on = false,
             Δt = 20,
-            calc_ocnτ = false,
+            calc_ocnτ_on = false,
         )
         @test !custom_info.coupling_on &&
             custom_info.Δt == 20 &&
-            !custom_info.calc_ocnτ
+            !custom_info.calc_ocnτ_on
         # Test negative timestep -> turns coupling off so turn calc_ocnτ off 
         warn_str1 = "Coupling can't occur on a multiple of negative timesteps. Turning coupling off."
-        warn_str2 = "Can't calculate stresses on ocean from ice and atmosphere without coupling. Turning calc_ocnτ off."
+        warn_str2 = "Can't calculate stresses on ocean from ice and atmosphere without coupling. Turning calc_ocnτ_on off."
         neg_Δt_info = @test_logs (:warn, warn_str1) (:warn, warn_str2) CouplingSettings(
                 coupling_on = true,
                 Δt = -20,
-                calc_ocnτ = true,
+                calc_ocnτ_on = true,
             )
         @test !neg_Δt_info.coupling_on &&
             neg_Δt_info.Δt == -20 &&
-            !neg_Δt_info.calc_ocnτ
+            !neg_Δt_info.calc_ocnτ_on
     end
 
     @testset "CollisionSettings" begin
@@ -75,7 +75,11 @@
             !default_info.deform_on &&
             default_info.npieces == 1
         # Test custom correct
-        criteria = HiblerYieldCurve(0.0, 0.0, [[[0.0]]])
+        criteria = HiblerYieldCurve(
+            0.0,
+            0.0,
+            [[[0.0, 0.0], [0, 1], [1 ,1], [1, 0]]],
+        )
         custom_info = FractureSettings(
             fractures_on = true,
             criteria = criteria,
@@ -89,10 +93,14 @@
             custom_info.deform_on &&
             custom_info.npieces == 3
         # Test warnings
-        negΔt_str = "Fracturing can't occur on a multiple of negative timesteps. Turning fracturing off."
-        nocriteria_str = "Fracturing can't occur on with NoFracture criteria. Turning fracturing off."
-        deform_str= "Deformation can't occur on without fracturing. Turning deformation off."
-        npiece_str = "Fracturing can't occur on with npieces < 2 as this won't split floe. Turning fracturing off."
+        negΔt_str = "Fracturing can't occur with negative timesteps. Turning \
+            fracturing off."
+        nocriteria_str = "Fracturing can't occur on with NoFracture criteria. \
+            Turning fracturing off."
+        deform_str= "Deformation can't occur on without fracturing. Turning \
+            deformation off."
+        npiece_str = "Fracturing can't occur on with npieces < 2 as this won't \
+            split floe. Turning fracturing off."
         # Test negative timestep provided -> can't fracture
         negΔt_info = @test_logs (:warn, negΔt_str) (:warn, deform_str) FractureSettings(
                 fractures_on = true,
@@ -128,7 +136,7 @@
         # Test defaults
         default_info = SimplificationSettings()
         @test default_info.dissolve_on &&
-            default_info.min_floe_area == 1e4 &&
+            default_info.min_floe_area == 1e6 &&
             default_info.smooth_vertices_on &&
             default_info.max_vertices == 30 &&
             default_info.Δt_smooth == 20

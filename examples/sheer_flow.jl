@@ -25,7 +25,7 @@ wboundary = PeriodicBoundary(grid, West())
 domain = Domain(nboundary, sboundary, eboundary, wboundary)
 
 # Floe creation
-floe_arr = initialize_floe_field(50, [0.8], domain, 0.25, 0.0, rng = Xoshiro(1))
+floe_arr = initialize_floe_field(50, [0.8], domain, hmean, Δh, rng = Xoshiro(1))
 
 # Model creation
 model = Model(grid, ocean, atmos, domain, floe_arr)

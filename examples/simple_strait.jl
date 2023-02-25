@@ -9,9 +9,6 @@ const Δgrid = 10000
 const hmean = 0.25
 const Δh = 0.0
 const Δt = 20
-const newfloe_Δt = 500
-const coarse_nx = 10
-const coarse_ny = 10
 
 # Model instantiation
 grid = RegRectilinearGrid(0, Lx, 0, Ly, Δgrid, Δgrid)
@@ -32,7 +29,7 @@ topo_arr = StructVector([TopographyElement(t) for t in [island, topo1, topo2]])
 domain = Domain(nboundary, sboundary, eboundary, wboundary, topo_arr)
 
 # Floe creation
-floe_arr = initialize_floe_field(50, [0.7], domain, 0.25, 0.0, rng = Xoshiro(7))
+floe_arr = initialize_floe_field(50, [0.7], domain, hmean, Δh, rng = Xoshiro(1))
 
 # Model creation
 model = Model(grid, ocean, atmos, domain, floe_arr)

@@ -49,6 +49,27 @@ mutable struct HiblerYieldCurve{FT<:AbstractFloat}<:AbstractFractureCriteria
     pstar::FT
     c::FT
     vertices::PolyVec{FT}
+
+    function HiblerYieldCurve{FT}(
+        pstar::FT,
+        c::FT,
+        vertices::PolyVec{FT}
+    ) where {FT<:AbstractFloat}
+        try
+            valid_polyvec!(vertices)
+        catch
+            throw(ArgumentError("The given vertices for the HiblerYieldCurve \
+                can't be made into a valid polygon and thus the initial yield \
+                curve can't be created."))
+        end
+        new{FT}(pstar, c, vertices)
+    end
+    HiblerYieldCurve(
+        pstar::FT,
+        c::FT,
+        vertices::PolyVec{FT},
+    ) where{FT<:AbstractFloat} = 
+        HiblerYieldCurve{FT}(pstar, c, vertices)
 end
 
 """
@@ -67,10 +88,9 @@ Note:
     ice thickness and compactness. c is determined to that 10% open water
     reduces the strength substantially and pstar is considered a free parameter. 
 """
-function calculate_hibler(floes, pstar, c)
-    compactness = 1
-    h = mean(floes.height)
-    p = pstar*h*exp(-c*(1-compactness))
+function calculate_hibler(mean_height, pstar, c)
+    compactness = 1  # Could be a user input with future development
+    p = pstar*mean_height*exp(-c*(1-compactness))
     t = range(0, 2π, length = 100)
     a = p*sqrt(2)/2
     b = a/2
@@ -79,7 +99,7 @@ function calculate_hibler(floes, pstar, c)
     vertices = [splitdims([x'; y'])]
     vertices = rotate_degrees(vertices, 45)
     vertices = translate(vertices, fill(-p/2, 2))
-    return vertices
+    return valid_polyvec!(vertices)
 end
 
 """
@@ -96,7 +116,7 @@ Outputs:
     function.
 """
 HiblerYieldCurve(floes, pstar = 2.25e5, c = 20.0) =
-    HiblerYieldCurve(pstar, c, calculate_hibler(floes, pstar, c))
+    HiblerYieldCurve(pstar, c, calculate_hibler(mean(floes.height), pstar, c))
 
 """
     update_criteria!(criteria::HiblerYieldCurve, floes)
@@ -110,7 +130,11 @@ Outputs:
     None. Updates the criteria's vertices field to update new criteria. 
 """
 function update_criteria!(criteria::HiblerYieldCurve, floes)
-    criteria.vertices = calculate_hibler(floes, criteria.pstar, criteria.c)
+    criteria.vertices = calculate_hibler(
+        mean(floes.height),
+        criteria.pstar,
+        criteria.c
+    )
 end
 
 """
@@ -323,7 +347,6 @@ function fracture_floes!(
         fracture_settings.criteria,
         simp_settings.min_floe_area,
     )
-    init_mass = sum(floes.mass)
     nfloes2frac = length(frac_idx)
     # Initialize list for new floes created from fracturing existing floes
     fractured_list = Vector{StructArray{Floe{T}}}(undef, 0)

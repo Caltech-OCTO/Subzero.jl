@@ -23,15 +23,18 @@ ocean.
 
     function CouplingSettings(coupling_on, Δt, Δd, mc_n, calc_ocnτ_on)
         if coupling_on && Δt < 0
-            @warn "Coupling can't occur on a multiple of negative timesteps. Turning coupling off."
+            @warn "Coupling can't occur on a multiple of negative timesteps. \
+                Turning coupling off."
             coupling_on = false
         end
         if !coupling_on && calc_ocnτ_on
-            @warn "Can't calculate stresses on ocean from ice and atmosphere without coupling. Turning calc_ocnτ_on off."
+            @warn "Can't calculate stresses on ocean from ice and atmosphere \
+                without coupling. Turning calc_ocnτ_on off."
             calc_ocnτ_on = false
         end
         if Δd < 0
-            @warn "Can't complete interpolation of ocean and atmosphere forces with a buffer of less than 0 grid cells. Setting Δd = 0."
+            @warn "Can't complete interpolation of ocean and atmosphere forces \
+                with a buffer of less than 0 grid cells. Setting Δd = 0."
             Δd = 0
         end
         new(coupling_on, Δt, Δd, mc_n, calc_ocnτ_on)
@@ -64,18 +67,22 @@ will be set to 0 and 1 respectively.
     ) where {FT<:AbstractFloat}
         if collisions_on
             if floe_floe_max_overlap > 1
-                @warn "The maximum collisin overlap between floes can't be greater than 1. Setting to 1."
+                @warn "The maximum collisin overlap between floes can't be \
+                    greater than 1. Setting to 1."
                 floe_floe_max_overlap = FT(1)
             elseif floe_floe_max_overlap < 0
-                @warn "The maximum collisin overlap between floes can't be less than 0. Setting to 0."
+                @warn "The maximum collisin overlap between floes can't be \
+                    less than 0. Setting to 0."
                 floe_floe_max_overlap = FT(0)
             end
 
             if floe_domain_max_overlap > 1
-                @warn "The maximum collisin overlap between floes and the domain can't be greater than 1. Setting to 1."
+                @warn "The maximum collisin overlap between floes and the \
+                    domain can't be greater than 1. Setting to 1."
                 floe_domain_max_overlap = FT(1)
             elseif floe_domain_max_overlap < 0
-                @warn "The maximum collisin overlap between floes and the domain can't be less than 0. Setting to 0."
+                @warn "The maximum collisin overlap between floes and the \
+                    domain can't be less than 0. Setting to 0."
                 floe_domain_max_overlap = FT(0)
             end
         end
@@ -129,22 +136,27 @@ number, the longer it will take for a floe to fracture.
     ) where {CT <: AbstractFractureCriteria}
         if fractures_on
             if Δt < 0
-                @warn "Fracturing can't occur on a multiple of negative timesteps. Turning fracturing off."
+                @warn "Fracturing can't occur with negative timesteps. Turning \
+                    fracturing off."
                 fractures_on = false
             elseif criteria isa NoFracture
-                @warn "Fracturing can't occur on with NoFracture criteria. Turning fracturing off."
+                @warn "Fracturing can't occur on with NoFracture criteria. \
+                    Turning fracturing off."
                 fractures_on = false
             elseif npieces < 2
-                @warn "Fracturing can't occur on with npieces < 2 as this won't split floe. Turning fracturing off."
+                @warn "Fracturing can't occur on with npieces < 2 as this \
+                    won't split floe. Turning fracturing off."
                 fractures_on = false
             end
         end
         if !fractures_on && deform_on
-            @warn "Deformation can't occur on without fracturing. Turning deformation off."
+            @warn "Deformation can't occur on without fracturing. Turning \
+                deformation off."
             deform_on = false
         end
         if nhistory < 1
-            @warn "Stress history must have at least one element. Setting nhistory = 1."
+            @warn "Stress history must have at least one element. Setting \
+                nhistory = 1."
             nhistory = 1
         end
         new{CT}(fractures_on, criteria, Δt, deform_on, npieces, nhistory)

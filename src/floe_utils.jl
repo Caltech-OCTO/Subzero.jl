@@ -712,3 +712,30 @@ function split_polygon_hole(poly::LG.Polygon, ::Type{T} = Float64) where T
     end
     return bottom_list, top_list
 end
+
+function points_in_poly(xy, coords::PolyVec{<:AbstractFloat})
+    in_idx = fill(false, length(xy[:, 1]))
+    if !isempty(xy) && !isempty(coords[1][1])
+        for i in eachindex(coords)
+            in_on = inpoly2(xy, reduce(hcat, coords[i])')
+            if i == 1  # Domain polygon exterior - place points here
+                in_idx = in_idx .|| (in_on[:, 1] .|  in_on[:, 2])
+            else  # Holes in domain polygon - don't place points here
+                in_idx = in_idx .&& .!(in_on[:, 1] .|  in_on[:, 2])
+            end
+        end
+    end
+    return in_idx
+end
+
+function points_in_poly(xy, multi_coords::Vector{<:PolyVec{<:AbstractFloat}})
+    # Check which of the points are within the domain coords
+    in_idx = fill(false, length(xy[:, 1]))
+    if !isempty(xy) && !isempty(multi_coords[1][1][1])
+        for i in eachindex(multi_coords)
+            # See if the points are in any of the polygons
+            in_idx = in_idx .|| points_in_poly(xy, multi_coords[i])
+        end
+    end
+    return in_idx
+end

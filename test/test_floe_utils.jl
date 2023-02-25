@@ -183,4 +183,29 @@
     @test LibGEOS.area(LibGEOS.difference(poly_bottom[1], LibGEOS.Polygon(poly_bottom1_coords))) == 0
     @test LibGEOS.area(LibGEOS.difference(poly_bottom[2], LibGEOS.Polygon(poly_bottom2_coords))) == 0
     @test LibGEOS.area(LibGEOS.difference(poly_top[1], LibGEOS.Polygon(poly_top_coords))) == 0
+
+    # Test points_in_poly for polygons
+    points = [-5 5; 2.5 2.5; 2 7; 5 6; 5.5 5.5; 9 2]
+    # No holes
+    coords = [[[0.0, 10.0], [0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]]]
+    @test all(Subzero.points_in_poly(points, coords) .== 
+        [false, true, true, true, true, true])
+    # two holes
+    coords = [[[0.0, 10.0], [0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]],
+        [[2.0, 3], [2, 2], [3, 2], [3, 3], [2, 3]],
+        [[5.0, 6], [5, 5], [6, 5], [6, 6], [5, 6]]
+    ]
+    @test all(Subzero.points_in_poly(points, coords) .== 
+        [false, false, true, false, false, true])
+
+    # Test points_in_poly for multi-polygons
+    multi_coords = [coords, [[[12.0, 5], [15, 10], [18, 5], [12, 5]]]]
+    points = vcat(points, [15 7; 11 10])
+    @test all(Subzero.points_in_poly(points, multi_coords) .== 
+    [false, false, true, false, false, true, true, false])
+
+    # No coords / no points
+    @test all(Subzero.points_in_poly(points, [[[Vector{Float64}()]]]) .== 
+    [false, false, false, false, false, false, false, false])
+    @test all(Subzero.points_in_poly([], multi_coords) .== Vector{Bool}())
 end
