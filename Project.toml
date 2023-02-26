@@ -22,6 +22,7 @@ StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 VoronoiCells = "e3e34ffb-84e9-5012-9490-92c94d0c60a4"
 
 [compat]
+DataStructures = "0.18"
 GR = "0.71"
 GeometryBasics = "0.4"
 Interpolations = "0.14"
