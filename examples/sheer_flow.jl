@@ -1,4 +1,4 @@
-using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero
+using JLD2, Random, SplitApplyCombine, Statistics, Subzero
 import LibGEOS as LG
 
 # User Inputs

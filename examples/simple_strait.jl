@@ -50,7 +50,7 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 1000,
+    nΔt = 5000,
     verbose = true,
     fracture_settings = fracture_settings,
 )

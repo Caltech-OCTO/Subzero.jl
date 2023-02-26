@@ -27,6 +27,7 @@ export
     Constants,
     Model,
     Simulation,
+    timestep_sim!,
     run!,
     AbstractOutputWriter,
     CheckpointOutputWriter,
