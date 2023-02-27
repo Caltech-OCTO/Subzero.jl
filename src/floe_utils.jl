@@ -541,7 +541,8 @@ Inputs:
     vec_poly    <PolyVec{Float}> coordinates of polygon
 Outputs:
     <Vector{AbstractFloat}>List of distances from each point to the polygon. If
-    the point is inside of the polygon the value will be negative.
+    the point is inside of the polygon the value will be negative. This does not
+    take holes into consideration.
 
 Note - Translated into Julia from the following program:
 p_poly_dist by Michael Yoshpe - last updated in 2006.
