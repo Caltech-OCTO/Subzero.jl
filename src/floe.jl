@@ -96,7 +96,7 @@ Generate monte carlo points, determine which are within the given floe, and the
 error associated with the points
 Inputs:
     npoints <Int> number of points to generate
-    xfloe   <Vector{Float}> vector of floe x-coordinates centered on the origin
+    coords  <PolyVec{AbstractFloat}> PolyVec of floe coords centered on origin
     yfloe   <Vector{Float}> vector of floe y-coordinates centered on the origin
     rmax    <Int> floe maximum radius
     area    <Int> floe area
@@ -114,8 +114,7 @@ Note:
 """
 function generate_mc_points(
     npoints,
-    xfloe,
-    yfloe,
+    coords,
     rmax,
     area,
     alive,
@@ -134,8 +133,7 @@ function generate_mc_points(
         else
             mc_x .= rmax * (2rand(rng, T, Int(npoints)) .- 1)
             mc_y .= rmax * (2rand(rng, T, Int(npoints)) .- 1)
-            in_on = inpoly2(hcat(mc_x, mc_y), hcat(xfloe, yfloe))
-            mc_in .= in_on[:, 1] .|  in_on[:, 2]
+            mc_in = points_in_poly(hcat(mc_x, mc_y), coords)
             err = abs(sum(mc_in)/npoints * 4 * rmax^2 - area)/area
             count += 1
         end
@@ -208,11 +206,9 @@ function Floe(
     rmax = sqrt(maximum([sum(c.^2) for c in origin_coords[1]]))
     alive = true
     # Generate Monte Carlo Points
-    ox, oy = seperate_xy(origin_coords)
     mc_x, mc_y, alive = generate_mc_points(
         mc_n,
-        ox,
-        oy,
+        origin_coords,
         rmax,
         area,
         alive,
@@ -479,7 +475,7 @@ function initialize_floe_field(
 end
 
 """
-    function generate_voronoi_coords(
+    generate_voronoi_coords(
         desired_points,
         scale_fac,
         trans_vec,

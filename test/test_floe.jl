@@ -5,13 +5,13 @@
     close(file)
     poly1 = LibGEOS.Polygon(Subzero.valid_polyvec!(floe_coords[1]))
     centroid1 = LibGEOS.GeoInterface.coordinates(LibGEOS.centroid(poly1))
-    xo, yo = Subzero.seperate_xy(Subzero.translate(floe_coords[1], -centroid1))
+    origin_coords = Subzero.translate(floe_coords[1], -centroid1)
+    xo, yo = Subzero.seperate_xy(origin_coords)
     rmax = sqrt(maximum([sum(xo[i]^2 + yo[i]^2) for i in eachindex(xo)]))
     area = LibGEOS.area(poly1)
     mc_x, mc_y, alive = Subzero.generate_mc_points(
         1000,
-        xo,
-        yo,
+        origin_coords,
         rmax,
         area,
         true,
@@ -26,8 +26,7 @@
     # Test that random number generator is working
     mc_x2, mc_y2, alive2 = Subzero.generate_mc_points(
         1000,
-        xo,
-        yo,
+        origin_coords,
         rmax,
         area,
         true,
@@ -159,6 +158,8 @@
     @test all([LibGEOS.area(
         LibGEOS.intersection(LibGEOS.Polygon(c), topo_polys)
     ) for c in floe_arr.coords] .< 1e-6)
+
+    # Test generate_voronoi_coords
     
     # Test initialize_floe_field with voronoi
     floe_arr = initialize_floe_field(
@@ -212,6 +213,4 @@
     ) for p in floe_polys] .< 1e-3)
     @test all([LibGEOS.isValid(p) for p in floe_polys])
     @test all(floe_arr.id .== range(1, nfloes))
-
-    #Test
 end

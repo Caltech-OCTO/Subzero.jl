@@ -64,6 +64,13 @@
 
     end
     @testset "Fractures Floes" begin
+        # Test determine_fractures
+
+        # Test deform_floe!
+
+        # Test split_floe
+
+        # Test fracture_floes!
 
     end
 end

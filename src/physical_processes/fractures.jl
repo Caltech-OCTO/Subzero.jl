@@ -161,10 +161,9 @@ function determine_fractures(
     # Determine if floe stresses are in or out of criteria allowable regions
     update_criteria!(criteria, floes)
     σvals = combinedims(sort.(eigvals.(floes.stress)))'
-    x, y = seperate_xy(criteria.vertices)
-    in_on = inpoly2(σvals, hcat(x, y))
+    in_idx = points_in_poly(σvals, criteria.vertices)
     # If stresses are outside of criteria regions, we will fracture the floe
-    frac_idx = .!(in_on[:, 1] .|  in_on[:, 2])
+    frac_idx = .!(in_idx)
     frac_idx[floes.area .< min_floe_area] .= false
     return range(1, length(floes))[frac_idx]
 end

@@ -54,8 +54,8 @@ function calc_normal_force(c1, c2, region, area, ipoints, force_factor, ::Type{T
         uvec = [-Δy./mag Δx./mag]  # unit vector
         xt = xmid.+uvec[:, 1]./100
         yt = ymid+uvec[:, 2]./100  # should match our scale
-        in_idx = inpoly2(hcat(xt, yt), hcat(x, y))
-        uvec[in_idx[:, 1] .|  in_idx[:, 2], :] *= -1
+        in_idx = points_in_poly(hcat(xt, yt), coords)
+        uvec[in_idx, :] *= -1
         Fn = -force_factor * (mag * ones(1, 2)) .* uvec
         dmin_lst = calc_point_poly_dist(xmid, ymid, c1)
         on_idx = findall(d->abs(d)<1e-8, dmin_lst)
