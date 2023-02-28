@@ -1,5 +1,5 @@
 """
-Types to hold parameters for simulation's physical processes
+Types to hold parameters for simulation's physical process settings
 """
 
 """
