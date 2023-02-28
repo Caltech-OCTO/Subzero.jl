@@ -73,7 +73,7 @@
             default_info.criteria isa NoFracture &&
             default_info.Δt == 0 &&
             !default_info.deform_on &&
-            default_info.npieces == 1
+            default_info.npieces == 3
         # Test custom correct
         criteria = HiblerYieldCurve(
             0.0,
@@ -85,13 +85,13 @@
             criteria = criteria,
             Δt = 200,
             deform_on = true,
-            npieces = 3
+            npieces = 4
         )
         @test custom_info.fractures_on &&
             custom_info.criteria isa HiblerYieldCurve &&
             custom_info.Δt == 200 &&
             custom_info.deform_on &&
-            custom_info.npieces == 3
+            custom_info.npieces == 4
         # Test warnings
         negΔt_str = "Fracturing can't occur with negative timesteps. Turning \
             fracturing off."
@@ -107,7 +107,6 @@
                 criteria = criteria,
                 Δt = -200,
                 deform_on = true,
-                npieces = 3
             )
         @test !negΔt_info.fractures_on &&
             negΔt_info.Δt == -200 &&
@@ -118,7 +117,6 @@
                 criteria = NoFracture(),
                 Δt = 200,
                 deform_on = true,
-                npieces = 3
             )
         @test !nocriteria_info.fractures_on && !nocriteria_info.deform_on
         # Test npieces == 1 -> won't fracture

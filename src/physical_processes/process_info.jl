@@ -123,7 +123,7 @@ number, the longer it will take for a floe to fracture.
     criteria::CT = NoFracture()
     Δt::Int = 0
     deform_on::Bool = false
-    npieces::Int = 1
+    npieces::Int = 3
     nhistory::Int = 1000
 
     function FractureSettings{CT}(

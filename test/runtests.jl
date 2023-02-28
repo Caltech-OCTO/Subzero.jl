@@ -1,4 +1,5 @@
-using Subzero, LibGEOS, JLD2, NCDatasets, StructArrays, SplitApplyCombine, Statistics, VoronoiCells, GeometryBasics, Random, PolygonInbounds
+using Subzero, JLD2, NCDatasets, StructArrays, SplitApplyCombine, Statistics, VoronoiCells, GeometryBasics, Random, PolygonInbounds
+import LibGEOS as LG
 using Test
 
 @testset "Subzero.jl" begin

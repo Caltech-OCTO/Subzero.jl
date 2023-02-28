@@ -182,8 +182,8 @@ Inputs:
         deformer_coords     <PolyVec> coords of floe that is deforming floe
                                 argument
         deforming_forces    <Vector{AbstractFloat}> 1x2 matrix of forces between
-                                floe and the deforming floe - of the form: 
-                                [xforce yforce] 
+                                floe and the deforming floe from floe's
+                                interactions - of the form: [xforce yforce] 
 Outputs:
         None. The input floe's centroid, coordinates, and area are updated to
         reflect a deformation due to the collision with the deforming floe. 
@@ -214,12 +214,12 @@ function deform_floe!(
         # If floes still overlap and didn't change floe area by more than 90%
         if new_floe_area > 0 && new_floe_area/floe.area > 0.9
             # Update floe to new position
-            new_floe_centroid = find_poly_centroid(new_floe)
-            floe.centroid = new_floe_centroid
+            floe.centroid = find_poly_centroid(new_floe)
             floe.coords = find_poly_coords(new_floe)
             floe.area = new_floe_area
         end
     end
+    return
 end
 
 """
@@ -276,10 +276,6 @@ function split_floe(
         piece_heights = piece_masses ./ (consts.ρi * piece_areas)
         # Create floes out of each piece
         for i in eachindex(pieces_polys)
-            # piece_poly = LG.intersection(LG.Polygon(p), floe_poly)
-            # full_piece_poly = rmholes(piece_poly)
-            # pmass = (floe.mass * LG.area(piece_poly) / floe.area)
-            # pheight = pmass / (consts.ρi * LG.area(full_piece_poly))
             pieces_floes = poly_to_floes(
                 pieces_polys[i],
                 piece_heights[i],

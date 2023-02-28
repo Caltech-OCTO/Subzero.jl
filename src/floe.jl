@@ -493,9 +493,9 @@ Inputs:
                         formatted as [w, h] 
     trans_vec       <Vector{AbstractFloat}> lower left corner of bounding box -
                         formatted as [x, y] 
-    domain_coords   <PolyVec{AbstractFloat}> polygon that will eventually be
-                        filled with/intersected with the voronoi cells - 
-                        such as topography
+    domain_coords   <Vector{PolyVec{AbstractFloat}}> multipolygon that will
+                        eventually be filled with/intersected with the voronoi
+                        cells - such as topography
     rng             <RNG> random number generator to generate voronoi cells
     min_to_warn     <Int> minimum number of points to warn if not generated to
                         seed voronoi
@@ -510,13 +510,13 @@ Outputs:
         user will be warned. 
 """
 function generate_voronoi_coords(
-    desired_points,
+    desired_points::Int,
     scale_fac,
     trans_vec,
-    domain_coords,
+    domain_coords::Vector{<:PolyVec{<:T}},
     rng,
-    min_to_warn;
-    max_tries = 10,
+    min_to_warn::Int;
+    max_tries::Int = 10,
     t::Type{T} = Float64,
 ) where T
     xpoints = Vector{T}()
@@ -541,14 +541,18 @@ function generate_voronoi_coords(
         append!(xpoints, x[in_idx])
         append!(ypoints, y[in_idx])
     end
+    # If we generated too many cells, remove extra
+    if current_points > desired_points
+        xpoints = xpoints[1:desired_points]
+        ypoints = ypoints[1:desired_points]
+        current_points = desired_points
+    end
+    # Warn if we didn't generate enough cells
     if current_points < min_to_warn
         @warn "Only $current_points floes were able to be generated in \
             $max_tries tries during voronoi tesselation."
     end
-    if current_points > desired_points
-        xpoints = xpoints[1:desired_points]
-        ypoints = ypoints[1:desired_points]
-    end
+    # Make voronoi cells into floes
     coords =
         if current_points > 1
             tess_cells = voronoicells(

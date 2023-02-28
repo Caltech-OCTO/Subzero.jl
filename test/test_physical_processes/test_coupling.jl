@@ -69,9 +69,9 @@
 
         #Test cell_coords
         cell = Subzero.center_cell_coords(2, 3, grid, periodic_bound, periodic_bound)
-        cell_poly = LibGEOS.Polygon(cell)
-        @test LibGEOS.area(cell_poly)::Float64 == 8
-        @test LibGEOS.GeoInterface.coordinates(cell_poly) == 
+        cell_poly = LG.Polygon(cell)
+        @test LG.area(cell_poly)::Float64 == 8
+        @test LG.GeoInterface.coordinates(cell_poly) == 
             [[[-9, -2], [-9, 2], [-7, 2], [-7, -2], [-9, -2]]]
         @test Subzero.center_cell_coords(1, 1, grid, open_bound, open_bound) ==
             [[[-10, -8], [-10, -6], [-9, -6], [-9, -8], [-10, -8]]]
