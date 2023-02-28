@@ -88,7 +88,7 @@ include("model.jl")
 include("physical_processes/coupling.jl")
 include("physical_processes/collisions.jl")
 include("physical_processes/fractures.jl")
-include("physical_processes/process_info.jl")
+include("physical_processes/process_settings.jl")
 # Simulation
 include("simulation.jl")
 # Tools
