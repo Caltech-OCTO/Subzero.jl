@@ -43,7 +43,13 @@ function setup_plot(init_pn::String, plot_size = (1500, 1500))
                         size = plot_size,
                         aspect_ratio=ratio,
                         xlabel = "[km]",
-                        ylabel = "[km]")
+                        ylabel = "[km]",
+                        xtickfontsize = 20,
+                        ytickfontsize = 20,
+                        xguidefontsize=25,
+                        yguidefontsize=25,
+                        margin = 10mm,
+                        )
     if !isempty(d.topography)
         topo_coords = seperate_xy.(d.topography.coords)
         plot!(plt, first.(topo_coords)./1000, last.(topo_coords)./1000, seriestype = [:shape,], fill = :grey, legend=false)
@@ -72,7 +78,6 @@ function create_sim_gif(floe_pn, init_pn, output_fn; plot_size = (1500, 1500), f
     plt = setup_plot(init_pn, plot_size)
     times = keys(alive)
     anim = @animate for t in times
-        println(t)
         new_frame = plot(plt)
         verts = Subzero.seperate_xy.(coords[t])
         for i in eachindex(verts)

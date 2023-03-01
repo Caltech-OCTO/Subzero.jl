@@ -17,35 +17,77 @@ Code for converting between .MAT and .jld2 filetypes
 
 # Then switch to Julia, open the new file, transform the coordiantes into
 # PolyVecs using SplitApplyCombine and re-save as a JLD2 file for use
-vertices_data = matread("Desktop/FloeVertices.mat")
-vertices = [[splitdims(v')] for v in vertices_data["polyVertices"]]
-jldsave("Desktop/floe_shapes.jld2"; floe_vertices = vertices)
 
-
-vars = matread("test/inputs/floe2.mat")
-coords = vars["floe"]["c_alpha"]
-coords = splitdims(coords)
-coords = Subzero.translate([coords], [vars["floe"]["Xi"], vars["floe"]["Yi"]])
-floe = Floe(coords, vars["floe"]["h"], 0.0)
-floe.centroid = [vars["floe"]["Xi"], vars["floe"]["Yi"]]
-floe.mc_x = vec(vars["floe"]["X"])[vec(vars["floe"]["A"]) .== 1]
-floe.mc_y = vec(vars["floe"]["Y"])[vec(vars["floe"]["A"]) .== 1]
-floe.u =vars["floe"]["Ui"]
-floe.v =vars["floe"]["Vi"]
-floe.ξ = vars["floe"]["ksi_ice"]
-floe.α = vars["floe"]["alpha_i"]
-floe.interactions = vars["floe"]["interactions"]
-floe.fxOA = vars["floe"]["FxOA"]
-floe.fyOA = vars["floe"]["FyOA"]
-floe.trqOA = vars["floe"]["torqueOA"]
-floe.collision_force = vars["floe"]["collision_force"]
-floe.collision_trq = vars["floe"]["collision_torque"]
-floe.stress = vars["floe"]["Stress"]
-floe.strain = vars["floe"]["strain"]
-for x in eachslice(vars["floe"]["StressH"], dims = 3)
-    if sum(x) != 0
-        push!(floe.stress_history, x)
+function matfloe2julfloes(filename)
+    filename = auto_extension(filename, ".mat")
+    vars = matread(filename)
+    coords = vars["floe"]["c_alpha"]
+    coords = splitdims(coords)
+    coords = Subzero.translate([coords], [vars["floe"]["Xi"], vars["floe"]["Yi"]])
+    floe = Floe(coords, vars["floe"]["h"], 0.0)
+    floe.centroid = [vars["floe"]["Xi"], vars["floe"]["Yi"]]
+    floe.mc_x = vec(vars["floe"]["X"])[vec(vars["floe"]["A"]) .== 1]
+    floe.mc_y = vec(vars["floe"]["Y"])[vec(vars["floe"]["A"]) .== 1]
+    floe.u =vars["floe"]["Ui"]
+    floe.v =vars["floe"]["Vi"]
+    floe.ξ = vars["floe"]["ksi_ice"]
+    floe.α = vars["floe"]["alpha_i"]
+    floe.interactions = vars["floe"]["interactions"]
+    floe.fxOA = vars["floe"]["FxOA"]
+    floe.fyOA = vars["floe"]["FyOA"]
+    floe.trqOA = vars["floe"]["torqueOA"]
+    floe.collision_force = vars["floe"]["collision_force"]
+    floe.collision_trq = vars["floe"]["collision_torque"]
+    floe.stress = vars["floe"]["Stress"]
+    floe.strain = vars["floe"]["strain"]
+    for x in eachslice(vars["floe"]["StressH"], dims = 3)
+        if sum(x) != 0
+            push!(floe.stress_history, x)
+        end
     end
+    return floe
 end
 
-jldsave("test/inputs/test_floes.jld2"; stress_strain_floe = floe)
+
+
+# JLD2 to MATLAB
+
+function julfloe2matfloe(floes, Δg, out_fn)
+    coords = Subzero.seperate_xy.(floes.coords)
+    xcoords = first.(coords)
+    ycoords = last.(coords)
+    reshaped_x = Vector{Matrix{Float64}}()
+    reshaped_y = Vector{Matrix{Float64}}()
+    for i in range(1, length(xcoords))
+        push!(reshaped_x, reshape(xcoords[i], (1, length(xcoords[i]))) .- Δg)
+        push!(reshaped_y, reshape(ycoords[i], (1, length(ycoords[i]))) .- Δg)
+    end
+
+    floe.stress = vars["floe"]["Stress"]
+    floe.strain = vars["floe"]["strain"]
+    for x in eachslice(vars["floe"]["StressH"], dims = 3)
+        if sum(x) != 0
+            push!(floe.stress_history, x)
+        end
+    end
+    out_fn = auto_extension(out_fn, ".mat")
+    matwrite(out_fn, Dict(
+        "mc_x" => floes.mc_x,
+        "mc_y" =>  floes.mc_y,
+        "xcoords" => reshaped_x,
+        "ycoords" => reshaped_y,
+        "u" => floes.u,
+        "v" => floes.v,
+        "ksi_ice" => floes.ξ,
+        "alpha_i" => floes.α,
+        "interactions" => floes.interactions,
+        "fxOA" => floes.fxOA,
+        "fyOA" => floes.fyOA,
+        "torqueOA" => floes.trqOA,
+        "collision_force" => floes.collision_force,
+        "collision_toque" => floes.collision_trq,
+        "stress" => floes.stress,
+        "strain" => floes.strain,
+        "stress_history" => floes.stress_history
+    );)
+end

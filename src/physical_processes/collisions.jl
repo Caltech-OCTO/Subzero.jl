@@ -22,7 +22,7 @@ Outputs:
 """
 function calc_normal_force(c1, c2, region, area, ipoints, force_factor, ::Type{T} = Float64) where T
     force_dir = zeros(T, 2)
-    coords = LG.GeoInterface.coordinates(region)::PolyVec{Float64}
+    coords = find_poly_coords(region)
     n_ipoints = size(ipoints, 1)
     # Identify which region coordinates are the intersection points (ipoints)
     verts = zeros(Int64, n_ipoints)
@@ -54,8 +54,8 @@ function calc_normal_force(c1, c2, region, area, ipoints, force_factor, ::Type{T
         uvec = [-Δy./mag Δx./mag]  # unit vector
         xt = xmid.+uvec[:, 1]./100
         yt = ymid+uvec[:, 2]./100  # should match our scale
-        in_idx = inpoly2(hcat(xt, yt), hcat(x, y))
-        uvec[in_idx[:, 1] .|  in_idx[:, 2], :] *= -1
+        in_idx = points_in_poly(hcat(xt, yt), coords)
+        uvec[in_idx, :] *= -1
         Fn = -force_factor * (mag * ones(1, 2)) .* uvec
         dmin_lst = calc_point_poly_dist(xmid, ymid, c1)
         on_idx = findall(d->abs(d)<1e-8, dmin_lst)
@@ -119,7 +119,7 @@ function calc_elastic_forces(c1, c2, regions, region_areas, force_factor, ::Type
         for k in 1:ncontact
             normal_force = zeros(T, 1, 2)
             if region_areas[k] != 0
-                cx, cy = LG.GeoInterface.coordinates(LG.centroid(regions[k]))::Vector{Float64}
+                cx, cy = find_poly_centroid(regions[k])::Vector{Float64}
                 fpoint[k, :] = [cx, cy]
                 normal_force, Δl = calc_normal_force(c1, c2, regions[k], region_areas[k], ipoints, force_factor, T)
             end
@@ -170,14 +170,16 @@ end
 
 If the two floes interact, update floe i's interactions accordingly. Floe j is not update here so that the function can be parallelized.
 Inputs:
-        ifloe   <Floe> first floe in potential interaction
-        i       <Int> index of ifloe in model's list of floes 
-        jfloe   <Floe> second floe in potential interaction
-        j       <Int> index of jfloe in model's list of floes 
-        nfloes  <Int> number of non-ghost floes in the simulation this timestep
-        consts  <Constants> model constants needed for calculations
-        Δt      <Int> Simulation's current timestep
-        t       <Type> Float type model is running on (Float64 or Float32)
+        ifloe       <Floe> first floe in potential interaction
+        i           <Int> index of ifloe in model's list of floes 
+        jfloe       <Floe> second floe in potential interaction
+        j           <Int> index of jfloe in model's list of floes 
+        nfloes      <Int> number of non-ghost floes in the simulation this timestep
+        consts      <Constants> model constants needed for calculations
+        Δt          <Int> Simulation's current timestep
+        max_overlap <Float> Percent two floes can overlap before marking them
+                            for combination with remove/transfer
+        t           <Type> Float type model is running on (Float64 or Float32)
 Outputs:
         remove   <Int> index of floe to remove from simulation due to overlap (will be transfered to over floe in collision)
                         - if 0 then no floes to be removed from this collision
@@ -189,7 +191,7 @@ Outputs:
             xfpoints and yfpoints are the location of the force and overlaps is the overlap between the floe and boundary.
         The overlaps field is also added to the floe's overarea field that describes the total overlapping area at any timestep. 
 """
-function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, ::Type{T} = Float64) where T
+function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, max_overlap, ::Type{T} = Float64) where T
     remove = Int(0)
     transfer = Int(0)
     ifloe_poly = LG.Polygon(ifloe.coords)
@@ -200,14 +202,14 @@ function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, ::Type{
         region_areas = [LG.area(poly) for poly in inter_regions]::Vector{Float64}
         total_area = sum(region_areas)
         # Floes overlap too much - remove floe or transfer floe mass to other floe
-        if total_area/ifloe.area > 0.55
+        if total_area/ifloe.area > max_overlap
             if i <= nfloes  # If i is not a ghost floe
                 remove = i
                 transfer = j  # Will transfer mass to jfloe
             elseif j <= nfloes  # If j is not a ghost floe
                 remove = j  # Will transfer mass to ifloe - can't be updated here due to parallelization
             end
-        elseif total_area/jfloe.area > 0.55
+        elseif total_area/jfloe.area > max_overlap
             if j <= nfloes  # If j is not a ghost floe
                 remove = j  # Will transfer mass to ifloe - can't be updated here due to parallelization
             end
@@ -252,11 +254,12 @@ Inputs:
         boundary        <OpenBoundary> coordinates of boundary
         _               <Constants> model constants needed in other methods of this function - not needed here
         _               <Int> current simulation timestep - not needed here
+        -               <Float> maximum overlap between floe and domain elements - not needed here 
         _               <Type> Float type model is running on (Float64 or Float32) - not needed here
 Output:
         None. If floe is interacting with the boundary, floe.alive field is set to 0. Else, nothing is changed. 
 """
-function floe_domain_element_interaction!(floe, boundary::OpenBoundary, consts, Δt, ::Type{T} = Float64) where T
+function floe_domain_element_interaction!(floe, boundary::OpenBoundary, consts, Δt, max_overlap, ::Type{T} = Float64) where T
     floe_poly = LG.Polygon(floe.coords)
     bounds_poly = LG.Polygon(boundary.coords)
     # Check if the floe and boundary actually overlap
@@ -276,7 +279,7 @@ Inputs:
 Output:
         None. This function does not do anyting. 
 """
-function floe_domain_element_interaction!(floe, ::PeriodicBoundary, consts, Δt, ::Type{T} = Float64) where T
+function floe_domain_element_interaction!(floe, ::PeriodicBoundary, consts, Δt, max_overlap, ::Type{T} = Float64) where T
     return
 end
 
@@ -351,6 +354,8 @@ Inputs:
         element         <Union{CollisionBoundary, TopographyElement}> coordinates of element
         consts          <Constants> model constants needed for calculations
         Δt              <Int> current simulation timestep
+        max_overlap     <Float> Percent a floe can overlap with a collision wall
+                                or topography before being killed/removed
                         <Type> Float type model is running on (Float64 or Float32)
 Outputs:
         None. If floe interacts, the floe's interactions field is updated with the details of each region of overlap.
@@ -359,7 +364,7 @@ Outputs:
             xfpoints and yfpoints are the location of the force and overlaps is the overlap between the floe and element.
         The overlaps field is also added to the floe's overarea field that describes the total overlapping area at any timestep.
 """
-function floe_domain_element_interaction!(floe, element::Union{CollisionBoundary, TopographyElement}, consts, Δt, ::Type{T} = Float64) where T
+function floe_domain_element_interaction!(floe, element::Union{CollisionBoundary, TopographyElement}, consts, Δt, max_overlap, ::Type{T} = Float64) where T
     floe_poly = LG.Polygon(floe.coords)
     bounds_poly = LG.Polygon(element.coords)
     # Check if the floe and element actually overlap
@@ -368,7 +373,7 @@ function floe_domain_element_interaction!(floe, element::Union{CollisionBoundary
         inter_regions = LG.getGeometries(inter_floe)
         region_areas = [LG.area(poly) for poly in inter_regions]::Vector{Float64}
         # Regions overlap too much
-        if maximum(region_areas)/floe.area > 0.75
+        if maximum(region_areas)/floe.area > max_overlap
             floe.alive = false
         else
             # Constant needed for force calculations
@@ -394,7 +399,7 @@ function floe_domain_element_interaction!(floe, element::Union{CollisionBoundary
 end
 
 """
-    floe_domain_interaction!(floe, domain::DT, consts, t::Type{T} = Float64)
+    floe_domain_interaction!(floe, domain::DT, consts, max_overlap, t::Type{T} = Float64)
 
 If the floe interacts with the domain, update the floe accordingly. Dispatches on different boundary types within the domain.
 Inputs:
@@ -402,11 +407,13 @@ Inputs:
         domain      <Domain> model domain
         consts      <Constants> model constants needed for calculations
         Δt          <Int> current simulation timestep
+        max_overlap <Float> Percent a floe can overlap with a collision wall
+                            or topography before being killed/removed
         t           <Type> Float type model is running on (Float64 or Float32)
 Outputs:
         None. Floe is updated according to which boundaries it interacts with and the types of those boundaries. 
 """
-function floe_domain_interaction!(floe, domain::Domain, consts, Δt, ::Type{T} = Float64) where {T}
+function floe_domain_interaction!(floe, domain::Domain, consts, Δt, max_overlap, ::Type{T} = Float64) where {T}
     centroid = floe.centroid
     rmax = floe.rmax
     nbound = domain.north
@@ -415,21 +422,21 @@ function floe_domain_interaction!(floe, domain::Domain, consts, Δt, ::Type{T} =
     wbound = domain.west
 
     if centroid[2] + rmax > nbound.val
-        floe_domain_element_interaction!(floe, nbound, consts, Δt)
+        floe_domain_element_interaction!(floe, nbound, consts, Δt, max_overlap, T)
     end
     if centroid[2] - rmax < sbound.val
-        floe_domain_element_interaction!(floe, sbound, consts, Δt)
+        floe_domain_element_interaction!(floe, sbound, consts, Δt, max_overlap, T)
     end
     if centroid[1] + rmax > ebound.val
-        floe_domain_element_interaction!(floe, ebound, consts, Δt)
+        floe_domain_element_interaction!(floe, ebound, consts, Δt, max_overlap, T)
     end
     if centroid[1] - rmax < wbound.val
-        floe_domain_element_interaction!(floe, wbound, consts, Δt)
+        floe_domain_element_interaction!(floe, wbound, consts, Δt, max_overlap, T)
     end
 
     for topo_element in domain.topography
         if sum((topo_element.centroid .- floe.centroid).^2) < (topo_element.rmax + floe.rmax)^2
-            floe_domain_element_interaction!(floe, topo_element, consts, Δt)
+            floe_domain_element_interaction!(floe, topo_element, consts, Δt, max_overlap, T)
         end
     end
 
@@ -460,7 +467,7 @@ function calc_torque!(floe, ::Type{T} = Float64) where T
     end
 end
 
-function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, consts, Δt, ::Type{T} = Float64) where T
+function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, consts, Δt, collision_settings, ::Type{T} = Float64) where T
     collide_pairs = Dict{Tuple{Int, Int}, Tuple{Int, Int}}()
     # floe-floe collisions for floes i and j where i<j
     for i in eachindex(floes)
@@ -482,7 +489,7 @@ function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, con
                 new_collision = !(id_pair in keys(collide_pairs))
                 # New collision or floe and ghost colliding with same floe - not a repeat collision
                 if new_collision || (ghost_id_pair[1] == collide_pairs[id_pair][1]) ⊻ (ghost_id_pair[2] == collide_pairs[id_pair][2])
-                    iremove, itransfer = floe_floe_interaction!(ifloe, i, floes[j], j, n_init_floes, consts, Δt)
+                    iremove, itransfer = floe_floe_interaction!(ifloe, i, floes[j], j, n_init_floes, consts, Δt, collision_settings.floe_floe_max_overlap)
                     if iremove != 0 || itransfer != 0
                         remove[i] = iremove
                         transfer[i] = itransfer
@@ -494,7 +501,7 @@ function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, con
                 end
             end
         end
-        floe_domain_interaction!(ifloe, domain, consts, Δt)
+        floe_domain_interaction!(ifloe, domain, consts, Δt, collision_settings.floe_domain_max_overlap, T)
         floes[i] = ifloe
     end
     # Update floes not directly calculated above where i>j - can't be parallelized
@@ -581,7 +588,7 @@ function find_ghosts(elem, current_ghosts, ebound::PeriodicBoundary{East, <:Abst
 ::Type{T} = Float64) where T
     Lx = ebound.val - wbound.val
     new_ghosts =
-        if elem.centroid[1] - elem.rmax < wbound.val  # passing through western boundary
+        if (elem.centroid[1] - elem.rmax < wbound.val)  # passing through western boundary
             ghosts_on_bounds(elem, current_ghosts, wbound, [Lx, T(0)])
         elseif (elem.centroid[1] + elem.rmax > ebound.val) # passing through eastern boundary
             ghosts_on_bounds(elem, current_ghosts, ebound, [-Lx, T(0)])

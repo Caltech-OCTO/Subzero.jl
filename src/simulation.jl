@@ -30,29 +30,20 @@ Simulation which holds a model and parameters needed for running the simulation.
     COLLISION (enable floe collisions), CORNERS (floe corners can break), FRACTURES (floes can fracture), KEEPMIN (small floes don't dissolve), PACKING (floe packing enabled),
     RAFTING (floe rafting enabled), RIDGING (floe ridging enabled), and WELDING (floe welding enabled). All are false by default.
 """
-@kwdef struct Simulation{FT<:AbstractFloat, GT<:AbstractGrid, DT<:Domain}
-    model::Model{FT, GT, DT}        # Model to simulate
-    consts::Constants{FT}           # Constants used in Simulation
-    Δd::Int = 1                     # Number of buffer grid cells on each side of floe for monte carlo interpolation
-    verbose::Bool = false           # String output printed during run
-    name::String = "sim"            # Simulation name for printing/saving
+@kwdef struct Simulation{FT<:AbstractFloat, GT<:AbstractGrid, DT<:Domain, CT<:AbstractFractureCriteria}
+    model::Model{FT, GT, DT}            # Model to simulate
+    consts::Constants{FT} = Constants() # Constants used in Simulation
+    rng = Xoshiro()                     # Random number generator 
+    verbose::Bool = false               # String output printed during run
+    name::String = "sim"                # Simulation name for printing/saving
     # Timesteps ----------------------------------------------------------------
-    Δt::Int = 10                    # Simulation timestep (seconds)
-    nΔt::Int = 7500                 # Total timesteps simulation runs for
-    Δtsimp::Int = 20                # Timesteps between floe simplification
-    Δtpack::Int = 500               # Timesteps between thermodynamic floe 
-                                    # creation
-    Δtocn::Int = 10                 # Timesteps between updating ocean forces
-    # Flags --------------------------------------------------------------------
-    COLLISION::Bool = false         # If true, collisions are enabled for floes
-    CORNERS::Bool = false           # If true, corners of floes can break
-    FRACTURES::Bool = false         # If true, fracturing of floes is enabled
-    KEEPMIN::Bool = false           # If true, retain small floes that would 
-                                    # normally "dissolve"
-    PACKING::Bool = false           # If true, floe packing is enabled
-    RAFTING::Bool = false           # If true, floe rafting is enabled
-    RIDGING::Bool = false           # If true, floe ridging is enabled
-    WELDING::Bool = false           # If true, floe welding is enabled
+    Δt::Int = 10                        # Simulation timestep (seconds)
+    nΔt::Int = 7500                     # Total timesteps simulation runs for
+    # Physical Processes --------------------------------------------------------
+    coupling_settings::CouplingSettings = CouplingSettings()
+    collision_settings::CollisionSettings{FT} = CollisionSettings()
+    fracture_settings::FractureSettings{CT} = FractureSettings()
+    simp_settings::SimplificationSettings{FT} = SimplificationSettings()
 end
 
 function calc_stress_strain!(floe)
@@ -103,7 +94,7 @@ function timestep_floe!(floe, Δt)
     if floe.height > 10
         floe.height = 10
     end
-    # TODO: Make variable to user input
+
     if floe.mass < 100
         floe.mass = 1e3
         floe.alive = false
@@ -117,7 +108,6 @@ function timestep_floe!(floe, Δt)
     h = floe.height
     # Update floe based on thermodynamic growth
     Δh = floe.hflx_factor / h
-    #Δh = 0 # for collision testing
     hfrac = (h + Δh) / h
     floe.mass *= hfrac
     floe.moment *= hfrac
@@ -175,43 +165,65 @@ function timestep_floe!(floe, Δt)
 end
 
 function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
-    m = sim.model
-    # Add ghosts
-    n_init_floes = length(m.floes) # number of floes before ghost floes
-    add_ghosts!(m.floes, m.domain)
+    if !isempty(sim.model.floes)
+        # Add ghosts
+        n_init_floes = length(sim.model.floes) # number of floes before ghost floes
+        add_ghosts!(sim.model.floes, sim.model.domain)
 
-    # Output at given timestep
-    for w in writers
-        if tstep == 0 || (hasfield(typeof(w), :Δtout) && mod(tstep, w.Δtout) == 0)
-            write_data!(w, tstep, sim)
+        # Output at given timestep
+        for w in writers
+            if tstep == 0 || (hasfield(typeof(w), :Δtout) && mod(tstep, w.Δtout) == 0)
+                write_data!(w, tstep, sim)
+            end
+        end
+
+        # Collisions
+        remove = zeros(Int, n_init_floes)
+        transfer = zeros(Int, n_init_floes)
+        if sim.collision_settings.collisions_on
+            remove, transfer = timestep_collisions!(sim.model.floes, n_init_floes, sim.model.domain, remove, transfer, sim.consts, sim.Δt, sim.collision_settings, T)
+        end
+
+        # Remove the ghost floes
+        sim.model.floes = sim.model.floes[1:n_init_floes]
+        empty!.(sim.model.floes.ghosts) 
+
+        # Physical processes without ghost floes
+        for i in 1:n_init_floes
+            ifloe = sim.model.floes[i]
+            if sim.coupling_settings.coupling_on && mod(tstep, sim.coupling_settings.Δt) == 0
+                floe_OA_forcings!(ifloe, sim.model, sim.consts, sim.coupling_settings, T)
+            end
+            timestep_floe!(ifloe, sim.Δt)
+            sim.model.floes[i] = ifloe
+        end
+
+        # Fracture Floes
+        if sim.fracture_settings.fractures_on && mod(tstep, sim.fracture_settings.Δt) == 0
+            sim.model.max_floe_id =
+                fracture_floes!(
+                    sim.model.floes,
+                    sim.model.max_floe_id,
+                    sim.rng,
+                    sim.fracture_settings,
+                    sim.coupling_settings,
+                    sim.simp_settings,
+                    sim.consts,
+                    T
+                )
+        end
+        
+        # Remove floes that were killed or are too small in this timestep
+        remove_idx = findall(f -> !f.alive || f.area < sim.simp_settings.min_floe_area, sim.model.floes)
+        while !isempty(remove_idx)
+            idx =  pop!(remove_idx)
+            StructArrays.foreachfield(col -> deleteat!(col, idx), sim.model.floes)
         end
     end
 
-    # Collisions
-    remove = zeros(Int, n_init_floes)
-    transfer = zeros(Int, n_init_floes)
-    if sim.COLLISION
-        remove, transfer = timestep_collisions!(m.floes, n_init_floes, m.domain, remove, transfer, sim.consts, sim.Δt, T)
-    end
-
-    m.floes = m.floes[1:n_init_floes] # remove the ghost floes
-    empty!.(m.floes.ghosts) 
-    for i in 1:n_init_floes
-        ifloe = m.floes[i]
-        #if mod(tstep-1, sim.Δtocn) == 0
-        floe_OA_forcings!(ifloe, m, sim.consts, sim.Δd)
-        #end
-        timestep_floe!(ifloe, sim.Δt)
-        m.floes[i] = ifloe
-    end
-
     # Timestep ocean
-    timestep_ocean!(m, sim.consts, sim.Δt)
-    
-    remove_idx = findall(f -> !f.alive, m.floes)
-    for idx in remove_idx
-        StructArrays.foreachfield(f -> deleteat!(f, idx), m.floes)
-    end
+    timestep_ocean!(sim.model, sim.consts, sim.Δt)
+
     # h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx)))
     # mean(h0)
 
@@ -234,7 +246,7 @@ Outputs:
 """
 function run!(sim, writers, ::Type{T} = Float64) where T
     # Start simulation
-    sim.verbose && println(string(sim.name, "is  running!"))
+    sim.verbose && println(string(sim.name, " is running!"))
     tstep = 0
     while tstep <= sim.nΔt
         if sim.verbose && mod(tstep, 50) == 0

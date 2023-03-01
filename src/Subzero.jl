@@ -27,6 +27,7 @@ export
     Constants,
     Model,
     Simulation,
+    timestep_sim!,
     run!,
     AbstractOutputWriter,
     CheckpointOutputWriter,
@@ -45,13 +46,21 @@ export
     ypoint,
     torque,
     overlap, 
-    initialize_floe_field
+    initialize_floe_field,
+    AbstractFractureCriteria,
+    NoFracture,
+    HiblerYieldCurve,
+    CollisionSettings,
+    FractureSettings,
+    CouplingSettings,
+    SimplificationSettings,
+    PolyVec
 
 import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG
-using DataStructures, GeometryBasics, Interpolations, JLD2, LinearAlgebra, NamedArrays,
-      NCDatasets, Plots, PolygonInbounds, Random, Statistics, StructArrays,
-      VoronoiCells
+using DataStructures, GeometryBasics, Interpolations, JLD2, LinearAlgebra,  
+    Measures, NamedArrays, NCDatasets, Plots, PolygonInbounds, Random,
+    SplitApplyCombine, Statistics, StructArrays, VoronoiCells
 
 """
 Coordinates are vector of vector of vector of points of the form:
@@ -62,6 +71,7 @@ Coordinates are vector of vector of vector of points of the form:
  This form is for easy conversion to LibGEOS Polygons.
 """
 const PolyVec{T} = Vector{Vector{Vector{T}}} where T<:AbstractFloat
+
 """
 Coordinates are vector of vector of points of the form:
 [[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]] where the xy coordinates form a
@@ -70,12 +80,18 @@ This form is for each conversion to LibGEOS LinearRings, which can also be made 
 """
 const RingVec{T} = Vector{Vector{T}} where T<:AbstractFloat
 
+# Model
 include("floe.jl")
 include("floe_utils.jl")
 include("model.jl")
+# Physical Processes
+include("physical_processes/coupling.jl")
+include("physical_processes/collisions.jl")
+include("physical_processes/fractures.jl")
+include("physical_processes/process_settings.jl")
+# Simulation
 include("simulation.jl")
+# Tools
 include("plotting.jl")
 include("output.jl")
-include("collisions.jl")
-include("coupling.jl")
 end
