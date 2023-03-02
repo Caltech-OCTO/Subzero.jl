@@ -457,7 +457,10 @@ function initialize_floe_field(
     # Warn about floes with area less than minimum floe size
     min_floe_area = min_floe_area > 0 ?
         min_floe_area :
-        T(4 * (domain.east.val - domain.west.val) * (domain.north.val - domain.south.val) / 1e4)
+        T(
+            4 * (domain.east.val - domain.west.val) *
+            (domain.north.val - domain.south.val) / 1e4
+        )
     if any(floe_arr.area .< min_floe_area)
         @warn "Some user input floe areas are less than the suggested minimum \
             floe area."
@@ -660,7 +663,12 @@ function initialize_floe_field(
                 # Grid cell bounds
                 xmin = domain.west.val + collen * (j - 1)
                 ymin = domain.south.val + rowlen * (i - 1)
-                cell_bounds = rect_coords(xmin, xmin + collen, ymin, ymin + rowlen)
+                cell_bounds = rect_coords(
+                    xmin,
+                    xmin + collen,
+                    ymin,
+                    ymin + rowlen,
+                )
                 trans_vec = [xmin, ymin]
                 # Open water in cell
                 open_cell = LG.intersection(LG.Polygon(cell_bounds), open_water)
@@ -708,4 +716,155 @@ function initialize_floe_field(
     # Initialize floe IDs
     floe_arr.id .= range(1, length(floe_arr))
     return floe_arr
+end
+
+"""
+    calc_stress!(floe)
+
+Calculates the stress on a floe given it's interactions and stress history.
+Inputs:
+    floe    <Floe> single floe
+Outputs:
+    None. Updates floe's stress and stress history fields. 
+"""
+function calc_stress!(floe)
+    # Stress calcultions
+    if !isempty(floe.interactions)
+        inters = floe.interactions[:, :]
+        xi, yi = floe.centroid
+        # Calculates timestep stress
+        stress = fill(1/(2*floe.area*floe.height), 2, 2)
+        stress[1, 1] *= sum((inters[:, xpoint] .- xi) .* inters[:, xforce]) +
+            sum(inters[:, xforce] .* (inters[:, xpoint] .- xi))
+        stress[1, 2] *= sum((inters[:, ypoint] .- yi) .* inters[:, xforce]) + 
+            sum(inters[:, yforce] .* (inters[:, xpoint] .- xi))
+        stress[2, 1] *= sum((inters[:, xpoint] .- xi) .* inters[:, yforce]) +
+            sum(inters[:, xforce] .* (inters[:, ypoint] .- yi))
+        stress[2, 2] *= sum((inters[:, ypoint] .- yi) .* inters[:, yforce]) +
+            sum(inters[:, yforce] .* (inters[:, ypoint] .- yi))
+        # Add timestep stress to stress history
+        push!(floe.stress_history, stress)
+        # Average stress history to find floe's average stress
+        floe.stress = mean(floe.stress_history)
+    end
+end
+
+"""
+    calc_strain!(floe)
+
+Calculates the strain on a floe given the velocity at each vertex
+Inputs:
+    floe    <Floe> single floe
+Outputs:
+    None. Updates floe's strain field. 
+"""
+function calc_strain!(floe)
+    xcoords, ycoords = seperate_xy(translate(floe.coords, -floe.centroid))
+    # Needed copy of first coordinate at end for calculations
+    push!(xcoords, xcoords[1])
+    push!(ycoords, ycoords[1])
+    # u and v velocities of floes at each vertex
+    rad_coords = sqrt.(xcoords.^2 .+ ycoords.^2)
+    θ_coords = atan.(ycoords, xcoords)
+    ucoords = floe.u .- floe.ξ * rad_coords .* sin.(θ_coords)
+    vcoords = floe.v .+ floe.ξ * rad_coords .* cos.(θ_coords)
+    dudx = 0.5 * sum(diff(ucoords) .* diff(ycoords))/floe.area
+    dudy = 0.5 * sum(diff(ucoords) .* diff(xcoords))/floe.area
+    dvdx = 0.5 * sum(diff(vcoords) .* diff(ycoords))/floe.area
+    dvdy = 0.5 * sum(diff(vcoords) .* diff(xcoords))/floe.area
+    floe.strain = 0.5 * ([dudx dudy; dvdx dvdy] + [dudx dvdx; dudy dvdy])
+    return
+end
+
+"""
+    timestep_floe(floe)
+
+Update floe position and velocities using second-order time stepping with
+tendencies calculated at previous timesteps. Height, mass, stress, and strain
+also updated based on previous timestep thermodynamics and interactions with
+other floes. 
+Input:
+        floe <Floe>
+Output:
+        None. Floe's fields are updated with values.
+"""
+function timestep_floe_properties!(floes, Δt)
+    for i in eachindex(floes)
+        ifloe = floes[i]
+        cforce = ifloe.collision_force
+        ctrq = ifloe.collision_trq
+        # Update stress
+        calc_stress!(ifloe)
+        # Ensure no extreem values due to model instability
+        if ifloe.height > 10
+            ifloe.height = 10
+        end
+        if ifloe.mass < 100
+            ifloe.mass = 1e3
+            ifloe.alive = false
+        end
+        while maximum(abs.(cforce)) > ifloe.mass/(5Δt)
+            cforce = cforce ./ 10
+            ctrq = ctrq ./ 10
+        end
+        
+        # Update floe based on thermodynamic growth
+        h = ifloe.height
+        Δh = ifloe.hflx_factor / h
+        hfrac = (h + Δh) / h
+        ifloe.mass *= hfrac
+        ifloe.moment *= hfrac
+        ifloe.height -= Δh
+        h = ifloe.height
+
+        # Update ice coordinates with velocities and rotation
+        Δx = 1.5Δt*ifloe.u - 0.5Δt*ifloe.p_dxdt
+        Δy = 1.5Δt*ifloe.v - 0.5Δt*ifloe.p_dydt
+        Δα = 1.5Δt*ifloe.ξ - 0.5Δt*ifloe.p_dαdt
+        ifloe.α += Δα
+
+        coords0 = translate(ifloe.coords, -ifloe.centroid)
+        coords0 = [map(p -> [cos(Δα)*p[1] - sin(Δα)*p[2],
+                            sin(Δα)*p[1] + cos(Δα)p[2]], coords0[1])]
+        ifloe.centroid .+= [Δx, Δy]
+        ifloe.coords = translate(coords0, ifloe.centroid)
+        ifloe.p_dxdt = ifloe.u
+        ifloe.p_dydt = ifloe.v
+        ifloe.p_dαdt = ifloe.ξ
+
+        # Update ice velocities with forces and torques
+        dudt = (ifloe.fxOA + cforce[1])/ifloe.mass
+        dvdt = (ifloe.fyOA + cforce[2])/ifloe.mass
+        frac = if abs(Δt*dudt) > (h/2) && abs(Δt*dvdt) > (h/2)
+            frac1 = (sign(dudt)*h/2Δt)/dudt
+            frac2 = (sign(dvdt)*h/2Δt)/dvdt
+            min(frac1, frac2)
+        elseif abs(Δt*dudt) > (h/2) && abs(Δt*dvdt) < (h/2)
+            (sign(dudt)*h/2Δt)/dudt
+        elseif abs(Δt*dudt) < (h/2) && abs(Δt*dvdt) > (h/2)
+            (sign(dvdt)*h/2Δt)/dvdt
+        else
+            1
+        end
+        dudt = frac*dudt
+        dvdt = frac*dvdt
+        ifloe.u += 1.5Δt*dudt-0.5Δt*ifloe.p_dudt
+        ifloe.v += 1.5Δt*dvdt-0.5Δt*ifloe.p_dvdt
+        ifloe.p_dudt = dudt
+        ifloe.p_dvdt = dvdt
+
+        dξdt = (ifloe.trqOA + ctrq)/ifloe.moment
+        dξdt = frac*dξdt
+        ξ = ifloe.ξ + 1.5Δt*dξdt-0.5Δt*ifloe.p_dξdt
+        if abs(ξ) > 1e-5
+            ξ = sign(ξ) * 1e-5
+        end
+        ifloe.ξ = ξ
+        ifloe.p_dξdt = dξdt
+
+        # Update strain
+        calc_strain!(ifloe)
+        floes[i] = ifloe
+    end
+    return
 end
