@@ -789,7 +789,7 @@ Output:
         None. Floe's fields are updated with values.
 """
 function timestep_floe_properties!(floes, Δt)
-    for i in eachindex(floes)
+    Threads.@threads for i in eachindex(floes)
         ifloe = floes[i]
         cforce = ifloe.collision_force
         ctrq = ifloe.collision_trq

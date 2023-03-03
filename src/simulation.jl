@@ -73,7 +73,7 @@ function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
                 write_data!(w, tstep, sim)
             end
         end
-
+        
         # Collisions
         remove = zeros(Int, n_init_floes)
         transfer = zeros(Int, n_init_floes)
@@ -96,12 +96,10 @@ function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
         empty!.(sim.model.floes.ghosts) 
 
         # Physical processes without ghost floes
-
         # Effects of ocean and atmosphere on ice and visa versa
         if sim.coupling_settings.coupling_on && mod(tstep, sim.coupling_settings.Δt) == 0
             timestep_coupling!(sim.model, sim.consts, sim.coupling_settings, T)
         end
-
         timestep_floe_properties!(sim.model.floes, sim.Δt)
 
         # Fracture Floes

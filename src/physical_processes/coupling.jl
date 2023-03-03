@@ -845,7 +845,8 @@ Inputs:
     ns_bound    <AbstractBoundary> north or south boundary of domain -
                     dispatches on periodic vs non-periodic
     ew_bound    <AbstractBoundary> east or west boundary of domain -
-                    dispatches on periodic vs non-periodic  
+                    dispatches on periodic vs non-periodic
+    spinlock           <Thread.SpinLock>
     T           <Float> Float type simulation is using for calculations
                 (Float32 or Float64)
 Outputs:
@@ -863,6 +864,7 @@ function aggregate_grid_force!(
     grid,
     ns_bound,
     ew_bound,
+    l, # lock for parallelization
     ::Type{T} = Float64
 ) where {T}
     mc_cols = mc_grid_idx[:, 1]
@@ -897,10 +899,11 @@ function aggregate_grid_force!(
             fy_mean = mean(τy_group[row, col]) * floe_area_in_cell
             row = shift_cell_idx(row, grid.dims[1] + 1, ns_bound)
             col = shift_cell_idx(col, grid.dims[2] + 1, ew_bound)
-            # Need to add a lock here...
+            Threads.lock(spinlock)
             ocean.fx[row, col] += fx_mean
             ocean.fy[row, col] += fy_mean
             ocean.si_area[row, col] += floe_area_in_cell
+            Threads.unlock(spinlock)
         end
     end
     return
@@ -1021,7 +1024,8 @@ function timestep_coupling!(
     coupling_settings,
     ::Type{T} = Float64
 ) where T<:AbstractFloat
-    for i in eachindex(model.floes)
+    spinlock = Threads.SpinLock()
+    Threads.@threads for i in eachindex(model.floes)
         ifloe = model.floes[i]
         # Find monte carlo point peroperties
         mc_cart, mc_polar, mc_vel, mc_grid_idx = calc_mc_values(
@@ -1062,6 +1066,7 @@ function timestep_coupling!(
                 model.grid,
                 model.domain.east,
                 model.domain.north,
+                spinlock,
                 T,
             )
         end

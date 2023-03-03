@@ -346,7 +346,7 @@ function fracture_floes!(
     # Initialize list for new floes created from fracturing existing floes
     fractured_list = Vector{StructArray{Floe{T}}}(undef, 0)
     # Fracture floes that meet criteria 
-    for i in frac_idx
+    Threads.@threads for i in frac_idx
         ifloe = floes[i]
         # Deform floe around largest impact site
         if fracture_settings.deform_on

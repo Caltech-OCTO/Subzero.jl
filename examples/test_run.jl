@@ -1,4 +1,4 @@
-using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero
+using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero, BenchmarkTools
 import LibGEOS as LG
 
 # User Inputs
@@ -9,25 +9,6 @@ const Δgrid = 10000
 const hmean = 0.25
 const Δh = 0.0
 const Δt = 20
-
-grid = Subzero.RegRectilinearGrid(-1e5, 1e5, -1e5, 1e5, 1e4, 1e4)
-zonal_ocean = Subzero.Ocean(grid, 1.0, 0.0, 0.0)
-zero_atmos = Subzero.Atmos(zeros(grid.dims .+ 1), zeros(grid.dims .+ 1), fill(-20.0, grid.dims .+ 1))
-domain = Subzero.Domain(Subzero.CollisionBoundary(grid, Subzero.North()), Subzero.CollisionBoundary(grid, Subzero.South()),
-                Subzero.CollisionBoundary(grid, Subzero.East()), Subzero.CollisionBoundary(grid, Subzero.West()))
-floe = Subzero.Floe([[[-1.75e4, 5e4], [-1.75e4, 7e4], [-1.25e4, 7e4], 
-[-1.25e4, 5e4], [-1.75e4, 5e4]]], 0.25, 0.0)
-
-floe1 = deepcopy(floe)
-model1 = Model(grid, zonal_ocean, zero_atmos, domain, StructArray([floe1]))
-Subzero.timestep_coupling!(model1, Constants(), CouplingSettings(Δd = 2))
-
-
-
-
-
-
-
 
 # Model instantiation
 grid = RegRectilinearGrid(0, Lx, 0, Ly, Δgrid, Δgrid)
@@ -53,9 +34,7 @@ wboundary = CollisionBoundary(grid, West())
 domain = Domain(nboundary, sboundary, eboundary, wboundary)
 
 # Floe instantiation
-floe_arr = initialize_floe_field([[[[1.25e4, 8e4], [1.25e4, 6e4], [1.75e4, 6e4], [1.75e4, 8e4], [1.25e4, 8e4]]],
-    [[[0.7e4, 8e4], [0.7e4, 6e4], [1.3e4, 6e4], [1.3e4, 8e4], [0.7e4, 8e4]]]], domain, 0.5, 0.0, nhistory = 1)
-#floe_arr = initialize_floe_field(50, [1], domain, 0.5, 0.0, rng = Xoshiro(1), nhistory = 1)
+floe_arr = initialize_floe_field(50, [1], domain, 0.5, 0.0, rng = Xoshiro(1), nhistory = 1000)
 model = Model(grid, ocean, atmos, domain, floe_arr)
 
 # Simulation setup
@@ -74,9 +53,11 @@ simulation = Simulation(
         Δt = 1,
         npieces = 3,
         nhistory = 1000,
+        deform_on = true,
     ),
     coupling_settings = CouplingSettings(
-        coupling_on = false
+        coupling_on = true,
+        calc_ocnτ_on = false,
     )
 )
 
@@ -86,9 +67,11 @@ gridwriter = GridOutputWriter(50, grid, (10, 10), dir = "output/sim", filename =
 floewriter = FloeOutputWriter(50, dir = "output/sim", filename = "floes.jld2", overwrite = true)
 checkpointwriter = CheckpointOutputWriter(50, dir = "output/sim", overwrite = true)
 
-# Run simulation
-run!(simulation, [floewriter, initwriter])
 
-Subzero.create_sim_gif("output/sim/floes.jld2", 
-                       "output/sim/initial_state.jld2",
-                       "output/sim/test.gif")
+@benchmark timestep_sim!(simulation, 0, [], Float64)
+# Run simulation
+#run!(simulation, [floewriter, initwriter])
+
+#Subzero.create_sim_gif("output/sim/floes.jld2", 
+#                       "output/sim/initial_state.jld2",
+#                       "output/sim/test.gif")
