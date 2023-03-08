@@ -33,7 +33,7 @@ The user can also define settings for each physical process.
     FT<:AbstractFloat,
     GT<:AbstractGrid,
     DT<:Domain,
-    CT<:AbstractFractureCriteria
+    CT<:AbstractFractureCriteria,
 }
     model::Model{FT, GT, DT}            # Model to simulate
     consts::Constants{FT} = Constants() # Constants used in Simulation
@@ -48,6 +48,8 @@ The user can also define settings for each physical process.
     collision_settings::CollisionSettings{FT} = CollisionSettings()
     fracture_settings::FractureSettings{CT} = FractureSettings()
     simp_settings::SimplificationSettings{FT} = SimplificationSettings()
+    # Output Writers -----------------------------------------------------------
+    writers::OutputWriters{FT} = OutputWriters()
 end
 
 """
@@ -61,18 +63,14 @@ Inputs:
 Outputs:
     None. Simulation advances by one timestep. 
 """
-function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
+function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
     if !isempty(sim.model.floes)
         # Add ghost floes through periodic boundaries
         n_init_floes = length(sim.model.floes) # number of floes before ghosts
         add_ghosts!(sim.model.floes, sim.model.domain)
 
         # Output at given timestep
-        for w in writers
-            if tstep == 0 || (hasfield(typeof(w), :Δtout) && mod(tstep, w.Δtout) == 0)
-                write_data!(w, tstep, sim)
-            end
-        end
+        write_data!(sim, tstep)
         
         # Collisions
         remove = zeros(Int, n_init_floes)
@@ -100,9 +98,14 @@ function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
         if sim.coupling_settings.coupling_on && mod(tstep, sim.coupling_settings.Δt) == 0
             timestep_coupling!(sim.model, sim.consts, sim.coupling_settings, T)
         end
+
+        # Timestep ocean
+        timestep_ocean!(sim.model, sim.consts, sim.Δt)
+        
+        # Move and update floes based on collisions and ocean/atmosphere forcing
         timestep_floe_properties!(sim.model.floes, sim.Δt)
 
-        # Fracture Floes
+        # Fracture floes
         if sim.fracture_settings.fractures_on && mod(tstep, sim.fracture_settings.Δt) == 0
             sim.model.max_floe_id =
                 fracture_floes!(
@@ -128,9 +131,6 @@ function timestep_sim!(sim, tstep, writers, ::Type{T} = Float64) where T
         end
     end
 
-    # Timestep ocean
-    timestep_ocean!(sim.model, sim.consts, sim.Δt)
-
     # h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx)))
     # mean(h0)
 
@@ -152,7 +152,7 @@ Outputs:
     None. The simulation will be run and outputs will be saved in the output
     folder. 
 """
-function run!(sim, writers, ::Type{T} = Float64) where T
+function run!(sim, ::Type{T} = Float64) where T
     # Start simulation
     sim.verbose && println(string(sim.name, " is running!"))
     tstep = 0
@@ -161,7 +161,7 @@ function run!(sim, writers, ::Type{T} = Float64) where T
             println(tstep, " timesteps")
         end
         # Timestep the simulation forward
-        timestep_sim!(sim, tstep, writers, T)
+        timestep_sim!(sim, tstep, T)
         tstep+=1
     end
     sim.verbose && println(string(sim.name, " done running!"))

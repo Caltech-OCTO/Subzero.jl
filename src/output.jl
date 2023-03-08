@@ -401,92 +401,148 @@ GridOutputWriter(
         t = T,
     )
 
-#----------------------- Write Data -----------------------#
 """
-    write_data!(writer::InitialStateOutputWriter, tstep, sim)
+    OutputWriters{FT<:AbstractFloat}
 
-Save initial simulation state.
-Inputs:
-    writer  <InitialStateOutputWriter>
-    tstep   <Int> timestep - not used
-    sim     <Simulation> simulation to run
-Outputs:
-    Saves simulation state to file. 
+Structure to hold all types of output writers a user might want. All fields are
+vectors so that more than one of each type of output writer can be defined, and
+so that a default OutputWriter object doesn't create default output writer
+fields, which would create files, but rather empty lists of output writers.
+If any of the fields is not provided, the default is just an empty list. 
 """
-function write_data!(writer::InitialStateOutputWriter, tstep, sim)
-    jldopen(writer.filepath, "a") do file
-        file["sim"] = sim
+@kwdef struct OutputWriters{FT<:AbstractFloat} 
+    initialwriters::StructVector{InitialStateOutputWriter} =
+        StructVector(Vector{InitialStateOutputWriter}())
+    floewriters::StructVector{FloeOutputWriter} =
+        StructVector(Vector{FloeOutputWriter}())
+    gridwriters::StructVector{GridOutputWriter{FT}} =
+        StructVector(Vector{GridOutputWriter{Float64}}())
+    checkpointwriters::StructVector{CheckpointOutputWriter} =
+        StructVector(Vector{CheckpointOutputWriter}())
+end
+#----------------------- Write Data -----------------------#
+
+"""
+    write_data!(sim, tstep)
+
+Writes data for the simulation's writers that are due to write at given tstep.
+Inputs:
+    sim     <Simulation> simulation to run
+    tstep       <Int> simulation timestep
+Output:
+    Saves writer requested data to files specified in each writer. 
+"""
+function write_data!(sim, tstep)
+    # write initial state on first timestep
+    if tstep == 0
+        write_init_state_data!(sim, tstep)
     end
+    # Write checkpoint data
+    write_checkpoint_data!(sim, tstep)
+    # Write floe data
+    write_floe_data!(sim, tstep)
+    # Write grid data
+    write_grid_data!(sim, tstep)
+    return
 end
 
 """
-    write_data!(writer::CheckpointOutputWriter, tstep, sim)
+    write_init_state_data!(sim, tstep)
+
+Save initial simulation state.
+Inputs:
+    sim     <Simulation> simulation to run
+    tstep   <Int> timestep - not used
+Outputs:
+    Saves simulation state to file. 
+"""
+function write_init_state_data!(sim, tstep)
+    for filepath in sim.writers.initialwriters.filepath
+        jldopen(filepath, "a") do file
+            file["sim"] = sim
+        end
+    end
+    return
+end
+
+"""
+    write_checkpoint_data!(sim, tstep)
 
 Writes model's floe, ocean, and atmosphere data to JLD2 file. Data can be used
 to restart simulation run.
 Inputs:
-    writer      <FloeOutputWriter>
-    tstep       <Int> simulation timestep
     sim     <Simulation> simulation to run
+    tstep       <Int> simulation timestep
 Output:
     Writes floes, ocean, and atmosphere to JLD2 file with name writer.fn for
     current timestep, which will be the group in the JLD2 file. 
 """
-function write_data!(writer::CheckpointOutputWriter, tstep, sim)
-    jldopen(writer.filepath, "a+") do file
-        file[string("floes/", tstep)] = sim.model.floes
-        file[string("ocean/", tstep)] = sim.model.ocean
-        file[string("atmos/", tstep)] = sim.model.atmos
+function write_checkpoint_data!(sim, tstep)
+    for filepath in sim.writers.checkpointwriters.filepath[
+        mod.(tstep, sim.writers.checkpointwriters.Δtout) .== 0
+    ]
+        jldopen(filepath, "a+") do file
+            file[string("floes/", tstep)] = sim.model.floes
+            file[string("ocean/", tstep)] = sim.model.ocean
+            file[string("atmos/", tstep)] = sim.model.atmos
+        end
     end
+    return
 end
 
 """
-    write_data!(writer::FloeOutputWriter, tstep, sim)
+    write_floe_data!(sim, tstep)
 
 Writes desired FloeOutputWriter data to JLD2 file.
 
 Inputs:
-    writer      <FloeOutputWriter>
-    tstep       <Int> simulation timestep
     sim     <Simulation> simulation to run
+    tstep       <Int> simulation timestep
 Output:
     Writes desired fields writer.outputs to JLD2 file with name writer.fn for
     current timestep, which will be the group in the JLD2 file. 
 """
-function write_data!(writer::FloeOutputWriter, tstep, sim)
-    jldopen(writer.filepath, "a+") do file
-        for output in writer.outputs
-            file[string(output, "/", tstep)] =
-                StructArrays.component(sim.model.floes, output)
+function write_floe_data!(sim, tstep)
+    for w in sim.writers.floewriters[
+        mod.(tstep, sim.writers.floewriters.Δtout) .== 0
+    ]
+        jldopen(w.filepath, "a+") do file
+            for output in w.outputs
+                file[string(output, "/", tstep)] =
+                    StructArrays.component(sim.model.floes, output)
+            end
         end
     end
+    return
 end
 
 """
-    write_data!(writer::GridOutputWriter, sim)
+    write_grid_data!(sim, tstep)
 
 Writes desired GridOutputWriter data to NetCDF file.
 Inputs:
-    writer      <GridOutputWriter>
+    sim         <Simulation> simulation to run
     tstep       <Int> simulation timestep
-    sim     <Simulation> simulation to run
 Output:
     Writes desired fields writer.outputs to file with name writer.fn for current
     timestep.
 """
-function write_data!(writer::GridOutputWriter, tstep, sim)
+function write_grid_data!(sim, tstep)
     live_floes = filter(f -> f.alive, sim.model.floes)
-    if length(live_floes) > 0
-        calc_eulerian_data!(live_floes, sim.model.domain.topography, writer)
-        istep = div(tstep, writer.Δtout) + 1  # Julia indicies start at 1
-        
-        # Open file and write data from grid writer
-        ds = NCDataset(writer.filepath, "a")
-        for i in eachindex(writer.outputs)
-            name = string(writer.outputs[i])
-            ds[name][istep, :, :] = writer.data[:, :, i]
+    w_idx = mod.(tstep, sim.writers.gridwriters.Δtout) .== 0
+    if !isempty(live_floes) && sum(w_idx) != 0
+        for w in sim.writers.gridwriters[w_idx]
+            calc_eulerian_data!(live_floes, sim.model.domain.topography, w)
+            istep = div(tstep, w.Δtout) + 1  # Julia indicies start at 1
+            
+            # Open file and write data from grid writer
+            ds = NCDataset(w.filepath, "a")
+            for i in eachindex(w.outputs)
+                name = string(w.outputs[i])
+                ds[name][istep, :, :] = w.data[:, :, i]
+            end
+            close(ds)
         end
-        close(ds)
     end
     return
 end

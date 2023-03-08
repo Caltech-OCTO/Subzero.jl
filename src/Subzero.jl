@@ -54,7 +54,8 @@ export
     FractureSettings,
     CouplingSettings,
     SimplificationSettings,
-    PolyVec
+    PolyVec,
+    OutputWriters
 
 import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG
@@ -89,9 +90,9 @@ include("physical_processes/coupling.jl")
 include("physical_processes/collisions.jl")
 include("physical_processes/fractures.jl")
 include("physical_processes/process_settings.jl")
-# Simulation
-include("simulation.jl")
 # Tools
 include("plotting.jl")
 include("output.jl")
+# Simulation
+include("simulation.jl")
 end
