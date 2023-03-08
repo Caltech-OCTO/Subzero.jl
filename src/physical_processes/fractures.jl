@@ -342,12 +342,12 @@ function fracture_floes!(
         fracture_settings.criteria,
         simp_settings.min_floe_area,
     )
-    nfloes2frac = length(frac_idx)
     # Initialize list for new floes created from fracturing existing floes
-    fractured_list = Vector{StructArray{Floe{T}}}(undef, 0)
+    nfloes2frac = length(frac_idx)
+    fracture_list = [StructArray{Floe{T}}(undef, 0) for _ in 1:nfloes2frac]
     # Fracture floes that meet criteria 
-    Threads.@threads for i in frac_idx
-        ifloe = floes[i]
+    Threads.@threads for i in 1:nfloes2frac
+        ifloe = floes[frac_idx[i]]
         # Deform floe around largest impact site
         if fracture_settings.deform_on
             inters = ifloe.interactions
@@ -374,11 +374,11 @@ function fracture_floes!(
             consts,
             T,
         )
-        push!(fractured_list, new_floes)
+        append!(fracture_list[i], new_floes)
     end
     # Remove old (unfractured) floes and add fractured pieces
     for i in range(nfloes2frac, 1, step = -1)
-        new_floes = fractured_list[i]
+        new_floes = fracture_list[i]
         if !isempty(new_floes)
             n_new_floes = length(new_floes)
             new_floes.id .= range(max_floe_id + 1, max_floe_id + n_new_floes)

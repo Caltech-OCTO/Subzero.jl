@@ -864,7 +864,7 @@ function aggregate_grid_force!(
     grid,
     ns_bound,
     ew_bound,
-    l, # lock for parallelization
+    spinlock, # lock for parallelization
     ::Type{T} = Float64
 ) where {T}
     mc_cols = mc_grid_idx[:, 1]
@@ -899,11 +899,11 @@ function aggregate_grid_force!(
             fy_mean = mean(τy_group[row, col]) * floe_area_in_cell
             row = shift_cell_idx(row, grid.dims[1] + 1, ns_bound)
             col = shift_cell_idx(col, grid.dims[2] + 1, ew_bound)
-            Threads.lock(spinlock)
-            ocean.fx[row, col] += fx_mean
-            ocean.fy[row, col] += fy_mean
-            ocean.si_area[row, col] += floe_area_in_cell
-            Threads.unlock(spinlock)
+            Threads.lock(spinlock) do
+                ocean.fx[row, col] += fx_mean
+                ocean.fy[row, col] += fy_mean
+                ocean.si_area[row, col] += floe_area_in_cell
+            end
         end
     end
     return
@@ -1024,6 +1024,11 @@ function timestep_coupling!(
     coupling_settings,
     ::Type{T} = Float64
 ) where T<:AbstractFloat
+    # Clear ocean forces and area fractions
+    fill!(model.ocean.fx, T(0))
+    fill!(model.ocean.fy, T(0))
+    fill!(model.ocean.si_area, T(0))
+    # Calcualte coupling for each floe
     spinlock = Threads.SpinLock()
     Threads.@threads for i in eachindex(model.floes)
         ifloe = model.floes[i]
@@ -1104,22 +1109,22 @@ Outputs:
         Heatflux is also updated with ocean and atmos temperatures. 
 """
 function timestep_ocean!(m, c, Δt)
+    # Fraction of grid cells covered in ice vs ocean
+    cell_area = (m.grid.xg[2] - m.grid.xg[1]) * (m.grid.yg[2] - m.grid.yg[1])
+    si_frac = m.ocean.si_area ./ cell_area
+    icy_idx = si_frac .> 0
+    ocn_frac = 1 .- si_frac
+    # Add ice stress on ocean
+    m.ocean.τx .= m.ocean.fx
+    m.ocean.τy .= m.ocean.fy
+    m.ocean.τx[icy_idx] ./= m.ocean.si_area[icy_idx]
+    m.ocean.τy[icy_idx] ./= m.ocean.si_area[icy_idx]
     # Atmospheric stress on ocean - resets ocean stresses
     Δu_AO = m.atmos.u .- m.ocean.u
     Δv_AO = m.atmos.v .- m.ocean.v
-    m.ocean.τx .= c.ρa  *c.Cd_ao * sqrt.(Δu_AO.^2 + Δv_AO.^2) .* Δu_AO
-    m.ocean.τy .= c.ρa * c.Cd_ao * sqrt.(Δu_AO.^2 + Δv_AO.^2) .* Δv_AO
-    # Add ice stress on ocean
-    cell_area = (m.grid.xg[2] - m.grid.xg[1]) * (m.grid.yg[2] - m.grid.yg[1])
-    open_area_frac = 1 .- (m.ocean.si_area ./ cell_area)
-    m.ocean.τx .= (m.ocean.fx ./ m.ocean.si_area) .+
-        (m.ocean.τx .* open_area_frac)
-    m.ocean.τy .= (m.ocean.fy ./ m.ocean.si_area) .+
-        (m.ocean.τy .* open_area_frac)
+    vel_norm = sqrt.(Δu_AO.^2 + Δv_AO.^2)
+    m.ocean.τx .+= ocn_frac .* c.ρa  *c.Cd_ao * vel_norm .* Δu_AO
+    m.ocean.τy .+= ocn_frac .* c.ρa * c.Cd_ao * vel_norm .* Δv_AO
     # Update ocean heatflux
     m.ocean.hflx_factor .= Δt * c.k/(c.ρi*c.L) .* (m.ocean.temp .- m.atmos.temp)
-    # Clear ocean forces and area fractions
-    m.ocean.fx .= zeros(size(m.ocean.fx))
-    m.ocean.fy .= zeros(size(m.ocean.fy))
-    m.ocean.si_area .= zeros(size(m.ocean.si_area))
 end

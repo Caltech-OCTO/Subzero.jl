@@ -27,17 +27,52 @@
         ) == (p[:, (-10 .<= x .<= 10) .& (-8 .<= y .<= 8)],
             x[(-10 .<= x .<= 10) .& (-8 .<= y .<= 8)],
             y[(-10 .<= x .<= 10) .& (-8 .<= y .<= 8)])
-        warning_str = "A floe longer than the domain passed through a periodic boundary. It was removed to prevent overlap."
-        # y bounds periodic - points outside of grid in south and north so all points removed
-        @test (@test_logs (:warn, warning_str) Subzero.filter_oob_points(p, x, y, grid, open_bound, periodic_bound)) ==
-            (Matrix{Int}(undef, 2, 0), Vector{Int}(undef, 0), Vector{Int}(undef, 0))
-        # x bounds periodic - points outside of grid in east and west so all points removed
-        @test (@test_logs (:warn, warning_str) Subzero.filter_oob_points(p, x, y, grid, periodic_bound, open_bound)) == 
-            (Matrix{Int}(undef, 2, 0), Vector{Int}(undef, 0), Vector{Int}(undef, 0))
-        # all bounds periodic - points outside of grid in all 4 directions so all points removed
-        @test (@test_logs (:warn, warning_str) Subzero.filter_oob_points(p, x, y, grid, periodic_bound, periodic_bound)) == 
-            (Matrix{Int}(undef, 2, 0), Vector{Int}(undef, 0), Vector{Int}(undef, 0))
-        # y bounds periodic with points only outside of periodic in north direction - filter open bounds points
+        warning_str = "A floe longer than the domain passed through a periodic \
+            boundary. It was removed to prevent overlap."
+        #= y bounds periodic - points outside of grid in south and north so all
+        points removed =#
+        @test (@test_logs (:warn, warning_str) Subzero.filter_oob_points(
+            p,
+            x,
+            y,
+            grid,
+            open_bound,
+            periodic_bound,
+        )) == (
+            Matrix{Int}(undef, 2, 0),
+            Vector{Int}(undef, 0),
+            Vector{Int}(undef, 0),
+        )
+        #= x bounds periodic - points outside of grid in east and west so all
+        points removed =#
+        @test (@test_logs (:warn, warning_str) Subzero.filter_oob_points(
+            p,
+            x,
+            y,
+            grid,
+            periodic_bound,
+            open_bound,
+        )) == (
+            Matrix{Int}(undef, 2, 0),
+            Vector{Int}(undef, 0),
+            Vector{Int}(undef, 0),
+        )
+        #= all bounds periodic - points outside of grid in all 4 directions so
+        all points removed =#
+        @test (@test_logs (:warn, warning_str) Subzero.filter_oob_points(
+            p,
+            x,
+            y,
+            grid,
+            periodic_bound,
+            periodic_bound,
+        )) == (
+            Matrix{Int}(undef, 2, 0),
+            Vector{Int}(undef, 0),
+            Vector{Int}(undef, 0),
+        )
+        #= y bounds periodic with points only outside of periodic in north
+        direction - filter open bounds points =#
         pn =  [-12 -10 -8 -6 4 10 12 12; 5 -6 4 10 8 -6 4 10]
         xn = pn[1, :]
         yn = pn[2, :]
@@ -51,7 +86,8 @@
         ) == (pn[:, -10 .<= xn .<= 10],
             xn[-10 .<= xn .<= 10],
             yn[-10 .<= xn .<= 10])
-        # x bounds periodic with points only outside of periodic in east direction - filter open bounds points
+        #= x bounds periodic with points only outside of periodic in east
+        direction - filter open bounds points =#
         pe = [-8 -6 0 4 4 10 12 12; 4 10 -10 8 -8 -6 4 10]
         xe = pe[1, :]
         ye = pe[2, :]
@@ -65,7 +101,8 @@
         ) == (pe[:, -8 .<= ye .<= 8],
             xe[-8 .<= ye .<= 8],
             ye[-8 .<= ye .<= 8])
-        # all bounds periodic - points outside of grid in only north and east directiom so no points removed
+        #= all bounds periodic - points outside of grid in only north and east
+        directiom so no points removed =#
         pne = [-8 -6 4  10 12 12; 4 10 8 -6 4 10]
         xne = pne[1, :]
         yne = pne[2, :]
@@ -126,6 +163,7 @@
             grid,
             open_bound,
             open_bound,
+            Threads.SpinLock()
         )
         @test ocean.fx[4, 6] == ocean.fx[3, 6] == ocean.fx[3, 7] == 0
         @test ocean.fx[4,7] == 8
@@ -144,6 +182,7 @@
             grid,
             periodic_bound,
             periodic_bound,
+            Threads.SpinLock()
         )
         @test ocean.fx[2, 7] == ocean.fx[3, 7] == ocean.fx[2, 9]  == 2
         @test ocean.fx[3, 9] == ocean.fx[2, 8] == 0
@@ -165,6 +204,7 @@
             grid,
             open_bound,
             open_bound,
+            Threads.SpinLock()
         )
         @test ocean.fx[5, 10] == 4
         @test ocean.fx[5, 11] == 2
@@ -180,6 +220,7 @@
             grid,
             periodic_bound,
             open_bound,
+            Threads.SpinLock()
         )
 
         @test ocean.fx[1, 10]  == 8
@@ -197,6 +238,7 @@
             grid,
             open_bound,
             periodic_bound,
+            Threads.SpinLock()
         )
         @test ocean.fx[5, 10] == ocean.fx[5, 1] == 4
         @test ocean.fx[5, 2] == 2
@@ -212,6 +254,7 @@
             grid,
             periodic_bound,
             periodic_bound,
+            Threads.SpinLock()
         )
         @test ocean.fx[1, 10] == ocean.fx[1, 1] == 8
         @test ocean.fx[2, 10] == ocean.fx[2, 1] == ocean.fx[1, 2] == 4
