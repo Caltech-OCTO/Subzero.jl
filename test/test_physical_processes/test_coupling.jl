@@ -1,9 +1,9 @@
 @testset "Coupling" begin
     @testset "Coupling Helper Functions" begin
         grid = Subzero.RegRectilinearGrid(-10, 10, -8, 8, 2, 4)
-        # Test find_cell_indices
-        @test Subzero.find_cell_indices([], [], grid) == (Vector{Int}(undef, 0), Vector{Int}(undef, 0))
-        @test Subzero.find_cell_indices([-10.5, -10, -10, -6.5, -6, -4, 10, 10.5, 12],
+        # Test find_centered_cell_indices
+        @test Subzero.find_centered_cell_indices([], [], grid) == (Vector{Int}(undef, 0), Vector{Int}(undef, 0))
+        @test Subzero.find_centered_cell_indices([-10.5, -10, -10, -6.5, -6, -4, 10, 10.5, 12],
                                         [0.0, 6.0, -8.0, 4.5, 0.0, 5.0, -8.0, 0.0, 0.0], grid) ==
             ([1, 1, 1, 3, 3, 4, 11, 11, 12], [3, 5, 1, 4, 3, 4, 1, 3, 3])
 

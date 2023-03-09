@@ -34,7 +34,7 @@ function timestep_ocean!(m, c, Δt)
 end
 
 """
-    find_cell_indices(xp, yp, grid::RegRectilinearGrid)
+    find_centered_cell_indices(xp, yp, grid::RegRectilinearGrid)
 
 Find indicies of cells centered on grid lines of the given RegRectilinearGrid
 that the given x-coordinates and y-coordinates fall within.
@@ -49,7 +49,7 @@ Outputs:
         Points can be outside of the grid, so indices can be less than 1 or greater than the number
         of grid lines in a given direction.
 """
-function find_cell_indices(xp, yp, grid::RegRectilinearGrid)
+function find_centered_cell_indices(xp, yp, grid::RegRectilinearGrid)
     xidx = floor.(Int, (xp .- grid.xg[1])/(grid.xg[2] - grid.xg[1]) .+ 0.5) .+ 1
     yidx = floor.(Int, (yp .- grid.yg[1])/(grid.yg[2] - grid.yg[1]) .+ 0.5) .+ 1
     return xidx, yidx
@@ -512,7 +512,7 @@ function floe_OA_forcings!(
         floe.alive = false
     else
         # Find point indices for cells centered on grid lines
-        mc_cols, mc_rows = find_cell_indices(mc_xr, mc_yr, m.grid)
+        mc_cols, mc_rows = find_centered_cell_indices(mc_xr, mc_yr, m.grid)
 
         # Find knots and indices of knots for monte carlo interpolation
         xknots, xknot_idx = find_interp_knots(mc_cols, m.grid.xg, coupling_settings.Δd, m.domain.east, T)
