@@ -2,7 +2,7 @@ using Subzero, StructArrays, Statistics, JLD2
 import LibGEOS as LG
 
 # User Inputs
-const T = Float64::DataType
+const FT = Float64
 
 const Lx = 1e5
 const Ly = 1e5
@@ -15,8 +15,13 @@ const coarse_nx = 10
 const coarse_ny = 10
 
 # Model instantiation
-grid = RegRectilinearGrid(-Lx, Lx, -Ly, Ly, Δgrid, Δgrid)
-
+grid = RegRectilinearGrid(
+    FT,
+    (-Lx, Lx),
+    (-Ly, Ly),
+    Δgrid,
+    Δgrid,
+)
 
 ocean = Ocean(grid, -0.2, 0.0, -1.0)
 

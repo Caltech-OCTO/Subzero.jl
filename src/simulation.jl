@@ -70,7 +70,7 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
         add_ghosts!(sim.model.floes, sim.model.domain)
 
         # Output at given timestep
-        write_data!(sim, tstep)
+        write_data!(sim, tstep)  # Horribly type unstable
         
         # Collisions
         remove = zeros(Int, n_init_floes)
@@ -165,4 +165,5 @@ function run!(sim, ::Type{T} = Float64) where T
         tstep+=1
     end
     sim.verbose && println(string(sim.name, " done running!"))
+    return
 end

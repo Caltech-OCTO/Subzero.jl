@@ -2,7 +2,7 @@ using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero
 import LibGEOS as LG
 
 # User Inputs
-const type = Float64::DataType
+const FT = Float64
 const Lx = 1e5
 const Ly = 1e5
 const Δgrid = 10000
@@ -11,7 +11,13 @@ const Δh = 0.0
 const Δt = 20
 
 # Model instantiation
-grid = RegRectilinearGrid(0, Lx, 0, Ly, Δgrid, Δgrid)
+grid = RegRectilinearGrid(
+    FT,
+    (0, Lx),
+    (0, Ly),
+    Δgrid,
+    Δgrid,
+)
 ocean = Ocean(grid, 0.0, -0.3, 0.0)
 atmos = Atmos(zeros(grid.dims .+ 1), zeros(grid.dims .+ 1), zeros(grid.dims .+ 1))
 

@@ -102,7 +102,6 @@ Inputs:
     area    <Int> floe area
     alive   <Bool> true if floe is alive (i.e. will continue in the simulation)
     rng     <RNG> random number generator to generate monte carlo points
-    T       <Float> datatype simulation is run in - either Float64 of Float32
 Outputs:
     mc_x  <Vector{T}> vector of monte carlo point x-coords that are within floe
     mc_y  <Vector{T}> vector of monte carlo point y-coords that are within floe
@@ -113,14 +112,13 @@ Note:
     less points. 
 """
 function generate_mc_points(
-    npoints,
-    coords,
-    rmax,
-    area,
-    alive,
+    npoints::Int,
+    coords::PolyVec{T},
+    rmax::T,
+    area::T,
+    alive::Bool,
     rng,
-    ::Type{T} = Float64,
-) where T
+) where {T<:AbstractFloat}
     count = 1
     err = T(1)
     mc_x = zeros(T, npoints)
@@ -196,12 +194,12 @@ function Floe(
     floe = rmholes(poly)
     # Floe physical properties
     centroid = find_poly_centroid(floe)
-    height = hmean + (-1)^rand(rng, 0:1) * rand(rng) * Δh
-    area = LG.area(floe)::Float64
-    mass = area * height * ρi
+    height = hmean + (-1)^rand(rng, 0:1) * rand(rng, T) * Δh
+    area_tot = LG.area(floe)::Float64
+    mass = area_tot * height * ρi
     coords = find_poly_coords(floe)
     moment = calc_moment_inertia(coords, centroid, height, ρi = ρi)
-    angles = calc_poly_angles(coords, T)
+    angles = calc_poly_angles(coords)
     origin_coords = translate(coords, -centroid)
     rmax = sqrt(maximum([sum(c.^2) for c in origin_coords[1]]))
     alive = true
@@ -210,10 +208,9 @@ function Floe(
         mc_n,
         origin_coords,
         rmax,
-        area,
+        area_tot,
         alive,
         rng,
-        T,
     )
 
     # Generate Stress History
@@ -224,7 +221,7 @@ function Floe(
         centroid = convert(Vector{T}, centroid),
         coords = convert(PolyVec{T}, coords),
         height = convert(T, height),
-        area = convert(T, area),
+        area = convert(T, area_tot),
         mass = convert(T, mass),
         rmax = convert(T, rmax),
         moment = convert(T, moment),

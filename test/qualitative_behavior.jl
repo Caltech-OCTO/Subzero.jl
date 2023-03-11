@@ -5,7 +5,7 @@ Run and check these simulations to confirm behavior has not changed.
 
 using Subzero, StructArrays
 
-const T = Float64::DataType
+const FT = Float64
 const Lx = 1e5
 const Ly = 1e5
 const Δgrid = 10000
@@ -17,7 +17,13 @@ const coarse_nx = 10
 const coarse_ny = 10
 const floe_fn = "f.nc"
 
-grid = RegRectilinearGrid(-Lx, Lx, -Ly, Ly, Δgrid, Δgrid)
+grid = RegRectilinearGrid(
+    FT,
+    (-Lx, Lx),
+    (-Ly, Ly),
+    Δgrid,
+    Δgrid,
+)
 
 """
 Simulation:

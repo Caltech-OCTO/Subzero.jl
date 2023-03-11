@@ -35,17 +35,16 @@ function calc_normal_force(
     c1,
     c2,
     region,
-    area,
+    area::FT,
     ipoints,
-    force_factor,
-    ::Type{T} = Float64,
-) where T
-    force_dir = zeros(T, 2)
+    force_factor::FT,
+) where {FT<:AbstractFloat}
+    force_dir = zeros(FT, 2)
     coords = find_poly_coords(region)
     n_ipoints = size(ipoints, 1)
     # Identify which region coordinates are the intersection points (ipoints)
     verts = zeros(Int64, n_ipoints)
-    dists = zeros(n_ipoints)
+    dists = zeros(FT, n_ipoints)
     for i in 1:n_ipoints
         p_i = repeat(ipoints[i, :], length(coords))
         dists[i], verts[i] = findmin([sum((c .- p_i).^2) for c in coords[1]])
@@ -55,7 +54,7 @@ function calc_normal_force(
     m = length(p)
 
     # Calculate force direction
-    Δl = zeros(T, 1)
+    Δl = FT(0)
     if m == 2  # Two intersection points
         Δx = p[2][1] - p[1][1]
         Δy = p[2][2] - p[1][2]
@@ -75,7 +74,7 @@ function calc_normal_force(
         yt = ymid+uvec[:, 2]./100  # should match our scale
         in_idx = points_in_poly(hcat(xt, yt), coords)
         uvec[in_idx, :] *= -1
-        Fn = -force_factor * (mag * ones(1, 2)) .* uvec
+        Fn = -force_factor * (mag * ones(FT, 1, 2)) .* uvec
         dmin_lst = calc_point_poly_dist(xmid, ymid, c1)
         on_idx = findall(d->abs(d)<1e-8, dmin_lst)
         if 0 < length(on_idx) < length(dmin_lst)
@@ -135,14 +134,13 @@ function calc_elastic_forces(
     c1,
     c2,
     regions,
-    region_areas,
-    force_factor,
-    ::Type{T} = Float64,
-) where T
+    region_areas::Vector{FT},
+    force_factor::FT,
+) where {FT<:AbstractFloat}
     ipoints = intersect_lines(c1, c2)  # Intersection points
     if isempty(ipoints) || size(ipoints,2) < 2  # No overlap points
          # Force, contact points, overlap area all 0s
-        return zeros(T, 1, 2), zeros(T, 1, 2), zeros(T, 1)
+        return zeros(FT, 1, 2), zeros(FT, 1, 2), zeros(FT, 1)
     else
         # Find overlapping regions greater than minumum area
         n1 = length(c1[1]) - 1
@@ -153,11 +151,11 @@ function calc_elastic_forces(
         overlap = region_areas
         ncontact = length(regions)
         # Calculate forces for each remaining region
-        force = zeros(T, ncontact, 2)
-        fpoint = zeros(T, ncontact, 2)
-        Δl_lst = zeros(T, ncontact)
+        force = zeros(FT, ncontact, 2)
+        fpoint = zeros(FT, ncontact, 2)
+        Δl_lst = zeros(FT, ncontact)
         for k in 1:ncontact
-            normal_force = zeros(T, 1, 2)
+            normal_force = zeros(FT, 1, 2)
             if region_areas[k] != 0
                 cx, cy = find_poly_centroid(regions[k])::Vector{Float64}
                 fpoint[k, :] = [cx, cy]
@@ -167,8 +165,7 @@ function calc_elastic_forces(
                     regions[k],
                     region_areas[k],
                     ipoints,
-                    force_factor,
-                    T,
+                    force_factor
                 )
             end
             force[k, :] = normal_force
@@ -249,7 +246,6 @@ Inputs:
     Δt          <Int> Simulation's current timestep
     max_overlap <Float> Percent two floes can overlap before marking them
                         for combination with remove/transfer
-    t           <Type> Float type model is running on (Float64 or Float32)
 Outputs:
     remove   <Int> index of floe to remove from simulation due to overlap (will
                 be transfered to over floe in collision) - if 0 then no floes to
@@ -267,16 +263,15 @@ Note:
     overlapping area at any timestep. 
 """
 function floe_floe_interaction!(
-    ifloe,
+    ifloe::Floe{FT},
     i,
-    jfloe,
+    jfloe::Floe{FT},
     j,
     nfloes,
     consts,
     Δt,
-    max_overlap,
-    ::Type{T} = Float64,
-) where T
+    max_overlap::FT,
+) where {FT<:AbstractFloat}
     remove = Int(0)
     transfer = Int(0)
     ifloe_poly = LG.Polygon(ifloe.coords)
@@ -284,7 +279,7 @@ function floe_floe_interaction!(
     if LG.intersects(ifloe_poly, jfloe_poly)  # Check if floes intersect
         inter_floe = LG.intersection(ifloe_poly, jfloe_poly)
         inter_regions = LG.getGeometries(inter_floe)
-        region_areas = [LG.area(poly) for poly in inter_regions]::Vector{Float64}
+        region_areas = LG.area.(inter_regions)
         total_area = sum(region_areas)
         # Floes overlap too much - remove floe or transfer floe mass
         if total_area/ifloe.area > max_overlap
@@ -317,8 +312,7 @@ function floe_floe_interaction!(
                 jfloe.coords,
                 inter_regions,
                 region_areas,
-                force_factor,
-                T,
+                force_factor
             )
             #= Calculate frictional forces at each force point - based on
             velocities at force points =#
@@ -334,8 +328,7 @@ function floe_floe_interaction!(
                     normal_forces,
                     Δl,
                     consts,
-                    Δt,
-                    T,
+                    Δt
                 )
                 # Calculate total forces and update ifloe's interactions
                 forces = normal_forces .+ friction_forces
@@ -589,7 +582,6 @@ function floe_domain_element_interaction!(
                 inter_regions,
                 region_areas,
                 force_factor,
-                T,
             )
             normal_direction_correct!(normal_forces, fpoints, element, T)
             # Calculate frictional forces at each force point
@@ -807,7 +799,6 @@ function timestep_collisions!(
                         consts,
                         Δt,
                         collision_settings.floe_floe_max_overlap,
-                        T,
                     )
                     if iremove != 0 || itransfer != 0
                         remove[i] = iremove
