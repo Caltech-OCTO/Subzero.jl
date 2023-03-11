@@ -109,7 +109,13 @@
     @test typeof(floe_arr) <: StructArray{<:Floe}
 
     # Test initialize_floe_field from coord list
-    grid = RegRectilinearGrid(-8e4, 8e4, -8e4, 8e4, 1e4, 1e4)
+    grid = RegRectilinearGrid(
+        Float64,
+        (-8e4, 8e4),
+        (-8e4, 8e4),
+        1e4,
+        1e4,
+    )
     nbound = CollisionBoundary(grid, North())
     sbound = CollisionBoundary(grid, South())
     ebound = CollisionBoundary(grid, East())
@@ -134,7 +140,13 @@
     @test all(floe_arr.id .== range(1, nfloes))
 
     # From file with small domain -> floes outside of domain
-    small_grid = RegRectilinearGrid(-5e4, 5e4, -5e4, 5e4, 1e4, 1e4)
+    small_grid = RegRectilinearGrid(
+        Float64,
+        (-5e4, 5e4),
+        (-5e4, 5e4),
+        1e4,
+        1e4,
+    )
     small_domain_no_topo = Domain(
         CollisionBoundary(small_grid, North()),
         CollisionBoundary(small_grid, South()),

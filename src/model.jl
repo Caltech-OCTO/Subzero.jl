@@ -14,12 +14,13 @@ abstract type AbstractGrid{FT<:AbstractFloat} end
     RegRectilinearGrid{FT<:AbstractFloat}<:AbstractGrid
 
 Tessellation of 2-dimensional Euclidean space into n-by-m congruent rectangles.
-The dimension of grid is (n,m), and the struct hold the grid-line and grid-center values:
+The dimension of grid is n rows by m columns, and the struct hold the grid-line
+and grid-center values:
  - xg are the grid lines in the x-direction (m+1 length vector)
  - yg are the grid lines in the y-direction (n+1 length vector)
  - xc are the mid-lines on grid cells (m length vector) in the x-direction
  - yc are the mid-lines on grid cells (n length vector) in the y-direction
-The dimensions of each of the fields must match according to the above definitions.
+The dimensions of each of the fields must match according to above definitions.
 """
 struct RegRectilinearGrid{FT}<:AbstractGrid{FT}
     dims::Tuple{Int, Int}
@@ -28,69 +29,111 @@ struct RegRectilinearGrid{FT}<:AbstractGrid{FT}
     xc::Vector{FT}
     yc::Vector{FT}
 
-    function RegRectilinearGrid{FT}(dims, xg::Vector{FT}, yg::Vector{FT},
-                                          xc::Vector{FT}, yc::Vector{FT}) where {FT <: AbstractFloat}
+    function RegRectilinearGrid{FT}(
+        dims,
+        xg::Vector{FT},
+        yg::Vector{FT},
+        xc::Vector{FT},
+        yc::Vector{FT},
+    ) where {FT <: AbstractFloat}
         if (length(xg) != dims[2]+1) || (length(yg) != dims[1]+1)
-            throw(ArgumentError("Grid line dimensions vector doesn't match dimensions field."))
+            throw(ArgumentError("Grid line dimensions vector doesn't match \
+                dimensions field."))
         end
         if (length(xc) != dims[2]) || (length(yc) != dims[1])
-            throw(ArgumentError("Grid center dimensions vector doesn't match dimensions field."))
+            throw(ArgumentError("Grid center dimensions vector doesn't match \
+                dimensions field."))
         end
         new{FT}(dims, xg, yg, xc, yc)
     end
 
-    RegRectilinearGrid(dims, xg::Vector{FT}, yg::Vector{FT}, xc::Vector{FT}, yc::Vector{FT}) where {FT <: AbstractFloat} = 
+    RegRectilinearGrid(
+        dims,
+        xg::Vector{FT},
+        yg::Vector{FT},
+        xc::Vector{FT},
+        yc::Vector{FT},
+    ) where {FT <: AbstractFloat} = 
         RegRectilinearGrid{FT}(dims, xg, yg, xc, yc)
 end
 
 """
-    RegRectilinearGrid(lx, ux, ly, uy, Δx, Δy, ::Type{T} = Float64)
+    RegRectilinearGrid(
+        ::Type{FT};
+        xbounds::Tuple,
+        ybounds::Tuple,
+        Δx,
+        Δy,
+    )
 
-Construct a RegRectilinearGrid for model given upper and lower bounds for x and y and grid cell dimensions.
+Construct a RegRectilinearGrid for model given bounds for grid x and y and grid
+cell dimensions.
 Inputs: 
-        lx       <Real> lower bound of grid x-direction
-        ux       <Real> upper bound of grid x-direction
-        ly       <Real> lower bound of grid y-direction
-        uy       <Real> upper bound of grid y-direction
-        Δx       <Real> length/height of grid cells in x-direction
-        Δy       <Real> length/height of grid cells in y-direction
-                 <Float> datatype to run simulation with - either Float32 or Float64
+    xbounds  <Tuple{Real, Real}> bound of grid x-direction in form (left, right)
+    ybounds  <Tuple{Real, Real}> bound of grid y-direction in form (bottom, top)
+    Δx       <Real> length/height of grid cells in x-direction
+    Δy       <Real> length/height of grid cells in y-direction
 Output: 
-    RegRectilinearGrid from lx to ux and height from ly to uy with grid squares of size Δx by Δy
-Warning: If Δx doesn't evenly divide x length (lu-lx) or Δy doesn't evenly 
-         divide y length (uy-ly) you won't get full size grid. The grid will be "trimmed" to the nearest
-         full grid square in both directions.
+    RegRectilinearGrid from lx to ux and height from ly to uy with grid squares
+    of size Δx by Δy
+Warning:
+    If Δx doesn't evenly divide x length (lu-lx) or Δy doesn't evenly divide y
+    length (uy-ly) you won't get full size grid. The grid will be "trimmed" to
+    the nearest full grid square in both directions.
 """
-function RegRectilinearGrid(lx, ux, ly, uy, Δx, Δy, ::Type{T} = Float64) where T
-    xg = collect(T, lx:Δx:ux) 
-    yg = collect(T, ly:Δy:uy)
+function RegRectilinearGrid(
+    ::Type{FT},
+    xbounds::Tuple,
+    ybounds::Tuple,
+    Δx,
+    Δy,
+) where {FT <: AbstractFloat}
+    xg = collect(FT, xbounds[1]:Δx:xbounds[2]) 
+    yg = collect(FT, ybounds[1]:Δy:ybounds[2])
     nx = length(xg) - 1
     ny = length(yg) - 1
-    xc = collect(T, xg[1]+Δx/2:Δx:xg[end]-Δx/2)
-    yc = collect(T, yg[1]+Δy/2:Δy:yg[end]-Δy/2)
+    xc = collect(FT, xg[1]+Δx/2:Δx:xg[end]-Δx/2)
+    yc = collect(FT, yg[1]+Δy/2:Δy:yg[end]-Δy/2)
     return RegRectilinearGrid((ny, nx), xg, yg, xc, yc)
 end
 
 """
-    RegRectilinearGrid(lx, ux, ly, uy, dims::Tuple{Int, Int}, ::Type{T} = Float64)
+    RegRectilinearGrid(
+        ::Type{FT};
+        xbounds::Tuple{Real, Real},
+        ybounds::Tuple{Real, Real},
+        dims::Tuple{Int, Int}
+    )
 
-Construct a RegRectilinearGrid for model given upper and lower bounds for x and y and the number of grid cells
-in both the x and y direction.
+Construct a RegRectilinearGrid for model given bounds for grid x and y and the
+number of grid cells in both the x and y direction.
 Inputs: 
-        lx       <Real> lower bound of grid x-direction
-        ux       <Real> upper bound of grid x-direction
-        ly       <Real> lower bound of grid y-direction
-        uy       <Real> upper bound of grid y-direction
-        dims     <(Int, Int)> grid dimensions - rows -> number of y cells
-                                                cols -> number of x cells
-                 <Float> datatype to run simulation with - either Float32 or Float64
+    Type{FT} <<:AbstractFloat> Type for grid's numberical fields - determines
+                simulation run type
+    xbounds  <Tuple{Real, Real}> bound of grid x-direction in form (left, right)
+    ybounds  <Tuple{Real, Real}> bound of grid y-direction in form (bottom, top)
+    dims     <(Int, Int)> grid dimensions given as (rows, columns) where rows is
+                the number of y cells and columns is the number of x cells
 Output: 
-    RegRectilinearGrid from lx to ux and height from ly to uy with nx grid cells in the x-direction and ny grid cells in the y-direction.
+    RegRectilinearGrid with width and height determined by xbound and ybounds
+    and the number of grid cells in the x-direction and y-direction determined
+    by dims.
 """
-function RegRectilinearGrid(lx, ux, ly, uy, dims::Tuple{Int, Int}, ::Type{T} = Float64) where T
-    Δx = (ux-lx)/dims[2]
-    Δy = (uy-ly)/dims[1]
-    return RegRectilinearGrid(lx, ux, ly, uy, Δx, Δy, T)
+function RegRectilinearGrid(
+    ::Type{FT},
+    xbounds::Tuple,
+    ybounds::Tuple,
+    dims::Tuple{Int, Int},
+) where {FT <: AbstractFloat}
+    Δx = (xbounds[2] - xbounds[1])/dims[2]
+    Δy = (ybounds[2] - ybounds[1])/dims[1]
+    return RegRectilinearGrid(
+        FT,
+        xbounds,
+        ybounds,
+        Δx,
+        Δy,
+    )
 end
 
 """

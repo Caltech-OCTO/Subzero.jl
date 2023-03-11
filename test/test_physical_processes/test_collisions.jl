@@ -68,7 +68,13 @@
         Ly = Lx
         hmean = 0.25
         Δh = 0.0
-        grid = RegRectilinearGrid(-Lx, Lx, -Ly, Ly, 1e4, 1e4)
+        grid = RegRectilinearGrid(
+            Float64,
+            (-Lx, Lx),
+            (-Ly, Ly),
+            1e4,
+            1e4,
+        )
         nboundary = PeriodicBoundary(grid, North())
         sboundary = PeriodicBoundary(grid, South())
         eboundary = CollisionBoundary(grid, East())
@@ -150,7 +156,13 @@
     
     @testset "Add Ghosts" begin
         Lx = 1e5
-        grid = RegRectilinearGrid(-Lx, Lx, -Lx, Lx, 1e4, 1e4)
+        grid = RegRectilinearGrid(
+            Float64,
+            (-Lx, Lx),
+            (-Lx, Lx),
+            1e4,
+            1e4,
+        )
         nboundary = PeriodicBoundary(grid, North())
         sboundary = PeriodicBoundary(grid, South())
         eboundary = PeriodicBoundary(grid, East())
@@ -244,7 +256,13 @@
         Lx = 1e5
         Ly = 1e5
         collision_settings = CollisionSettings()
-        grid = RegRectilinearGrid(-Lx, Lx, -Lx, Lx, 1e4, 1e4)
+        grid = RegRectilinearGrid(
+            Float64,
+            (-Lx, Lx),
+            (-Lx, Lx),
+            1e4,
+            1e4,
+        )
         double_periodic_domain = Domain(PeriodicBoundary(grid, North()), PeriodicBoundary(grid, South()),
                                         PeriodicBoundary(grid, East()), PeriodicBoundary(grid, West()))
         # Parent-parent collison (parents are touching)

@@ -1,6 +1,12 @@
 @testset "Coupling" begin
     @testset "Coupling Helper Functions" begin
-        grid = Subzero.RegRectilinearGrid(-10, 10, -8, 8, 2, 4)
+        grid = Subzero.RegRectilinearGrid(
+            Float64,
+            (-10, 10),
+            (-8, 8),
+            2,
+            4,
+        )
         # Test find_cell_indices
         @test Subzero.find_cell_indices([], [], grid) ==
             (Vector{Int}(undef, 0), Vector{Int}(undef, 0))
@@ -263,7 +269,13 @@
     end
     @testset "OA Forcings" begin
         # set up model and floe
-        grid = Subzero.RegRectilinearGrid(-1e5, 1e5, -1e5, 1e5, 1e4, 1e4)
+        grid = Subzero.RegRectilinearGrid(
+            Float64,
+            (-1e5, 1e5),
+            (-1e5, 1e5),
+            1e4,
+            1e4,
+        )
         zonal_ocean = Subzero.Ocean(grid, 1.0, 0.0, 0.0)
         zero_atmos = Subzero.Atmos(zeros(grid.dims .+ 1), zeros(grid.dims .+ 1), fill(-20.0, grid.dims .+ 1))
         domain = Subzero.Domain(Subzero.CollisionBoundary(grid, Subzero.North()), Subzero.CollisionBoundary(grid, Subzero.South()),
