@@ -9,8 +9,8 @@ Structs and functions to create and run a Subzero simulation
     Cd_io::FT = 3e-3            # Ice-ocean drag coefficent
     Cd_ia::FT = 1e-3            # Ice-atmosphere drag coefficent
     Cd_ao::FT = 1.25e-3         # Atmosphere-ocean momentum drag coefficient
-    f::FT = 1.4e-4              # Ocean coriolis parameter
-    turnθ::FT = 15*pi/180       # Ocean turn angle
+    f::FT = 1.4e-4              # Ocean coriolis frequency
+    turnθ::FT = 15π/180         # Ocean turn angle
     L::FT = 2.93e5              # Latent heat of freezing [Joules/kg]
     k::FT = 2.14                # Thermal conductivity of surface ice[W/(m*K)]
     ν::FT = 0.3                 # Poisson's ratio
