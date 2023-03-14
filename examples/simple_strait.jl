@@ -50,15 +50,6 @@ fracture_settings = FractureSettings(
         npieces = 3,
         nhistory = 1000,
         deform_on = false,
-    )
-
-simulation = Simulation(
-    model = model,
-    consts = consts,
-    Δt = Δt,
-    nΔt = 5000,
-    verbose = true,
-    fracture_settings = fracture_settings,
 )
 
 # Output setup
@@ -66,9 +57,24 @@ dir = "output/simple_strait"
 initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
 floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
 checkpointwriter = CheckpointOutputWriter(1000, dir = dir, overwrite = true)
+writers = OutputWriters(
+    initialwriters = StructArray([initwriter]),
+    floewriters = StructArray([floewriter]),
+    checkpointwriters = StructArray([checkpointwriter]),
+)
+
+simulation = Simulation(
+    model = model,
+    consts = consts,
+    Δt = Δt,
+    nΔt = 3000,
+    verbose = true,
+    fracture_settings = fracture_settings,
+    writers = writers,
+)
 
 # Run simulation
-run!(simulation, [initwriter, floewriter, checkpointwriter])
+run!(simulation)
 
 Subzero.create_sim_gif("output/simple_strait/floes.jld2", 
                        "output/simple_strait/initial_state.jld2",
