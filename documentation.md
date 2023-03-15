@@ -123,7 +123,89 @@ In particular, Young's Modulus is calculated usually calculated using the total 
 E = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 ```
 
-### Physical Process Settings 
+### Physical Process Settings
+Subzero allows you to turn on and off various physical processes, as well as change various settings for these physical processes. The physical processes availible are: coupling, collisions, fractures, and simplfication. We will be adding corner fracturing, packing, rafting, ridging, and welding. For each of these physical processes, you can create a settings object, and change the parameters within that object to change the physical process to meet your simulation needs. 
+#### Coupling Settings
+`CouplingSettings` changes how Subzero uses the ocean and atmosphere two-dimensional vector fields within the `Ocean` and `Atmos` structs, whether those values are static user-provided values of values that are updated every timesteps through coulpling with Oceananigans. The availible settings are:
+- coupling_on, which turns this process on and off
+- ∆t, which sets the number of timesteps between this process running
+- ∆d, which sets the number of ocean/atmosphere grid cells around a floe to consider when interpolating ocean/atmosphere forcings
+- mc_n, which sets the number of monte carlo points for each floe that are used for the interpolation
+- calc_ocnτ_on, which turns on and off the calculation of the ice effects on the ocean and stores output in the ocean's fx, fy, and si_area fields
+
+Here is an example of creating your own coupling settings, using the default values:
+```julia
+couple_settings = CouplingSettings(
+  coupling_on = true,
+  Δt = 10,
+  Δd = 1,
+  mc_n = 1000,
+  calc_ocnτ_on = false,
+)
+Note that you only need to provide values to the fields that you wish to change from the defaults.
+```
+#### Collision Settings
+`CollisionSettings` changes Subzero's floe-floe and floe-domain collisions. The availible settings are:
+- collisions_on, which turns this process on and off
+- floe_floe_max_overlap, which sets the maximum fraction of floe-floe overlap before fusing the two floes together 
+- floe_domain_max_overlap, which sets the maximum fraction for floe-domain overlap before removing the floe from the simulation
+
+Here is an example of creating your own collision settings, using the default values:
+```julia
+collision_settings = CollisionSettings(
+  collisions_on = true,
+  floe_floe_max_overlap = 0.55,
+  floe_domain_max_overlap = 0.75,
+)
+```
+Note that you only need to provide values to the fields that you wish to change from the defaults.
+#### Fracture Settings
+`FractureSettings` changes Subzero's floe fractures. The availible settings are:
+- fractures_on, which turns this process on and off
+- criteria, which sets the rules for which floes fractures (see more below)
+- Δt, which sets the number of timesteps between this process running
+- deform_on, which turns on a sub-process where a floe is deformed around the largest collision on that timestep before it is fractured
+- npieces, which sets the number of pieces a floe should try to fracture into (note that this number might not be met depending on floe shape)
+- nhistory, which sets the length of stress history, stress from the previous `nhistory` timesteps, to record in order to determine a floe's current stress, which is the mean of the stress history
+
+Here is an example of creating your own fracture settings, using the default values:
+```julia
+fracture_settings = FractureSettings(
+  fractures_on = false,
+  criteria = NoFracture(),
+  Δt = 0,
+  deform_on = false,
+  npieces = 3,
+  nhistory = 1000,
+)
+```
+Note that you only need to provide values to the fields that you wish to change from the defaults.
+
+If you do want to turn fractures on, you will need to create a criteria that is not the NoFracture() criteria. Right now, there is only one other fracture criteria, which is Hibler's elliptical yield curve. To learn more about this criteria, see the 1979 paper "A Dynamic Thermodynamic Sea Ice Model." This criteria uses the mean floe height and take in two parameters, `pstar` and `c`, which can be tuned to get the fracture behavior that you want. A simple way to create this criteria is as follows:
+```julia
+pstar = 2.25e5
+c = 20.0
+criteria = HiblerYieldCurve(floe_arr, pstar, c)
+```
+#### Simplification Settings
+`SimplificationSettings` changes Subzero's floe simplification. The availible settings are:
+- dissolve_on, which turns on and off the dissolving of small floes
+- min_floe_area, which sets the minimum size for floes before they are dissolved, and also a barrier for making floes smaller through fracture and other processes
+- smooth_vertices_on, which turns on and off the process of smoothing floe vertices to decrease the total number of vertices
+- max_vertices, the total number of verticies a floe can have before smoothing
+- Δt_smooth, which sets the number of timesteps between floe smoothing
+
+Here is an example of creating your own simplification settings, using the default values:
+```julia
+simp_settings = SimplificationSettings(
+    dissolve_on = true,
+    min_floe_area = 1e6,
+    smooth_vertices_on = true,
+    max_vertices = 30,
+    Δt_smooth = 20,
+)
+```
+Note that you only need to provide values to the fields that you wish to change from the defaults.
 
 ### Timesteps
 You have the ability to set the simulation's timestep in seconds using `∆t` and set the total number of timsteps the simulation will run for, `n∆t`. The default is `∆t = 10` seconds and `n∆t = 7500` timesteps. 
