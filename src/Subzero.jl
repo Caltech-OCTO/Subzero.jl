@@ -93,7 +93,7 @@ include("physical_processes/process_settings.jl")
 # Tools
 include("plotting.jl")
 include("output.jl")
-include("plotting.jl")
+include("conservation_em.jl")
 # Simulation
 include("simulation.jl")
 end

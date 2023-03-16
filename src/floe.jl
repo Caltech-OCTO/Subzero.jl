@@ -794,13 +794,16 @@ function timestep_floe_properties!(floes, Δt)
         calc_stress!(ifloe)
         # Ensure no extreem values due to model instability
         if ifloe.height > 10
+            @warn "Reducing height to 10 m"
             ifloe.height = 10
         end
         if ifloe.mass < 100
+            @warn "Increasing mass to 1000 kg"
             ifloe.mass = 1e3
             ifloe.alive = false
         end
         while maximum(abs.(cforce)) > ifloe.mass/(5Δt)
+            @warn "Decreasing collision forces by a factor of 10"
             cforce = cforce ./ 10
             ctrq = ctrq ./ 10
         end
@@ -843,6 +846,9 @@ function timestep_floe_properties!(floes, Δt)
         else
             1
         end
+        if frac != 1
+            @warn "Adjusting u and v velocities to prevent too high"
+        end
         dudt = frac*dudt
         dvdt = frac*dvdt
         ifloe.u += 1.5Δt*dudt-0.5Δt*ifloe.p_dudt
@@ -853,8 +859,9 @@ function timestep_floe_properties!(floes, Δt)
         dξdt = (ifloe.trqOA + ctrq)/ifloe.moment
         dξdt = frac*dξdt
         ξ = ifloe.ξ + 1.5Δt*dξdt-0.5Δt*ifloe.p_dξdt
-        if abs(ξ) > 1e-5
-            ξ = sign(ξ) * 1e-5
+        if abs(ξ) > 1e-4
+            @warn "Shrinking ξ"
+            ξ = sign(ξ) * 1e-4
         end
         ifloe.ξ = ξ
         ifloe.p_dξdt = dξdt

@@ -1,4 +1,4 @@
-using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero, BenchmarkTools
+using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero, BenchmarkTools, MAT
 import LibGEOS as LG
 
 # User Inputs
@@ -13,8 +13,8 @@ const Δt = 10
 # Model instantiation
 grid = RegRectilinearGrid(
     FT,
-    (-Lx, Lx),
-    (-Ly, Ly),
+    (0, Lx),
+    (0, Ly),
     Δgrid,
     Δgrid,
 )
@@ -44,62 +44,79 @@ topo_arr = StructVector([TopographyElement(t) for t in [island, topo1, topo2]])
 domain = Domain(nboundary, sboundary, eboundary, wboundary)
 
 # Floe instantiation
+
+rng = Xoshiro(1)
 floe_arr = initialize_floe_field(
-    100,
-    [0.7],
+    10,
+    [0.5],
     domain,
     hmean,
     Δh,
-    rng = Xoshiro(1),
+    rng = rng,
     nhistory = 1000,
 )
+nfloes = length(floe_arr)
+floe_arr.u .= rand(rng, nfloes) * 0.1
+floe_arr.v .= rand(rng, nfloes) * 0.1
+#floe_arr.ξ .= rand(rng, nfloes) * 1e-6
+# floe_arr = initialize_floe_field(
+#     [[[[2e4, 3e4], [2e4, 6e4], [5e4, 6e4], [5e4, 3e4], [2e4, 3e4]]],
+#      [[[6e4, 2e4], [6e4, 5e4], [9e4, 5e4], [9e4, 2e4], [6e4, 2e4]]]],
+#     domain,
+#     hmean,
+#     Δh,
+#     rng = rng,
+#     nhistory = 1000,
+# )
+# floe_arr.u[1] = 0.1
+# floe_arr.u[2] = -0.1
 #floe_arr = load("output/sim/thread1_initial_state.jld2", "sim").model.floes
 
 model = Model(grid, ocean, atmos, domain, floe_arr)
 
 # Output setup
-tstring = string("thread", Threads.nthreads())
+#tstring = string("thread", Threads.nthreads())
+tstring = "offset_blocks"
 #tstring = "thread1_rerun"
+dir = "output/sim"
 initwriter = InitialStateOutputWriter(
-    dir = "output/sim",
+    dir = dir,
     filename = string(tstring, "_initial_state.jld2"),
     overwrite = true,
 )
-gridwriter = GridOutputWriter(
-    100,
-    model.grid,
-    (10, 10),
-    dir = "output/sim",
-    filename = string(tstring, "_grid.nc"),
-    overwrite = true,
-)
+# gridwriter = GridOutputWriter(
+#     100,
+#     model.grid,
+#     (10, 10),
+#     dir = dir,
+#     filename = string(tstring, "_grid.nc"),
+#     overwrite = true,
+# )
 floewriter = FloeOutputWriter(
-    100,
-    dir = "output/sim",
+    10,
+    dir = dir,
     filename = string(tstring, "_floes.jld2"),
     overwrite = true,
 )
-checkpointwriter = CheckpointOutputWriter(
-    500,
-    dir = "output/sim",
-    filename = string(tstring, "_checkpointer.jld2"),
-    overwrite = true,
-)
+# checkpointwriter = CheckpointOutputWriter(
+#     500,
+#     dir = dir,
+#     filename = string(tstring, "_checkpointer.jld2"),
+#     overwrite = true,
+# )
 
 writers = OutputWriters(
     initialwriters = StructArray([initwriter]),
-    gridwriters = StructArray([gridwriter]),
     floewriters = StructArray([floewriter]),
-    checkpointwriters = StructArray([checkpointwriter]),
 )
 # Simulation setup
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
-consts = Constants(E = modulus)
+consts = Constants(E = modulus, μ = 0.0)
 simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 3000,
+    nΔt = 5000,
     verbose = true,
     fracture_settings = FractureSettings(
         fractures_on = false,
@@ -110,8 +127,7 @@ simulation = Simulation(
         deform_on = false,
     ),
     coupling_settings = CouplingSettings(
-        coupling_on = true,
-        calc_ocnτ_on = true,
+        coupling_on = false,
     ),
     writers = writers,
 )
@@ -122,6 +138,10 @@ time_run(simulation) = @time run!(simulation)
 # Run simulation
 time_run(simulation)
 
-#Subzero.create_sim_gif("output/sim/floes.jld2", 
-#                       "output/sim/initial_state.jld2",
-#                       "output/sim/test.gif")
+Subzero.check_energy_momentum_conservation_julia(joinpath(dir, string(tstring, "_floes.jld2")), dir)
+
+Subzero.create_sim_gif(
+    joinpath(dir, string(tstring, "_floes.jld2")), 
+    joinpath(dir, string(tstring, "_initial_state.jld2")),
+    joinpath(dir, string(tstring, "_test.gif")),
+)
