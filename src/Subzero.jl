@@ -91,9 +91,9 @@ include("physical_processes/collisions.jl")
 include("physical_processes/fractures.jl")
 include("physical_processes/process_settings.jl")
 # Tools
-include("plotting.jl")
-include("output.jl")
-include("conservation_em.jl")
+include("tools/plotting.jl")
+include("tools/conservation_em.jl")
 # Simulation
+include("output.jl")
 include("simulation.jl")
 end
