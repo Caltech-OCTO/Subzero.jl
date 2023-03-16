@@ -67,7 +67,7 @@ function calc_angular_momentum(u, v, mass, ξ, moment, x, y)
 end
 
 """
-    summarize_conservation(
+    plot_conservation(
         linear_energy,
         rotational_energy,
         linear_x_momentum,
@@ -96,15 +96,15 @@ Inputs:
     angular_orbital_momentum    <Vector{Real}> list of total momentum from floes
                                     spinning around origin per timestep
     dir                         <String> directory to save images to
-    verbose                     <Bool> if true, prints percent change in energy
-                                    and momentum
 Outputs:
-    Δenergy    <Float> percentage change in energy from first to last timestep
-    Δmomentum  <Float> percentage change in momentum from first to last timestep
-    Also saves energy and momentum plots over time to given directory and prints
-    percentage change in both energy and momentum to terminal if verbose is true
+    Δenergy          <Float> % change in energy from first to last timestep
+    Δxmomentum       <Float> % change in x momentum from first to last timestep
+    Δymomentum       <Float> % change in y momentum from first to last timestep
+    Δangularmomentum <Float> % change in angular momentum from first to last
+                        timestep
+    Also saves energy and momentum plots over time to given directory
 """
-function summarize_conservation(
+function plot_conservation(
     linear_energy,
     rotational_energy,
     linear_x_momentum,
@@ -112,23 +112,18 @@ function summarize_conservation(
     angular_spin_momentum,
     angular_orbital_momentum,
     dir,
-    verbose
 )
     # Energy conservation
     total_energy = linear_energy .+ rotational_energy
     # Plot energy
     plot(
-        [total_energy linear_energy rotational_energy],
+        [linear_energy rotational_energy total_energy],
         title = "Total Kinetic Energy",
         xlabel = "10 Timesteps",
         ylabel = "[N]",
-        label=["total energy" "linear energy" "rotational energy"]
+        label=["Linear energy" "Rotational energy" "Total energy"]
     )
     savefig(joinpath(dir, "total_energy_conservation.png"))
-
-    # Percent change in energy
-    divisor = total_energy[1] != 0 ? total_energy[1] : eps()
-    Δenergy = (total_energy[end] - total_energy[1])/divisor * 100
 
     # Momentum conservation
     # Plot momentum
@@ -150,27 +145,15 @@ function summarize_conservation(
     savefig(joinpath(dir, "momentum_y_conservation.png"))
 
     total_angular_momentum = angular_spin_momentum .+ angular_orbital_momentum
-    total_momentum = total_angular_momentum .+
-        linear_x_momentum .+
-        linear_y_momentum
     plot(
-        [total_angular_momentum angular_spin_momentum angular_orbital_momentum],
+        [angular_spin_momentum angular_orbital_momentum total_angular_momentum],
         title = "Angular Momentum",
         xlabel = "10 Timesteps",
         ylabel = "[N * s]",
-        label=["Total" "Spin" "Orbital"]
+        label=["Spin momentum" "Orbital momentum" "Total angular momentum"]
     )
     savefig(joinpath(dir, "momentum_angular_conservation.png"))
-    
-    # Percent change in momentum
-    divisor = total_momentum[1] != 0 ? total_momentum[1] : eps()
-    Δmomentum = (total_momentum[end] - total_momentum[1])/divisor * 100
-
-    if verbose
-        println("Percent change in energy from t=1 to end: ", Δenergy)
-        println("Percent change in momentum from t=1 to end: ", Δmomentum)
-    end
-    return Δenergy, Δmomentum
+    return
 end
 
 """
@@ -183,14 +166,15 @@ Inputs:
     filename    <String> floe outputwriter filename + path
     dir         <String> directory to save total energy and momentum
                     conservation plots
-    verbose     <Bool> if true, prints percent change in energy and momentum
 Outputs:
     Δenergy    <Float> percentage change in energy from first to last timestep
-    Δmomentum  <Float> percentage change in momentum from first to last timestep
-    Also saves energy and momentum plots over time to given directory and prints
-    percentage change in both energy and momentum to terminal if verbose is true
+    Δxmomentum       <Float> % change in x momentum from first to last timestep
+    Δymomentum       <Float> % change in y momentum from first to last timestep
+    Δangularmomentum <Float> % change in angular momentum from first to last
+                        timestep
+    Also saves energy and momentum plots over time to given directory
 """
-function check_energy_momentum_conservation_julia(filename, dir, verbose)
+function check_energy_momentum_conservation_julia(filename, dir)
     file = jldopen(filename, "r")
     tsteps = keys(file["centroid"])
     ntsteps = length(tsteps)
@@ -236,7 +220,7 @@ function check_energy_momentum_conservation_julia(filename, dir, verbose)
         )
     end
     close(file)
-    Δenergy, Δmomentum = summarize_conservation(
+    plot_conservation(
         linear_energy,
         rotational_energy,
         linear_x_momentum,
@@ -244,9 +228,11 @@ function check_energy_momentum_conservation_julia(filename, dir, verbose)
         angular_spin_momentum,
         angular_orbital_momentum,
         dir,
-        verbose,
     )
-    return Δenergy, Δmomentum
+    return linear_energy .+ rotational_energy,
+        linear_x_momentum,
+        linear_y_momentum,
+        angular_spin_momentum .+ angular_orbital_momentum
 end
 
 """
@@ -261,14 +247,15 @@ Inputs:
     mat_path    <String> path to MATLAB version's Floe folder 
     dir         <String> directory to save total energy and momentum
                     conservation plots
-    verbose     <Bool> if true, prints percent change in energy and momentum
 Outputs:
     Δenergy    <Float> percentage change in energy from first to last timestep
-    Δmomentum  <Float> percentage change in momentum from first to last timestep
-    Also saves energy and momentum plots over time to given directory and prints
-    percentage change in both energy and momentum to terminal if verbose is true
+    Δxmomentum       <Float> % change in x momentum from first to last timestep
+    Δymomentum       <Float> % change in y momentum from first to last timestep
+    Δangularmomentum <Float> % change in angular momentum from first to last
+                        timestep
+    Also saves energy and momentum plots over time to given directory
 """
-function check_energy_momentum_conservation_matlab(mat_path, dir, verbose)
+function check_energy_momentum_conservation_matlab(mat_path, dir)
     mat_files = readdir(mat_path)
     mat_files = mat_files[last.(splitext.(mat_files)) .== ".mat"]
     ntsteps = length(mat_files)
@@ -311,7 +298,7 @@ function check_energy_momentum_conservation_matlab(mat_path, dir, verbose)
             y,
         )
     end
-    Δenergy, Δmomentum = summarize_conservation(
+    plot_conservation(
         linear_energy,
         rotational_energy,
         linear_x_momentum,
@@ -319,7 +306,9 @@ function check_energy_momentum_conservation_matlab(mat_path, dir, verbose)
         angular_spin_momentum,
         angular_orbital_momentum,
         dir,
-        verbose,
     )
-    return Δenergy, Δmomentum
+    return linear_energy .+ rotational_energy,
+    linear_x_momentum,
+    linear_y_momentum,
+    angular_spin_momentum .+ angular_orbital_momentum
 end

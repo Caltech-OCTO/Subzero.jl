@@ -55,7 +55,8 @@ export
     CouplingSettings,
     SimplificationSettings,
     PolyVec,
-    OutputWriters
+    OutputWriters,
+    check_energy_momentum_conservation_julia
 
 import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG
