@@ -211,6 +211,109 @@ Note that you only need to provide values to the fields that you wish to change 
 You have the ability to set the simulation's timestep in seconds using `∆t` and set the total number of timsteps the simulation will run for, `n∆t`. The default is `∆t = 10` seconds and `n∆t = 7500` timesteps. 
 
 ### Output Writers
+You can add four types of output writers, and as many of each type as you would like. The four types are as follows: `InitialStateOutputWriter`, `CheckpointOutputWriter`, `FloeOutputWriter`, and `GridOutputWriter`. When any of these objects are create, the file that they will write to is also created automatically. A brief desctiption of each is below:
+#### InitialStateOutputWriter
+The initial state output writer allows you to save the initial state of your simulation so that you can re-load it later. It saves the simulation object that you are currently creating to a JLD2 file. An `InitialStateOutputWriter` has two fields:
+- `filename`, including the path to the file, to save the file to
+- `overwrite` boolean that specifies whether a file with the same filename should be overwritter or if an error should be thrown during creation.
+
+You can create an `InitialStateOutputWriter` directly as a struct or with the following function call:
+```julia
+init_writer = InitialStateOutputWriter(
+    dir = ".",
+    filename = "initial_state.jld2",
+    overwrite = false,
+    jld2_kw = Dict{Symbol, Any}(),
+)
+```
+Note that these are the default values and you only need to pass in arguments that you wish to change from these values. Also note that all inputs are keyword arguments.
+
+#### CheckpointOutputWriter
+The checkpoint output writer allows you to save the state of the floes, ocean, and atmosphere at a specified part of the simulation into a JLD2 file. This will give you the ability to easily restart your simulation from the last-saved checkpoint if it were to fail for any reason, or if you wanted to continue a previous run from its stopping point. A `CheckpointOutputWriter` has three fields:
+- `Δtout`, which specifies the umber of timesteps between checkpoint outputs starting from the first timestep
+- `filename`, including the path to the file, to save the file to
+-  `overwrite` boolean that specifies whether a file with the same filename should be overwritter or if an error should be thrown during creation.
+
+You can create an `CheckpointOutputWriter` directly as a struct or with the following function call:
+```julia
+checkpointer = CheckpointOutputWriter(
+    Δtout,
+    dir = ".",
+    filename = "checkpoint.jld2",
+    overwrite = false,
+    jld2_kw = Dict{Symbol, Any}(),
+)
+```
+Note that other than `∆tout`, all values have default values so you only need to pass in arguments that you wish to change from these values. Furthermore, all inputs but ∆tout are keyword arguments, so you must use the keyword when passing in new values.
+
+#### FloeOutputWriter
+The floe output writer allows you to save floe values into a JLD2 file. This will give you the ability to easily analyze floe fields across timesteps. A `FloeOutputWriter` has four field:
+- `outputs`, which specifies which floe fields should be included
+- `Δtout`, which specifies the umber of timesteps between floe outputs starting from the first timestep
+- `filename`, including the path to the file, to save the file to
+- `overwrite` boolean that specifies whether a file with the same filename should be overwritter or if an error should be thrown during creation.
+
+You can create an `FloeOutputWriter` directly as a struct or with the following function call:
+```julia
+floewriter = FloeOutputWriter(
+    outputs,
+    Δtout,
+    dir = ".",
+    filename = "floes.jld2",
+    overwrite = false,
+    jld2_kw = Dict{Symbol, Any}(),
+)
+```
+The `outputs` field takes in a list of symbols corresponding to floe fields. For example, if you want the floe output writer to output the floes centroid and coordinates then `outputs = [:centroid, :coords]`. If you want all floe fields then you can simply admit the outputs field altogether and all floe fields will be output. Note that other than `outputs` and `∆tout`, all values have default values so you only need to pass in arguments that you wish to change from these values. Furthermore, all inputs but ∆tout are keyword arguments, so you must use the keyword when passing in new values.
+
+#### GridOutputWriter
+The grid output writer allows you to floe values averaged onto a course grid to a NetCDF file. This will give you the ability to easily analyze floe characteristics on a grid. A `GridOutputWriter` has eight field:
+- `outputs`, which specifies which floe fields should be included
+- `Δtout`, which specifies the umber of timesteps between floe outputs starting from the first timestep
+- `filename`, including the path to the file, to save the file to
+- `overwrite` boolean that specifies whether a file with the same filename should be overwritter or if an error should be thrown during creation.
+- `xg`, the grid lines in the x-direction of the grid that you would like the calculations done over (doesn't have to be the same as simulation grid)
+- `yg`, the grid lines in the y-direction of the grid that you would like the calculations done over (doesn't have to be the same as simulation grid)
+- `data`, three-dimensional array that holds grid averaged data prior to writing to file
+- `average`, boolean that specifies if the gridded data should be averaged over each timestep between writing to file, or if it should just be calculated prior to writing for that singular timestep (NOT IMPLEMENTED YET).
+
+You can create an `GridOutputWriter` directly as a struct or with the following function call:
+```julia
+gridwriter = GridOutputWriter(
+    outputs,
+    Δtout,
+    grid,
+    dims;
+    dir = ".",
+    filename = "gridded_data.nc",
+    overwrite = false,
+    average = false,
+)
+```
+The `outputs` field takes in a list of symbols. To see all possible outputs, call the `get_known_grid_outputs()` function. For example, if you want the grid output writer to output the floe masses and areas averaged on the grid then `outputs = [:mass_grid, :area_grid]`. If you want all possible fields then you can simply admit the outputs field altogether and all grid fields will be output. The `grid` field is the simulation grid, and then `dims` field specifies the dimensions of the grid you would like the output calculated on.
+
+Note that other than `outputs`, `∆tout`, `grid`, and `dims`, all values have default values so you only need to pass in arguments that you wish to change from these values. Furthermore, all inputs but ∆tout are keyword arguments, so you must use the keyword when passing in new values.
+
+#### OutputWriters
+Once you have created all of the types of output writers you need, you must combine them into one `OutputWriters` object that will be a simulation field. 
+The `OutputWriters` struct has four fields: `initialwriters`, `floewriters`, `gridwriters`, and `checkpointwriters`. For each you can supply a StructArray of the specified type of writer. If you do not have any writers of a given type, don't provide any. Below I create two example `OutputWriters` objects, assuming that I have already created the following outputwriters: `initwriter1`, `checkpointer1`, `floewriter1`, `floewriter2`, and `gridwriter1`.
+
+```julia
+using StructArrays, Subzero
+
+outputwriters1 = OutputWriters(
+    initialwriters = StructArray([initwriter1]),
+    floewriters = StructArray([floewriter1]),
+)
+
+outputwriters2 = OutputWriters(
+    initialwriters = StructArray([initwriter1]),
+    checkpointwriters = StructArray([checkpointer1]),
+    floewriters = StructArray([floewriter1, floewriter2]),
+    gridwriters = StructArray([gridwriter1]),
+)
+```
+Here you can see that you can choose which values to supply and that you can supply more than one of each type if desired. You might want to do this is you want different outputs at different timeframes. 
 
 ### Reproducibility
 
