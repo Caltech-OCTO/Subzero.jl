@@ -85,6 +85,21 @@ For now, you will need to define ocean velocities that go around your topography
 
 ### Floes
 
+Floes are quite complex objects as they have a lot of needed fields. Here we will talk about a floe struct's fields, as well as how to create a configuration of floes to start your simulation.
+
+A floe's coordinates are represented by a `PolyVec`, which is a shorthand for a vector of a vector of a vector of floats. This sounds complicated, but it is simply a way of representing a polygon's coordinates. A Polygon's coordinates are of the form below, where the xy-coordinates are the exterior border of the floe and the wz-coordinates, or any other following sets of coordinates, describe holes within the floe:
+
+```julia
+coords = [
+  [[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]],  # Exterior vertices of the polygon represented as a list of cartesian points
+  [[w1, z1], [w2, z2], ..., [wn, zn], [w1, z1]],  # Interior holes of the polygon represented as a list of cartesian points
+  ...,  # Additional holes within the polygon represented as a list of cartesian points
+ ]
+ ```
+
+
+It is recomeneded that you use the `initialize_floe_field` to create your starting configuration on floes. There are two ways to use this function. One is to provide a list of floe coordinates as polygon verticies. This will initialize the polygons specified as floes. The other is to provide a number of floes and a concentration over a specific area. This will create a starting floe field using Voronoi Tesselation that aims to achieve the requested number of floes and concentrations. 
+
 ### Making the Model
 Once you have made all of the above components, you are now able to make a model. You will simply do that as follows:
 ```julia
@@ -318,3 +333,31 @@ Here you can see that you can choose which values to supply and that you can sup
 ### Reproducibility
 
 ### Creating the Simulation
+Once you have created all of the above objects, you can combine them to create a `Simulation`. A simulation has quite a few fields, all of which are talked about in more detail above. Since there are so many fields, they are keyword defined, so you must provide a keyword when creating the struct. The only necessary argument is the `model` as everything else has a default value. However, a table of optional elements, and their default values, is as follows:
+
+| Keyword           |    Default Value        | What is it?                                               |
+| ----------------- | ------------------------| --------------------------------------------------------- |
+| consts            | Constants()             | Physical parameters used in the simulation                |
+| rng               | Xoshiro()               | Random number generator - can seed for reproducibility    |
+| verbose           | false                   | Flag for printing timesteps and updates during simulation |
+| name              | "sim"                   | Name of simulation                                        |
+| ∆t                | 10                      | Length of simulation timestep in seconds                  |
+| n∆t               | 7500                    | Number of timesteps run in simulation                     |
+| coupling_settings | CouplingSettings()      | Settings for coupling during the simulation               |
+| collision_settings| CollisionSettings()     | Settings for collisions during the simulation             |
+| fracture_settings | FractureSettings()      | Settings for fractures during the simulation              |
+| simp_settings     | SimplificationSettings()| Settings for floe simplification during the simulation    |
+| writers           | OutputWriters()         | Lists of output writers to be written to during the run   |
+
+Here is an example of how to create a simulation, providing some of these optional inputs given that we have already created the following objects: `my_model`, `my_consts`, `my_coupling_settings`, `my_simp_settings`, and `my_writers`.
+
+```julia
+my_simulation = Simulation(
+    model = my_model,
+    consts = my_consts,
+    Δt = 5,  # Timestep of 5 seconds
+    coupling_settings = my_coupling_settings,
+    simp_settings = my_simp_settings,
+    writers = my_writers,
+)
+```
