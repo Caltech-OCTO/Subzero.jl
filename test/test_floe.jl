@@ -262,7 +262,7 @@
 
     @testset "Stress/Strain" begin
         floes = load(
-            "inputs/test_floes2.jld2",
+            "inputs/test_floes.jld2",
             "stress_strain_floe1",
             "stress_strain_floe2",
         )

@@ -3,8 +3,8 @@ import LibGEOS as LG
 
 # User Inputs
 const FT = Float64
-const Lx = 1e5
-const Ly = 1e5
+const Lx = 5e4
+const Ly = 7e4
 const Δgrid = 10000
 const hmean = 0.25
 const Δh = 0.0
@@ -13,23 +13,20 @@ const Δt = 10
 # Model instantiation
 grid = RegRectilinearGrid(
     FT,
-    (-Lx, Lx),
-    (-Ly, Ly),
+    (-1e4, Lx),
+    (0, Ly),
     Δgrid,
     Δgrid,
 )
-ocean = Ocean(grid, 0.25, 0.0, 0.0)
-atmos = Atmos(
-    zeros(grid.dims .+ 1),
-    zeros(grid.dims .+ 1),
-    zeros(grid.dims .+ 1),
-)
+ocean = Ocean(grid, 0.0, 0.0, 0.0)
+atmos = Atmos(grid, 0.0, 0.0, 0.0)
+
 
 # Domain creation - boundaries and topography
-nboundary = OpenBoundary(grid, North())
-sboundary = OpenBoundary(grid, South())
-eboundary = OpenBoundary(grid, East())
-wboundary = OpenBoundary(grid, West())
+nboundary = CollisionBoundary(grid, North())
+sboundary = CollisionBoundary(grid, South())
+eboundary = CollisionBoundary(grid, East())
+wboundary = CollisionBoundary(grid, West())
 
 island = [[[6e4, 4e4], [6e4, 4.5e4], [6.5e4, 4.5e4], [6.5e4, 4e4], [6e4, 4e4]]]
 topo = TopographyElement([[[-9.5e4, 4.5e4], [-9.5e4, 6.5e4], [-6.5e4, 6.5e4],
@@ -46,14 +43,27 @@ domain = Domain(nboundary, sboundary, eboundary, wboundary)
 # Floe instantiation
 
 rng = Xoshiro(1)
-
-nfloes = 50
-file = jldopen("examples/floe_shapes.jld2", "r")
-nfloes = nfloes > size(file["floe_vertices"], 1) ? size(file["floe_vertices"], 1) : nfloes
-floe_coords = file["floe_vertices"][nfloes+1:2nfloes]
-floe_arr = initialize_floe_field(floe_coords, domain, hmean, Δh, rng = rng)
-close(file)
-floe_arr.u .= rand(rng, nfloes) * 0.05
+floe1 = [[[2e4, 2e4], [2e4, 5e4], [5e4, 5e4], [5e4, 2e4], [2e4, 2e4]]]
+floe_on_wall = initialize_floe_field(
+        [Subzero.translate(floe1, [-2.9e4, 0.0])],
+        domain, # Just affects shape, type doesnt' matter
+        0.25,
+        0.0,
+        rng = rng,
+        nhistory = 100,
+)
+floe_on_wall.u[1] = -0.1
+floe_on_wall.v[1] = 0.01
+# file = jldopen("examples/floe_shapes.jld2", "r")
+#nfloes = nfloes > size(file["floe_vertices"], 1) ? size(file["floe_vertices"], 1) : nfloes
+# floe_coords = file["floe_vertices"][3:5]
+# floe_coords[3] = Subzero.translate(floe_coords[3], [0.0, 2e4])
+# floe_arr = initialize_floe_field(floe_coords, domain, hmean, Δh, rng = rng)
+# close(file)
+# floe_arr.u[1] = 0.1
+# floe_arr.v[2] = -0.2
+# floe_arr.v[3] = 0.2
+#floe_arr.u .= rand(rng, nfloes) * 0.05
 #floe_arr.v .= rand(rng, nfloes) * 0.05
 #floe_arr.ξ .= rand(rng, nfloes) * 1e-12
 
@@ -90,7 +100,7 @@ floe_arr.u .= rand(rng, nfloes) * 0.05
 #[[[6e4, 2e4], [6e4, 5e4], [9e4, 5e4], [9e4, 2e4], [6e4, 2e4]]]
 #floe_arr = load("output/sim/thread1_initial_state.jld2", "sim").model.floes
 
-model = Model(grid, ocean, atmos, domain, floe_arr)
+model = Model(grid, ocean, atmos, domain, floe_on_wall)
 
 # Output setup
 #tstring = string("thread", Threads.nthreads())
@@ -134,7 +144,7 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 1000,
+    nΔt = 10000,
     verbose = true,
     fracture_settings = FractureSettings(
         fractures_on = false,
