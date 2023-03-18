@@ -291,6 +291,7 @@
         
         modulus = 1.5e3*(sqrt(area) + sqrt(area))
         consts = Constants(E = modulus)
+        spinlock = Threads.SpinLock()
 
         # stationary floe, uniform zonal ocean flow
         model1 = Model(
@@ -300,7 +301,12 @@
             domain,
             StructArray([deepcopy(floe)]),
         )
-        Subzero.timestep_coupling!(model1, consts, CouplingSettings(Δd = 2))
+        Subzero.timestep_coupling!(
+            model1,
+            consts,
+            CouplingSettings(Δd = 2),
+            spinlock,
+        )
         @test isapprox(model1.floes[1].fxOA/area, 2.9760, atol = 1e-3)
         @test isapprox(model1.floes[1].fyOA/area, 0.8296, atol = 1e-3)
         @test isapprox(model1.floes[1].trqOA/area, -523.9212, atol = 1e-3)
@@ -314,7 +320,12 @@
             domain,
             StructArray([deepcopy(floe)]),
         )
-        Subzero.timestep_coupling!(model2, consts, CouplingSettings(Δd = 2))
+        Subzero.timestep_coupling!(
+            model2,
+            consts,
+            CouplingSettings(Δd = 2),
+            spinlock,
+        )
         @test isapprox(model2.floes[1].fxOA/area, -0.8296, atol = 1e-3)
         @test isapprox(model2.floes[1].fyOA/area, 2.9760, atol = 1e-3)
         @test isapprox(model2.floes[1].trqOA/area, 239.3141, atol = 1e-3)
@@ -331,7 +342,12 @@
             domain,
             StructArray([floe3]),
         )
-        Subzero.timestep_coupling!(model3, consts, CouplingSettings(Δd = 2))
+        Subzero.timestep_coupling!(
+            model3,
+            consts,
+            CouplingSettings(Δd = 2),
+            spinlock,
+        )
         @test isapprox(model3.floes[1].fxOA/area, -0.1756, atol = 1e-3)
         @test isapprox(model3.floes[1].fyOA/area, -0.1419, atol = 1e-3)
         @test isapprox(model3.floes[1].trqOA/area, 29.0465, atol = 1e-3)
@@ -346,7 +362,12 @@
             domain,
             StructArray([floe4]),
         )
-        Subzero.timestep_coupling!(model4, consts, CouplingSettings(Δd = 2))
+        Subzero.timestep_coupling!(
+            model4,
+            consts,
+            CouplingSettings(Δd = 2),
+            spinlock,
+        )
         @test isapprox(model4.floes[1].fxOA/area, 1.91887860e4, atol = 1e-3)
         @test isapprox(model4.floes[1].fyOA/area, 5.9577026e3, atol = 1e-3)
         @test isapprox(model4.floes[1].trqOA/area, -1.9773119198332e9, atol = 1e-3)
@@ -360,7 +381,12 @@
             domain,
             StructArray([deepcopy(floe)]),
         )
-        Subzero.timestep_coupling!(model5, consts, CouplingSettings(Δd = 2))
+        Subzero.timestep_coupling!(
+            model5,
+            consts,
+            CouplingSettings(Δd = 2),
+            spinlock,
+        )
         @test isapprox(model5.floes[1].fxOA/area, -0.0013, atol = 1e-3)
         @test isapprox(model5.floes[1].fyOA/area, -6.7082e-4, atol = 1e-3)
         @test isapprox(model5.floes[1].trqOA/area, 0.2276, atol = 1e-3)
@@ -380,7 +406,12 @@
             domain,
             StructArray([deepcopy(floe)]),
         )
-        Subzero.timestep_coupling!(model6, consts, CouplingSettings())
+        Subzero.timestep_coupling!(
+            model6,
+            consts,
+            CouplingSettings(),
+            spinlock,
+        )
         @test isapprox(model6.floes[1].fxOA/area, -0.0182, atol = 1e-3)
         @test isapprox(model6.floes[1].fyOA/area, 0.0392, atol = 1e-3)
         @test isapprox(model6.floes[1].trqOA/area, 23.6399, atol = 1e-3)
@@ -394,7 +425,12 @@
             domain,
             StructArray([deepcopy(floe)]),
         )
-        Subzero.timestep_coupling!(model7, consts, CouplingSettings())
+        Subzero.timestep_coupling!(
+            model7,
+            consts,
+            CouplingSettings(),
+            spinlock,
+        )
         @test isapprox(model7.floes[1].fxOA/area, -1.5378e-6, atol = 1e-8)
         @test isapprox(model7.floes[1].fyOA/area, 1.61516e-5, atol = 1e-7)
         @test isapprox(model7.floes[1].trqOA/area, 7.528529e-4, atol = 1e-6)
@@ -410,7 +446,12 @@
             domain,
             StructArray([floe8]),
         )
-        Subzero.timestep_coupling!(model8, consts, CouplingSettings())
+        Subzero.timestep_coupling!(
+            model8,
+            consts,
+            CouplingSettings(),
+            spinlock,
+        )
         @test isapprox(model8.floes[1].fxOA/area, -1.6300, atol = 1e-3)
         @test isapprox(model8.floes[1].fyOA/area, 1.1240, atol = 1e-3)
         @test isapprox(model8.floes[1].trqOA/area, 523.2361, atol = 1e-3)

@@ -65,6 +65,8 @@ Outputs:
 """
 function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
     if !isempty(sim.model.floes)
+        # Need to lock some operations when multi-threading
+        spinlock = Threads.SpinLock()
         # Add ghost floes through periodic boundaries
         n_init_floes = length(sim.model.floes) # number of floes before ghosts
         add_ghosts!(sim.model.floes, sim.model.domain)
@@ -85,7 +87,8 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
                 sim.consts,
                 sim.Δt,
                 sim.collision_settings,
-                T
+                spinlock,
+                T,
             )
         end
 
@@ -96,7 +99,13 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
         # Physical processes without ghost floes
         # Effects of ocean and atmosphere on ice and visa versa
         if sim.coupling_settings.coupling_on && mod(tstep, sim.coupling_settings.Δt) == 0
-            timestep_coupling!(sim.model, sim.consts, sim.coupling_settings, T)
+            timestep_coupling!(
+                sim.model,
+                sim.consts,
+                sim.coupling_settings,
+                spinlock,
+                T,
+            )
         end
 
         # Timestep ocean

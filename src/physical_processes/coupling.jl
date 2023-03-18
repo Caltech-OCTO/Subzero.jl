@@ -825,6 +825,7 @@ end
         grid,
         ns_bound,
         ew_bound,
+        spinlock,
         ::Type{T} = Float64
     )
 
@@ -846,7 +847,7 @@ Inputs:
                     dispatches on periodic vs non-periodic
     ew_bound    <AbstractBoundary> east or west boundary of domain -
                     dispatches on periodic vs non-periodic
-    spinlock           <Thread.SpinLock>
+    spinlock    <Thread.SpinLock>
     T           <Float> Float type simulation is using for calculations
                 (Float32 or Float64)
 Outputs:
@@ -1004,6 +1005,7 @@ end
         model,
         consts,
         coupling_settings,
+        spinlock,
         ::Type{T} = Float64
     )
 
@@ -1013,6 +1015,7 @@ Inputs:
     model               <Model> model
     consts              <Constants> constants used in simulation
     coupling_settings   <CouplingSettings> settings for coupling
+    spinlock            <Thread.SpinLock>
     T                   <AbstractFloat> type to run simulation calculations
 Outputs:
     None. Updates each floe's ocean/atmosphere forcings (fxOA, fyOA, torqueOA)
@@ -1022,14 +1025,14 @@ function timestep_coupling!(
     model,
     consts,
     coupling_settings,
-    ::Type{T} = Float64
+    spinlock,
+    ::Type{T} = Float64,
 ) where T<:AbstractFloat
     # Clear ocean forces and area fractions
     fill!(model.ocean.fx, T(0))
     fill!(model.ocean.fy, T(0))
     fill!(model.ocean.si_area, T(0))
     # Calcualte coupling for each floe
-    spinlock = Threads.SpinLock()
     Threads.@threads for i in eachindex(model.floes)
         ifloe = model.floes[i]
         # Find monte carlo point peroperties
@@ -1123,8 +1126,8 @@ function timestep_ocean!(m, c, Δt)
     Δu_AO = m.atmos.u .- m.ocean.u
     Δv_AO = m.atmos.v .- m.ocean.v
     vel_norm = sqrt.(Δu_AO.^2 + Δv_AO.^2)
-    m.ocean.τx .+= ocn_frac .* c.ρa  *c.Cd_ao * vel_norm .* Δu_AO
-    m.ocean.τy .+= ocn_frac .* c.ρa * c.Cd_ao * vel_norm .* Δv_AO
+    m.ocean.τx .+= c.ρa * c.Cd_ao * ocn_frac .* vel_norm .* Δu_AO
+    m.ocean.τy .+= c.ρa * c.Cd_ao * ocn_frac .* vel_norm .* Δv_AO
     # Update ocean heatflux
     m.ocean.hflx_factor .= Δt * c.k/(c.ρi*c.L) .* (m.ocean.temp .- m.atmos.temp)
 end

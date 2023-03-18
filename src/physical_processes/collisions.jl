@@ -739,6 +739,7 @@ end
         consts,
         Δt,
         collision_settings,
+        spinlock,
         ::Type{T} = Float64,
     )
 
@@ -755,6 +756,7 @@ Inputs:
     consts              <Constants> simulation constants
     Δt                  <Int> length of simulation timestep in seconds
     collision_settings  <CollisionSettings> simulation collision settings
+    spinlock            <Thread.SpinLock>
     T                   <Type{AbstractFloat}> type to run simulation
                             calculations - either Float64 of Float32
 """
@@ -767,6 +769,7 @@ function timestep_collisions!(
     consts,
     Δt,
     collision_settings,
+    spinlock,
     ::Type{T} = Float64,
 ) where T
     collide_pairs = Dict{Tuple{Int, Int}, Tuple{Int, Int}}()
@@ -788,6 +791,11 @@ function timestep_collisions!(
             if (id_pair[1] != id_pair[2]) && (sum((ifloe.centroid .- floes.centroid[j]).^2) < (ifloe.rmax + floes.rmax[j])^2)
                 # Never seen any combo of these floes/ghosts
                 new_collision = !(id_pair in keys(collide_pairs))
+                if new_collision
+                    Threads.lock(spinlock) do
+                        collide_pairs[id_pair] = ghost_id_pair
+                    end
+                end
                 # New collision or floe and ghost colliding with same floe - not a repeat collision
                 if new_collision || (ghost_id_pair[1] == collide_pairs[id_pair][1]) ⊻ (ghost_id_pair[2] == collide_pairs[id_pair][2])
                     iremove, itransfer = floe_floe_interaction!(
@@ -803,10 +811,6 @@ function timestep_collisions!(
                     if iremove != 0 || itransfer != 0
                         remove[i] = iremove
                         transfer[i] = itransfer
-                    end
-                    # If this is a new collision, add to collide_pairs
-                    if new_collision
-                        collide_pairs[id_pair] = ghost_id_pair
                     end
                 end
             end
