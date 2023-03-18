@@ -87,7 +87,7 @@ For now, you will need to define ocean velocities that go around your topography
 
 Floes are quite complex objects as they have a lot of needed fields. Here we will talk about a floe struct's fields, as well as how to create a configuration of floes to start your simulation.
 
-A floe's coordinates are represented by a `PolyVec`, which is a shorthand for a vector of a vector of a vector of floats. This sounds complicated, but it is simply a way of representing a polygon's coordinates. A Polygon's coordinates are of the form below, where the xy-coordinates are the exterior border of the floe and the wz-coordinates, or any other following sets of coordinates, describe holes within the floe:
+One important thing to know is that a floe's coordinates are represented by a `PolyVec`, which is a shorthand for a vector of a vector of a vector of floats. This sounds complicated, but it is simply a way of representing a polygon's coordinates. A Polygon's coordinates are of the form below, where the xy-coordinates are the exterior border of the floe and the wz-coordinates, or any other following sets of coordinates, describe holes within the floe:
 
 ```julia
 coords = [
@@ -96,9 +96,50 @@ coords = [
   ...,  # Additional holes within the polygon represented as a list of cartesian points
  ]
  ```
+ We will use the term `PolyVec` to describe this form of coordiantes and you will see it in the code if you take a look at the code base. It is also the form that floe coordinates are saved in output files.
 
+It is recomeneded that you use the `initialize_floe_field` to create your starting configuration on floes. There are two ways to use this function. One is to provide a list of `PolyVecs` representing a list of the coordinates of all of the floes you want in the initial state. This will initialize all of the given polygons specified as floes. The other is to provide a number of floes and a concentration over a specific area. This will create a starting floe field using Voronoi Tesselation that aims to achieve the requested number of floes and concentrations.
 
-It is recomeneded that you use the `initialize_floe_field` to create your starting configuration on floes. There are two ways to use this function. One is to provide a list of floe coordinates as polygon verticies. This will initialize the polygons specified as floes. The other is to provide a number of floes and a concentration over a specific area. This will create a starting floe field using Voronoi Tesselation that aims to achieve the requested number of floes and concentrations. 
+Both of these functions share most arguments. They are as follows (with default values if they exist):
+- domain, which is the model's domain so that the floes can be fit into the open space using polygon intersections/differences
+- hmean, which is the mean height of all floes created
+- Δh, which is the maximum potential height difference from `hmean` between floes
+- min_floe_area = 0.0, which is the minimum floe area for any floes initialized and smaller floes will not be added to the list of initial floes
+- ρi = 920.0, which is the density of ice in kg/m^3
+- mc_n::Int = 1000, which is the number of monte carlo points desired for each floe
+- nhistory::Int = 1000, which is the length of stress history for each floe
+- rng = Xoshiro(), which is a random number generator so that floe creation is reproducible if a seeded random number generator is provided
+
+Note that all arguments with default values are optional keyword arguments.
+
+Here is an example of creating a small floe field using the version of `initialize_floe_field` that takes in lists of `PolyVec`s. For a real simulation, you would probably generate a list of coordinates and read them in from a file but we create these by hand here for simplicity. Assume we have already created a `domain`.
+```julia
+floe1 = [[[6e4, 2e4], [6e4, 5e4], [9e4, 5e4], [9e4, 2e4], [6e4, 2e4]]]
+floe2 = [[[5.5e4, 2e4], [5.25e4, 4e4], [5.75e4, 4e4], [5.5e4, 2e4]]]
+floe_field = initialize_floe_field(
+  [floe1, floe2],
+  domain,
+  0.25,  # mean height of 0.25
+  0.0,  # all floes will be the same height
+  rng = Xoshiro(1),
+  nhistory = 100,
+)
+```
+
+Now here is an an example of creating a large floe field using the version of `initialize_floe_field` that uses Voronoi tesselation. Again assume we have already created a `domain`.
+```julia
+floe_arr = initialize_floe_field(
+    100,  # attempt to initialize 100 floes
+    [1.0; 0.0],  # the top half of the domain is fully packed and the bottom has no floes
+    domain,
+    0.25,  # mean height of 0.25
+    0.10,  # floe heights will range from 0.15-0.35
+    min_floe_area = 1e7,
+    rng = Xoshiro(1),
+    nhistory = 1000,
+)
+```
+We now focus on the first two arguments. The first is the number of floes to attempt to create with Voronoi tesselation. We are not guarenteed to get exactly that number. It depends on the amount of open space in the domain and the generation of random seed points. For example, if the domain is filled with lots of topography and islands, it will be more difficult to hit the exact number of floes requested. However, it will be in the ballpark. The second argument is the concentrations, which is a matrix. We can split the domain into quadrents that are the same shape at matrix and then request concentrations of ice in each of those quadrents equal to the corresponding value in the concentrations matrix. The other arguments are the same as in the floe coordinate version on the function.
 
 ### Making the Model
 Once you have made all of the above components, you are now able to make a model. You will simply do that as follows:
