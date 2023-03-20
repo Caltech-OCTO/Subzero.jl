@@ -119,7 +119,6 @@ function plot_conservation(
     plot(
         [linear_energy rotational_energy total_energy],
         title = "Total Kinetic Energy",
-        xlabel = "10 Timesteps",
         ylabel = "[N]",
         label=["Linear energy" "Rotational energy" "Total energy"]
     )
@@ -130,7 +129,6 @@ function plot_conservation(
     plot(
         [linear_x_momentum],
         title = "X Momentum",
-        xlabel = "10 Timesteps",
         ylabel = "[N * s]",
         label=["x"]
     )
@@ -138,7 +136,6 @@ function plot_conservation(
     plot(
         [linear_y_momentum],
         title = "Y Momentum",
-        xlabel = "10 Timesteps",
         ylabel = "[N * s]",
         label=["y"]
     )
@@ -148,7 +145,6 @@ function plot_conservation(
     plot(
         [angular_spin_momentum angular_orbital_momentum total_angular_momentum],
         title = "Angular Momentum",
-        xlabel = "10 Timesteps",
         ylabel = "[N * s]",
         label=["Spin momentum" "Orbital momentum" "Total angular momentum"]
     )
@@ -166,15 +162,21 @@ Inputs:
     filename    <String> floe outputwriter filename + path
     dir         <String> directory to save total energy and momentum
                     conservation plots
+    plot        <Bool> plots energy and momentum over time if true
 Outputs:
     Δenergy    <Float> percentage change in energy from first to last timestep
     Δxmomentum       <Float> % change in x momentum from first to last timestep
     Δymomentum       <Float> % change in y momentum from first to last timestep
     Δangularmomentum <Float> % change in angular momentum from first to last
                         timestep
-    Also saves energy and momentum plots over time to given directory
+    Also saves energy and momentum plots over time to given directory if plots
+    is true
 """
-function check_energy_momentum_conservation_julia(filename, dir)
+function check_energy_momentum_conservation_julia(
+    filename,
+    dir = ".",
+    plot = true,
+)
     file = jldopen(filename, "r")
     tsteps = keys(file["centroid"])
     ntsteps = length(tsteps)
@@ -220,15 +222,17 @@ function check_energy_momentum_conservation_julia(filename, dir)
         )
     end
     close(file)
-    plot_conservation(
-        linear_energy,
-        rotational_energy,
-        linear_x_momentum,
-        linear_y_momentum,
-        angular_spin_momentum,
-        angular_orbital_momentum,
-        dir,
-    )
+    if plot
+        plot_conservation(
+            linear_energy,
+            rotational_energy,
+            linear_x_momentum,
+            linear_y_momentum,
+            angular_spin_momentum,
+            angular_orbital_momentum,
+            dir,
+        )
+    end
     return linear_energy .+ rotational_energy,
         linear_x_momentum,
         linear_y_momentum,
@@ -236,7 +240,7 @@ function check_energy_momentum_conservation_julia(filename, dir)
 end
 
 """
-    check_energy_momentum_conservation_matlab(mat_path, dir, verbose)
+    check_energy_momentum_conservation_matlab(mat_path, dir, plot)
 
 Calculates total kinetic energy and momentum at each timestep and plots the
 output to check for conservation from MATLAB verion of model output. The
@@ -247,15 +251,20 @@ Inputs:
     mat_path    <String> path to MATLAB version's Floe folder 
     dir         <String> directory to save total energy and momentum
                     conservation plots
+    plot        <Bool> plots energy and momentum over time if true
 Outputs:
     Δenergy    <Float> percentage change in energy from first to last timestep
     Δxmomentum       <Float> % change in x momentum from first to last timestep
     Δymomentum       <Float> % change in y momentum from first to last timestep
     Δangularmomentum <Float> % change in angular momentum from first to last
                         timestep
-    Also saves energy and momentum plots over time to given directory
+    Also saves energy and momentum plots over time to given directory if plots
+    is true
 """
-function check_energy_momentum_conservation_matlab(mat_path, dir)
+function check_energy_momentum_conservation_matlab(mat_path,
+    dir = ".",
+    plot = true,
+)
     mat_files = readdir(mat_path)
     mat_files = mat_files[last.(splitext.(mat_files)) .== ".mat"]
     ntsteps = length(mat_files)
@@ -298,15 +307,17 @@ function check_energy_momentum_conservation_matlab(mat_path, dir)
             y,
         )
     end
-    plot_conservation(
-        linear_energy,
-        rotational_energy,
-        linear_x_momentum,
-        linear_y_momentum,
-        angular_spin_momentum,
-        angular_orbital_momentum,
-        dir,
-    )
+    if plot
+        plot_conservation(
+            linear_energy,
+            rotational_energy,
+            linear_x_momentum,
+            linear_y_momentum,
+            angular_spin_momentum,
+            angular_orbital_momentum,
+            dir,
+        )
+    end
     return linear_energy .+ rotational_energy,
     linear_x_momentum,
     linear_y_momentum,

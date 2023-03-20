@@ -1,4 +1,4 @@
-function conservation_simulation(grid, domain, floes)
+function conservation_simulation(grid, domain, floes, plot = false)
     ocean = Ocean(grid, 0.0, 0.0, 0.0)
     atmos = Atmos(grid, 0.0, 0.0, 0.0)
     model = Model(grid, ocean, atmos, domain, floes)
@@ -35,6 +35,7 @@ function conservation_simulation(grid, domain, floes)
     em_lists = check_energy_momentum_conservation_julia(
         joinpath(dir, "floes.jld2"),
         dir,
+        plot
     )
     # Note that if any of these start with 0, this won't work
     return [vals[1] != 0 ?
@@ -47,7 +48,7 @@ end
 @testset "Conservation of Energy and Momentum" begin
     grid = RegRectilinearGrid(
         Float64,
-        (-1e4, 1e5),
+        (-2e4, 1e5),
         (0, 1e5),
         1e4,
         1e4,
@@ -62,23 +63,20 @@ end
         OpenBoundary(grid, East()),
         OpenBoundary(grid, West()),
     )
+    topo = TopographyElement([[[-1e4, 0.0], [-2e4, 1e4], [-1e4, 1e4], [-1e4, 0.0]]])
+    open_domain_w_topography = Domain(OpenBoundary(grid, North()),
+        OpenBoundary(grid, South()),
+        OpenBoundary(grid, East()),
+        OpenBoundary(grid, West()),
+        StructVector([topo])
+    )
     rng = Xoshiro(1)
     floe1 = [[[2e4, 2e4], [2e4, 5e4], [5e4, 5e4], [5e4, 2e4], [2e4, 2e4]]]
     floe2 = [[[6e4, 2e4], [6e4, 5e4], [9e4, 5e4], [9e4, 2e4], [6e4, 2e4]]]
     floe3 = [[[5.5e4, 2e4], [5.25e4, 4e4], [5.75e4, 4e4], [5.5e4, 2e4]]]
-    # One block hits the wall --> only check conservation of energy
-    floe_on_wall = initialize_floe_field(
-        [Subzero.translate(floe1, [-2.9e4, 0.0])],
-        open_domain, # Just affects shape, type doesn't matter
-        0.25,
-        0.0,
-        rng = rng,
-        nhistory = 100,
-    )
-    floe_on_wall.u[1] = -0.1
-    floe_on_wall.v[1] = 0.01
-    @test abs.(conservation_simulation(grid, collision_domain, floe_on_wall))[1] < 1
+
     # Two blocks crashing head on - no rotation
+    rng = Xoshiro(1)
     head_on_floes = initialize_floe_field(
         [floe1, floe2],
         open_domain, # Just affects shape, type doesn't matter
@@ -93,9 +91,14 @@ end
     head_on_floes.v[2] = 0.02
     head_on_floes.ξ[1] = 1e-7
     # less than 1% change in both with open domain
-    @test all(abs.(conservation_simulation(grid, open_domain, head_on_floes)) .< 1)
+    @test all(abs.(conservation_simulation(
+        grid,
+        open_domain,
+        head_on_floes,
+    )) .< 1)
 
     # Two blocks crashing offset - rotation
+    rng = Xoshiro(1)
     offset_floes = initialize_floe_field(
         [floe1, Subzero.translate(floe2, [0.0, 1e4])],
         open_domain, # Just affects shape, type doesn't matter
@@ -109,9 +112,14 @@ end
     offset_floes.v[1] = 0.02
     offset_floes.v[2] = 0.02
     offset_floes.ξ[1] = 1e-7
-    @test all(abs.(conservation_simulation(grid, open_domain, offset_floes)) .< 1)
+    @test all(abs.(conservation_simulation(
+        grid,
+        open_domain,
+        offset_floes,
+    )) .< 1)
 
     # Two rectangular boxes with a triangle inbetween causing rotation
+    rng = Xoshiro(1)
     rotating_floes = initialize_floe_field(
         [floe1, floe2, floe3],
         open_domain, # Just affects shape, type doesn't matter
@@ -126,13 +134,16 @@ end
     rotating_floes.v[1] = 0.001
     rotating_floes.v[2] = 0.001
     rotating_floes.v[3] = 0.001
-    @test all(abs.(conservation_simulation(grid, open_domain, rotating_floes)) .< 1)
+    @test all(abs.(conservation_simulation(
+        grid,
+        open_domain,
+        rotating_floes,
+    )) .< 1)
 
     # Three complex (many-sided, non-convex) floes hitting
+    rng = Xoshiro(1)
     file = jldopen("inputs/floe_shapes.jld2", "r")
-    floe_coords = file["floe_vertices"][3:5]
-    floe_coords[3] = Subzero.translate(floe_coords[3], [0.0, 2e4])
-    floe_arr = initialize_floe_field(
+    complex_floes = initialize_floe_field(
         [
             Subzero.translate(file["floe_vertices"][3], [0.0, 2e4]),
             file["floe_vertices"][4],
@@ -144,9 +155,34 @@ end
         rng = rng,
     )
     close(file)
-    floe_arr.u[1] = 0.1
-    floe_arr.v[2] = -0.2
-    floe_arr.v[3] = 0.2
-    # Slightly higher drop in energy
-    @test all(abs.(conservation_simulation(grid, open_domain, rotating_floes)) .< 2)
+    complex_floes.u[1] = 0.1
+    complex_floes.v[2] = -0.2
+    complex_floes.v[3] = 0.2
+    # Slightly higher change in energy due to strage shapes
+    @test all(abs.(conservation_simulation(
+        grid,
+        open_domain,
+        complex_floes,
+    )) .< 2.1)
+
+    # One non-convex block hits the wall and topography -> only check conservation of energy
+    rng = Xoshiro(1)
+    file = jldopen("inputs/floe_shapes.jld2", "r")
+    floe_on_wall_topo = file["floe_vertices"][1]
+    floe_on_wall_topo = Subzero.translate(floe_on_wall_topo, [-1.75e4, -0.9e4])
+    floe_arr = initialize_floe_field(
+        [floe_on_wall_topo],
+        open_domain_w_topography,
+        0.25,
+        0.0,
+        rng = rng,
+    )
+    close(file)
+    floe_arr.u[1] = -0.09
+    floe_arr.v[1] = -0.09
+    @test abs(conservation_simulation(
+        grid,
+        open_domain_w_topography,
+        floe_arr,
+    )[1]) < 1
 end
