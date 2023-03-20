@@ -87,7 +87,12 @@ For now, you will need to define ocean velocities that go around your topography
 
 Floes are quite complex objects as they have a lot of needed fields. Here we will talk about a floe struct's fields, as well as how to create a configuration of floes to start your simulation.
 
-One important thing to know is that a floe's coordinates are represented by a `PolyVec`, which is a shorthand for a vector of a vector of a vector of floats. This sounds complicated, but it is simply a way of representing a polygon's coordinates. A Polygon's coordinates are of the form below, where the xy-coordinates are the exterior border of the floe and the wz-coordinates, or any other following sets of coordinates, describe holes within the floe:
+#### Floe Struct Fields
+A floe's fields can be broken down into several catagories. We will go through each catagory and describe the fields within in briefly in table-form.
+
+The first catagory is **physical properties**. These have to do with the floe's physical shape. 
+
+Before listing the fields, one important thing to know is that a floe's coordinates are represented by a `PolyVec`, which is a shorthand for a vector of a vector of a vector of floats. This sounds complicated, but it is simply a way of representing a polygon's coordinates. A Polygon's coordinates are of the form below, where the xy-coordinates are the exterior border of the floe and the wz-coordinates, or any other following sets of coordinates, describe holes within the floe:
 
 ```julia
 coords = [
@@ -97,18 +102,87 @@ coords = [
  ]
  ```
  We will use the term `PolyVec` to describe this form of coordiantes and you will see it in the code if you take a look at the code base. It is also the form that floe coordinates are saved in output files.
+ 
+| Physical Fields| Meaning                            | Type          |
+| -------------- | ---------------------------------- | ------------- |
+| centroid       | floe's centroid                    | Float64 or Float32|
+| coords         | floe's coordinates                 | PolyVec of Float64 or Float32 |
+| height         | floe's height in [m]                 | Float64 or Float32|
+| area           | floe's area in [m^2]                 | Float64 or Float32|
+| mass           | floe's mass in [kg]                  | Float64 or Float32|
+| rmax           | floe's maximum radius, the maximum <br> distance from centroid to vertex in [m] | Float64 or Float32|
+| moment         | floe's mass moment of intertia in [kg m^2]    | Float64 or Float32|
+| angles         | list of floe's vertex angles in [degrees] | Vector of Float64 or Float32|
 
+The second catagory is **monte carlo points**. These are used for interpolation of the ocean and atmosphere onto the floe. They are a list of random points within the floe. They are randomly generated, with the user providing an initial target number of points using the `mc_n` argument in the floe constructor or in the initial floe field function. The user will not end up with `mc_n` monte carlo points. These are the number of points generated in a bounding box around the floe generated using the floe's `rmax` as the side lengths. However, every point that is outside of the floe will be removed. The monte carlo points are repeatedly generated until a set is created with 5% accuracy. If a set cannot be determined in 10 tries, the floe will be marked for removal using the `alive` field (see below)
+| Monte Carlo Fields| Meaning                                 | Type                        |
+| ----------------- | --------------------------------------- | --------------------------- |
+| mc_x              | floe's monte carlo points x-coordinates | Vector of Float64 or Float32|
+| mc_y              | floe's monte carlo points y-coordinates | Vector of Float64 or Float32|
+
+The third catagory is **velocities and orientations**. Floe's have both linear and angular velocity and keep track of the angle that they have rotated since the begining of the simulation.
+| Movement Fields| Meaning                         | Type               |
+| -------------- | ------------------------------- | ------------------ |
+| u              | floe's x-velocity in [m/s]        | Float64 or Float32 |
+| v              | floe's x-velocity in [m/s]        | Float64 or Float32 |
+| ξ              | floe's angular velocity in [rad/s]| Float64 or Float32 |
+| α              | rotation from starting position<br> in [rad]| Float64 or Float32 |
+
+The fourth catagory is **status**. These fields hold logistical information about each floe and through which process it originated.
+| Status Fields  | Meaning                         | Type               |
+| -------------- | ------------------------------- | ------------------ |
+| alive          | if the floe is still active in the simulation        | Bool |
+| id             | unique floe id for tracking the floe throughout the simulation | Int |
+| ghost_id       | if floe is not a ghost, `ghost_id = 0`, else it is in `[1, 4]`<br> as each floe can have up to 4 ghosts| Int |
+| fracture_id    | if floe is created from a fracture, `fracture_id` is equal to <br> the original floe's `id`, else it is 0| Int |
+| ghosts         | indices of floe's ghost floes within the floe list| Vector of Ints |
+
+The fifth catagory is **forces and collisions**. These fields hold information about the forces on each floe and the collisions it has been in.
+| Force Fields      | Meaning                                    | Type                        |
+| ----------------- | ------------------------------------------ | --------------------------- |
+| fxOA              | x-force on floe from ocean and atmosphere in [N] | Float64 or Float32|
+| fyOA              | y-force on floe from ocean and atmosphere in [N] | Float64 or Float32|
+| trqOA             | torque on floe from ocean and atmosphere in [N m]| Float64 or Float32|
+| hflx_factor       | coefficent of floe height to get heat flux directly <br> under floe in [W/m^3]| Float64 or Float32|
+| overarea          | total overlap of floe from collisions in [m^2]   | Float64 or Float32|
+| collision_force   | forces on floe from collisions in [N]            | Float64 or Float32|
+| collision_trq     | torque on floe from collisions in [N m]          | Float64 or Float32|
+| interactions      | each row holds one collision's information, see below for more information | `n`x7 Matrix of Float64 or Float32 <br> where `n` is the number of collisions|
+| stress            | stress on floe at current timestep | 2x2 Matrix of Float64 or Float32|
+| stress_history    | history of stress on floe | 2x2x`nhistory` Matrix of Float64 or Float32 <br> where `nhistory` is the number of previous timesteps to save|
+| strain            | strain on floe | 2x2 Matrix of Float64 or Float32|
+
+TODO: Add more information on interactions, stress, and strain
+
+The fifth catagory is **previous values**.
+| Previous Value Fields | Meaning                                       | Type               |
+| --------------------- | --------------------------------------------- | -------------------|
+| p_dxdt                | previous timestep x-velocity in [m/s]         | Float64 or Float32|
+| p_dydt                | previous timestep y-velocity in [m/s]         | Float64 or Float32|
+| p_dudt                | previous timestep x-acceleration in [m/s^2]   | Float64 or Float32|
+| p_dvdt                | previous timestep y-acceleration in [m/s^2]   | Float64 or Float32|
+| p_dξdt                | previous timestep time angular acceleration in [rad/s^2] | Float64 or Float32|
+| p_dαdt                | previous timestep angular-velocity in [rad/s] | Float64 or Float32|
+
+You can create one floe at a time using floe constructors that will set initial values for all of these fields depending on your inputs. There are two constructors, one which takes in a PolyVec of coordinates and another which takes in a polygon created using `LibGEOS`.
+
+Here is an example of using each:
+TODO: Add in Floe examples
+
+However, it is recomended that you use the `initialize_floe_field` functions instead to create your simulation starting configuration of floes.
+ 
+#### Initial Floe Configuration
 It is recomeneded that you use the `initialize_floe_field` to create your starting configuration on floes. There are two ways to use this function. One is to provide a list of `PolyVecs` representing a list of the coordinates of all of the floes you want in the initial state. This will initialize all of the given polygons specified as floes. The other is to provide a number of floes and a concentration over a specific area. This will create a starting floe field using Voronoi Tesselation that aims to achieve the requested number of floes and concentrations.
 
 Both of these functions share most arguments. They are as follows (with default values if they exist):
-- domain, which is the model's domain so that the floes can be fit into the open space using polygon intersections/differences
-- hmean, which is the mean height of all floes created
-- Δh, which is the maximum potential height difference from `hmean` between floes
-- min_floe_area = 0.0, which is the minimum floe area for any floes initialized and smaller floes will not be added to the list of initial floes
-- ρi = 920.0, which is the density of ice in kg/m^3
-- mc_n::Int = 1000, which is the number of monte carlo points desired for each floe
-- nhistory::Int = 1000, which is the length of stress history for each floe
-- rng = Xoshiro(), which is a random number generator so that floe creation is reproducible if a seeded random number generator is provided
+- `domain`, which is the model's domain so that the floes can be fit into the open space using polygon intersections/differences
+- `hmean`, which is the mean height of all floes created
+- `Δh`, which is the maximum potential height difference from `hmean` between floes
+- `min_floe_area = 0.0`, which is the minimum floe area for any floes initialized and smaller floes will not be added to the list of initial floes
+- `ρi = 920.0`, which is the density of ice in kg/m^3
+- `mc_n = 1000`, which is the number of monte carlo points desired for each floe
+- `nhistory = 1000`, which is the length of stress history for each floe
+- `rng = Xoshiro()`, which is a random number generator so that floe creation is reproducible if a seeded random number generator is provided
 
 Note that all arguments with default values are optional keyword arguments.
 
