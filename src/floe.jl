@@ -53,9 +53,9 @@ Singular sea ice floe with fields describing current state.
     p_dxdt::FT = 0.0        # previous timestep x-velocity
     p_dydt::FT = 0.0        # previous timestep y-velocity
     p_dudt::FT = 0.0        # previous timestep x-acceleration
-    p_dvdt::FT = 0.0        # previous timestep x-acceleration
+    p_dvdt::FT = 0.0        # previous timestep y-acceleration
     p_dξdt::FT = 0.0        # previous timestep time derivative of ξ
-    p_dαdt::FT = 0.0        # previous timestep ξ
+    p_dαdt::FT = 0.0        # previous timestep angular-velocity
 end
 
 """
