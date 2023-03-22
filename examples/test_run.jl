@@ -1,4 +1,4 @@
-using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero, BenchmarkTools, MAT, ProfileView
+using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero, BenchmarkTools, MAT, ProfileView, Profile, PProf
 import LibGEOS as LG
 
 # User Inputs
@@ -73,7 +73,7 @@ simulation = Simulation(
     name = "sim",
     model = model,
     Δt = 10,
-    nΔt = 500,
+    nΔt = 50,
     writers = writers,
     verbose = true
 )
@@ -85,8 +85,12 @@ simulation = Simulation(
 
 # # Run simulation
 #time_run(simulation)
-ProfileView.@profview run!(simulation)
-
+#Profile.Allocs.clear()
+#@time run!(simulation)
+#ProfileView.@profview run!(simulation)
+#Profile.Allocs.@profile timestep_sim!(simulation, 1)
+#PProf.Allocs.pprof(from_c = false)
+# last(sort(results.allocs, by=x->x.size))
 # Subzero.create_sim_gif(
 #     joinpath(dir, "floes.jld2"), 
 #     joinpath(dir, "initial_state.jld2"),
