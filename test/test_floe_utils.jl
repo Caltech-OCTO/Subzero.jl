@@ -70,7 +70,7 @@
         LG.Polygon(centered_coords .* 2.0))
 
     # Test seperating x and y coordiantes from PolyVec form
-    x_ext, y_ext = Subzero.seperate_xy([ext])
+    x_ext, y_ext = Subzero.separate_xy([ext])
     @test x_ext == [0.0, 0.0, 1.0, 1.0, 0.0]
     @test y_ext == [1.0, 0.0, 0.0, 1.0, 1.0]
 

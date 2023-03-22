@@ -3,6 +3,81 @@ Structs and functions used to define floes and floe fields within Subzero
 """
 
 """
+    StressCircularBuffer{FT<:AbstractFloat}
+
+Extended circular buffer for the stress history that hold 2x2 matrices of stress
+values and allows for efficently taking the mean of  buffer by keeping an
+element-wise running total of values within circular buffer
+"""
+mutable struct StressCircularBuffer{FT<:AbstractFloat}
+    cb::CircularBuffer{Matrix{FT}}
+    total::Matrix{FT}
+end
+"""
+    StressCircularBuffer{FT}(capacity::Int)
+
+Create a stress buffer with given capacity
+Inputs:
+    capacity    <Int> capacity of circular buffer
+Outputs:
+    StressCircularBuffer with given capacity and a starting total that is a 2x2
+    matrix of zeros.
+"""
+StressCircularBuffer{FT}(capacity::Int) where {FT} =
+    StressCircularBuffer{FT}(
+        CircularBuffer{Matrix{FT}}(capacity),
+        zeros(FT, 2, 2)
+    )
+"""
+    push!(scb::StressCircularBuffer, data)
+
+Adds element to the back of the circular buffer and overwrite front if full.
+Add data to total and remove overwritten value from total if full.
+Inputs:
+    scb     <StressCircularBuffer> stress circular buffer
+    data    <Matrix> 2x2 stress data
+Outputs:
+    Add data to the buffer and update the total to reflect the addition
+"""
+function Base.push!(scb::StressCircularBuffer, data)
+    if scb.cb.length == scb.cb.capacity
+        scb.total .-= scb.cb[1]
+    end
+    scb.total .+= data
+    push!(scb.cb, data)
+end
+
+"""
+fill!(scb::StressCircularBuffer, data)
+
+Grows the buffer up-to capacity, and fills it entirely. It doesn't overwrite
+existing elements. Adds value of added items to total.
+Inputs:
+    scb     <StressCircularBuffer> stress circular buffer
+    data    <Matrix> 2x2 stress data
+Outputs:
+    Fill all empty buffer slots with data and update total to reflect additions
+"""
+function Base.fill!(scb::StressCircularBuffer, data)
+    scb.total .+= (scb.cb.capacity - scb.cb.length) * data
+    fill!(scb.cb, data)
+end
+
+"""
+    mean(scb::StressCircularBuffer)
+
+Calculates mean of buffer, over the capacity of the buffer. If the buffer is not
+full, empty slots are counted as zeros.
+Inputs:
+    scb     <StressCircularBuffer> stress circular buffer
+Outputs:
+    mean of stress circular buffer over the capacity of the buffer
+"""
+function Statistics.mean(scb::StressCircularBuffer)
+    return scb.total / capacity(scb.cb) 
+end
+
+"""
 Singular sea ice floe with fields describing current state.
 """
 @kwdef mutable struct Floe{FT<:AbstractFloat}
@@ -47,7 +122,7 @@ Singular sea ice floe with fields describing current state.
     collision_trq::FT = 0.0
     interactions::Matrix{FT} = zeros(0, 7)
     stress::Matrix{FT} = zeros(2, 2)
-    stress_history::CircularBuffer{Matrix{FT}} = CircularBuffer(1000)
+    stress_history::StressCircularBuffer{FT} = StressCircularBuffer(1000)
     strain::Matrix{FT} = zeros(2, 2)
     # Previous values for timestepping  -------------------------------------
     p_dxdt::FT = 0.0        # previous timestep x-velocity
@@ -78,7 +153,6 @@ Base.to_index(s::InteractionFields) = Int(s)
 Create a range of interactions field columns with InteractionFields enum objects
 """
 Base.:(:)(a::InteractionFields, b::InteractionFields) = Int(a):Int(b)
-
 
 """
     generate_mc_points(
@@ -214,7 +288,7 @@ function Floe(
     )
 
     # Generate Stress History
-    stress_history = CircularBuffer{Matrix{T}}(nhistory)
+    stress_history = StressCircularBuffer{T}(nhistory)
     fill!(stress_history, zeros(T, 2, 2))
 
     return Floe(
@@ -756,7 +830,7 @@ Outputs:
     None. Updates floe's strain field. 
 """
 function calc_strain!(floe)
-    xcoords, ycoords = seperate_xy(translate(floe.coords, -floe.centroid))
+    xcoords, ycoords = separate_xy(translate(floe.coords, -floe.centroid))
     # Needed copy of first coordinate at end for calculations
     push!(xcoords, xcoords[1])
     push!(ycoords, ycoords[1])
@@ -788,8 +862,8 @@ Output:
 function timestep_floe_properties!(floes, Δt)
     Threads.@threads for i in eachindex(floes)
         ifloe = floes[i]
-        cforce = ifloe.collision_force
-        ctrq = ifloe.collision_trq
+        cforce = floes.collision_force[i]
+        ctrq = floes.collision_trq[i]
         # Update stress
         calc_stress!(ifloe)
         # Ensure no extreem values due to model instability

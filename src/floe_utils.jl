@@ -276,7 +276,7 @@ function sortregions(multipoly::LG.MultiPolygon)
 end
 
 """
-    seperate_xy(coords::PolyVec{T})
+    separate_xy(coords::PolyVec{T})
 
 Pulls x and y coordinates from standard polygon vector coordinates into seperate
 vectors. Only keeps external coordinates and disregards holes
@@ -286,7 +286,7 @@ Outputs:
     x <Vector{Float}> x coordinates
     y <Vector{Float}> y coordinates
 """
-function seperate_xy(coords::PolyVec{T}) where {T<:AbstractFloat}
+function separate_xy(coords::PolyVec{T}) where {T<:AbstractFloat}
     x = first.(coords[1])
     y = last.(coords[1])
     return x, y 
@@ -315,7 +315,7 @@ function calc_moment_inertia(
     h;
     ρi = 920.0
 ) where {T<:AbstractFloat}
-    x, y = seperate_xy(coords)
+    x, y = separate_xy(coords)
     x .-= centroid[1]
     y .-= centroid[2]
     N = length(x)
@@ -648,7 +648,7 @@ Inputs:
 Outputs:
     <Matrix{AbstractFloat}> N intersection points in a Nx2 matrix where column 1
         is the x-coordinates and column 2 is the y-coordinates and each row is
-        an intersection point .
+        an intersection point.
 
 Note - Translated into Julia from the following program:
     NS (2022). Curve intersections
@@ -657,8 +657,8 @@ Note - Translated into Julia from the following program:
     Only translated for the case where l1 and l2 are distinct. 
 """
 function intersect_lines(l1, l2)
-    x1, y1 = seperate_xy(l1)
-    x2, y2 = seperate_xy(l2)
+    x1, y1 = separate_xy(l1)
+    x2, y2 = separate_xy(l2)
     x2t = x2'
     y2t = y2'
     Δx1 = diff(x1)
@@ -667,13 +667,13 @@ function intersect_lines(l1, l2)
     Δy2 = diff(y2t, dims = 2)
 
     # Determine 'signed distances' 
-    S1 = Δx1 .* y1[1:end-1] - Δy1 .* x1[1:end-1]
+    S1 = Δx1 .* @view(y1[1:end-1]) .- Δy1 .* @view(x1[1:end-1])
     s1 = (Δx1 .* y2t .- Δy1 .*x2t)  # Needed for S1 calculation
-    C1 = (s1[:, 1:end-1] .- S1) .* (s1[:, 2:end] .- S1) .<= 0
+    C1 = (@view(s1[:, 1:end-1]) .- S1) .* (@view(s1[:, 2:end]) .- S1) .<= 0
 
-    S2 = Δx2 .* y2t[:, 1:end-1] - Δy2 .* x2t[:, 1:end-1]
+    S2 = Δx2 .* @view(y2t[:, 1:end-1]) .- Δy2 .* @view(x2t[:, 1:end-1])
     s2 = (y1 .* Δx2 .- x1 .* Δy2)'  # Needed for S2 calculation
-    C2 = ((s2[:, 1:end-1] .- S2') .* (s2[:, 2:end] .- S2') .<= 0)'
+    C2 = ((@view(s2[:, 1:end-1]) .- S2') .* (@view(s2[:, 2:end]) .- S2') .<= 0)'
 
     # Obtain the segments where an intersection is expected
     idx = findall(C1 .& C2)

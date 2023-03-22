@@ -6,7 +6,7 @@
     poly1 = LG.Polygon(Subzero.valid_polyvec!(floe_coords[1]))
     centroid1 = LG.GeoInterface.coordinates(LG.centroid(poly1))
     origin_coords = Subzero.translate(floe_coords[1], -centroid1)
-    xo, yo = Subzero.seperate_xy(origin_coords)
+    xo, yo = Subzero.separate_xy(origin_coords)
     rmax = sqrt(maximum([sum(xo[i]^2 + yo[i]^2) for i in eachindex(xo)]))
     area = LG.area(poly1)
     mc_x, mc_y, alive = Subzero.generate_mc_points(
@@ -261,6 +261,26 @@
     @test all(floe_arr.id .== range(1, nfloes))
 
     @testset "Stress/Strain" begin
+        # Test Stress History buffer
+        scb = Subzero.StressCircularBuffer{Float64}(10)
+        @test scb.cb.capacity == 10
+        @test scb.cb.length == 0
+        @test eltype(scb.cb) <: Matrix{Float64}
+        @test scb.total isa Matrix{Float64}
+        @test all(scb.total .== 0)
+        fill!(scb, ones(Float64, 2, 2))
+        @test scb.cb.length == 10
+        @test all(scb.total .== 10)
+        @test scb.cb[1] == scb.cb[end] == ones(Float64, 2, 2)
+        @test mean(scb) == ones(Float64, 2, 2)
+        push!(scb, zeros(Float64, 2, 2))
+        @test scb.cb.length == 10
+        @test all(scb.total .== 9)
+        @test scb.cb[end] == zeros(Float64, 2, 2)
+        @test scb.cb[1] == ones(Float64, 2, 2)
+        @test all(mean(scb) .== 0.9)
+
+        # Test Stress and Strain Calculations
         floes = load(
             "inputs/test_floes.jld2",
             "stress_strain_floe1",

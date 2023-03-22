@@ -63,7 +63,7 @@ function calc_normal_force(
             force_dir = [-Δy/Δl; Δx/Δl]
         end
     elseif m != 0  # Unusual number of intersection points
-        x, y = seperate_xy(coords)
+        x, y = separate_xy(coords)
         Δx = diff(x)
         xmid = (x[2:end] .+ x[1:end-1]) ./ 2
         Δy = diff(y)
@@ -114,8 +114,8 @@ end
 Calculate normal forces, the point the force is applied, and the overlap area of
 regions created from floe collisions 
 Inputs:
-    floe1           <Floe> first floe in collision
-    floe2           <Floe> second floe in collision
+    c1              <PolyVec> first floe's coordinates in collision
+    c2              <PolyVec> second floe's coordinates in collision
     regions         <Vector{LibGEOS.Polygon}> polygon regions of overlap during
                         collision
     region_areas    <Vector{Float}> area of each polygon in regions
@@ -279,7 +279,7 @@ function floe_floe_interaction!(
     if LG.intersects(ifloe_poly, jfloe_poly)  # Check if floes intersect
         inter_floe = LG.intersection(ifloe_poly, jfloe_poly)
         inter_regions = LG.getGeometries(inter_floe)
-        region_areas = LG.area.(inter_regions)
+        region_areas = [LG.area(r) for r in inter_regions]
         total_area = sum(region_areas)
         # Floes overlap too much - remove floe or transfer floe mass
         if total_area/ifloe.area > max_overlap
@@ -831,7 +831,7 @@ function timestep_collisions!(
         if i <= n_init_floes && remove[i] > 0 && remove[i] != i
             transfer[remove[i]] = i
         end
-        ij_inters = floes[i].interactions
+        ij_inters = floes.interactions[i]
         if !isempty(ij_inters)
             for inter_idx in axes(ij_inters, 1)  # Loop over each interaction with Floe i
                 j = ij_inters[inter_idx, floeidx]  # Index of floe to update in model floe list
