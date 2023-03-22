@@ -148,11 +148,20 @@ The fifth catagory is **forces and collisions**. These fields hold information a
 | collision_force   | forces on floe from collisions in [N]            | Float64 or Float32|
 | collision_trq     | torque on floe from collisions in [N m]          | Float64 or Float32|
 | interactions      | each row holds one collision's information, see below for more information | `n`x7 Matrix of Float64 or Float32 <br> where `n` is the number of collisions|
-| stress            | stress on floe at current timestep | 2x2 Matrix of Float64 or Float32|
-| stress_history    | history of stress on floe | 2x2x`nhistory` Matrix of Float64 or Float32 <br> where `nhistory` is the number of previous timesteps to save|
-| strain            | strain on floe | 2x2 Matrix of Float64 or Float32|
+| stress            | stress on floe at current timestep where it is of the form [xx yx; xy yy] | 2x2 Matrix of Float64 or Float32|
+| stress_history    | history of stress on floe | circular buffer with capacity `nhistory` where each element is a previous timesteps stress <br> where `nhistory` is the number of previous timesteps to save|
+| strain            | strain on floe where it is of the form [ux vx; uy vy] | 2x2 Matrix of Float64 or Float32|
 
-TODO: Add more information on interactions, stress, and strain
+The `interactions` field is a matrix where every row is a different collision that the floe has experienced in the given timestep. There are then seven columns, which are as follows:
+- `floeidx`, which is the index of the floe that the current floe collided with
+- `xforce`, which is the force in the x-direction caused by the collision
+- `yforce`, which is the force in the y-direction caused by the collision
+- `xpoint`, which is the x-coordinate of the collision point, which is the x-centroid of the overlap between the floes
+- `ypoint`, which is the y-coordinate of the collision point, which is the y-centroid of the overlap between the floes
+- `torque`, which is the torque caused by the collision
+- `overlap`, which is the overlap area between the two floes in the collision. 
+You can use these column names to access columns of `interactions`. For example: `floe.interactions[:, xforce]` gives the list of x-force values for all collisions a given floe was involved in as that timestep.
+
 
 The fifth catagory is **previous values**.
 | Previous Value Fields | Meaning                                       | Type               |
@@ -164,12 +173,28 @@ The fifth catagory is **previous values**.
 | p_dξdt                | previous timestep time angular acceleration in [rad/s^2] | Float64 or Float32|
 | p_dαdt                | previous timestep angular-velocity in [rad/s] | Float64 or Float32|
 
-You can create one floe at a time using floe constructors that will set initial values for all of these fields depending on your inputs. There are two constructors, one which takes in a PolyVec of coordinates and another which takes in a polygon created using `LibGEOS`.
+You can create one floe at a time using floe constructors that will set initial values for all of these fields depending on your inputs.
 
-Here is an example of using each:
-TODO: Add in Floe examples
+Here is an example of using the PolyVec coordinates constructor, assume we have already created a PolyVec called `coords`:
+```julia
+hmean = 0.25
+Δh = 0.1
+floe = Floe(
+    coords,
+    hmean,  # Floe height will be between 0.15 - 0.35
+    Δh,  # Δh is the maximum difference between hmean and actual floe height
+    ρi = 920.0,
+    u = 0.0,
+    v = 0.0,
+    ξ = 0.0,
+    mc_n = 1000,
+    nhistory = 1000,
+    rng = Xoshiro(),
+)
+```
+All of the arguments below Δh, and their default values are give above.
 
-However, it is recomended that you use the `initialize_floe_field` functions instead to create your simulation starting configuration of floes.
+However, it is not recomended that you manually create each floe. It is recomended that you use the `initialize_floe_field` functions instead to create your simulation starting configuration of floes.
  
 #### Initial Floe Configuration
 It is recomeneded that you use the `initialize_floe_field` to create your starting configuration on floes. There are two ways to use this function. One is to provide a list of `PolyVecs` representing a list of the coordinates of all of the floes you want in the initial state. This will initialize all of the given polygons specified as floes. The other is to provide a number of floes and a concentration over a specific area. This will create a starting floe field using Voronoi Tesselation that aims to achieve the requested number of floes and concentrations.
