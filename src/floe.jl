@@ -832,7 +832,7 @@ Inputs:
 Outputs:
     strain      <Matrix{AbstractFloat}> 2x2 matrix for floe strain 
 """
-function calc_strain(coords, centroid, u, v, ξ, area)
+function calc_strain(coords, centroid, u, v, ξ, area::FT) where {FT}
     # coordinates of floe centered at centroid
     translate!(coords, -centroid)
     xcoords, ycoords = separate_xy(coords)
@@ -843,10 +843,16 @@ function calc_strain(coords, centroid, u, v, ξ, area)
     xcoords_diff = diff(xcoords)
     ycoords_diff = diff(ycoords)
     # u and v velocities of floes at each vertex
-    rad_coords = sqrt.(xcoords.^2 .+ ycoords.^2)
-    θ_coords = atan.(ycoords, xcoords)
-    ucoords_diff = diff(u .- ξ * rad_coords .* sin.(θ_coords))
-    vcoords_diff = diff(v .+ ξ * rad_coords .* cos.(θ_coords))
+    ucoords = fill(u, size(xcoords))
+    vcoords = fill(v, size(xcoords))
+    for i in eachindex(ucoords)
+        rad = sqrt(xcoords[i]^2 + ycoords[i]^2)
+        θ = atan(ycoords[i], xcoords[i])
+        ucoords[i] -= ξ * rad * sin(θ)
+        vcoords[i] += ξ * rad * cos(θ)
+    end
+    ucoords_diff = diff(ucoords)
+    vcoords_diff = diff(vcoords)
     strain = fill(0.5*area, 2, 2)
     strain[1, 1] *= sum(ucoords_diff .* ycoords_diff) # dudx
     strain[1, 2] *= 0.5(sum(ucoords_diff .* xcoords_diff) +
@@ -950,7 +956,7 @@ function timestep_floe_properties!(floes, Δt)
 
         dξdt = (floes.trqOA[i] + ctrq)/floes.moment[i]
         dξdt = frac*dξdt
-        ξ = floes.ξ[i] + 1.5Δt*dξdt-0.5Δt*floes[i].p_dξdt
+        ξ = floes.ξ[i] + 1.5Δt*dξdt-0.5Δt*floes.p_dξdt[i]
         if abs(ξ) > 1e-4
             @warn "Shrinking ξ"
             ξ = sign(ξ) * 1e-4

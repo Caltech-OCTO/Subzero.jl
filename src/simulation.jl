@@ -130,13 +130,14 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
         end
         
         # Remove floes that were killed or are too small in this timestep
-        remove_idx = findall(
-            f -> !f.alive || f.area < sim.simp_settings.min_floe_area,
-            sim.model.floes,
-        )
-        while !isempty(remove_idx)
-            idx =  pop!(remove_idx)
-            StructArrays.foreachfield(col -> deleteat!(col, idx), sim.model.floes)
+        for i in reverse(eachindex(sim.model.floes))
+            if (!sim.model.floes.alive[i] ||
+                sim.model.floes.area[i] < sim.simp_settings.min_floe_area)
+                StructArrays.foreachfield(
+                    field -> deleteat!(field, i),
+                    sim.model.floes,
+                )
+            end
         end
     end
 

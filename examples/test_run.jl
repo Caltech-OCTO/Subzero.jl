@@ -89,6 +89,7 @@ simulation = Simulation(
 #@time run!(simulation)
 #ProfileView.@profview run!(simulation)
 #Profile.Allocs.@profile timestep_sim!(simulation, 1)
+#Profile.Allocs.@profile sample_rate=1 Subzero.timestep_floe_properties!(simulation.model.floes, simulation.Δt)
 #PProf.Allocs.pprof(from_c = false)
 # last(sort(results.allocs, by=x->x.size))
 # Subzero.create_sim_gif(

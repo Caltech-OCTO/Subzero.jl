@@ -295,8 +295,10 @@
 
         for i in eachindex(floes)
             f = floes[i]
-            Subzero.calc_stress!(f)
-            Subzero.calc_strain!(f)
+            stress = Subzero.calc_stress(f)
+            push!(f.stress_history, stress)
+            f.stress = mean(f.stress_history)
+            f.strain = Subzero.calc_strain(f)
             @test all(isapprox.(vec(f.stress), stresses[i], atol = 1e-3))
             @test all(isapprox.(
                 vec(f.stress_history[end]),

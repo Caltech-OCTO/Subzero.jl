@@ -209,4 +209,21 @@
     @test all(Subzero.points_in_poly(points, [[[Vector{Float64}()]]]) .== 
     [false, false, false, false, false, false, false, false])
     @test all(Subzero.points_in_poly([], multi_coords) .== Vector{Bool}())
+
+    # ------------------ Test rotating coordinates ------------------
+    og_coords = [[[-1.0, -1.0], [-1, 1], [1, 1], [1, -1], [-1, -1]],
+        [[-1.0, -1.0], [-1, 1], [1, 1], [1, -1], [-1, -1]]]
+    copy_coords = deepcopy(coords)
+    rotate_radians!(copy_coords, π/4)
+    same = true
+    answer = [[[-√2, 0], [0, √2], [√2, 0], [0, -√2], [-√2, 0]]]
+    for i in eachindex(copy_coords)
+        same = same && all(isapprox.(copy_coords[i], answer[i]))
+    end
+    @test same
+    rotate_radians!(copy_coords, 7π/4)
+    same = true
+    for i in eachindex(copy_coords)
+        same = same & all(isapprox.(copy_coords[i], og_coords[i]))
+    end
 end

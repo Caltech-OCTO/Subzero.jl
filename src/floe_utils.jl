@@ -287,8 +287,7 @@ Outputs:
         order by area
 """
 function sortregions(multipoly::LG.MultiPolygon)
-    poly_lst = LG.getGeometries(multipoly)::Vector{LG.Polygon}
-    return sort(poly_lst, by=LG.area, rev=true)
+    return sort!(LG.getGeometries(multipoly), by=LG.area, rev=true)
 end
 
 """
