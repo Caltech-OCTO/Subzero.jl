@@ -78,7 +78,7 @@ simulation = Simulation(
     verbose = true
 )
 
-
+@benchmark Subzero.timestep_floe_properties!(floes, 10) setup = (floes = deepcopy(simulation.model.floes))
 #@benchmark timestep_sim!(sim, 1) setup=(sim=deepcopy(simulation))
 
 #time_run(simulation) = @time run!(simulation)

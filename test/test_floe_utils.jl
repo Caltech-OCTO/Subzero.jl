@@ -34,6 +34,9 @@
     # Test removing holes from polygons and multipolygons
     @test [ext] == Subzero.rmholes([ext])
     @test [ext] == Subzero.rmholes([ext, hole1])
+    copy_holes = [ext, hole1]
+    Subzero.rmholes!(copy_holes)
+    @test copy_holes == [ext]
     @test LG.equals(Subzero.rmholes(poly_nohole), poly_nohole)
     @test LG.equals(Subzero.rmholes(poly_hole1), poly_nohole)
     @test LG.equals(Subzero.rmholes(poly_hole2), poly_nohole)
@@ -50,16 +53,14 @@
     trans_ext = Subzero.translate([ext], [1.0, 2.0])
     @test trans_ext == [[[1.0, 3.0],  [1.0, 2.0],  [2.0, 2.0],
                         [2.0, 3.0], [1.0, 3.0]]]
-    trans_nohole = Subzero.translate(poly_nohole, [1, 2])
-    @test LG.equals(trans_nohole, LG.Polygon(trans_ext))
-    trans_hole1 = Subzero.translate(poly_hole1, [1.0, 2.0])
-    @test LG.equals(trans_hole1, LG.Polygon(
-        [[[1.0, 3.0],  [1.0, 2.0],  [2.0, 2.0],  [2.0, 3.0], [1.0, 3.0]],
-         [[1.2, 2.3], [1.2, 2.2], [1.3, 2.2], [1.3, 2.3], [1.2, 2.3]]]))
-    @test Subzero.translate([[[-2.0, 2.0], [-2.0, 1.0], [-1.0, 1.0],
-                              [-1.0, 2.0]]], -1 .* [-1.5, 1.5]) ==
-                              [[[-0.5, 0.5], [-0.5, -0.5], [0.5, -0.5],
-                              [0.5, 0.5]]]
+    copy_ext = deepcopy(ext)
+    Subzero.translate!(copy_ext)
+    @test copy_ext == trans_ext
+    test_trans = [[[-2.0, 2.0], [-2.0, 1.0], [-1.0, 1.0], [-1.0, 2.0]]]
+    @test Subzero.translate(test_trans, [1.5, -1.5]) ==
+        [[[-0.5, 0.5], [-0.5, -0.5], [0.5, -0.5], [0.5, 0.5]]]
+    Subzero.translate!(test_trans, [1.5, -1.5])
+    @test test_trans == [[[-0.5, 0.5], [-0.5, -0.5], [0.5, -0.5], [0.5, 0.5]]]
 
     # Test scaling polygons
     centered_coords = [[[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], 

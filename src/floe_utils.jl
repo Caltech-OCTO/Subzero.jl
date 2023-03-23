@@ -84,7 +84,7 @@ find_multipoly_coords(multipoly::LG.MultiPolygon) =
 
 
 """
-    translate(coords::PolyVec{T}, vec
+    translate(coords, vec)
 
 Translate each of the given coodinates by given vector -
 Coordinates and vector must be vectors of same underlying type
@@ -99,18 +99,22 @@ function translate(coords::PolyVec{T}, vec) where {T<:AbstractFloat}
 end
 
 """
-    translate(poly::LG.Polygon, vec)
+    translate!(coords, vec)
 
-Translate the given polygon by the given vector and return a new polygon -
+Translate each of the given coodinates by given vector in place -
+Coordinates and vector must be vectors of same underlying type
 Inputs:
-    coords <LibGEOS.Polygon>
-    vec <Vector{Float}>
+    coords PolyVec{Float}
+    vec <Vector{Real}>
 Output:
-    <LibGEOS.Polygon>
+    Updates given coords
 """
-function translate(poly::LG.Polygon, vec)
-    coords = find_poly_coords(poly)
-    return LG.Polygon(translate(coords, convert(Vector{Float64}, vec)))
+function translate!(coords::PolyVec{T}, vec) where {T<:AbstractFloat}
+    for i in eachindex(coords)
+        for j in eachindex(coords[i])
+            coords[i][j] .+= vec
+        end
+    end
 end
 
 """
@@ -129,31 +133,37 @@ function scale(poly::LG.Polygon, factor)
 end
 
 """
-    rotate_radians(coords::PolyVec, α)
+    rotate_radians!(coords::PolyVec, α)
 
 Rotate a polygon's coordinates by α radians around the origin.
 Inputs:
     coords  <PolyVec{AbstractFloat}> polygon coordinates
     α       <Real> radians to rotate the coordinates
 Outputs:
-    <PolyVec{AbstractFloat}> coords rotates by α radians
+    Updates coordinates in place
 """
-function rotate_radians(coords::PolyVec, α)
-    return [map(p -> [cos(α)*p[1] - sin(α)*p[2],
-                         sin(α)*p[1] + cos(α)p[2]], coords[1])]
+function rotate_radians!(coords::PolyVec, α)
+    for i in eachindex(coords)
+        for j in eachindex(coords[i])
+            x, y = coords[i][j]
+            coords[i][j][1] = cos(α)*x - sin(α)*y
+            coords[i][j][2] = sin(α)*x + cos(α)*y
+        end
+    end
+
 end
 
 """
-    rotate_degrees(coords::PolyVec, α)
+    rotate_degrees!(coords::PolyVec, α)
 
 Rotate a polygon's coordinates by α degrees around the origin.
 Inputs:
     coords <PolyVec{AbstractFloat}> polygon coordinates
     α       <Real> degrees to rotate the coordinates
 Outputs:
-    <PolyVec{AbstractFloat}> coords rotates by α degrees
+    Updates coordinates in place
 """
-rotate_degrees(coords::PolyVec, α) = rotate_radians(coords, α * π/180)
+rotate_degrees!(coords::PolyVec, α) = rotate_radians!(coords, α * π/180)
 
 """
     hashole(coords::PolyVec{FT})
@@ -211,6 +221,12 @@ Outputs:
 """
 function rmholes(coords::PolyVec{FT}) where {FT<:AbstractFloat}
     return [coords[1]]
+end
+
+function rmholes!(coords::PolyVec{FT}) where {FT<:AbstractFloat}
+    if length(coords) > 1
+        deleteat!(coords, 2:length(coords))
+    end
 end
 
 """
