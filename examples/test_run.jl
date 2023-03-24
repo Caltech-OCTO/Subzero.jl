@@ -78,8 +78,19 @@ simulation = Simulation(
     verbose = true
 )
 
-@benchmark Subzero.timestep_floe_properties!(floes, 10) setup = (floes = deepcopy(simulation.model.floes))
-#@benchmark timestep_sim!(sim, 1) setup=(sim=deepcopy(simulation))
+
+@benchmark Subzero.timestep_collisions!(
+    sim.model.floes,
+    sim.model.max_floe_id,
+    sim.model.domain,
+    zeros(Int, sim.model.max_floe_id),
+    zeros(Int, sim.model.max_floe_id),
+    sim.consts,
+    sim.Δt,
+    sim.collision_settings,
+    Threads.SpinLock(),
+    Float64,
+) setup=(sim=deepcopy(simulation))
 
 #time_run(simulation) = @time run!(simulation)
 
