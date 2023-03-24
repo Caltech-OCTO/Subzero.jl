@@ -819,7 +819,7 @@ function calc_stress(inters, centroid, area, height)
 end
 
 """
-    calc_strain(floe)
+    calc_strain(coords, centroid, u, v, ξ, area)
 
 Calculates the strain on a floe given the velocity at each vertex
 Inputs:
@@ -838,8 +838,10 @@ function calc_strain(coords, centroid, u, v, ξ, area::FT) where {FT}
     xcoords, ycoords = separate_xy(coords)
     translate!(coords, centroid)
     # Find distance between each vertex
-    push!(xcoords, xcoords[1])
-    push!(ycoords, ycoords[1])
+    if xcoords[1] != xcoords[end] && ycoords[1] != ycoords[end]
+        push!(xcoords, xcoords[1])
+        push!(ycoords, ycoords[1])
+    end
     xcoords_diff = diff(xcoords)
     ycoords_diff = diff(ycoords)
     # u and v velocities of floes at each vertex
@@ -853,7 +855,7 @@ function calc_strain(coords, centroid, u, v, ξ, area::FT) where {FT}
     end
     ucoords_diff = diff(ucoords)
     vcoords_diff = diff(vcoords)
-    strain = fill(0.5*area, 2, 2)
+    strain = fill(1/(2area), 2, 2)
     strain[1, 1] *= sum(ucoords_diff .* ycoords_diff) # dudx
     strain[1, 2] *= 0.5(sum(ucoords_diff .* xcoords_diff) +
         sum(vcoords_diff .* ycoords_diff)) # dudy + dvdx

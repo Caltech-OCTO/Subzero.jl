@@ -53,8 +53,8 @@
     trans_ext = Subzero.translate([ext], [1.0, 2.0])
     @test trans_ext == [[[1.0, 3.0],  [1.0, 2.0],  [2.0, 2.0],
                         [2.0, 3.0], [1.0, 3.0]]]
-    copy_ext = deepcopy(ext)
-    Subzero.translate!(copy_ext)
+    copy_ext = [deepcopy(ext)]
+    Subzero.translate!(copy_ext, [1.0, 2.0])
     @test copy_ext == trans_ext
     test_trans = [[[-2.0, 2.0], [-2.0, 1.0], [-1.0, 1.0], [-1.0, 2.0]]]
     @test Subzero.translate(test_trans, [1.5, -1.5]) ==
@@ -213,17 +213,19 @@
     # ------------------ Test rotating coordinates ------------------
     og_coords = [[[-1.0, -1.0], [-1, 1], [1, 1], [1, -1], [-1, -1]],
         [[-1.0, -1.0], [-1, 1], [1, 1], [1, -1], [-1, -1]]]
-    copy_coords = deepcopy(coords)
-    rotate_radians!(copy_coords, π/4)
+    copy_coords = deepcopy(og_coords)
+    Subzero.rotate_radians!(copy_coords, π/4)
     same = true
-    answer = [[[-√2, 0], [0, √2], [√2, 0], [0, -√2], [-√2, 0]]]
+    answer = [[[0, -√2], [-√2, 0], [0, √2], [√2, 0], [0, -√2]],
+        [[0, -√2], [-√2, 0], [0, √2], [√2, 0], [0, -√2]]]
     for i in eachindex(copy_coords)
         same = same && all(isapprox.(copy_coords[i], answer[i]))
     end
     @test same
-    rotate_radians!(copy_coords, 7π/4)
+    Subzero.rotate_radians!(copy_coords, 7π/4)
     same = true
     for i in eachindex(copy_coords)
         same = same & all(isapprox.(copy_coords[i], og_coords[i]))
     end
+    @test same
 end
