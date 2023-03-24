@@ -6,7 +6,7 @@
     poly1 = LG.Polygon(Subzero.valid_polyvec!(floe_coords[1]))
     centroid1 = LG.GeoInterface.coordinates(LG.centroid(poly1))
     origin_coords = Subzero.translate(floe_coords[1], -centroid1)
-    xo, yo = Subzero.seperate_xy(origin_coords)
+    xo, yo = Subzero.separate_xy(origin_coords)
     rmax = sqrt(maximum([sum(xo[i]^2 + yo[i]^2) for i in eachindex(xo)]))
     area = LG.area(poly1)
     mc_x, mc_y, alive = Subzero.generate_mc_points(
@@ -109,7 +109,13 @@
     @test typeof(floe_arr) <: StructArray{<:Floe}
 
     # Test initialize_floe_field from coord list
-    grid = RegRectilinearGrid(-8e4, 8e4, -8e4, 8e4, 1e4, 1e4)
+    grid = RegRectilinearGrid(
+        Float64,
+        (-8e4, 8e4),
+        (-8e4, 8e4),
+        1e4,
+        1e4,
+    )
     nbound = CollisionBoundary(grid, North())
     sbound = CollisionBoundary(grid, South())
     ebound = CollisionBoundary(grid, East())
@@ -134,7 +140,13 @@
     @test all(floe_arr.id .== range(1, nfloes))
 
     # From file with small domain -> floes outside of domain
-    small_grid = RegRectilinearGrid(-5e4, 5e4, -5e4, 5e4, 1e4, 1e4)
+    small_grid = RegRectilinearGrid(
+        Float64,
+        (-5e4, 5e4),
+        (-5e4, 5e4),
+        1e4,
+        1e4,
+    )
     small_domain_no_topo = Domain(
         CollisionBoundary(small_grid, North()),
         CollisionBoundary(small_grid, South()),
@@ -247,4 +259,69 @@
     ) for p in floe_polys] .< 1e-3)
     @test all([LG.isValid(p) for p in floe_polys])
     @test all(floe_arr.id .== range(1, nfloes))
+
+    @testset "Stress/Strain" begin
+        # Test Stress History buffer
+        scb = Subzero.StressCircularBuffer{Float64}(10)
+        @test scb.cb.capacity == 10
+        @test scb.cb.length == 0
+        @test eltype(scb.cb) <: Matrix{Float64}
+        @test scb.total isa Matrix{Float64}
+        @test all(scb.total .== 0)
+        fill!(scb, ones(Float64, 2, 2))
+        @test scb.cb.length == 10
+        @test all(scb.total .== 10)
+        @test scb.cb[1] == scb.cb[end] == ones(Float64, 2, 2)
+        @test mean(scb) == ones(Float64, 2, 2)
+        push!(scb, zeros(Float64, 2, 2))
+        @test scb.cb.length == 10
+        @test all(scb.total .== 9)
+        @test scb.cb[end] == zeros(Float64, 2, 2)
+        @test scb.cb[1] == ones(Float64, 2, 2)
+        @test all(mean(scb) .== 0.9)
+
+        # Test Stress and Strain Calculations
+        floes = load(
+            "inputs/test_floes.jld2",
+            "stress_strain_floe1",
+            "stress_strain_floe2",
+        )
+        stresses = [[-10.065, 36.171, 36.171, -117.458],
+            [7.905, 21.913, 21.913, -422.242]]
+        stress_histories = [[-4971.252, 17483.052, 17483.052, -57097.458],
+            [4028.520, 9502.886, 9502.886, -205199.791]]
+        strains = [[-3.724, 0, 0, 0], [7.419, 0, 0,	-6.987]]
+        strain_multiplier = [1e28, 1e6]
+
+        for i in eachindex(floes)
+            f = floes[i]
+            stress = Subzero.calc_stress(
+                f.interactions,
+                f.centroid,
+                f.area,
+                f.height,
+            )
+            push!(f.stress_history, stress)
+            f.stress = mean(f.stress_history)
+            @test all(isapprox.(vec(f.stress), stresses[i], atol = 1e-3))
+            @test all(isapprox.(
+                vec(f.stress_history.cb[end]),
+                stress_histories[i],
+                atol = 1e-3
+            ))
+            f.strain = Subzero.calc_strain(
+                f.coords,
+                f.centroid,
+                f.u,
+                f.v,
+                f.ξ,
+                f.area,
+            )
+            @test all(isapprox.(
+                vec(f.strain) .* strain_multiplier[i],
+                strains[i],
+                atol = 1e-3
+            ))
+        end
+    end
 end

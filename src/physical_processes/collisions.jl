@@ -3,30 +3,48 @@ Functions needed for collisions between floes, boundaries, and topography
 """
 
 """
-    calc_normal_force(c1, c2, region, area, ipoints, force_factor, t::Type{T} = Float64)
+    calc_normal_force(
+        c1,
+        c2,
+        region,
+        area,
+        ipoints,
+        force_factor,
+        t::Type{T} = Float64
+    )
 
-Calculate normal force for collision between polygons with coordinates c1 and c2 given an overlapping region,
-the area of that region, their intersection points in the region, and a force factor. 
+Calculate normal force for collision between polygons with coordinates c1 and c2
+given an overlapping region, the area of that region, their intersection points
+in the region, and a force factor. 
 Inputs:
-        c1           <PolyVec{Float64}> first polygon coordinates
-        c2           <PolyVec{Float64}> second polygon coordinates
-        region       <PolyVec{Float64}> coordiantes for one region of intersection between the polygons
-        area         <Float> area of region
-        ipoints      <Array{Float, N, 2}> Points of intersection between polygon 1 and 2 where the first column
-                                          is the x-coordinates and the second column is the y-coordinates
-        force_factor <Float> Spring constant equivalent for collisions
-        t            <Type> Float type model is running on (Float64 or Float32)
+    c1           <PolyVec{Float64}> first polygon coordinates
+    c2           <PolyVec{Float64}> second polygon coordinates
+    region       <PolyVec{Float64}> coordiantes for one region of intersection
+                    between the polygons
+    area         <Float> area of region
+    ipoints      <Array{Float, N, 2}> Points of intersection between polygon 1
+                    and 2 where the first column is the x-coordinates and the
+                    second column is the y-coordinates
+    force_factor <Float> Spring constant equivalent for collisions
+    t            <Type> Float type model is running on (Float64 or Float32)
 Outputs:
         <Float> normal force of collision
         Δl <Float> mean length of distance between intersection points
 """
-function calc_normal_force(c1, c2, region, area, ipoints, force_factor, ::Type{T} = Float64) where T
-    force_dir = zeros(T, 2)
+function calc_normal_force(
+    c1,
+    c2,
+    region,
+    area::FT,
+    ipoints,
+    force_factor::FT,
+) where {FT<:AbstractFloat}
+    force_dir = zeros(FT, 2)
     coords = find_poly_coords(region)
     n_ipoints = size(ipoints, 1)
     # Identify which region coordinates are the intersection points (ipoints)
     verts = zeros(Int64, n_ipoints)
-    dists = zeros(n_ipoints)
+    dists = zeros(FT, n_ipoints)
     for i in 1:n_ipoints
         p_i = repeat(ipoints[i, :], length(coords))
         dists[i], verts[i] = findmin([sum((c .- p_i).^2) for c in coords[1]])
@@ -36,7 +54,7 @@ function calc_normal_force(c1, c2, region, area, ipoints, force_factor, ::Type{T
     m = length(p)
 
     # Calculate force direction
-    Δl = zeros(T, 1)
+    Δl = FT(0)
     if m == 2  # Two intersection points
         Δx = p[2][1] - p[1][1]
         Δy = p[2][2] - p[1][2]
@@ -45,7 +63,7 @@ function calc_normal_force(c1, c2, region, area, ipoints, force_factor, ::Type{T
             force_dir = [-Δy/Δl; Δx/Δl]
         end
     elseif m != 0  # Unusual number of intersection points
-        x, y = seperate_xy(coords)
+        x, y = separate_xy(coords)
         Δx = diff(x)
         xmid = (x[2:end] .+ x[1:end-1]) ./ 2
         Δy = diff(y)
@@ -56,7 +74,7 @@ function calc_normal_force(c1, c2, region, area, ipoints, force_factor, ::Type{T
         yt = ymid+uvec[:, 2]./100  # should match our scale
         in_idx = points_in_poly(hcat(xt, yt), coords)
         uvec[in_idx, :] *= -1
-        Fn = -force_factor * (mag * ones(1, 2)) .* uvec
+        Fn = -force_factor * (mag * ones(FT, 1, 2)) .* uvec
         dmin_lst = calc_point_poly_dist(xmid, ymid, c1)
         on_idx = findall(d->abs(d)<1e-8, dmin_lst)
         if 0 < length(on_idx) < length(dmin_lst)
@@ -83,26 +101,46 @@ function calc_normal_force(c1, c2, region, area, ipoints, force_factor, ::Type{T
 end
 
 """
-    calc_elastic_forces(floe1, floe2, regions, region_areas, force_factor, consts, t::Type{T} = Float64)
+    calc_elastic_forces(
+        floe1,
+        floe2,
+        regions,
+        region_areas,
+        force_factor,
+        consts,
+        t::Type{T} = Float64,
+    )
 
-Calculate normal forces, the point the force is applied, and the overlap area of regions created from floe collisions 
+Calculate normal forces, the point the force is applied, and the overlap area of
+regions created from floe collisions 
 Inputs:
-        floe1           <Floe> first floe in collision
-        floe2           <Floe> second floe in collision
-        regions         <Vector{LibGEOS.Polygon}> polygon regions of overlap during collision
-        region_areas    <Vector{Float}> area of each polygon in regions
-        force_factor    <Float> Spring constant equivalent for collisions
-        t               <Type> Float type model is running on (Float64 or Float32)
+    c1              <PolyVec> first floe's coordinates in collision
+    c2              <PolyVec> second floe's coordinates in collision
+    regions         <Vector{LibGEOS.Polygon}> polygon regions of overlap during
+                        collision
+    region_areas    <Vector{Float}> area of each polygon in regions
+    force_factor    <Float> Spring constant equivalent for collisions
+    t               <Type> Float type model is running on (Float64 or Float32)
 Outputs:
-        force   <Array{Float, n, 2}> normal forces on each of the n regions greater than a minimum area
-        fpoint  <Array{Float, n, 2}> point force is applied on each of the n regions greater than a minimum area
-        overlap <Array{Float, n, 2}> area of each of the n regions greater than a minimum area
-        Δl      <Float> mean length of distance between intersection points
+    force   <Array{Float, n, 2}> normal forces on each of the n regions greater
+                than a minimum area
+    fpoint  <Array{Float, n, 2}> point force is applied on each of the n regions
+                greater than a minimum area
+    overlap <Array{Float, n, 2}> area of each of the n regions greater than a
+                minimum area
+    Δl      <Float> mean length of distance between intersection points
 """
-function calc_elastic_forces(c1, c2, regions, region_areas, force_factor, ::Type{T} = Float64) where T
+function calc_elastic_forces(
+    c1,
+    c2,
+    regions,
+    region_areas::Vector{FT},
+    force_factor::FT,
+) where {FT<:AbstractFloat}
     ipoints = intersect_lines(c1, c2)  # Intersection points
     if isempty(ipoints) || size(ipoints,2) < 2  # No overlap points
-        return zeros(T, 1, 2), zeros(T, 1, 2), zeros(T, 1)  # Force, contact points, overlap area
+         # Force, contact points, overlap area all 0s
+        return zeros(FT, 1, 2), zeros(FT, 1, 2), zeros(FT, 1)
     else
         # Find overlapping regions greater than minumum area
         n1 = length(c1[1]) - 1
@@ -113,15 +151,22 @@ function calc_elastic_forces(c1, c2, regions, region_areas, force_factor, ::Type
         overlap = region_areas
         ncontact = length(regions)
         # Calculate forces for each remaining region
-        force = zeros(T, ncontact, 2)
-        fpoint = zeros(T, ncontact, 2)
-        Δl_lst = zeros(T, ncontact)
+        force = zeros(FT, ncontact, 2)
+        fpoint = zeros(FT, ncontact, 2)
+        Δl_lst = zeros(FT, ncontact)
         for k in 1:ncontact
-            normal_force = zeros(T, 1, 2)
+            normal_force = zeros(FT, 1, 2)
             if region_areas[k] != 0
                 cx, cy = find_poly_centroid(regions[k])::Vector{Float64}
                 fpoint[k, :] = [cx, cy]
-                normal_force, Δl = calc_normal_force(c1, c2, regions[k], region_areas[k], ipoints, force_factor, T)
+                normal_force, Δl = calc_normal_force(
+                    c1,
+                    c2,
+                    regions[k],
+                    region_areas[k],
+                    ipoints,
+                    force_factor
+                )
             end
             force[k, :] = normal_force
             Δl_lst[k] = Δl
@@ -135,17 +180,29 @@ end
 
 Calculate frictional force for collision between two floes.
 Input:
-        v1   <Array{Float, N, 2}> Matrix of floe speeds for first floe in collision at each point
-                                  a force is applied to the floe - row is [u v] and one row per each N point
-        v2   <Array{Float, N, 2}> vector of floe speeds for second floe or boundary in collision - see v1 for form
-        fpoint  <Array{Float, N, 2}> x,y-coordinates of the point the force is applied on floe overlap region
-        normal  <Array{Float, N, 2}> x,y normal force applied on fpoint on floe overlap region
-        Δl      <Float> mean length of distance between intersection points
-        consts  <Constants> model constants needed for calculations
+    v1   <Array{Float, N, 2}> Matrix of floe speeds for first floe in collision
+            at each point a force is applied to the floe - row is [u v] and one
+            row per each N point
+    v2   <Array{Float, N, 2}> vector of floe speeds for second floe or boundary
+            in collision - see v1 for form
+    fpoint  <Array{Float, N, 2}> x,y-coordinates of the point the force is
+                applied on floe overlap region
+    normal  <Array{Float, N, 2}> x,y normal force applied on fpoint on floe
+                overlap region
+    Δl      <Float> mean length of distance between intersection points
+    consts  <Constants> model constants needed for calculations
 Outputs:
         <Float> frictional/tangential force of the collision
 """
-function calc_friction_forces(v1, v2, normal, Δl, consts, Δt, ::Type{T} = Float64) where T
+function calc_friction_forces(
+    v1,
+    v2,
+    normal,
+    Δl,
+    consts,
+    Δt,
+    ::Type{T} = Float64,
+) where T
     force = zeros(T, size(v1, 1), 2)
     G = consts.E/(2*(1+consts.ν))  # Sheer modulus
     # Difference in velocities between floes in x and y direction
@@ -166,32 +223,55 @@ function calc_friction_forces(v1, v2, normal, Δl, consts, Δt, ::Type{T} = Floa
 end
 
 """
-    floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, t::Type{T} = Float64)
+    floe_floe_interaction!(
+        ifloe,
+        i,
+        jfloe,
+        j,
+        nfloes,
+        consts,
+        Δt,
+        t::Type{T} = Float64,
+    )
 
-If the two floes interact, update floe i's interactions accordingly. Floe j is not update here so that the function can be parallelized.
+If the two floes interact, update floe i's interactions accordingly. Floe j is
+not update here so that the function can be parallelized.
 Inputs:
-        ifloe       <Floe> first floe in potential interaction
-        i           <Int> index of ifloe in model's list of floes 
-        jfloe       <Floe> second floe in potential interaction
-        j           <Int> index of jfloe in model's list of floes 
-        nfloes      <Int> number of non-ghost floes in the simulation this timestep
-        consts      <Constants> model constants needed for calculations
-        Δt          <Int> Simulation's current timestep
-        max_overlap <Float> Percent two floes can overlap before marking them
-                            for combination with remove/transfer
-        t           <Type> Float type model is running on (Float64 or Float32)
+    ifloe       <Floe> first floe in potential interaction
+    i           <Int> index of ifloe in model's list of floes 
+    jfloe       <Floe> second floe in potential interaction
+    j           <Int> index of jfloe in model's list of floes 
+    nfloes      <Int> number of non-ghost floes in the simulation this timestep
+    consts      <Constants> model constants needed for calculations
+    Δt          <Int> Simulation's current timestep
+    max_overlap <Float> Percent two floes can overlap before marking them
+                        for combination with remove/transfer
 Outputs:
-        remove   <Int> index of floe to remove from simulation due to overlap (will be transfered to over floe in collision)
-                        - if 0 then no floes to be removed from this collision
-        transfer <Int> index of floe to transfer mass to if the other floe is to be removed.
-                        - if 0 then no floes to be transfered from this collision
-        If ifloe interacts with jfloe, only ifloe's interactions field is updated with the details of each region of overlap.
-        The interactions field will have the following form for each region of overlap with the boundary:
-            [Inf, xforce, yforce, xfpoints, yfpoints, overlaps] where the xforce and yforce are the forces,
-            xfpoints and yfpoints are the location of the force and overlaps is the overlap between the floe and boundary.
-        The overlaps field is also added to the floe's overarea field that describes the total overlapping area at any timestep. 
+    remove   <Int> index of floe to remove from simulation due to overlap (will
+                be transfered to over floe in collision) - if 0 then no floes to
+                be removed from this collision
+    transfer <Int> index of floe to transfer mass to if the other floe is to be
+                removed - if 0 then no floes transfered from this collision
+Note:
+    If ifloe interacts with jfloe, only ifloe's interactions field is updated
+    with the details of each region of overlap. The interactions field will have
+    the following form for each region of overlap with the boundary:
+    [Inf, xforce, yforce, xfpoints, yfpoints, overlaps] where the xforce and
+    yforce are the forces, xfpoints and yfpoints are the location of the force
+    and overlaps is the overlap between the floe and boundary. The overlaps
+    field is also added to the floe's overarea field that describes the total
+    overlapping area at any timestep. 
 """
-function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, max_overlap, ::Type{T} = Float64) where T
+function floe_floe_interaction!(
+    ifloe::Floe{FT},
+    i,
+    jfloe::Floe{FT},
+    j,
+    nfloes,
+    consts,
+    Δt,
+    max_overlap::FT,
+) where {FT<:AbstractFloat}
     remove = Int(0)
     transfer = Int(0)
     ifloe_poly = LG.Polygon(ifloe.coords)
@@ -199,19 +279,21 @@ function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, max_ove
     if LG.intersects(ifloe_poly, jfloe_poly)  # Check if floes intersect
         inter_floe = LG.intersection(ifloe_poly, jfloe_poly)
         inter_regions = LG.getGeometries(inter_floe)
-        region_areas = [LG.area(poly) for poly in inter_regions]::Vector{Float64}
+        region_areas = [LG.area(r) for r in inter_regions]
         total_area = sum(region_areas)
-        # Floes overlap too much - remove floe or transfer floe mass to other floe
+        # Floes overlap too much - remove floe or transfer floe mass
         if total_area/ifloe.area > max_overlap
             if i <= nfloes  # If i is not a ghost floe
                 remove = i
                 transfer = j  # Will transfer mass to jfloe
             elseif j <= nfloes  # If j is not a ghost floe
-                remove = j  # Will transfer mass to ifloe - can't be updated here due to parallelization
+                # Will transfer mass to ifloe - can't be updated here due to parallelization
+                remove = j 
             end
         elseif total_area/jfloe.area > max_overlap
             if j <= nfloes  # If j is not a ghost floe
-                remove = j  # Will transfer mass to ifloe - can't be updated here due to parallelization
+                # Will transfer mass to ifloe - can't be updated here due to parallelization
+                remove = j
             end
         else
             # Constant needed to calculate force
@@ -225,18 +307,34 @@ function floe_floe_interaction!(ifloe, i, jfloe, j, nfloes, consts, Δt, max_ove
                 consts.E*(ih*jh)/(ih*jr+jh*ir)
             end
             # Calculate normal forces, force points, and overlap areas
-            normal_forces, fpoints, overlaps, Δl = calc_elastic_forces(ifloe.coords, jfloe.coords,
-                                        inter_regions, region_areas, force_factor, T)
-            # Calculate frictional forces at each force point - based on velocities at force points
+            normal_forces, fpoints, overlaps, Δl = calc_elastic_forces(
+                ifloe.coords,
+                jfloe.coords,
+                inter_regions,
+                region_areas,
+                force_factor
+            )
+            #= Calculate frictional forces at each force point - based on
+            velocities at force points =#
             np = size(fpoints, 1)
             if np > 0
-                iv = repeat([ifloe.u ifloe.v], outer = np) .+ ifloe.ξ*(fpoints .- repeat(ifloe.centroid', outer = np)) 
-                jv = repeat([jfloe.u jfloe.v], outer = np) .+ jfloe.ξ*(fpoints .- repeat(jfloe.centroid', outer = np))
-                friction_forces = calc_friction_forces(iv, jv, normal_forces, Δl, consts, Δt, T)
+                iv = repeat([ifloe.u ifloe.v], outer = np) .+
+                    ifloe.ξ*(fpoints .- repeat(ifloe.centroid', outer = np)) 
+                jv = repeat([jfloe.u jfloe.v], outer = np) .+
+                    jfloe.ξ*(fpoints .- repeat(jfloe.centroid', outer = np))
+                friction_forces = calc_friction_forces(
+                    iv,
+                    jv,
+                    normal_forces,
+                    Δl,
+                    consts,
+                    Δt
+                )
                 # Calculate total forces and update ifloe's interactions
                 forces = normal_forces .+ friction_forces
                 if sum(abs.(forces)) != 0
-                    ifloe.interactions = [ifloe.interactions; fill(j, np) forces fpoints zeros(np) overlaps]
+                    ifloe.interactions = [ifloe.interactions;
+                        fill(j, np) forces fpoints zeros(np) overlaps]
                     ifloe.overarea += sum(overlaps)
                 end
             end
@@ -248,18 +346,30 @@ end
 """
     floe_domain_element_interaction!(floe, boundary, _, _, _)
 
-If given floe insersects with an open boundary, the floe is set to be removed from the simulation.
+If given floe insersects with an open boundary, the floe is set to be removed
+from the simulation.
 Inputs:
-        floe            <Floe> floe interacting with boundary
-        boundary        <OpenBoundary> coordinates of boundary
-        _               <Constants> model constants needed in other methods of this function - not needed here
-        _               <Int> current simulation timestep - not needed here
-        -               <Float> maximum overlap between floe and domain elements - not needed here 
-        _               <Type> Float type model is running on (Float64 or Float32) - not needed here
+    floe            <Floe> floe interacting with boundary
+    boundary        <OpenBoundary> coordinates of boundary
+    _               <Constants> model constants needed in other methods of this
+                        function - not needed here
+    _               <Int> current simulation timestep - not needed here
+    -               <Float> maximum overlap between floe and domain elements -
+                        not needed here 
+    _               <Type> Float type model is running on (Float64 or Float32) -
+                        not needed here
 Output:
-        None. If floe is interacting with the boundary, floe.alive field is set to 0. Else, nothing is changed. 
+    None. If floe is interacting with the boundary, floe.alive field is set to
+    0. Else, nothing is changed. 
 """
-function floe_domain_element_interaction!(floe, boundary::OpenBoundary, consts, Δt, max_overlap, ::Type{T} = Float64) where T
+function floe_domain_element_interaction!(
+    floe,
+    boundary::OpenBoundary,
+    consts,
+    Δt,
+    max_overlap,
+    ::Type{T} = Float64,
+) where T
     floe_poly = LG.Polygon(floe.coords)
     bounds_poly = LG.Polygon(boundary.coords)
     # Check if the floe and boundary actually overlap
@@ -270,70 +380,134 @@ function floe_domain_element_interaction!(floe, boundary::OpenBoundary, consts, 
 end
 
 """
-    floe_domain_element_interaction!(floe, ::PeriodicBoundary, consts, Δt, ::Type{T} = Float64)
+    floe_domain_element_interaction!(
+        floe,
+        ::PeriodicBoundary,
+        consts,
+        Δt,
+        ::Type{T} = Float64,
+    )
 
-If a given floe intersects with a periodic boundary, nothing happens at this point. Periodic floes pass through boundaries
-using ghost floes.
+If a given floe intersects with a periodic boundary, nothing happens at this
+point. Periodic floes pass through boundaries using ghost floes.
 Inputs:
         None are used. 
 Output:
         None. This function does not do anyting. 
 """
-function floe_domain_element_interaction!(floe, ::PeriodicBoundary, consts, Δt, max_overlap, ::Type{T} = Float64) where T
+function floe_domain_element_interaction!(
+    floe,
+    ::PeriodicBoundary,
+    consts,
+    Δt,
+    max_overlap,
+    ::Type{T} = Float64,
+) where T
     return
 end
 
 """
-    normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{North, <:AbstractFloat}, ::Type{T} = Float64)
+    normal_direction_correct!(
+        forces,
+        fpoints,
+        boundary::AbstractBoundary{North, <:AbstractFloat},
+        ::Type{T} = Float64,
+    )
 
 Zero-out forces that point in direction not perpendicular to North boundary wall.
 Inputs:
-        force       <Array{Float, n, 2}> normal forces on each of the n regions greater than a minimum area
-        fpoint      <Array{Float, n, 2}> point force is applied on each of the n regions greater than a minimum area
-        boundary    <AbstractBoundary{North, <:AbstractFloat}> domain's northern boundary 
-                    <Type> Float type model is running on (Float64 or Float32) - not needed here
-Outputs: None. All forces in the x direction set to 0 if the point the force is applied to is in the northern boundary.
+    force       <Array{Float, n, 2}> normal forces on each of the n regions
+                    greater than a minimum area
+    fpoint      <Array{Float, n, 2}> point force is applied on each of the n
+                    regions greater than a minimum area
+    boundary    <AbstractBoundary{North, <:AbstractFloat}> domain's northern
+                    boundary 
+                <Type> Float type model is running on (Float64 or Float32) -
+                    not needed here
+Outputs:
+    None. All forces in the x direction set to 0 if the point the force is
+    applied to is in the northern boundary.
 """
-function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{North, <:AbstractFloat}, ::Type{T} = Float64) where T
+function normal_direction_correct!(
+    forces,
+    fpoints,
+    boundary::AbstractBoundary{North, <:AbstractFloat},
+    ::Type{T} = Float64,
+) where T
     forces[fpoints[:, 2] .>= boundary.val, 1] .= T(0.0)
     return
 end
 
 """
-    normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{South, <:AbstractFloat}, ::Type{T} = Float64)
+    normal_direction_correct!(
+        forces,
+        fpoints,
+        boundary::AbstractBoundary{South, <:AbstractFloat},
+        ::Type{T} = Float64,
+    )
 
 Zero-out forces that point in direction not perpendicular to South boundary wall.
 See normal_direction_correct! on northern wall for more information
 """
-function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{South, <:AbstractFloat}, ::Type{T} = Float64) where T
+function normal_direction_correct!(
+    forces,
+    fpoints,
+    boundary::AbstractBoundary{South, <:AbstractFloat},
+    ::Type{T} = Float64,
+) where T
         forces[fpoints[:, 2] .<= boundary.val, 1] .= T(0.0)
         return
     end
 
 """
-    normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{East, <:AbstractFloat}, ::Type{T} = Float64)
+    normal_direction_correct!(
+        forces,
+        fpoints,
+        boundary::AbstractBoundary{East, <:AbstractFloat},
+        ::Type{T} = Float64,
+    )
 
 Zero-out forces that point in direction not perpendicular to East boundary wall.
 See normal_direction_correct! on northern wall for more information
 """
-function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{East, <:AbstractFloat}, ::Type{T} = Float64) where T
+function normal_direction_correct!(
+    forces,
+    fpoints,
+    boundary::AbstractBoundary{East, <:AbstractFloat},
+    ::Type{T} = Float64,
+) where T
     forces[fpoints[:, 1] .>= boundary.val, 2] .= T(0.0)
     return
 end
 
 """
-    normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{West, <:AbstractFloat}, ::Type{T} = Float64)
+    normal_direction_correct!(
+        forces,
+        fpoints,
+        boundary::AbstractBoundary{West, <:AbstractFloat},
+        ::Type{T} = Float64,
+    )
 
 Zero-out forces that point in direction not perpendicular to West boundary wall.
 See normal_direction_correct! on northern wall for more information
 """
-function normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{West, <:AbstractFloat}, ::Type{T} = Float64) where T
+function normal_direction_correct!(
+    forces,
+    fpoints,
+    boundary::AbstractBoundary{West, <:AbstractFloat},
+    ::Type{T} = Float64,
+) where T
 forces[fpoints[:, 1] .<= boundary.val, 2] .= T(0.0)
 return
 end
 
 """
-    normal_direction_correct!(forces, fpoints, ::TopographyElement, ::Type{T} = Float64)
+    normal_direction_correct!(
+        forces,
+        fpoints,
+        ::TopographyElement,
+        ::Type{T} = Float64,
+    )
 
 No forces should be zero-ed out in collidions with topography elements. 
 Inputs:
@@ -341,30 +515,53 @@ Inputs:
 Outputs:
         None.
 """
-function normal_direction_correct!(forces, fpoints, ::TopographyElement, ::Type{T} = Float64) where T
+function normal_direction_correct!(
+    forces,
+    fpoints,
+    ::TopographyElement,
+    ::Type{T} = Float64,
+) where T
     return
 end
 
 """
-    floe_domain_element_interaction!(floe, element, consts, Δt, t::Type{T} = Float64)
+    floe_domain_element_interaction!(
+        floe,
+        element,
+        consts,
+        Δt,
+        t::Type{T} = Float64,
+    )
 
-If floe intersects with given element (either collision boundary or topography element), floe interactions field and overarea field are updated.
+If floe intersects with given element (either collision boundary or
+topography element), floe interactions field and overarea field are updated.
 Inputs:
-        floe            <Floe> floe interacting with element
-        element         <Union{CollisionBoundary, TopographyElement}> coordinates of element
-        consts          <Constants> model constants needed for calculations
-        Δt              <Int> current simulation timestep
-        max_overlap     <Float> Percent a floe can overlap with a collision wall
-                                or topography before being killed/removed
-                        <Type> Float type model is running on (Float64 or Float32)
+    floe            <Floe> floe interacting with element
+    element         <Union{CollisionBoundary, TopographyElement}> coordinates of
+                        element
+    consts          <Constants> model constants needed for calculations
+    Δt              <Int> current simulation timestep
+    max_overlap     <Float> Percent a floe can overlap with a collision wall
+                            or topography before being killed/removed
+                    <Type> Float type model is running on (Float64 or Float32)
 Outputs:
-        None. If floe interacts, the floe's interactions field is updated with the details of each region of overlap.
-        The interactions field will have the following form for each region of overlap with the element:
-            [Inf, xforce, yforce, xfpoints, yfpoints, overlaps] where the xforce and yforce are the forces,
-            xfpoints and yfpoints are the location of the force and overlaps is the overlap between the floe and element.
-        The overlaps field is also added to the floe's overarea field that describes the total overlapping area at any timestep.
+    None. If floe interacts, the floe's interactions field is updated with the
+    details of each region of overlap. The interactions field will have the
+    following form for each region of overlap with the element:
+    [Inf, xforce, yforce, xfpoints, yfpoints, overlaps] where the xforce and
+    yforce are the forces, xfpoints and yfpoints are the location of the force
+    and overlaps is the overlap between the floe and element. The overlaps field
+    is also added to the floe's overarea field that describes the total
+    overlapping area at any timestep.
 """
-function floe_domain_element_interaction!(floe, element::Union{CollisionBoundary, TopographyElement}, consts, Δt, max_overlap, ::Type{T} = Float64) where T
+function floe_domain_element_interaction!(
+    floe,
+    element::Union{CollisionBoundary, TopographyElement},
+    consts,
+    Δt,
+    max_overlap,
+    ::Type{T} = Float64,
+) where T
     floe_poly = LG.Polygon(floe.coords)
     bounds_poly = LG.Polygon(element.coords)
     # Check if the floe and element actually overlap
@@ -379,18 +576,33 @@ function floe_domain_element_interaction!(floe, element::Union{CollisionBoundary
             # Constant needed for force calculations
             force_factor = consts.E * floe.height / sqrt(floe.area)
             # Calculate normal forces, force points, and overlap areas
-            normal_forces, fpoints, overlaps, Δl =  calc_elastic_forces(floe.coords, element.coords,
-                                            inter_regions, region_areas, force_factor, T)
+            normal_forces, fpoints, overlaps, Δl =  calc_elastic_forces(
+                floe.coords,
+                element.coords,
+                inter_regions,
+                region_areas,
+                force_factor,
+            )
             normal_direction_correct!(normal_forces, fpoints, element, T)
-            # Calculate frictional forces at each force point - based on velocities at force points
+            # Calculate frictional forces at each force point
             np = size(fpoints, 1)
-            vfloe = repeat([floe.u floe.v], outer = np) .+ floe.ξ*(fpoints .- repeat(floe.centroid', outer = np)) 
+            vfloe = repeat([floe.u floe.v], outer = np) .+
+                floe.ξ*(fpoints .- repeat(floe.centroid', outer = np)) 
             vbound = repeat(zeros(T, 1, 2), outer = np)
-            friction_forces = calc_friction_forces(vfloe, vbound, normal_forces, Δl, consts, Δt, T)
+            friction_forces = calc_friction_forces(
+                vfloe,
+                vbound,
+                normal_forces,
+                Δl,
+                consts,
+                Δt,
+                T,
+            )
             # Calculate total forces and update ifloe's interactions
             forces = normal_forces .+ friction_forces
             if sum(abs.(forces)) != 0
-                floe.interactions = [floe.interactions; fill(Inf, np) forces fpoints zeros(np) overlaps]
+                floe.interactions = [floe.interactions;
+                    fill(Inf, np) forces fpoints zeros(np) overlaps]
                 floe.overarea += sum(overlaps)
             end
         end
@@ -399,21 +611,36 @@ function floe_domain_element_interaction!(floe, element::Union{CollisionBoundary
 end
 
 """
-    floe_domain_interaction!(floe, domain::DT, consts, max_overlap, t::Type{T} = Float64)
+    floe_domain_interaction!(
+        floe,
+        domain::DT,
+        consts,
+        max_overlap,
+        t::Type{T} = Float64,
+    )
 
-If the floe interacts with the domain, update the floe accordingly. Dispatches on different boundary types within the domain.
+If the floe interacts with the domain, update the floe accordingly. Dispatches
+on different boundary types within the domain.
 Inputs:
-        floe        <Floe> floe interacting with boundary
-        domain      <Domain> model domain
-        consts      <Constants> model constants needed for calculations
-        Δt          <Int> current simulation timestep
-        max_overlap <Float> Percent a floe can overlap with a collision wall
-                            or topography before being killed/removed
-        t           <Type> Float type model is running on (Float64 or Float32)
+    floe        <Floe> floe interacting with boundary
+    domain      <Domain> model domain
+    consts      <Constants> model constants needed for calculations
+    Δt          <Int> current simulation timestep
+    max_overlap <Float> Percent a floe can overlap with a collision wall
+                        or topography before being killed/removed
+    t           <Type> Float type model is running on (Float64 or Float32)
 Outputs:
-        None. Floe is updated according to which boundaries it interacts with and the types of those boundaries. 
+    None. Floe is updated according to which boundaries it interacts with and
+    the types of those boundaries. 
 """
-function floe_domain_interaction!(floe, domain::Domain, consts, Δt, max_overlap, ::Type{T} = Float64) where {T}
+function floe_domain_interaction!(
+    floe,
+    domain::Domain,
+    consts,
+    Δt,
+    max_overlap,
+    ::Type{T} = Float64,
+) where {T}
     centroid = floe.centroid
     rmax = floe.rmax
     nbound = domain.north
@@ -422,21 +649,56 @@ function floe_domain_interaction!(floe, domain::Domain, consts, Δt, max_overlap
     wbound = domain.west
 
     if centroid[2] + rmax > nbound.val
-        floe_domain_element_interaction!(floe, nbound, consts, Δt, max_overlap, T)
+        floe_domain_element_interaction!(
+            floe,
+            nbound,
+            consts,
+            Δt,
+            max_overlap,
+            T,
+        )
     end
     if centroid[2] - rmax < sbound.val
-        floe_domain_element_interaction!(floe, sbound, consts, Δt, max_overlap, T)
+        floe_domain_element_interaction!(
+            floe,
+            sbound,
+            consts,
+            Δt,
+            max_overlap,
+            T,
+        )
     end
     if centroid[1] + rmax > ebound.val
-        floe_domain_element_interaction!(floe, ebound, consts, Δt, max_overlap, T)
+        floe_domain_element_interaction!(
+            floe,
+            ebound,
+            consts,
+            Δt,
+            max_overlap,
+            T,
+        )
     end
     if centroid[1] - rmax < wbound.val
-        floe_domain_element_interaction!(floe, wbound, consts, Δt, max_overlap, T)
+        floe_domain_element_interaction!(
+            floe,
+            wbound,
+            consts,
+            Δt,
+            max_overlap,
+            T,
+        )
     end
 
     for topo_element in domain.topography
         if sum((topo_element.centroid .- floe.centroid).^2) < (topo_element.rmax + floe.rmax)^2
-            floe_domain_element_interaction!(floe, topo_element, consts, Δt, max_overlap, T)
+            floe_domain_element_interaction!(
+                floe,
+                topo_element,
+                consts,
+                Δt,
+                max_overlap,
+                T,
+            )
         end
     end
 
@@ -467,10 +729,52 @@ function calc_torque!(floe, ::Type{T} = Float64) where T
     end
 end
 
-function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, consts, Δt, collision_settings, ::Type{T} = Float64) where T
+"""
+    timestep_collisions!(
+        floes,
+        n_init_floes,
+        domain,
+        remove,
+        transfer,
+        consts,
+        Δt,
+        collision_settings,
+        spinlock,
+        ::Type{T} = Float64,
+    )
+
+Resolves collisions between pairs of floes and calculates the forces and torques
+caused by those collisions.
+Inputs:
+    floes               <StructArray{Floe}> model's list of floes
+    n_init_floes        <Int> number of floes without ghost floes
+    domain              <Domain> model's domain
+    remove              <Vector{Int}> indices of floes to remove from list of
+                            floes due to floe-floe overlap
+    transfer            <Vector{Int}> indices of floes to transfer mass to from
+                            list of floes due to floe-floe overlap
+    consts              <Constants> simulation constants
+    Δt                  <Int> length of simulation timestep in seconds
+    collision_settings  <CollisionSettings> simulation collision settings
+    spinlock            <Thread.SpinLock>
+    T                   <Type{AbstractFloat}> type to run simulation
+                            calculations - either Float64 of Float32
+"""
+function timestep_collisions!(
+    floes,
+    n_init_floes,
+    domain,
+    remove,
+    transfer,
+    consts,
+    Δt,
+    collision_settings,
+    spinlock,
+    ::Type{T} = Float64,
+) where T
     collide_pairs = Dict{Tuple{Int, Int}, Tuple{Int, Int}}()
     # floe-floe collisions for floes i and j where i<j
-    for i in eachindex(floes)
+    Threads.@threads for i in eachindex(floes)
         ifloe = floes[i]
         # reset collision values
         ifloe.collision_force = zeros(T, 1, 2)
@@ -487,21 +791,38 @@ function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, con
             if (id_pair[1] != id_pair[2]) && (sum((ifloe.centroid .- floes.centroid[j]).^2) < (ifloe.rmax + floes.rmax[j])^2)
                 # Never seen any combo of these floes/ghosts
                 new_collision = !(id_pair in keys(collide_pairs))
+                if new_collision
+                    Threads.lock(spinlock) do
+                        collide_pairs[id_pair] = ghost_id_pair
+                    end
+                end
                 # New collision or floe and ghost colliding with same floe - not a repeat collision
                 if new_collision || (ghost_id_pair[1] == collide_pairs[id_pair][1]) ⊻ (ghost_id_pair[2] == collide_pairs[id_pair][2])
-                    iremove, itransfer = floe_floe_interaction!(ifloe, i, floes[j], j, n_init_floes, consts, Δt, collision_settings.floe_floe_max_overlap)
+                    iremove, itransfer = floe_floe_interaction!(
+                        ifloe,
+                        i,
+                        floes[j],
+                        j,
+                        n_init_floes,
+                        consts,
+                        Δt,
+                        collision_settings.floe_floe_max_overlap,
+                    )
                     if iremove != 0 || itransfer != 0
                         remove[i] = iremove
                         transfer[i] = itransfer
                     end
-                    # If this is a new collision, add to collide_pairs
-                    if new_collision
-                        collide_pairs[id_pair] = ghost_id_pair
-                    end
                 end
             end
         end
-        floe_domain_interaction!(ifloe, domain, consts, Δt, collision_settings.floe_domain_max_overlap, T)
+        floe_domain_interaction!(
+            ifloe,
+            domain,
+            consts,
+            Δt,
+            collision_settings.floe_domain_max_overlap,
+            T,
+        )
         floes[i] = ifloe
     end
     # Update floes not directly calculated above where i>j - can't be parallelized
@@ -510,7 +831,7 @@ function timestep_collisions!(floes, n_init_floes, domain, remove, transfer, con
         if i <= n_init_floes && remove[i] > 0 && remove[i] != i
             transfer[remove[i]] = i
         end
-        ij_inters = floes[i].interactions
+        ij_inters = floes.interactions[i]
         if !isempty(ij_inters)
             for inter_idx in axes(ij_inters, 1)  # Loop over each interaction with Floe i
                 j = ij_inters[inter_idx, floeidx]  # Index of floe to update in model floe list
@@ -668,7 +989,10 @@ function add_floe_ghosts!(floes::StructArray{Floe{T}}, max_boundary, min_boundar
 end
 
 """
-    add_ghosts!(elems, ::Domain{FT, <:NonPeriodicBoundary, <:NonPeriodicBoundary, <:NonPeriodicBoundary, <:NonPeriodicBoundary})
+    add_ghosts!(
+        elems,
+        domain,
+    )
 
 When there are no periodic boundaries, no ghosts should be added.
 Inputs:
@@ -676,54 +1000,117 @@ Inputs:
 Outputs:
         None. 
 """
-function add_ghosts!(elems, ::Domain{FT, <:NonPeriodicBoundary, <:NonPeriodicBoundary, <:NonPeriodicBoundary, <:NonPeriodicBoundary}) where {FT<:AbstractFloat}
+function add_ghosts!(
+    elems,
+    ::Domain{
+        FT,
+        <:NonPeriodicBoundary,
+        <:NonPeriodicBoundary,
+        <:NonPeriodicBoundary,
+        <:NonPeriodicBoundary,
+    },
+) where {FT<:AbstractFloat}
     return
 end
 
 """
-    add_ghosts!(elems, domain::Domain{FT, <:PeriodicBoundary, <:PeriodicBoundary, <:NonPeriodicBoundary, <:NonPeriodicBoundary})
+    add_ghosts!(
+        elems,
+        domain,
+    )
 
 Add ghosts for elements that pass through the northern or southern boundaries.
 Inputs:
-        elems   <StructArray{Floe} or StructArray{TopographyElement}> list of elements to add ghosts to
-        domain  <Domain{Float, PeriodicBoundary, PeriodicBoundary,
-                               NonPeriodicBoundary, NonPeriodicBoundary}> domain with northern and southern periodic boundaries
+        elems   <StructArray{Floe} or StructArray{TopographyElement}> list of
+                    elements to add ghosts to
+        domain  <Domain{
+                    Float,
+                    PeriodicBoundary,
+                    PeriodicBoundary,
+                    NonPeriodicBoundary,
+                    NonPeriodicBoundary,
+                }> domain with northern and southern periodic boundaries
 Outputs:
         None. Ghosts are added to list of elements.
 """
-function add_ghosts!(elems, domain::Domain{FT, <:PeriodicBoundary, <:PeriodicBoundary, <:NonPeriodicBoundary, <:NonPeriodicBoundary}) where {FT<:AbstractFloat}
+function add_ghosts!(
+    elems,
+    domain::Domain{
+        FT,
+        <:PeriodicBoundary,
+        <:PeriodicBoundary,
+        <:NonPeriodicBoundary,
+        <:NonPeriodicBoundary,
+    },
+) where {FT<:AbstractFloat}
     add_floe_ghosts!(elems, domain.north, domain.south)
     return
 end
 
 """
-    add_ghosts!(elems, domain::Domain{FT, <:NonPeriodicBoundary, <:NonPeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary})
+    add_ghosts!(
+        elems,
+        domain,
+    )
 
 Add ghosts for elements that pass through the eastern or western boundaries. 
 Inputs:
-        elems   <StructArray{Floe} or StructArray{TopographyElement}> list of elements to add ghosts to
-        domain  <Domain{Float, NonPeriodicBoundary, NonPeriodicBoundary,
-                               PeriodicBoundary, PeriodicBoundary}> domain with eastern and western periodic boundaries 
+    elems   <StructArray{Floe} or StructArray{TopographyElement}> list of
+                elements to add ghosts to
+    domain  <Domain{
+                Float,
+                NonPeriodicBoundary,
+                NonPeriodicBoundary,
+                PeriodicBoundary,
+                PeriodicBoundary,
+            }> domain with eastern and western periodic boundaries 
 Outputs:
-        None. Ghosts are added to list of elements.
+    None. Ghosts are added to list of elements.
 """
-function add_ghosts!(elems, domain::Domain{FT, <:NonPeriodicBoundary, <:NonPeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary}) where {FT<:AbstractFloat}
+function add_ghosts!(
+    elems,
+    domain::Domain{
+        FT,
+        <:NonPeriodicBoundary,
+        <:NonPeriodicBoundary,
+        <:PeriodicBoundary,
+        <:PeriodicBoundary,
+    },
+) where {FT<:AbstractFloat}
     add_floe_ghosts!(elems, domain.east, domain.west)
     return
 end
 
 """
-    add_ghosts!(elems, domain::Domain{FT, <:PeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary})
+    add_ghosts!(
+        elems,
+        domain,
+    )
 
 Add ghosts for elements that pass through any of the boundaries. 
 Inputs:
-        elems   <StructArray{Floe} or StructArray{TopographyElement}> list of elements to add ghosts to
-        domain  <Domain{Float, PeriodicBoundary, PeriodicBoundary,
-                               PeriodicBoundary, PeriodicBoundary}> domain with all boundaries
+    elems   <StructArray{Floe} or StructArray{TopographyElement}> list of
+                elements to add ghosts to
+    domain  <Domain{
+                AbstractFloat,
+                PeriodicBoundary,
+                PeriodicBoundary,
+                PeriodicBoundary,
+                PeriodicBoundary,
+            }> domain with all boundaries
 Outputs:
         None. Ghosts are added to list of elements.
 """
-function add_ghosts!(elems, domain::Domain{FT, <:PeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary}) where {FT<:AbstractFloat}
+function add_ghosts!(
+    elems,
+    domain::Domain{
+        FT,
+        <:PeriodicBoundary,
+        <:PeriodicBoundary,
+        <:PeriodicBoundary,
+        <:PeriodicBoundary
+    }
+) where {FT<:AbstractFloat}
     add_floe_ghosts!(elems, domain.east, domain.west)
     add_floe_ghosts!(elems, domain.north, domain.south)
     return
