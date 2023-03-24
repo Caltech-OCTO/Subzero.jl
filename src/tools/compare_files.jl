@@ -1,8 +1,17 @@
 using JLD2, NCDatasets
 
-file1 = jldopen("output/sim/thread1_floes.jld2", "r")
-file2 = jldopen("output/sim/thread8_floes.jld2", "r")
+"""
+    compare_floe_data(filename1, filename2)
 
+Compare two files output by the floe output writer. Prints out first instances
+of not matching per timestep and field. 
+Inputs:
+    filename1   <String> filename and path of first file
+    filename2   <String> filename and path of second file
+Outputs:
+    If there are instances of differences, function will print time and index of
+    floes that don't match
+"""
 function compare_floe_data(filename1, filename2)
     file1 = jldopen(filename1, "r")
     file2 = jldopen(filename2, "r")
@@ -15,7 +24,12 @@ function compare_floe_data(filename1, filename2)
                 f2_data = file2[k][t]
                 same = true
                 for i in eachindex(f1_data)
-                    same = same && all(f1_data[i] .== f2_data[i])
+                    if k == "stress_history"
+                        same = same && f1_data[i].total == f2_data[i].total
+                        same = same && all(f1_data[i].cb .== f2_data[i].cb)
+                    else
+                        same = same && all(f1_data[i] .== f2_data[i])
+                    end
                     if !same
                         println(string(
                             "Differences starting at time ",
@@ -34,7 +48,17 @@ function compare_floe_data(filename1, filename2)
     return
 end
 
-
+"""
+    compare_grid_data(filename1, filename2)
+Compare two files output by the grid output writer. Prints out first instances
+of not matching per field. All timesteps are compared at once. 
+Inputs:
+    filename1   <String> filename and path of first file
+    filename2   <String> filename and path of second file
+Outputs:
+    If there are instances of differences, function will print the field that
+    has discrepancies. 
+"""
 function compare_grid_data(filename1, filename2)
     file1 = Dataset(filename1, "r")
     file2 = Dataset(filename2, "r")
@@ -56,20 +80,32 @@ function compare_grid_data(filename1, filename2)
     close(file2)
 end
 
-function compare_checkpointer_data(filename1, filename2)
+"""
+    compare_checkpointer_data(filename1, filename2)
+Compare two files output by the checkpointer output writer. Compares ocean and
+atmosphere. If there are discrepancies between the files, it will
+timesteps and field. 
+Inputs:
+    filename1   <String> filename and path of first file
+    filename2   <String> filename and path of second file
+Outputs:
+    If there are instances of differences, function will print the field and
+    timesteps that have discrepancies. 
+"""
+function compare_oa_checkpointer_data(filename1, filename2)
     file1 = jldopen(filename1, "r")
     file2 = jldopen(filename2, "r")
 
     ocean1 = file1["ocean"]
     ocean2 = file2["ocean"]
-    fields =fieldnames(typeof(Ocean))
+    fields =fieldnames(Ocean)
     println("Comparing Ocean")
     for t in keys(ocean1)
         for f in fields
             same = true
             same = same && all(getfield(ocean1[t], f) .== getfield(ocean2[t], f))
             if !same
-                println(string("Differences in field ", f, "and timestep ", t))
+                println(string("Differences in field ", f, " and timestep ", t))
                 break
             end
         end
@@ -77,7 +113,7 @@ function compare_checkpointer_data(filename1, filename2)
 
     atmos1 = file1["atmos"]
     atmos2 = file2["atmos"]
-    fields =fieldnames(typeof(Atmos))
+    fields =fieldnames(Atmos)
     println("Comparing Atmosphere")
     for t in keys(ocean1)
         for f in fields
