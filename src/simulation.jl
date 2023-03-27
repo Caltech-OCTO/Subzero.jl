@@ -88,7 +88,6 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
                 sim.Δt,
                 sim.collision_settings,
                 spinlock,
-                T,
             )
         end
 
