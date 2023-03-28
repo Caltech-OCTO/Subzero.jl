@@ -75,7 +75,8 @@ simulation = Simulation(
     Δt = 10,
     nΔt = 50,
     writers = writers,
-    verbose = false
+    verbose = false,
+    coupling_settings = CouplingSettings(calc_ocnτ_on = false)
 )
 
 #@benchmark timestep_sim!(simulation, 10) setup=(sim=deepcopy(simulation))
@@ -93,11 +94,26 @@ simulation = Simulation(
 # ) setup=(sim=deepcopy(simulation))
 
 @benchmark Subzero.timestep_coupling!(
-    sim.model,
+    sim.model.floes,
+    sim.model.grid,
+    sim.model.domain,
+    sim.model.ocean,
+    sim.model.atmos,
     sim.consts,
     sim.coupling_settings,
     Threads.SpinLock(),
 ) setup=(sim=deepcopy(simulation))
+
+# ProfileView.@profview Subzero.timestep_coupling!(
+#     simulation.model.floes,
+#     simulation.model.grid,
+#     simulation.model.domain,
+#     simulation.model.ocean,
+#     simulation.model.atmos,
+#     simulation.consts,
+#     simulation.coupling_settings,
+#     Threads.SpinLock(),
+# )
 
 #time_run(simulation) = @time run!(simulation)
 
@@ -107,17 +123,17 @@ simulation = Simulation(
 #@time run!(simulation)
 #ProfileView.@profview run!(simulation)
 #Profile.Allocs.@profile timestep_sim!(simulation, 1)
-#Profile.Allocs.@profile sample_rate=1 Subzero.timestep_floe_properties!(simulation.model.floes, simulation.Δt)
-
-# Profile.Allocs.@profile sample_rate=1 Subzero.timestep_collisions!(
-#     simulation.model.floes,
-#     simulation.model.max_floe_id,
-#     simulation.model.domain,
-#     zeros(Int, simulation.model.max_floe_id),
-#     zeros(Int, simulation.model.max_floe_id),
+# Profile.Allocs.@profile sample_rate=1 Subzero.timestep_coupling!(
+#     simulation.model,
 #     simulation.consts,
-#     simulation.Δt,
-#     simulation.collision_settings,
+#     simulation.coupling_settings,
+#     Threads.SpinLock(),
+# )
+
+# Profile.Allocs.@profile sample_rate=1 Subzero.timestep_coupling!(
+#     simulation.model,
+#     simulation.consts,
+#     simulation.coupling_settings,
 #     Threads.SpinLock(),
 # )
 

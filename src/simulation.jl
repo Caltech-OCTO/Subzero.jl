@@ -103,7 +103,6 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
                 sim.consts,
                 sim.coupling_settings,
                 spinlock,
-                T,
             )
         end
 
