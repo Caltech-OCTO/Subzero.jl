@@ -76,7 +76,7 @@ simulation = Simulation(
     nΔt = 50,
     writers = writers,
     verbose = false,
-    coupling_settings = CouplingSettings(calc_ocnτ_on = false)
+    coupling_settings = CouplingSettings(calc_ocnτ_on = true)
 )
 
 #@benchmark timestep_sim!(simulation, 10) setup=(sim=deepcopy(simulation))
@@ -93,16 +93,16 @@ simulation = Simulation(
 #     Threads.SpinLock(),
 # ) setup=(sim=deepcopy(simulation))
 
-@benchmark Subzero.timestep_coupling!(
-    sim.model.floes,
-    sim.model.grid,
-    sim.model.domain,
-    sim.model.ocean,
-    sim.model.atmos,
-    sim.consts,
-    sim.coupling_settings,
-    Threads.SpinLock(),
-) setup=(sim=deepcopy(simulation))
+# @benchmark Subzero.timestep_coupling!(
+#     sim.model.floes,
+#     sim.model.grid,
+#     sim.model.domain,
+#     sim.model.ocean,
+#     sim.model.atmos,
+#     sim.consts,
+#     sim.coupling_settings,
+#     Threads.SpinLock(),
+# ) setup=(sim=deepcopy(simulation))
 
 # ProfileView.@profview Subzero.timestep_coupling!(
 #     simulation.model.floes,
@@ -119,16 +119,21 @@ simulation = Simulation(
 
 # # Run simulation
 #time_run(simulation)
-# Profile.Allocs.clear()
+Profile.Allocs.clear()
 #@time run!(simulation)
 #ProfileView.@profview run!(simulation)
 #Profile.Allocs.@profile timestep_sim!(simulation, 1)
-# Profile.Allocs.@profile sample_rate=1 Subzero.timestep_coupling!(
-#     simulation.model,
-#     simulation.consts,
-#     simulation.coupling_settings,
-#     Threads.SpinLock(),
-# )
+Profile.Allocs.@profile sample_rate=1 Subzero.timestep_coupling!(
+    simulation.model.floes,
+    simulation.model.grid,
+    simulation.model.domain,
+    simulation.model.ocean,
+    simulation.model.atmos,
+    simulation.consts,
+    simulation.coupling_settings,
+    Threads.SpinLock(),
+)
+
 
 # Profile.Allocs.@profile sample_rate=1 Subzero.timestep_coupling!(
 #     simulation.model,
@@ -137,7 +142,7 @@ simulation = Simulation(
 #     Threads.SpinLock(),
 # )
 
-# PProf.Allocs.pprof(from_c = false)
+PProf.Allocs.pprof(from_c = false)
 # last(sort(results.allocs, by=x->x.size))
 # Subzero.create_sim_gif(
 #     joinpath(dir, "floes.jld2"), 

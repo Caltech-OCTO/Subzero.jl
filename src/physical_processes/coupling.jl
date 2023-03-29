@@ -502,16 +502,21 @@ Outputs:
     hflx_factor <Vector{AbstractFloat}> ocean heatflux factor interpolated onto
                     floe's monte carlo points
 """
-function mc_interpolation(
+function mc_interpolation!(
     npoints,
     mc_cart,
     mc_grid_idx,
-    grid::RegRectilinearGrid{FT},
+    grid,
     domain,
     atmos,
     ocean,
     coupling_settings,
-) where {FT<:AbstractFloat}
+    uatm,
+    vatm,
+    uocn,
+    vocn,
+    hflx_factor,
+)
     mc_xr = @view mc_cart[1:npoints, 1]
     mc_yr = @view mc_cart[1:npoints, 2]
     mc_cols = @view mc_grid_idx[1:npoints, 1]
@@ -533,35 +538,35 @@ function mc_interpolation(
     # Atmos Interpolation for Monte Carlo Points
     uatm_interp = linear_interpolation(
         (yknots, xknots),
-        atmos.u[yknot_idx, xknot_idx],
+        @view(atmos.u[yknot_idx, xknot_idx]),
     )
     vatm_interp = linear_interpolation(
         (yknots, xknots),
-        atmos.v[yknot_idx, xknot_idx],
+        @view(atmos.v[yknot_idx, xknot_idx]),
     )
-    uatm = [uatm_interp(mc_yr[i], mc_xr[i]) for i in eachindex(mc_xr)]
-    vatm = [vatm_interp(mc_yr[i], mc_xr[i]) for i in eachindex(mc_xr)]
-
     # Ocean Interpolation for Monte Carlo Points
     uocn_interp = linear_interpolation(
         (yknots, xknots),
-        ocean.u[yknot_idx, xknot_idx],
+        @view(ocean.u[yknot_idx, xknot_idx]),
     )
     vocn_interp = linear_interpolation(
         (yknots, xknots),
-        ocean.v[yknot_idx, xknot_idx],
+        @view(ocean.v[yknot_idx, xknot_idx]),
     )
-    uocn = [uocn_interp(mc_yr[i], mc_xr[i]) for i in eachindex(mc_xr)]
-    vocn = [vocn_interp(mc_yr[i], mc_xr[i]) for i in eachindex(mc_xr)]
-
     # Heatflux Factor Interpolatoin for Monte Carlo Points
     hflx_interp = linear_interpolation(
         (yknots, xknots),
-        ocean.hflx_factor[yknot_idx, xknot_idx],
+        @view(ocean.hflx_factor[yknot_idx, xknot_idx]),
     )
-    hflx_factor = [hflx_interp(mc_yr[i], mc_xr[i]) for i in eachindex(mc_xr)]
 
-    return uatm, vatm, uocn, vocn, hflx_factor
+    for i in eachindex(mc_xr)
+        uatm[i] = uatm_interp(mc_yr[i], mc_xr[i]) 
+        vatm[i] = vatm_interp(mc_yr[i], mc_xr[i])
+        uocn[i] = uocn_interp(mc_yr[i], mc_xr[i])
+        vocn[i] = vocn_interp(mc_yr[i], mc_xr[i])
+        hflx_factor[i] = hflx_interp(mc_yr[i], mc_xr[i])
+    end
+    return
 end
 
 #-------------- Effects of Ice and Atmosphere on Ocean --------------#
@@ -882,6 +887,7 @@ Outputs:
     threads to prevent race conditions.
 """
 function aggregate_grid_force!(
+    npoints,
     mc_grid_idx,
     τx_ocn::Vector{FT},
     τy_ocn,
@@ -892,8 +898,8 @@ function aggregate_grid_force!(
     ew_bound,
     spinlock, # lock for parallelization
 ) where {FT}
-    mc_cols = @view mc_grid_idx[:, 1]
-    mc_rows = @view mc_grid_idx[:, 2]
+    mc_cols = @view mc_grid_idx[1:npoints, 1]
+    mc_rows = @view mc_grid_idx[1:npoints, 2]
     τx_group = Dict{Tuple{Int64, Int64}, Vector{FT}}()
     τy_group = Dict{Tuple{Int64, Int64}, Vector{FT}}()
     # Use dictionary to sort stress values by grid cell
@@ -1000,42 +1006,29 @@ Outputs:
     τy_pressure∇    <Vector{AbstractFloat}> stress from ocean pressure gradient
                         in y-direction at each monte carlo point
 """
-function calc_ocean_forcing(
-    floe,
+function calc_ocean_forcing!(
+    floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
     mc_vel,
-    uocn::Vector{FT},
+    uocn,
     vocn,
     c,  # constants
+    τx_ocn,
+    τy_ocn,
+    τx_pressure∇,
+    τy_pressure∇,
 ) where {FT}
-    # Allocate outputs
-    τx_ocn = fill(c.ρo*c.Cd_io, size(uocn))
-    τy_ocn = fill(c.ρo*c.Cd_io, size(uocn))
     ma_ratio = floe.mass/floe.area
-    τx_pressure∇ = fill(-ma_ratio * c.f, size(uocn))
-    τy_pressure∇ = fill(ma_ratio * c.f, size(uocn))
     # Stress on ice from ocean
     for i in eachindex(uocn)
         Δu_OI = uocn[i] .- mc_vel[i, 1]
         Δv_OI = vocn[i] .- mc_vel[i, 2]
         norm = sqrt(Δu_OI^2 + Δv_OI^2)
-        τx_ocn[i] = norm * (cos(c.turnθ) * Δu_OI - sin(c.turnθ) * Δv_OI)
-        τy_ocn[i] = norm * (sin(c.turnθ) * Δu_OI + cos(c.turnθ) * Δv_OI)
-        τx_pressure∇[i] *= vocn[i]
-        τy_pressure∇[i] *= uocn[i]
+        τx_ocn[i] = c.ρo*c.Cd_io * norm * (cos(c.turnθ) * Δu_OI - sin(c.turnθ) * Δv_OI)
+        τy_ocn[i] = c.ρo*c.Cd_io * norm * (sin(c.turnθ) * Δu_OI + cos(c.turnθ) * Δv_OI)
+        τx_pressure∇[i] = -ma_ratio * c.f * vocn[i]
+        τy_pressure∇[i] = ma_ratio * c.f * uocn[i]
     end
-    # Δu_OI = uocn .- @view mc_vel[:, 1]
-    # Δv_OI = vocn .- @view mc_vel[:, 2]
-    # τx_ocn = c.ρo*c.Cd_io*sqrt.(Δu_OI.^2 + Δv_OI.^2) .*
-    #     (cos(c.turnθ) .* Δu_OI .- sin(c.turnθ) * Δv_OI)
-    # τy_ocn = c.ρo*c.Cd_io*sqrt.(Δu_OI.^2 + Δv_OI.^2) .*
-    #     (sin(c.turnθ) .* Δu_OI .+ cos(c.turnθ) * Δv_OI)
-
-    # # Stress on ice from pressure gradient
-    # ma_ratio = floe.mass/floe.area
-    # τx_pressure∇ = -ma_ratio * c.f .* vocn
-    # τy_pressure∇ = ma_ratio * c.f .* uocn
-
-    return τx_ocn, τy_ocn, τx_pressure∇, τy_pressure∇
+    return
 end
 
 """
@@ -1079,12 +1072,20 @@ function timestep_coupling!(
     mc_vel = Matrix{FT}(undef, max_n_mc, 2)
     mc_grid_idx = Matrix{Int}(undef, max_n_mc, 2)
     # Ocean/atmosphere values
-    # uatm = Vector{FT}(undef, max_n_mc)
-    # vatm = Vector{FT}(undef, max_n_mc)
-    # uocn = Vector{FT}(undef, max_n_mc)
-    # vocn = Vector{FT}(undef, max_n_mc)
-    # hflx_factor = Vector{FT}(undef, max_n_mc)
-
+    uatm = Vector{FT}(undef, max_n_mc)
+    vatm = Vector{FT}(undef, max_n_mc)
+    uocn = Vector{FT}(undef, max_n_mc)
+    vocn = Vector{FT}(undef, max_n_mc)
+    hflx_factor = Vector{FT}(undef, max_n_mc)
+    # Forces and Torques
+    τx_ocn = Vector{FT}(undef, max_n_mc)
+    τy_ocn = Vector{FT}(undef, max_n_mc)
+    τx_pressure∇ = Vector{FT}(undef, max_n_mc)
+    τy_pressure∇ = Vector{FT}(undef, max_n_mc)
+    τx = Vector{FT}(undef, max_n_mc)
+    τy = Vector{FT}(undef, max_n_mc)
+    τtrq = Vector{FT}(undef, max_n_mc)
+    
     # Calcualte coupling for each floe
     for i in eachindex(floes) #TODO re-add threading
         # Find monte carlo point peroperties
@@ -1099,7 +1100,7 @@ function timestep_coupling!(
         )
 
         # Interpolate ocean and atmosphere values onto monte carlo points
-        uatm, vatm, uocn, vocn, hflx_factor = mc_interpolation(
+        mc_interpolation!(
             npoints,
             mc_cart,
             mc_grid_idx,
@@ -1108,21 +1109,35 @@ function timestep_coupling!(
             atmos,
             ocean,
             coupling_settings,
-        )
-        # Calculate effects on the floe
-        floes.hflx_factor[i] = mean(hflx_factor)
-        τx_atm, τy_atm = calc_atmosphere_forcing(uatm, vatm, consts)
-        τx_ocn, τy_ocn, τx_pressure∇, τy_pressure∇ = calc_ocean_forcing(
-            LazyRow(floes, i),
-            mc_vel,
+            uatm,
+            vatm,
             uocn,
             vocn,
+            hflx_factor,
+        )
+        # Calculate effects on the floe
+        floes.hflx_factor[i] = mean(@view hflx_factor[1:npoints])
+        τx_atm, τy_atm = @views calc_atmosphere_forcing(
+            uatm[1:npoints],
+            vatm[1:npoints],
             consts,
+        )
+        @views calc_ocean_forcing!(
+            LazyRow(floes, i),
+            mc_vel[1:npoints, :],
+            uocn[1:npoints],
+            vocn[1:npoints],
+            consts,
+            τx_ocn,
+            τy_ocn,
+            τx_pressure∇,
+            τy_pressure∇,
         )
 
         # Update ocean with force from floe per grid cell
         if coupling_settings.calc_ocnτ_on
             aggregate_grid_force!(
+                npoints,
                 mc_grid_idx,
                 -τx_ocn,
                 -τy_ocn,
@@ -1136,22 +1151,24 @@ function timestep_coupling!(
         end
 
         # Sum stresses and find torques
-        mc_rad = @view mc_polar[1:npoints, 1]
-        mc_θ = @view mc_polar[1:npoints, 2]
-        τx = τx_atm .+ τx_pressure∇ .+ τx_ocn
-        τy = τy_atm .+ τy_pressure∇ .+ τy_ocn
-        τtrq = (-τx .* sin.(mc_θ) .+ τy .* cos.(mc_θ)) .* mc_rad
-
-        # Add coriolis force to total foces - does not contribute to torque
         iarea = floes.area[i]
         ma_ratio = (floes.mass[i]/iarea)
-        τx .+= ma_ratio * consts.f * floes.v[i]
-        τy .-= ma_ratio * consts.f * floes.u[i]
+        xcoriolis = ma_ratio * consts.f * floes.v[i]
+        ycoriolis = ma_ratio * consts.f * floes.u[i]
+        for j in 1:npoints
+            τx[j] = τx_atm + τx_pressure∇[j] + τx_ocn[j]
+            τy[j] = τy_atm + τy_pressure∇[j] + τy_ocn[j]
+            # Calculate torque
+            τtrq[j] = (-τx[j] * sin(mc_polar[j, 2]) + τy[j] * cos(mc_polar[j, 2])) * mc_polar[j, 1]
+            # Add coriolis force to total foces - does not contribute to torque
+            τx[j] += xcoriolis
+            τy[j] -= ycoriolis
+        end
 
         # Average forces on ice floe
-        floes.fxOA[i] = mean(τx) * iarea
-        floes.fyOA[i] = mean(τy) * iarea
-        floes.trqOA[i] = mean(τtrq) * iarea
+        floes.fxOA[i] = mean(@view τx[1:npoints]) * iarea
+        floes.fyOA[i] = mean(@view τy[1:npoints]) * iarea
+        floes.trqOA[i] = mean(@view τtrq[1:npoints]) * iarea
     end
 end
 
