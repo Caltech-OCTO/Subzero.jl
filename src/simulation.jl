@@ -99,10 +99,13 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
         # Effects of ocean and atmosphere on ice and visa versa
         if sim.coupling_settings.coupling_on && mod(tstep, sim.coupling_settings.Δt) == 0
             timestep_coupling!(
-                sim.model,
+                sim.model.floes,
+                sim.model.grid,
+                sim.model.domain,
+                sim.model.ocean,
+                sim.model.atmos,
                 sim.consts,
                 sim.coupling_settings,
-                spinlock,
             )
         end
 

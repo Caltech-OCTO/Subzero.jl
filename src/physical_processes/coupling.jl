@@ -535,27 +535,32 @@ function mc_interpolation!(
         coupling_settings.Δd,
         domain.north,
     )
+    knots = (yknots, xknots)
     # Atmos Interpolation for Monte Carlo Points
     uatm_interp = linear_interpolation(
-        (yknots, xknots),
+        knots,
         @view(atmos.u[yknot_idx, xknot_idx]),
     )
+    
     vatm_interp = linear_interpolation(
-        (yknots, xknots),
+        knots,
         @view(atmos.v[yknot_idx, xknot_idx]),
     )
+    
     # Ocean Interpolation for Monte Carlo Points
     uocn_interp = linear_interpolation(
-        (yknots, xknots),
+        knots,
         @view(ocean.u[yknot_idx, xknot_idx]),
     )
+
     vocn_interp = linear_interpolation(
-        (yknots, xknots),
+        knots,
         @view(ocean.v[yknot_idx, xknot_idx]),
     )
+
     # Heatflux Factor Interpolatoin for Monte Carlo Points
     hflx_interp = linear_interpolation(
-        (yknots, xknots),
+        knots,
         @view(ocean.hflx_factor[yknot_idx, xknot_idx]),
     )
 
@@ -848,6 +853,37 @@ function shift_cell_idx(idx, nlines, ::PeriodicBoundary)
     return idx < 1 ? (idx + ncells) : ncells < idx ? (idx - ncells) : idx
 end
 
+struct OceanStressCell{FT<:AbstractFloat}
+    floeidx::Vector{Int}
+    τx::Vector{FT}
+    τy::Vector{FT}
+    npoints::Vector{Int}
+    trans_vec::Vector{SVector{2,FT}}
+end
+
+OceanStressCell{FT}() where {FT} = OceanStressCell{FT}(
+    Vector{Int}(),
+    Vector{FT}(),
+    Vector{FT}(),
+    Vector{Int}(),
+    Vector{SVector{2, FT}}()
+)
+
+function add_point!(scell::OceanStressCell, floeidx, τx, τy, Δx, Δy)
+    if isempty(scell.floeidx) || scell.floeidx[end] != floeidx
+        push!(scell.floeidx, floeidx)
+        push!(scell.τx, τx)
+        push!(scell.τy, τy)
+        push!(scell.npoints, 1)
+        push!(scell.trans_vec, SVector{2}([Δx, Δy]))
+    else
+        scell.τx[end] += τx
+        scell.τy[end] += τy
+        scell.npoints[end] += 1
+    end
+
+end
+
 """
     aggregate_grid_force!(
         mc_grid_idx,
@@ -868,10 +904,10 @@ Inputs:
     mc_grid_idx <Matrix{Int}> index of monte carlo points within the grid - nx2
                     matrix of indices where the first column is the grid column
                     index and the second column is the grid row index
-    τx_ocn      <Vector{Float}> x-stress caused by each corresponding monte
-                    carlo point on the ocean
-    τy_ocn      <Vector{Float}> y-stress caused by each corresponding monte
-                    carlo point on the ocean
+    τx_ocn      <Vector{Float}> x-stress caused by ocean on each corresponding
+                    monte carlo point - negative is stress on the ocean
+    τy_ocn      <Vector{Float}> y-stress caused by ocean on each corresponding
+                    monte carlo point - negative is stress on the ocean
     floe        <Floe> single floe within model
     ocean       <Ocean> model's ocean
     grid        <AbstractGrid> model's grid
@@ -887,58 +923,76 @@ Outputs:
     threads to prevent race conditions.
 """
 function aggregate_grid_force!(
+    floeidx,
     npoints,
     mc_grid_idx,
     τx_ocn::Vector{FT},
     τy_ocn,
-    floe,
-    ocean,
     grid,
     ns_bound,
     ew_bound,
-    spinlock, # lock for parallelization
+    τocn_on_grid,
 ) where {FT}
     mc_cols = @view mc_grid_idx[1:npoints, 1]
     mc_rows = @view mc_grid_idx[1:npoints, 2]
-    τx_group = Dict{Tuple{Int64, Int64}, Vector{FT}}()
-    τy_group = Dict{Tuple{Int64, Int64}, Vector{FT}}()
     # Use dictionary to sort stress values by grid cell
     for i in eachindex(mc_cols)
-        idx = (mc_rows[i], mc_cols[i])
-        if haskey(τx_group, idx)
-            push!(τx_group[idx], τx_ocn[i])
-            push!(τy_group[idx], τy_ocn[i])
-        else
-            τx_group[idx] = [τx_ocn[i]]
-            τy_group[idx] = [τy_ocn[i]]
-        end
-    end
-
-    # Determine force from floe on each grid cell it is in
-    floe_poly = LG.Polygon(floe.coords)
-    for (row, col) in keys(τx_group)
-        grid_poly = LG.Polygon(center_cell_coords(
-                col,
-                row,
-                grid,
-                ns_bound,
-                ew_bound
-        ))
-        floe_area_in_cell = LG.area(LG.intersection(grid_poly, floe_poly))
-        if floe_area_in_cell > 0
-            fx_mean = mean(τx_group[row, col]) * floe_area_in_cell
-            fy_mean = mean(τy_group[row, col]) * floe_area_in_cell
-            row = shift_cell_idx(row, grid.dims[1] + 1, ns_bound)
-            col = shift_cell_idx(col, grid.dims[2] + 1, ew_bound)
-            Threads.lock(spinlock) do
-                ocean.fx[row, col] += fx_mean
-                ocean.fy[row, col] += fy_mean
-                ocean.si_area[row, col] += floe_area_in_cell
-            end
-        end
+        row = shift_cell_idx(mc_rows[i], grid.dims[1] + 1, ns_bound)
+        col = shift_cell_idx(mc_cols[i], grid.dims[2] + 1, ew_bound)
+        Δx = (mc_cols[i] - col) * (grid.xg[2] - grid.xg[1])
+        Δy = (mc_rows[i] - row) * (grid.yg[2] - grid.yg[1])
+        cellτ = τocn_on_grid[row, col]
+        add_point!(cellτ, floeidx, -τx_ocn[i], -τy_ocn[i], Δx, Δy)
     end
     return
 end
+
+# function sum_grid_force!(
+#     τocn_on_grid,
+#     floes,
+#     grid,
+#     ns_bound,
+#     ew_bound,
+# )
+#     # Determine force from floe on each grid cell it is in
+#     for i in eachindex(τocn_on_grid)
+
+
+#         cell_coords = center_cell_coords(
+#             col,
+#             row,
+#             grid,
+#             ns_bound,
+#             ew_bound
+#         )
+#         cell_poly = LG.Polygon(cell_coords)
+#         for j in eachindex(τocn_on_grid[])
+
+#     end
+#     floe_poly = LG.Polygon(floe.coords)
+#     for (row, col) in keys(τx_group)
+#         grid_poly = LG.Polygon(center_cell_coords(
+#                 col,
+#                 row,
+#                 grid,
+#                 ns_bound,
+#                 ew_bound
+#         ))
+#         floe_area_in_cell = LG.area(LG.intersection(grid_poly, floe_poly))
+#         if floe_area_in_cell > 0
+#             fx_mean = mean(τx_group[row, col]) * floe_area_in_cell
+#             fy_mean = mean(τy_group[row, col]) * floe_area_in_cell
+#             row = shift_cell_idx(row, grid.dims[1] + 1, ns_bound)
+#             col = shift_cell_idx(col, grid.dims[2] + 1, ew_bound)
+#             Threads.lock(spinlock) do
+#                 ocean.fx[row, col] += fx_mean
+#                 ocean.fy[row, col] += fy_mean
+#                 ocean.si_area[row, col] += floe_area_in_cell
+#             end
+#         end
+#     end
+#     return
+# end
 
 #-------------- Ocean and Atmosphere on Ice --------------#
 """
@@ -1058,7 +1112,6 @@ function timestep_coupling!(
     atmos,
     consts,
     coupling_settings,
-    spinlock,
 ) where {FT<:AbstractFloat}
     # Clear ocean forces and area fractions
     fill!(ocean.fx, FT(0))
@@ -1085,6 +1138,9 @@ function timestep_coupling!(
     τx = Vector{FT}(undef, max_n_mc)
     τy = Vector{FT}(undef, max_n_mc)
     τtrq = Vector{FT}(undef, max_n_mc)
+    # Ice on Ocean
+    τocn_on_grid = fill(OceanStressCell{FT}(), grid.dims .+ 1)
+
     
     # Calcualte coupling for each floe
     for i in eachindex(floes) #TODO re-add threading
@@ -1137,16 +1193,15 @@ function timestep_coupling!(
         # Update ocean with force from floe per grid cell
         if coupling_settings.calc_ocnτ_on
             aggregate_grid_force!(
+                i,
                 npoints,
                 mc_grid_idx,
-                -τx_ocn,
-                -τy_ocn,
-                LazyRow(floes, i),
-                ocean,
+                τx_ocn,
+                τy_ocn,
                 grid,
                 domain.east,
                 domain.north,
-                spinlock,
+                τocn_on_grid,
             )
         end
 
