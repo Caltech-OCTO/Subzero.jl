@@ -109,10 +109,16 @@ Inputs:
 Output:
     Updates given coords
 """
-function translate!(coords::PolyVec{T}, vec) where {T<:AbstractFloat}
+function translate!(coords::PolyVec{T}, vec; neg = false) where {T<:AbstractFloat}
     for i in eachindex(coords)
         for j in eachindex(coords[i])
-            coords[i][j] .+= vec
+            if neg
+                coords[i][j][1] -= vec[1]
+                coords[i][j][2] -= vec[2]
+            else
+                coords[i][j][1] += vec[1]
+                coords[i][j][2] += vec[2]
+            end
         end
     end
 end

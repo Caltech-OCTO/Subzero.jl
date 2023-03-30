@@ -76,10 +76,10 @@ simulation = Simulation(
     nΔt = 50,
     writers = writers,
     verbose = false,
-    coupling_settings = CouplingSettings(calc_ocnτ_on = false)
+    coupling_settings = CouplingSettings(calc_ocnτ_on = true)
 )
 
-@benchmark timestep_sim!(simulation, 10) setup=(sim=deepcopy(simulation))
+#@benchmark timestep_sim!(simulation, 10) setup=(sim=deepcopy(simulation))
 
 # @benchmark Subzero.timestep_collisions!(
 #     sim.model.floes,
@@ -93,16 +93,15 @@ simulation = Simulation(
 #     Threads.SpinLock(),
 # ) setup=(sim=deepcopy(simulation))
 
-# @benchmark Subzero.timestep_coupling!(
-#     sim.model.floes,
-#     sim.model.grid,
-#     sim.model.domain,
-#     sim.model.ocean,
-#     sim.model.atmos,
-#     sim.consts,
-#     sim.coupling_settings,
-#     Threads.SpinLock(),
-# ) setup=(sim=deepcopy(simulation))
+@benchmark Subzero.timestep_coupling!(
+    sim.model.floes,
+    sim.model.grid,
+    sim.model.domain,
+    sim.model.ocean,
+    sim.model.atmos,
+    sim.consts,
+    sim.coupling_settings,
+) setup=(sim=deepcopy(simulation))
 
 # ProfileView.@profview Subzero.timestep_coupling!(
 #     simulation.model.floes,
@@ -112,7 +111,6 @@ simulation = Simulation(
 #     simulation.model.atmos,
 #     simulation.consts,
 #     simulation.coupling_settings,
-#     Threads.SpinLock(),
 # )
 
 #time_run(simulation) = @time run!(simulation)
@@ -131,7 +129,6 @@ simulation = Simulation(
 #     simulation.model.atmos,
 #     simulation.consts,
 #     simulation.coupling_settings,
-#     Threads.SpinLock(),
 # )
 
 
@@ -142,7 +139,7 @@ simulation = Simulation(
 #     Threads.SpinLock(),
 # )
 
-#PProf.Allocs.pprof(from_c = false)
+# PProf.Allocs.pprof(from_c = false)
 # last(sort(results.allocs, by=x->x.size))
 # Subzero.create_sim_gif(
 #     joinpath(dir, "floes.jld2"), 
