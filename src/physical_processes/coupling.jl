@@ -853,22 +853,6 @@ function shift_cell_idx(idx, nlines, ::PeriodicBoundary)
     return idx < 1 ? (idx + ncells) : ncells < idx ? (idx - ncells) : idx
 end
 
-struct OceanStressCell{FT<:AbstractFloat}
-    floeidx::Vector{Int}
-    τx::Vector{FT}
-    τy::Vector{FT}
-    npoints::Vector{Int}
-    trans_vec::Vector{SVector{2,FT}}
-end
-
-OceanStressCell{FT}() where {FT} = OceanStressCell{FT}(
-    Vector{Int}(),
-    Vector{FT}(),
-    Vector{FT}(),
-    Vector{Int}(),
-    Vector{SVector{2, FT}}()
-)
-
 function add_point!(scell::OceanStressCell, floeidx, τx, τy, Δx, Δy)
     if isempty(scell.floeidx) || scell.floeidx[end] != floeidx
         push!(scell.floeidx, floeidx)
@@ -931,7 +915,7 @@ function aggregate_grid_force!(
     grid,
     ns_bound,
     ew_bound,
-    τocn_on_grid,
+    scells,
 ) where {FT}
     mc_cols = @view mc_grid_idx[1:npoints, 1]
     mc_rows = @view mc_grid_idx[1:npoints, 2]
@@ -941,13 +925,12 @@ function aggregate_grid_force!(
         col = shift_cell_idx(mc_cols[i], grid.dims[2] + 1, ew_bound)
         Δx = (col - mc_cols[i]) * (grid.xg[2] - grid.xg[1])
         Δy = (row - mc_rows[i]) * (grid.yg[2] - grid.yg[1])
-        add_point!(τocn_on_grid[row, col], floeidx, -τx_ocn[i], -τy_ocn[i], Δx, Δy)
+        add_point!(scells[row, col], floeidx, -τx_ocn[i], -τy_ocn[i], Δx, Δy)
     end
     return
 end
 
 function sum_grid_force!(
-    τocn_on_grid,
     floes::StructArray{Floe{FT}},
     grid::RegRectilinearGrid,
     ocean,
@@ -956,8 +939,11 @@ function sum_grid_force!(
 ) where {FT}
     # Determine force from floe on each grid cell it is in
     cell_area = (grid.xg[2] - grid.xg[1]) * (grid.yg[2] - grid.yg[1])
-    Threads.@threads for cartidx in CartesianIndices(τocn_on_grid)
-        τocn = τocn_on_grid[cartidx]
+    Threads.@threads for cartidx in CartesianIndices(ocean.scells)
+        ocean.τx[cartidx] = FT(0)
+        ocean.τy[cartidx] = FT(0)
+        ocean.si_frac[cartidx] = FT(0)
+        τocn = ocean.scells[cartidx]
         if !isempty(τocn.floeidx)
             # Coordinates of grid cell
             cell_coords = center_cell_coords(
@@ -968,23 +954,23 @@ function sum_grid_force!(
                 ew_bound
             )
             cell_poly = LG.Polygon(cell_coords)
-            fx_tot = FT(0)
-            fy_tot = FT(0)
-            area_tot = FT(0)
             for i in eachindex(τocn.floeidx)
                 translate!(floes.coords[τocn.floeidx[i]], τocn.trans_vec[i])
                 floe_poly = LG.Polygon(floes.coords[τocn.floeidx[i]])
                 floe_area_in_cell = LG.area(LG.intersection(cell_poly, floe_poly))::FT
                 if floe_area_in_cell > 0
-                    fx_tot += (τocn.τx[i]/τocn.npoints[i]) * floe_area_in_cell
-                    fy_tot += (τocn.τy[i]/τocn.npoints[i]) * floe_area_in_cell
-                    area_tot += floe_area_in_cell
+                    # Add forces and area to ocean fields
+                    ocean.τx[cartidx] += (τocn.τx[i]/τocn.npoints[i]) * floe_area_in_cell
+                    ocean.τy[cartidx] += (τocn.τy[i]/τocn.npoints[i]) * floe_area_in_cell
+                    ocean.si_frac[cartidx] += floe_area_in_cell
                 end
                 translate!(floes.coords[τocn.floeidx[i]], τocn.trans_vec[i], neg=true)
             end
-            ocean.τx[cartidx] = fx_tot/area_tot
-            ocean.fy[cartidx] = fy_tot/area_tot
-            ocean.si_area[cartidx] = area_tot/cell_area  # change to si_frac!!
+            # Divide by total floe area in cell to get ocean stress
+            ocean.τx[cartidx] /= ocean.si_frac[cartidx]
+            ocean.τy[cartidx] /= ocean.si_frac[cartidx]
+            # Divide by cell area to get sea-ice fraction
+            ocean.si_frac[cartidx] /= cell_area
         end
         end
     return
@@ -1109,10 +1095,6 @@ function timestep_coupling!(
     consts,
     coupling_settings,
 ) where {FT<:AbstractFloat}
-    # Clear ocean forces and area fractions
-    fill!(ocean.fx, FT(0))
-    fill!(ocean.fy, FT(0))
-    fill!(ocean.si_area, FT(0))
     # Allocations
     # Monte carlo point values
     max_n_mc = maximum(length, floes.mc_x)
@@ -1134,8 +1116,8 @@ function timestep_coupling!(
     τx = Vector{FT}(undef, max_n_mc)
     τy = Vector{FT}(undef, max_n_mc)
     τtrq = Vector{FT}(undef, max_n_mc)
-    # Ice on Ocean
-    τocn_on_grid = [Subzero.OceanStressCell{FT}() for i in 1:grid.dims[1] + 1, j in 1:grid.dims[2] + 1]
+    # Clear ocean forces and area fractions
+    empty!.(ocean.scells)
 
     # Calcualte coupling for each floe
     for i in eachindex(floes) #TODO re-add threading
@@ -1187,6 +1169,7 @@ function timestep_coupling!(
 
         # Update ocean with force from floe per grid cell
         if coupling_settings.calc_ocnτ_on
+            # Calculate effects of floe on ocean
             aggregate_grid_force!(
                 i,
                 npoints,
@@ -1196,7 +1179,7 @@ function timestep_coupling!(
                 grid,
                 domain.north,
                 domain.east,
-                τocn_on_grid,
+                ocean.scells,
             )
         end
 
@@ -1220,7 +1203,6 @@ function timestep_coupling!(
     end
     if coupling_settings.calc_ocnτ_on
         sum_grid_force!(
-            τocn_on_grid,
             floes,
             grid,
             ocean,

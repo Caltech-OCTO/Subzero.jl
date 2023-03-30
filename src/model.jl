@@ -136,6 +136,31 @@ function RegRectilinearGrid(
     )
 end
 
+struct OceanStressCell{FT<:AbstractFloat}
+    floeidx::Vector{Int}
+    τx::Vector{FT}
+    τy::Vector{FT}
+    npoints::Vector{Int}
+    trans_vec::Vector{SVector{2,FT}}
+end
+
+OceanStressCell{FT}() where {FT} = OceanStressCell{FT}(
+    Vector{Int}(),
+    Vector{FT}(),
+    Vector{FT}(),
+    Vector{Int}(),
+    Vector{SVector{2, FT}}()
+)
+
+function Base.empty!(scell::OceanStressCell)
+    empty!(scell.floeidx)
+    empty!(scell.τx)
+    empty!(scell.τy)
+    empty!(scell.npoints)
+    empty!(scell.trans_vec)
+    return
+end
+
 """
     Ocean{FT<:AbstractFloat}
 
@@ -146,9 +171,7 @@ same size as the model's grid. The struct has the following fields:
 - temp is the ocean temperature for each grid cell
 - hflx_factor is a factor to calculate the ocean-atmosphere heat flux for a 
   cell in that grid cell by multiplying by its height
-- fx is the x-stress from the ice onto the ocean averaged over each grid cell
-- fy is the y-stress from the ice onto the ocean averaged over each grid cell
-- si_area is the total sea-ice area in each grid cell
+- si_frac is the fraction of area in each grid cell that is covered in sea-ice
 
 Ocean fields must all be matricies with dimensions equal to the number of grid
 lines in the model's grid. 
@@ -163,23 +186,39 @@ struct Ocean{FT<:AbstractFloat}
     v::Matrix{FT}
     temp::Matrix{FT}
     hflx_factor::Matrix{FT}
+    scells::Matrix{OceanStressCell{FT}}
     τx::Matrix{FT}
     τy::Matrix{FT}
-    fx::Matrix{FT}
-    fy::Matrix{FT}
-    si_area::Matrix{FT}
+    si_frac::Matrix{FT}
 
-    function Ocean{FT}(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}, hflx::Matrix{FT}, τx::Matrix{FT}, τy::Matrix{FT},
-                   fx::Matrix{FT}, fy::Matrix{FT}, si_area::Matrix{FT}) where {FT <: AbstractFloat}
+    function Ocean{FT}(
+        u::Matrix{FT},
+        v::Matrix{FT},
+        temp::Matrix{FT},
+        hflx::Matrix{FT},
+        scells::Matrix{OceanStressCell{FT}},
+        τx::Matrix{FT},
+        τy::Matrix{FT},
+        si_frac::Matrix{FT},
+    ) where {FT <: AbstractFloat}
         if !all(-3 .<= temp .<= 0)
-            @warn "Ocean temperatures are above the range for freezing. The thermodynamics aren't currently setup for these conditions."
+            @warn "Ocean temperatures are above the range for freezing. The \
+                thermodynamics aren't currently setup for these conditions."
         end
-        new{FT}(u, v, temp, hflx, τx, τy, fx, fy, si_area)
+        new{FT}(u, v, temp, hflx, scells, τx, τy, si_frac)
     end
 
-    Ocean(u::Matrix{FT}, v::Matrix{FT}, temp::Matrix{FT}, hflx::Matrix{FT}, τx::Matrix{FT}, τy::Matrix{FT},
-          fx::Matrix{FT}, fy::Matrix{FT}, si_area::Matrix{FT}) where {FT<:AbstractFloat} =
-        Ocean{FT}(u, v, temp, hflx, τx, τy, fx, fy, si_area)
+    Ocean(
+        u::Matrix{FT},
+        v::Matrix{FT},
+        temp::Matrix{FT},
+        hflx::Matrix{FT},
+        scells::Matrix{OceanStressCell{FT}},
+        τx::Matrix{FT},
+        τy::Matrix{FT},
+        si_frac::Matrix{FT},
+    ) where {FT<:AbstractFloat} =
+        Ocean{FT}(u, v, temp, hflx, scells, τx, τy, si_frac)
 end
 
 """
@@ -194,11 +233,23 @@ Inputs:
 Output: 
         Ocean with given velocity and temperature fields on each grid line.
 """
-function Ocean(u, v, temp, ::Type{T} = Float64) where {T}
+function Ocean(
+    ::Type{FT},
+    u,
+    v,
+    temp,
+) where {FT <: AbstractFloat}
     nvals = size(u)
-    return Ocean((convert(Matrix{T}, u)), convert(Matrix{T}, v),
-                  convert(Matrix{T}, temp), zeros(T, nvals), zeros(T, nvals),
-                  zeros(T, nvals), zeros(T, nvals), zeros(T, nvals), zeros(T, nvals))
+    return Ocean(
+        convert(Matrix{FT}, u),
+        convert(Matrix{FT}, v),
+        convert(Matrix{FT}, temp),
+        zeros(FT, nvals),
+        [OceanStressCell{FT}() for i in 1:nvals[1], j in 1:nvals[2]],
+        zeros(FT, nvals),
+        zeros(FT, nvals),
+        zeros(FT, nvals),
+    )
 end
 
 """
@@ -214,9 +265,15 @@ Inputs:
 Output: 
         Ocean with constant velocity and temperature on each grid line.
 """
-function Ocean(grid::AbstractGrid, u, v, temp, ::Type{T} = Float64) where T
+function Ocean(
+    ::Type{FT},
+    grid::AbstractGrid,
+    u,
+    v,
+    temp,
+) where {FT <: AbstractFloat}
     nvals = grid.dims .+ 1  # one value per grid line - not grid cell 
-    return Ocean(fill(u, nvals), fill(v, nvals), fill(temp, nvals), T)
+    return Ocean(FT, fill(u, nvals), fill(v, nvals), fill(temp, nvals))
 end
 
 """

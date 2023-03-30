@@ -18,7 +18,7 @@ grid = RegRectilinearGrid(
     Δgrid,
     Δgrid,
 )
-zonal_ocn = Ocean(grid, 0.5, 0.0, 0.0)
+zonal_ocn = Ocean(FT, grid, 0.5, 0.0, 0.0)
 
 zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
 
@@ -117,7 +117,7 @@ simulation = Simulation(
 
 # # Run simulation
 #time_run(simulation)
-# Profile.Allocs.clear()
+#Profile.Allocs.clear()
 #@time run!(simulation)
 #ProfileView.@profview run!(simulation)
 #Profile.Allocs.@profile timestep_sim!(simulation, 1)
