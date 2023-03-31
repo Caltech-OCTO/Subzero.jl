@@ -933,7 +933,9 @@ end
 function sum_grid_force!(
     floes::StructArray{Floe{FT}},
     grid::RegRectilinearGrid,
+    atmos,
     ocean,
+    consts,
     ns_bound,
     ew_bound,
 ) where {FT}
@@ -955,8 +957,12 @@ function sum_grid_force!(
             )
             cell_poly = LG.Polygon(cell_coords)
             for i in eachindex(τocn.floeidx)
-                translate!(floes.coords[τocn.floeidx[i]], τocn.trans_vec[i])
-                floe_poly = LG.Polygon(floes.coords[τocn.floeidx[i]])
+                floe_coords = translate(
+                    floes.coords[τocn.floeidx[i]],
+                    τocn.trans_vec[i][1],
+                    τocn.trans_vec[i][2],
+                )
+                floe_poly = LG.Polygon(floe_coords)
                 floe_area_in_cell = LG.area(LG.intersection(cell_poly, floe_poly))::FT
                 if floe_area_in_cell > 0
                     # Add forces and area to ocean fields
@@ -964,15 +970,25 @@ function sum_grid_force!(
                     ocean.τy[cartidx] += (τocn.τy[i]/τocn.npoints[i]) * floe_area_in_cell
                     ocean.si_frac[cartidx] += floe_area_in_cell
                 end
-                translate!(floes.coords[τocn.floeidx[i]], τocn.trans_vec[i], neg=true)
             end
-            # Divide by total floe area in cell to get ocean stress
-            ocean.τx[cartidx] /= ocean.si_frac[cartidx]
-            ocean.τy[cartidx] /= ocean.si_frac[cartidx]
-            # Divide by cell area to get sea-ice fraction
-            ocean.si_frac[cartidx] /= cell_area
+            if ocean.si_frac[cartidx] > 0
+                # Divide by total floe area in cell to get ocean stress
+                ocean.τx[cartidx] /= ocean.si_frac[cartidx]
+                ocean.τy[cartidx] /= ocean.si_frac[cartidx]
+                # Divide by cell area to get sea-ice fraction
+                ocean.si_frac[cartidx] /= cell_area
+            end
         end
-        end
+        Δu_AO = atmos.u[cartidx] - ocean.u[cartidx]
+        Δv_AO = atmos.v[cartidx] - ocean.v[cartidx]
+        ocn_frac = 1 - ocean.si_frac[cartidx]
+        norm = sqrt(Δu_AO^2 + Δv_AO^2)
+        ocean.τx[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δu_AO
+        ocean.τy[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δv_AO
+        # Not sure this is where the heatflux should be??
+        ocean.hflx_factor[cartidx] = Δt * consts.k/(consts.ρi*consts.L) *
+            (ocean.temp[cartidx] - m.atmos.temp[cartidx])
+    end
     return
 end
 
@@ -1056,8 +1072,8 @@ function calc_ocean_forcing!(
     ma_ratio = floe.mass/floe.area
     # Stress on ice from ocean
     for i in eachindex(uocn)
-        Δu_OI = uocn[i] .- mc_vel[i, 1]
-        Δv_OI = vocn[i] .- mc_vel[i, 2]
+        Δu_OI = uocn[i] - mc_vel[i, 1]
+        Δv_OI = vocn[i] - mc_vel[i, 2]
         norm = sqrt(Δu_OI^2 + Δv_OI^2)
         τx_ocn[i] = c.ρo*c.Cd_io * norm * (cos(c.turnθ) * Δu_OI - sin(c.turnθ) * Δv_OI)
         τy_ocn[i] = c.ρo*c.Cd_io * norm * (sin(c.turnθ) * Δu_OI + cos(c.turnθ) * Δv_OI)
@@ -1120,7 +1136,7 @@ function timestep_coupling!(
     empty!.(ocean.scells)
 
     # Calcualte coupling for each floe
-    for i in eachindex(floes) #TODO re-add threading
+    for i in eachindex(floes)
         # Find monte carlo point peroperties
         npoints = calc_mc_values!(
             LazyRow(floes, i),
@@ -1205,42 +1221,11 @@ function timestep_coupling!(
         sum_grid_force!(
             floes,
             grid,
+            atmos,
             ocean,
+            consts,
             domain.north,
             domain.east,
         )
     end
-end
-
-"""
-    timestep_ocean!(m, c, Δt)
-
-Update model's ocean from affects of atmsophere and ice
-Input:
-        m   <Model> simulation model
-        c   <Constants> simulation constants
-        Δt  <Int> simulation timestep
-Outputs: 
-        None. The ocean stress fields are updated from atmos stress.
-        Heatflux is also updated with ocean and atmos temperatures. 
-"""
-function timestep_ocean!(m, c, Δt)
-    # Fraction of grid cells covered in ice vs ocean
-    cell_area = (m.grid.xg[2] - m.grid.xg[1]) * (m.grid.yg[2] - m.grid.yg[1])
-    si_frac = m.ocean.si_area ./ cell_area
-    icy_idx = si_frac .> 0
-    ocn_frac = 1 .- si_frac
-    # Add ice stress on ocean
-    m.ocean.τx .= m.ocean.fx
-    m.ocean.τy .= m.ocean.fy
-    m.ocean.τx[icy_idx] ./= m.ocean.si_area[icy_idx]
-    m.ocean.τy[icy_idx] ./= m.ocean.si_area[icy_idx]
-    # Atmospheric stress on ocean - resets ocean stresses
-    Δu_AO = m.atmos.u .- m.ocean.u
-    Δv_AO = m.atmos.v .- m.ocean.v
-    vel_norm = sqrt.(Δu_AO.^2 + Δv_AO.^2)
-    m.ocean.τx .+= c.ρa * c.Cd_ao * ocn_frac .* vel_norm .* Δu_AO
-    m.ocean.τy .+= c.ρa * c.Cd_ao * ocn_frac .* vel_norm .* Δv_AO
-    # Update ocean heatflux
-    m.ocean.hflx_factor .= Δt * c.k/(c.ρi*c.L) .* (m.ocean.temp .- m.atmos.temp)
 end

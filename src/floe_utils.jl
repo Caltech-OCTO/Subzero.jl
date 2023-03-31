@@ -99,6 +99,28 @@ function translate(coords::PolyVec{T}, vec) where {T<:AbstractFloat}
 end
 
 """
+    translate(coords, Δx, Δy)
+
+Translate each of the given coodinates by given vector -
+Coordinates and vector must be vectors of same underlying type
+Inputs:
+    coords PolyVec{Float}
+    vec <Vector{Real}>
+Output:
+    PolyVec{Float}
+"""
+function translate(coords::PolyVec{T}, Δx, Δy) where {T<:AbstractFloat}
+    new_coords = deepcopy(coords)
+    for i in eachindex(new_coords)
+        for j in eachindex(new_coords[i])
+            new_coords[i][j][1] += Δx
+            new_coords[i][j][2] += Δy
+        end
+    end
+    return new_coords
+end
+
+"""
     translate!(coords, vec)
 
 Translate each of the given coodinates by given vector in place -
