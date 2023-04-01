@@ -94,14 +94,18 @@ simulation = Simulation(
 # ) setup=(sim=deepcopy(simulation))
 
 @benchmark Subzero.timestep_coupling!(
-    sim.model.floes,
-    sim.model.grid,
-    sim.model.domain,
-    sim.model.ocean,
-    sim.model.atmos,
+    sim.model,
+    sim.Δt,
     sim.consts,
     sim.coupling_settings,
 ) setup=(sim=deepcopy(simulation))
+
+Subzero.timestep_coupling!(
+    simulation.model,
+    simulation.Δt,
+    simulation.consts,
+    simulation.coupling_settings,
+)
 
 # ProfileView.@profview Subzero.timestep_coupling!(
 #     simulation.model.floes,

@@ -3,6 +3,42 @@ Structs and functions used to define a Subzero model
 """
 
 """
+    CellFloes{FT<:AbstractFloat}
+
+Struct that tracks which floes are within given cell, as well as the translation
+vector needed to move floe each from current postion into cell if it is in cell due
+to periodic boundaries. Each index in floeidx is the index of a floe within the
+cell and the Δx and Δy with the same index are that floe's translation vector.
+"""
+struct CellFloes{FT<:AbstractFloat}
+    floeidx::Vector{Int}
+    Δx::Vector{FT}
+    Δy::Vector{FT}
+end
+
+"""
+    CellFloes{FT}()
+
+Constructs an CellFloes object with empty lists for fields.
+"""
+CellFloes{FT}() where {FT} = CellFloes{FT}(
+    Vector{Int}(),
+    Vector{FT}(),
+    Vector{FT}()
+)
+"""
+    empty!(cell::CellFloes)
+
+Empties the vectors within a CellFloes object
+"""
+function Base.empty!(cell::CellFloes)
+    empty!(cell.floeidx)
+    empty!(cell.Δx)
+    empty!(cell.Δy)
+    return
+end
+
+"""
     AbstractGrid
 
 An abstract type for the grid that model will be simulated on.
@@ -28,6 +64,7 @@ struct RegRectilinearGrid{FT}<:AbstractGrid{FT}
     yg::Vector{FT}
     xc::Vector{FT}
     yc::Vector{FT}
+    floe_locations::Matrix{CellFloes{FT}}
 
     function RegRectilinearGrid{FT}(
         dims,
@@ -35,6 +72,7 @@ struct RegRectilinearGrid{FT}<:AbstractGrid{FT}
         yg::Vector{FT},
         xc::Vector{FT},
         yc::Vector{FT},
+        floe_locations::Matrix{CellFloes{FT}},
     ) where {FT <: AbstractFloat}
         if (length(xg) != dims[2]+1) || (length(yg) != dims[1]+1)
             throw(ArgumentError("Grid line dimensions vector doesn't match \
@@ -44,7 +82,8 @@ struct RegRectilinearGrid{FT}<:AbstractGrid{FT}
             throw(ArgumentError("Grid center dimensions vector doesn't match \
                 dimensions field."))
         end
-        new{FT}(dims, xg, yg, xc, yc)
+
+        new{FT}(dims, xg, yg, xc, yc, floe_locations)
     end
 
     RegRectilinearGrid(
@@ -53,8 +92,9 @@ struct RegRectilinearGrid{FT}<:AbstractGrid{FT}
         yg::Vector{FT},
         xc::Vector{FT},
         yc::Vector{FT},
+        floe_locations::Matrix{CellFloes{FT}},
     ) where {FT <: AbstractFloat} = 
-        RegRectilinearGrid{FT}(dims, xg, yg, xc, yc)
+        RegRectilinearGrid{FT}(dims, xg, yg, xc, yc, floe_locations)
 end
 
 """
@@ -94,7 +134,8 @@ function RegRectilinearGrid(
     ny = length(yg) - 1
     xc = collect(FT, xg[1]+Δx/2:Δx:xg[end]-Δx/2)
     yc = collect(FT, yg[1]+Δy/2:Δy:yg[end]-Δy/2)
-    return RegRectilinearGrid((ny, nx), xg, yg, xc, yc)
+    locations = [CellFloes{FT}() for i in 1:nvals[1], j in 1:nvals[2]]
+    return RegRectilinearGrid((ny, nx), xg, yg, xc, yc, locations)
 end
 
 """
@@ -136,28 +177,40 @@ function RegRectilinearGrid(
     )
 end
 
-struct OceanStressCell{FT<:AbstractFloat}
-    floeidx::Vector{Int}
+"""
+    IceStressCell{FT<:AbstractFloat}
+
+Struct to collect stress from ice floes on ocean grid cells. One IceStressCell
+corresponds to one grid cell. It holds a list of running totals of stress on the
+cell, and a running list of the number of points making up those running totals.
+Each element in the list corresponds to one floe, which is denoted in the
+corresponding CellFloes matrix within the grid. 
+"""
+struct IceStressCell{FT<:AbstractFloat}
     τx::Vector{FT}
     τy::Vector{FT}
     npoints::Vector{Int}
-    trans_vec::Vector{SVector{2,FT}}
 end
 
-OceanStressCell{FT}() where {FT} = OceanStressCell{FT}(
-    Vector{Int}(),
-    Vector{FT}(),
-    Vector{FT}(),
-    Vector{Int}(),
-    Vector{SVector{2, FT}}()
-)
+"""
+    IceStressCell{FT}()
 
-function Base.empty!(scell::OceanStressCell)
-    empty!(scell.floeidx)
-    empty!(scell.τx)
-    empty!(scell.τy)
-    empty!(scell.npoints)
-    empty!(scell.trans_vec)
+Constructs an IceStressCell object with empty lists for fields.
+"""
+IceStressCell{FT}() where {FT} = OceanStressCell{FT}(
+    Vector{FT}(),
+    Vector{FT}(),
+    Vector{Int}()
+)
+"""
+    empty!(cell::IceStressCell)
+
+Empties the vectors within an IceStressCell
+"""
+function Base.empty!(cell::IceStressCell)
+    empty!(cell.τx)
+    empty!(cell.τy)
+    empty!(cell.npoints)
     return
 end
 
@@ -186,7 +239,7 @@ struct Ocean{FT<:AbstractFloat}
     v::Matrix{FT}
     temp::Matrix{FT}
     hflx_factor::Matrix{FT}
-    scells::Matrix{OceanStressCell{FT}}
+    scells::Matrix{IceStressCell{FT}}
     τx::Matrix{FT}
     τy::Matrix{FT}
     si_frac::Matrix{FT}

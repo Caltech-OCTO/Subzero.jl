@@ -8,118 +8,35 @@
             4,
         )
         # Test find_cell_indices
-        @test Subzero.find_cell_indices([], [], grid) ==
-            (Vector{Int}(undef, 0), Vector{Int}(undef, 0))
-        @test Subzero.find_cell_indices(
-            [-10.5, -10, -10, -6.5, -6, -4, 10, 10.5, 12],
-            [0.0, 6.0, -8.0, 4.5, 0.0, 5.0, -8.0, 0.0, 0.0],
-            grid
-        ) ==  ([1, 1, 1, 3, 3, 4, 11, 11, 12], [3, 5, 1, 4, 3, 4, 1, 3, 3])
+        xpoints = [-10.5, -10, -10, -6.5, -6, -4, 10, 10.5, 12]
+        ypoints = [0.0, 6.0, -8.0, 4.5, 0.0, 5.0, -8.0, 0.0, 0.0]
+        xidx = [1, 1, 1, 3, 3, 4, 11, 11, 12]
+        yidx = [3, 5, 1, 4, 3, 4, 1, 3, 3]
+        for i in eachindex(xpoints)
+            @test  Subzero.find_cell_index(
+                xpoints[i],
+                ypoints[i],
+                grid,
+            ) == (xidx[i], yidx[i])
+        end
 
         # Test filter_oob_points
         open_bound = Subzero.OpenBoundary(grid, Subzero.East())
         periodic_bound = Subzero.PeriodicBoundary(grid, Subzero.East())
-        p = [-12 -10 -8 -6 0 4 4 10 12 12; 5 -6 4 10 -10 8 -8 -6 4 10]
-        x = p[1, :]
-        y = p[2, :]
-        # all bounds non-periodic - points outside of grid in x and y
-        @test Subzero.filter_oob_points(
-            p,
-            x,
-            y,
-            grid,
-            open_bound,
-            open_bound
-        ) == (p[:, (-10 .<= x .<= 10) .& (-8 .<= y .<= 8)],
-            x[(-10 .<= x .<= 10) .& (-8 .<= y .<= 8)],
-            y[(-10 .<= x .<= 10) .& (-8 .<= y .<= 8)])
-        warning_str = "A floe longer than the domain passed through a periodic \
-            boundary. It was removed to prevent overlap."
-        #= y bounds periodic - points outside of grid in south and north so all
-        points removed =#
-        @test (@test_logs (:warn, warning_str) Subzero.filter_oob_points(
-            p,
-            x,
-            y,
-            grid,
-            open_bound,
-            periodic_bound,
-        )) == (
-            Matrix{Int}(undef, 2, 0),
-            Vector{Int}(undef, 0),
-            Vector{Int}(undef, 0),
-        )
-        #= x bounds periodic - points outside of grid in east and west so all
-        points removed =#
-        @test (@test_logs (:warn, warning_str) Subzero.filter_oob_points(
-            p,
-            x,
-            y,
-            grid,
-            periodic_bound,
-            open_bound,
-        )) == (
-            Matrix{Int}(undef, 2, 0),
-            Vector{Int}(undef, 0),
-            Vector{Int}(undef, 0),
-        )
-        #= all bounds periodic - points outside of grid in all 4 directions so
-        all points removed =#
-        @test (@test_logs (:warn, warning_str) Subzero.filter_oob_points(
-            p,
-            x,
-            y,
-            grid,
-            periodic_bound,
-            periodic_bound,
-        )) == (
-            Matrix{Int}(undef, 2, 0),
-            Vector{Int}(undef, 0),
-            Vector{Int}(undef, 0),
-        )
-        #= y bounds periodic with points only outside of periodic in north
-        direction - filter open bounds points =#
-        pn =  [-12 -10 -8 -6 4 10 12 12; 5 -6 4 10 8 -6 4 10]
-        xn = pn[1, :]
-        yn = pn[2, :]
-        @test Subzero.filter_oob_points(
-            pn,
-            pn[1, :],
-            pn[2, :],
-            grid,
-            open_bound,
-            periodic_bound
-        ) == (pn[:, -10 .<= xn .<= 10],
-            xn[-10 .<= xn .<= 10],
-            yn[-10 .<= xn .<= 10])
-        #= x bounds periodic with points only outside of periodic in east
-        direction - filter open bounds points =#
-        pe = [-8 -6 0 4 4 10 12 12; 4 10 -10 8 -8 -6 4 10]
-        xe = pe[1, :]
-        ye = pe[2, :]
-        @test Subzero.filter_oob_points(
-            pe[:,1:end .!= 2],
-            xe[1:end .!= 2],
-            ye[1:end .!= 2],
-            grid,
-            periodic_bound,
-            open_bound
-        ) == (pe[:, -8 .<= ye .<= 8],
-            xe[-8 .<= ye .<= 8],
-            ye[-8 .<= ye .<= 8])
-        #= all bounds periodic - points outside of grid in only north and east
-        directiom so no points removed =#
-        pne = [-8 -6 4  10 12 12; 4 10 8 -6 4 10]
-        xne = pne[1, :]
-        yne = pne[2, :]
-        @test Subzero.filter_oob_points(
-            pne,
-            xne,
-            yne,
-            grid,
-            periodic_bound,
-            periodic_bound
-        ) == (pne, xne, yne)
+        x = [-12, -10, -8, -6, 0, 4, 4, 10, 12, 12]
+        y = [5, -6, 4, 10, -10, 8, -8, -6, 4, 10]
+        # both bounds non-periodic
+        @test Subzero.in_bounds.(x, y, open_bound, open_bound) .==
+            [false, true, false, false, false, true, true, false, false, false]
+        # y bounds periodic only
+        @test Subzero.in_bounds.(x, y, open_bound, periodic_bound) .==
+            [false, true, true, true, true, true, true, true, false, false]
+        # x bounds periodic only
+        @test Subzero.in_bounds.(x, y, open_bound, periodic_bound) .==
+            [true, true, true, false, false, true, true, true, false, false]
+        #all bounds periodic 
+        @test Subzero.in_bounds.(x, y, periodic_bound, periodic_bound) .==
+            [true, true, true, true, true, true, true, true, true, true]
 
         # Test find_interp_knots
         xg = 0:10:80
@@ -154,7 +71,6 @@
             [[[9, 8], [9, 8], [11, 8], [11, 8], [9, 8]]]
         @test Subzero.center_cell_coords(11, 6, grid,  periodic_bound, open_bound) ==
             [[[9, 10], [9, 14], [10, 14], [10, 10], [9, 10]]]
-        
 
         # Test aggregate_grid_stress!
         ocean = Subzero.Ocean(grid, 0, 0, 0)

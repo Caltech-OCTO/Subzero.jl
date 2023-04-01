@@ -5,31 +5,25 @@ Functions needed for coupling the ice, ocean, and atmosphere.
 #-------------- Monte Carlo Point Calculations --------------#
 
 """
-    find_cell_indices(xp, yp, grid::RegRectilinearGrid)
+    find_cell_index(xp, yp, grid::RegRectilinearGrid)
 
-Find indicies of cells centered on grid lines of the given RegRectilinearGrid
-that the given x-coordinates and y-coordinates fall within.
-These cells are centered around the grid lines, so they are shifted grid cells
+Find index of the cell centered on grid lines of the given RegRectilinearGrid
+that the given x-coordinate and y-coordinate fall within.
+This cell is centered around the grid lines, so it is a shifted grid cell
 by half a cell. Method depends on grid being a regular rectilinear grid.
 Inputs:
-    xp      <Vector{Float}> x-coordinates of a vector of points
-    yp      <Vector{Float}> y-coordinates of a vector of points
+    xp      <AbstractFloat> x-coordinates of point
+    yp      <AbstractFloat> y-coordinate of point
     grid    <RegRectilinearGrid> simulation grid
 Outputs:
-    xidx    <Vector{Float}> x-indicies of grid cell (cented on grid lines) each
-                x point is within
-    yidx    <Vector{Float}> y-indicies of grid cell (cented on grid lines) each
-                y point is within
+    xidx    <AbstractFloat> x-index of grid cell (cented on grid lines) x-point
+                is within
+    yidx    <AbstractFloat> y-index of grid cell (cented on grid lines) y-point
+                is within
 Note:
-    Points can be outside of the grid, so indices can be less than 1 or greater
+    Points can be outside of the grid, so index can be less than 1 or greater
     than the number of grid lines in a given direction.
 """
-function find_cell_indices(xp, yp, grid::RegRectilinearGrid)
-    xidx = floor.(Int, (xp .- grid.xg[1])/(grid.xg[2] - grid.xg[1]) .+ 0.5) .+ 1
-    yidx = floor.(Int, (yp .- grid.yg[1])/(grid.yg[2] - grid.yg[1]) .+ 0.5) .+ 1
-    return xidx, yidx
-end
-
 function find_cell_index(xp, yp, grid::RegRectilinearGrid)
     xidx = floor(Int, (xp - grid.xg[1])/(grid.xg[2] - grid.xg[1]) + 0.5) + 1
     yidx = floor(Int, (yp - grid.yg[1])/(grid.yg[2] - grid.yg[1]) + 0.5) + 1
@@ -63,19 +57,6 @@ Inputs:
 Output:
     p, xr, and yr filtered so that the translated points are all within the grid
 """
-function filter_oob_points(
-    p,
-    xr,
-    yr,
-    grid,
-    ::NonPeriodicBoundary,
-    ::NonPeriodicBoundary,
-)
-    keep_idx = filter(i -> (grid.xg[1] .<= xr[i] .<= grid.xg[end]) && 
-    (grid.yg[1] .<= yr[i] .<= grid.yg[end]), 1:length(xr))
-    return p[:, keep_idx], xr[keep_idx], yr[keep_idx]
-end
-
 function in_bounds(
     xr,
     yr,
@@ -118,26 +99,6 @@ Output:
     in the y-direction and so floe does not overlap with itself through periodic
     boundary. 
 """
-function filter_oob_points(
-    p,
-    xr,
-    yr,
-    grid,
-    ::NonPeriodicBoundary,
-    ::PeriodicBoundary,
-)
-    ymin, ymax = extrema(yr)
-    keep_idx =
-        if (ymax - ymin) > (grid.yg[end] - grid.yg[1])
-            @warn "A floe longer than the domain passed through a periodic \
-                boundary. It was removed to prevent overlap."
-            Vector{Int}(undef, 0)
-        else
-            findall(p -> grid.xg[1] .<= p .<= grid.xg[end], xr)
-        end
-    return p[:, keep_idx], xr[keep_idx], yr[keep_idx]
-end
-
 function in_bounds(
     xr,
     yr,
@@ -179,26 +140,6 @@ Output:
     in the x-direction and so that the floe does not overlap with itself through
     periodic boundary. 
 """
-function filter_oob_points(
-    p,
-    xr,
-    yr,
-    grid,
-    ::PeriodicBoundary,
-    ::NonPeriodicBoundary,
-)
-    xmin, xmax = extrema(xr)
-    keep_idx =
-        if (xmax - xmin) > (grid.xg[end] - grid.xg[1])
-            @warn "A floe longer than the domain passed through a periodic \
-                boundary. It was removed to prevent overlap."
-            Vector{Int}(undef, 0)
-        else
-            findall(p -> grid.yg[1] .<= p .<= grid.yg[end], yr)
-        end
-    return p[:, keep_idx], xr[keep_idx], yr[keep_idx]
-end
-
 function in_bounds(
     xr,
     yr,
@@ -236,28 +177,6 @@ Output:
     p, xr, and yr as given, unless the floe might overlap with itself through
     periodic boundaries, in which case no points are returned.
 """
-function filter_oob_points(
-    p,
-    xr,
-    yr,
-    grid,
-    ::PeriodicBoundary,
-    ::PeriodicBoundary,
-)
-    xmin, xmax = extrema(xr)
-    ymin, ymax = extrema(yr)
-    keep_idx =
-        if (xmax - xmin) > (grid.xg[end] - grid.xg[1]) ||
-            (ymax - ymin) > (grid.yg[end] - grid.yg[1])
-                @warn "A floe longer than the domain passed through a periodic \
-                    boundary. It was removed to prevent overlap."
-                Vector{Int}(undef, 0)
-        else
-            collect(1:length(xr))
-        end
-    return p[:, keep_idx], xr[keep_idx], yr[keep_idx]
-end
-
 function in_bounds(
     xr,
     yr,
@@ -301,8 +220,6 @@ function calc_mc_values!(
     grid,
     domain,
     mc_cart,
-    mc_polar,
-    mc_vel,
     mc_grid_idx,
 ) where {FT}
     # Translate/rotate monte carlo points to floe location/orientation
@@ -318,10 +235,6 @@ function calc_mc_values!(
             j += 1  # if added to outputs, move to next index in output array
             mc_cart[j, 1] = mc_x
             mc_cart[j, 2] = mc_y
-            mc_polar[j, 1] = sqrt(mc_px^2 + mc_py^2)
-            mc_polar[j, 2] = atan(mc_py, mc_px)
-            mc_vel[j, 1] = floe.u - floe.ξ * mc_polar[j, 1] * sin(mc_polar[j, 2])
-            mc_vel[j, 2] = floe.v + floe.ξ * mc_polar[j, 1] * cos(mc_polar[j, 2])
             mc_grid_idx[j, 1], mc_grid_idx[j, 2] = find_cell_index(
                 mc_cart[j, 1],
                 mc_cart[j, 2],
@@ -504,21 +417,13 @@ Outputs:
 """
 function mc_interpolation!(
     npoints,
-    mc_cart,
     mc_grid_idx,
     grid,
     domain,
     atmos,
     ocean,
     coupling_settings,
-    uatm,
-    vatm,
-    uocn,
-    vocn,
-    hflx_factor,
 )
-    mc_xr = @view mc_cart[1:npoints, 1]
-    mc_yr = @view mc_cart[1:npoints, 2]
     mc_cols = @view mc_grid_idx[1:npoints, 1]
     mc_rows = @view mc_grid_idx[1:npoints, 2]
 
@@ -564,14 +469,7 @@ function mc_interpolation!(
         @view(ocean.hflx_factor[yknot_idx, xknot_idx]),
     )
 
-    for i in eachindex(mc_xr)
-        uatm[i] = uatm_interp(mc_yr[i], mc_xr[i]) 
-        vatm[i] = vatm_interp(mc_yr[i], mc_xr[i])
-        uocn[i] = uocn_interp(mc_yr[i], mc_xr[i])
-        vocn[i] = vocn_interp(mc_yr[i], mc_xr[i])
-        hflx_factor[i] = hflx_interp(mc_yr[i], mc_xr[i])
-    end
-    return
+    return uatm_interp, vatm_interp, uocn_interp, vocn_interp, hflx_interp
 end
 
 #-------------- Effects of Ice and Atmosphere on Ocean --------------#
@@ -853,6 +751,7 @@ function shift_cell_idx(idx, nlines, ::PeriodicBoundary)
     return idx < 1 ? (idx + ncells) : ncells < idx ? (idx - ncells) : idx
 end
 
+
 function add_point!(scell::OceanStressCell, floeidx, τx, τy, Δx, Δy)
     if isempty(scell.floeidx) || scell.floeidx[end] != floeidx
         push!(scell.floeidx, floeidx)
@@ -866,130 +765,6 @@ function add_point!(scell::OceanStressCell, floeidx, τx, τy, Δx, Δy)
         scell.npoints[end] += 1
     end
 
-end
-
-"""
-    aggregate_grid_force!(
-        mc_grid_idx,
-        τx_ocn,
-        τy_ocn,
-        floe,
-        ocean,
-        grid,
-        ns_bound,
-        ew_bound,
-        spinlock,
-    )
-
-Add force from the ice on ocean to ocean force fields (fx & fy) for each grid
-cell and update ocean sea ice area fraction (si_area), representing total area
-of sea ice in a given cell.
-Inputs:
-    mc_grid_idx <Matrix{Int}> index of monte carlo points within the grid - nx2
-                    matrix of indices where the first column is the grid column
-                    index and the second column is the grid row index
-    τx_ocn      <Vector{Float}> x-stress caused by ocean on each corresponding
-                    monte carlo point - negative is stress on the ocean
-    τy_ocn      <Vector{Float}> y-stress caused by ocean on each corresponding
-                    monte carlo point - negative is stress on the ocean
-    floe        <Floe> single floe within model
-    ocean       <Ocean> model's ocean
-    grid        <AbstractGrid> model's grid
-    ns_bound    <AbstractBoundary> north or south boundary of domain -
-                    dispatches on periodic vs non-periodic
-    ew_bound    <AbstractBoundary> east or west boundary of domain -
-                    dispatches on periodic vs non-periodic
-    spinlock    <Thread.SpinLock>
-Outputs:
-    None. Ocean fields updated in-place. Note that the needed additions take
-    place within a lock. Since multiple floes can be within one grid cell, this
-    critical section needs to be locked for when the code is run with multiple
-    threads to prevent race conditions.
-"""
-function aggregate_grid_force!(
-    floeidx,
-    npoints,
-    mc_grid_idx,
-    τx_ocn::Vector{FT},
-    τy_ocn,
-    grid,
-    ns_bound,
-    ew_bound,
-    scells,
-) where {FT}
-    mc_cols = @view mc_grid_idx[1:npoints, 1]
-    mc_rows = @view mc_grid_idx[1:npoints, 2]
-    # Use dictionary to sort stress values by grid cell
-    for i in eachindex(mc_cols)
-        row = shift_cell_idx(mc_rows[i], grid.dims[1] + 1, ns_bound)
-        col = shift_cell_idx(mc_cols[i], grid.dims[2] + 1, ew_bound)
-        Δx = (col - mc_cols[i]) * (grid.xg[2] - grid.xg[1])
-        Δy = (row - mc_rows[i]) * (grid.yg[2] - grid.yg[1])
-        add_point!(scells[row, col], floeidx, -τx_ocn[i], -τy_ocn[i], Δx, Δy)
-    end
-    return
-end
-
-function sum_grid_force!(
-    floes::StructArray{Floe{FT}},
-    grid::RegRectilinearGrid,
-    atmos,
-    ocean,
-    consts,
-    ns_bound,
-    ew_bound,
-) where {FT}
-    # Determine force from floe on each grid cell it is in
-    cell_area = (grid.xg[2] - grid.xg[1]) * (grid.yg[2] - grid.yg[1])
-    Threads.@threads for cartidx in CartesianIndices(ocean.scells)
-        ocean.τx[cartidx] = FT(0)
-        ocean.τy[cartidx] = FT(0)
-        ocean.si_frac[cartidx] = FT(0)
-        τocn = ocean.scells[cartidx]
-        if !isempty(τocn.floeidx)
-            # Coordinates of grid cell
-            cell_coords = center_cell_coords(
-                cartidx[2],
-                cartidx[1],
-                grid,
-                ns_bound,
-                ew_bound
-            )
-            cell_poly = LG.Polygon(cell_coords)
-            for i in eachindex(τocn.floeidx)
-                floe_coords = translate(
-                    floes.coords[τocn.floeidx[i]],
-                    τocn.trans_vec[i][1],
-                    τocn.trans_vec[i][2],
-                )
-                floe_poly = LG.Polygon(floe_coords)
-                floe_area_in_cell = LG.area(LG.intersection(cell_poly, floe_poly))::FT
-                if floe_area_in_cell > 0
-                    # Add forces and area to ocean fields
-                    ocean.τx[cartidx] += (τocn.τx[i]/τocn.npoints[i]) * floe_area_in_cell
-                    ocean.τy[cartidx] += (τocn.τy[i]/τocn.npoints[i]) * floe_area_in_cell
-                    ocean.si_frac[cartidx] += floe_area_in_cell
-                end
-            end
-            if ocean.si_frac[cartidx] > 0
-                # Divide by total floe area in cell to get ocean stress
-                ocean.τx[cartidx] /= ocean.si_frac[cartidx]
-                ocean.τy[cartidx] /= ocean.si_frac[cartidx]
-                # Divide by cell area to get sea-ice fraction
-                ocean.si_frac[cartidx] /= cell_area
-            end
-        end
-        Δu_AO = atmos.u[cartidx] - ocean.u[cartidx]
-        Δv_AO = atmos.v[cartidx] - ocean.v[cartidx]
-        ocn_frac = 1 - ocean.si_frac[cartidx]
-        norm = sqrt(Δu_AO^2 + Δv_AO^2)
-        ocean.τx[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δu_AO
-        ocean.τy[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δv_AO
-        # Not sure this is where the heatflux should be??
-        ocean.hflx_factor[cartidx] = Δt * consts.k/(consts.ρi*consts.L) *
-            (ocean.temp[cartidx] - m.atmos.temp[cartidx])
-    end
-    return
 end
 
 #-------------- Ocean and Atmosphere on Ice --------------#
@@ -1015,17 +790,24 @@ Outputs:
                 y-direction at each monte carlo point
 """
 function calc_atmosphere_forcing(
-    uatm,
-    vatm,
+    mc_xr, 
+    mc_yr,
+    upoint,
+    vpoint,
+    uatm_interp,
+    vatm_interp,
     c,  # constants
 )
-    # Average velocity over the floe
-    avg_uatm = mean(uatm)
-    avg_vatm = mean(vatm)
+    # Atmosphere velocities at monte carlo point
+    uatm = uatm_interp(mc_yr, mc_xr) 
+    vatm = vatm_interp(mc_yr, mc_xr)
 
     # Stress on ice from atmopshere
-    τx_atm = (c.ρa * c.Cd_ia * sqrt(avg_uatm^2 + avg_vatm^2) * avg_uatm)
-    τy_atm = (c.ρa * c.Cd_ia * sqrt(avg_uatm^2 + avg_vatm^2) * avg_vatm)
+    Δu_AI = uatm - upoint
+    Δv_AI = vatm - vpoint
+    norm = sqrt(Δu_AI^2 + Δv_AI^2)
+    τx_atm = c.ρa * c.Cd_ia * norm * Δu_AI
+    τy_atm = c.ρa * c.Cd_ia * norm * Δv_AI
     return τx_atm, τy_atm
 end
 
@@ -1059,173 +841,325 @@ Outputs:
                         in y-direction at each monte carlo point
 """
 function calc_ocean_forcing!(
-    floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
-    mc_vel,
-    uocn,
-    vocn,
+    mc_xr,
+    mc_yr,
+    upoint,
+    vpoint,
+    uocn_interp,
+    vocn_interp,
+    hflx_interp,
+    ma_ratio,
     c,  # constants
-    τx_ocn,
-    τy_ocn,
-    τx_pressure∇,
-    τy_pressure∇,
-) where {FT}
-    ma_ratio = floe.mass/floe.area
-    # Stress on ice from ocean
-    for i in eachindex(uocn)
-        Δu_OI = uocn[i] - mc_vel[i, 1]
-        Δv_OI = vocn[i] - mc_vel[i, 2]
-        norm = sqrt(Δu_OI^2 + Δv_OI^2)
-        τx_ocn[i] = c.ρo*c.Cd_io * norm * (cos(c.turnθ) * Δu_OI - sin(c.turnθ) * Δv_OI)
-        τy_ocn[i] = c.ρo*c.Cd_io * norm * (sin(c.turnθ) * Δu_OI + cos(c.turnθ) * Δv_OI)
-        τx_pressure∇[i] = -ma_ratio * c.f * vocn[i]
-        τy_pressure∇[i] = ma_ratio * c.f * uocn[i]
-    end
-    return
+)
+    uocn = uocn_interp(mc_yr, mc_xr)
+    vocn = vocn_interp(mc_yr, mc_xr)
+    hflx_factor = hflx_interp(mc_yr, mc_xr)
+    Δu_OI = uocn - upoint
+    Δv_OI = vocn - vpoint
+    norm = sqrt(Δu_OI^2 + Δv_OI^2)
+    τx_ocn = c.ρo*c.Cd_io * norm * (cos(c.turnθ) * Δu_OI - sin(c.turnθ) * Δv_OI)
+    τy_ocn = c.ρo*c.Cd_io * norm * (sin(c.turnθ) * Δu_OI + cos(c.turnθ) * Δv_OI)
+    τx_pressure∇ = -ma_ratio * c.f * vocn
+    τy_pressure∇ = ma_ratio * c.f * uocn
+    return τx_ocn, τy_ocn, τx_pressure∇, τy_pressure∇, hflx_factor
 end
 
-"""
-    timestep_coupling!(
-        model,
-        consts,
-        coupling_settings,
-        spinlock,
-    )
-
-Calculates the effects of the ocean and atmosphere on the ice and the effects of
-the ice on the ocean.
-Inputs:
-    model               <Model> model
-    consts              <Constants> constants used in simulation
-    coupling_settings   <CouplingSettings> settings for coupling
-    spinlock            <Thread.SpinLock>
-Outputs:
-    None. Updates each floe's ocean/atmosphere forcings (fxOA, fyOA, torqueOA)
-    and calculates stresses on each ocean grid cell.          
-"""
-function timestep_coupling!(
+function calc_one_way_coupling!(
     floes::StructArray{Floe{FT}},
     grid,
-    domain,
-    ocean,
     atmos,
-    consts,
+    ocean,
+    domain,
     coupling_settings,
-) where {FT<:AbstractFloat}
-    # Allocations
-    # Monte carlo point values
+    consts,
+) where {FT}
     max_n_mc = maximum(length, floes.mc_x)
     mc_cart = Matrix{FT}(undef, max_n_mc, 2)
-    mc_polar = Matrix{FT}(undef, max_n_mc, 2)
-    mc_vel = Matrix{FT}(undef, max_n_mc, 2)
     mc_grid_idx = Matrix{Int}(undef, max_n_mc, 2)
-    # Ocean/atmosphere values
-    uatm = Vector{FT}(undef, max_n_mc)
-    vatm = Vector{FT}(undef, max_n_mc)
-    uocn = Vector{FT}(undef, max_n_mc)
-    vocn = Vector{FT}(undef, max_n_mc)
-    hflx_factor = Vector{FT}(undef, max_n_mc)
-    # Forces and Torques
-    τx_ocn = Vector{FT}(undef, max_n_mc)
-    τy_ocn = Vector{FT}(undef, max_n_mc)
-    τx_pressure∇ = Vector{FT}(undef, max_n_mc)
-    τy_pressure∇ = Vector{FT}(undef, max_n_mc)
-    τx = Vector{FT}(undef, max_n_mc)
-    τy = Vector{FT}(undef, max_n_mc)
-    τtrq = Vector{FT}(undef, max_n_mc)
-    # Clear ocean forces and area fractions
-    empty!.(ocean.scells)
-
-    # Calcualte coupling for each floe
     for i in eachindex(floes)
-        # Find monte carlo point peroperties
+        # Monte carlo point cartesian coordinates and grid cell indices
         npoints = calc_mc_values!(
             LazyRow(floes, i),
             grid,
             domain,
             mc_cart,
-            mc_polar,
-            mc_vel,
             mc_grid_idx,
         )
-
-        # Interpolate ocean and atmosphere values onto monte carlo points
-        mc_interpolation!(
+        # Interpolaters for ocean and atmosphere
+        uatm_int, vatm_int, uocn_int, vocn_int, hflx_int = mc_interpolation!(
             npoints,
-            mc_cart,
             mc_grid_idx,
             grid,
             domain,
             atmos,
             ocean,
             coupling_settings,
-            uatm,
-            vatm,
-            uocn,
-            vocn,
-            hflx_factor,
-        )
-        # Calculate effects on the floe
-        floes.hflx_factor[i] = mean(@view hflx_factor[1:npoints])
-        τx_atm, τy_atm = @views calc_atmosphere_forcing(
-            uatm[1:npoints],
-            vatm[1:npoints],
-            consts,
-        )
-        @views calc_ocean_forcing!(
-            LazyRow(floes, i),
-            mc_vel[1:npoints, :],
-            uocn[1:npoints],
-            vocn[1:npoints],
-            consts,
-            τx_ocn,
-            τy_ocn,
-            τx_pressure∇,
-            τy_pressure∇,
         )
 
-        # Update ocean with force from floe per grid cell
-        if coupling_settings.calc_ocnτ_on
-            # Calculate effects of floe on ocean
-            aggregate_grid_force!(
+        # Add coriolis stress to total stress - same for every monte carlo point
+        xcoriolis = (floes.mass[i]/floes.area[i]) * consts.f * floes.v[i]
+        ycoriolis = (floes.mass[i]/floes.area[i]) * consts.f * floes.u[i]
+        tot_τx = npoints * xcoriolis
+        tot_τy = -npoints * ycoriolis
+        tot_τtrq = FT(0)
+        tot_hflx_factor = FT(0)
+        ma_ratio = floes.mass[i]/floes.area[i]
+        for j in 1:npoints
+            # Monte carlo point properties
+            xcentered = mc_cart[j, 1] - floes.centroid[i][1]
+
+            ycentered = mc_cart[j, 2] - floes.centroid[i][2]
+            θ = atan(ycentered, xcentered)
+            rad = sqrt(xcentered^2 + ycentered^2)
+            upoint = floes.u[i] - floes.ξ[i] * rad * sin(θ)
+            vpoint = floes.v[i] + floes.ξ[i] * rad * cos(θ)
+            # Stress at monte carlo point from ocean and atmosphere
+            τx_atm, τy_atm = calc_atmosphere_forcing(
+                mc_cart[j, 1], 
+                mc_cart[j, 2],
+                upoint,
+                vpoint,
+                uatm_int,
+                vatm_int,
+                consts,
+            )
+            τx_ocn, τy_ocn, τx_p∇, τy_p∇, hflx_factor = calc_ocean_forcing!(
+                mc_cart[j, 1],
+                mc_cart[j, 2],
+                upoint,
+                vpoint,
+                uocn_int,
+                vocn_int,
+                hflx_int,
+                ma_ratio,
+                consts,
+            )
+            τx = τx_atm + τx_p∇ + τx_ocn
+            τy = τy_atm + τy_p∇ + τy_ocn
+            # Torque at monte carlo point
+            τtrq = (-τx * sin(θ) + τy * cos(θ)) * rad
+            # Add values to total stresses
+            tot_τx += τx
+            tot_τy += τy
+            tot_τtrq += τtrq
+            tot_hflx_factor += hflx_factor
+
+            floe_to_grid_info!(
                 i,
-                npoints,
-                mc_grid_idx,
+                mc_grid_idx[j, 2],  # row
+                mc_grid_idx[j, 1],  # column
                 τx_ocn,
                 τy_ocn,
                 grid,
-                domain.north,
-                domain.east,
+                domain,
                 ocean.scells,
             )
         end
-
-        # Sum stresses and find torques
-        xcoriolis = (floes.mass[i]/floes.area[i]) * consts.f * floes.v[i]
-        ycoriolis = (floes.mass[i]/floes.area[i]) * consts.f * floes.u[i]
-        for j in 1:npoints
-            τx[j] = τx_atm + τx_pressure∇[j] + τx_ocn[j]
-            τy[j] = τy_atm + τy_pressure∇[j] + τy_ocn[j]
-            # Calculate torque
-            τtrq[j] = (-τx[j] * sin(mc_polar[j, 2]) + τy[j] * cos(mc_polar[j, 2])) * mc_polar[j, 1]
-            # Add coriolis force to total foces - does not contribute to torque
-            τx[j] += xcoriolis
-            τy[j] -= ycoriolis
-        end
-
         # Average forces on ice floe
-        floes.fxOA[i] = mean(@view τx[1:npoints]) * floes.area[i]
-        floes.fyOA[i] = mean(@view τy[1:npoints]) * floes.area[i]
-        floes.trqOA[i] = mean(@view τtrq[1:npoints]) * floes.area[i]
+        floes.fxOA[i] = tot_τx/npoints * floes.area[i]
+        floes.fyOA[i] = tot_τy/npoints * floes.area[i]
+        floes.trqOA[i] = tot_τtrq/npoints * floes.area[i]
+        floes.hflx_factor[i] = tot_hflx_factor/npoints
     end
+end
+
+
+
+"""
+    floe_to_grid_info!(
+        floeidx,
+        row,
+        col,
+        τx_ocn::FT,
+        τy_ocn::FT,
+        grid,
+        domain,
+        scells,
+    )
+
+Add force from the ice on ocean to ocean force fields (fx & fy) for each grid
+cell and update ocean sea ice area fraction (si_area), representing total area
+of sea ice in a given cell.
+Inputs:
+    floeidx     <Int> index of floe within model's floe array
+    row         <Int> 
+    col         <Int>
+    τx_ocn      <AbstractFloat> x-stress caused by ocean on monte carlo point
+    τy_ocn      <AbstractFloat> y-stress caused by ocean on monte carlo point
+
+    ocean       <Ocean> model's ocean
+    grid        <AbstractGrid> model's grid
+    ns_bound    <AbstractBoundary> north or south boundary of domain -
+                    dispatches on periodic vs non-periodic
+    ew_bound    <AbstractBoundary> east or west boundary of domain -
+                    dispatches on periodic vs non-periodic
+    spinlock    <Thread.SpinLock>
+Outputs:
+    None. Ocean fields updated in-place. Note that the needed additions take
+    place within a lock. Since multiple floes can be within one grid cell, this
+    critical section needs to be locked for when the code is run with multiple
+    threads to prevent race conditions.
+"""
+function floe_to_grid_info!(
+    floeidx,
+    row,
+    col,
+    τx_ocn::FT,
+    τy_ocn::FT,
+    grid,
+    domain,
+    scells,
+) where {FT}
+    # Use dictionary to sort stress values by grid cell
+    shifted_row = shift_cell_idx(row, grid.dims[1] + 1, domain.north)
+    shifted_col = shift_cell_idx(col, grid.dims[2] + 1, domain.east)
+    Δx = (shifted_col - col) * (grid.xg[2] - grid.xg[1])
+    Δy = (shifted_row - row) * (grid.yg[2] - grid.yg[1])
+    add_point!(
+        scells[shifted_row, shifted_col],
+        floeidx,
+        -τx_ocn,
+        -τy_ocn,
+        Δx,
+        Δy,
+    )
+    return
+end
+
+"""
+    calc_two_way_coupling!(
+        floes::StructArray{Floe{FT}},
+        grid::RegRectilinearGrid,
+        atmos,
+        ocean,
+        domain,
+        consts,
+        Δt,
+    )
+
+Calculate effects of ice and atmosphere on the ocean and update ocean stress
+fields and sea ice fraction.
+Inputs:
+    floes       <StructArray{Floe}> model's floes
+    ocean       <Ocean> model's ocean
+    grid        <AbstractGrid> model's grid
+    domain      <Domain> model's domain
+    consts      <Constants> model's constantd
+    Δt          <Int> simulation's timestep in seconds
+Output:
+    None. Update's ocean's stress fields and heatflux factor field. 
+"""
+function calc_two_way_coupling!(
+    floes::StructArray{Floe{FT}},
+    grid::RegRectilinearGrid,
+    atmos,
+    ocean,
+    domain,
+    consts,
+    Δt,
+) where {FT}
+    # Determine force from floe on each grid cell it is in
+    cell_area = (grid.xg[2] - grid.xg[1]) * (grid.yg[2] - grid.yg[1])
+    Threads.@threads for cartidx in CartesianIndices(ocean.scells)
+        ocean.τx[cartidx] = FT(0)
+        ocean.τy[cartidx] = FT(0)
+        ocean.si_frac[cartidx] = FT(0)
+        τocn = ocean.scells[cartidx]
+        if !isempty(τocn.floeidx)
+            # Coordinates of grid cell
+            cell_coords = center_cell_coords(
+                cartidx[2],
+                cartidx[1],
+                grid,
+                domain.north,
+                domain.east
+            )
+            cell_poly = LG.Polygon(cell_coords)
+            for i in eachindex(τocn.floeidx)
+                floe_coords = translate(
+                    floes.coords[τocn.floeidx[i]],
+                    τocn.trans_vec[i][1],
+                    τocn.trans_vec[i][2],
+                )
+                floe_poly = LG.Polygon(floe_coords)
+                floe_area_in_cell = LG.area(LG.intersection(
+                    cell_poly,
+                    floe_poly,
+                ))::FT
+                if floe_area_in_cell > 0
+                    # Add forces and area to ocean fields
+                    ocean.τx[cartidx] += (τocn.τx[i]/τocn.npoints[i]) * floe_area_in_cell
+                    ocean.τy[cartidx] += (τocn.τy[i]/τocn.npoints[i]) * floe_area_in_cell
+                    ocean.si_frac[cartidx] += floe_area_in_cell
+                end
+            end
+            if ocean.si_frac[cartidx] > 0
+                # Divide by total floe area in cell to get ocean stress
+                ocean.τx[cartidx] /= ocean.si_frac[cartidx]
+                ocean.τy[cartidx] /= ocean.si_frac[cartidx]
+                # Divide by cell area to get sea-ice fraction
+                ocean.si_frac[cartidx] /= cell_area
+            end
+        end
+        Δu_AO = atmos.u[cartidx] - ocean.u[cartidx]
+        Δv_AO = atmos.v[cartidx] - ocean.v[cartidx]
+        ocn_frac = 1 - ocean.si_frac[cartidx]
+        norm = sqrt(Δu_AO^2 + Δv_AO^2)
+        ocean.τx[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δu_AO
+        ocean.τy[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δv_AO
+        # Not sure this is where the heatflux should be??
+        ocean.hflx_factor[cartidx] = Δt * consts.k/(consts.ρi*consts.L) *
+            (ocean.temp[cartidx] - atmos.temp[cartidx])
+    end
+    return
+end
+
+
+"""
+    timestep_coupling!(
+        model,
+        Δt,
+        consts,
+        coupling_settings,
+    )
+
+Calculates the effects of the ocean and atmosphere on the ice and the effects of
+the ice and atmosphere on the ocean if the coupling is two-way.
+Inputs:
+    model               <Model> model
+    Δt                  <Int> length of timestep in seconds
+    consts              <Constants> constants used in simulation
+    coupling_settings   <CouplingSettings> settings for coupling
+Outputs:
+    None. Updates each floe's ocean/atmosphere forcings (fxOA, fyOA, torqueOA)
+    and calculates stresses on each ocean grid cell from ice and atmosphere if
+    two-way coupling is enabled in coupling_settings       
+"""
+function timestep_coupling!(
+    model,
+    Δt,
+    consts,
+    coupling_settings,
+)
+    calc_one_way_coupling!(
+        model.floes,
+        model.grid,
+        model.atmos,
+        model.ocean,
+        model.domain,
+        coupling_settings,
+        consts,
+    )
     if coupling_settings.calc_ocnτ_on
-        sum_grid_force!(
-            floes,
-            grid,
-            atmos,
-            ocean,
+        calc_two_way_coupling!(
+            model.floes,
+            model.grid,
+            model.atmos,
+            model.ocean,
+            model.domain,
             consts,
-            domain.north,
-            domain.east,
+            Δt,
         )
     end
+    return
 end
