@@ -18,9 +18,10 @@ grid = RegRectilinearGrid(
     Δgrid,
     Δgrid,
 )
-zonal_ocn = Ocean(grid, 0.5, 0.0, 0.0)
+zonal_ocn = Ocean(grid, 0.25, 0.0, 0.0)
 
-zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
+zero_atmos = Atmos(grid, 0.0, -0.5, 0.0)
+
 
 open_domain_no_topo = Subzero.Domain(
     CollisionBoundary(grid, North()),
@@ -59,23 +60,23 @@ model = Model(
 )
 dir = "output/sim"
 writers = OutputWriters(
-    # initialwriters = StructArray([InitialStateOutputWriter(
-    #     dir = dir,
-    #     overwrite = true
-    # )]),
-    # floewriters = StructArray([FloeOutputWriter(
-    #     1,
-    #     dir = dir,
-    #     overwrite = true,
-    # )]),
+    initialwriters = StructArray([InitialStateOutputWriter(
+        dir = dir,
+        overwrite = true
+    )]),
+    floewriters = StructArray([FloeOutputWriter(
+        1,
+        dir = dir,
+        overwrite = true,
+    )]),
 )
 simulation = Simulation(
     name = "sim",
     model = model,
     Δt = 10,
-    nΔt = 50,
+    nΔt = 1000,
     writers = writers,
-    verbose = true
+    verbose = false
 )
 
 
@@ -93,7 +94,7 @@ simulation = Simulation(
 # ) setup=(sim=deepcopy(simulation))
 
 #time_run(simulation) = @time run!(simulation)
-
+run!(simulation)
 # # Run simulation
 #time_run(simulation)
 #Profile.Allocs.clear()
