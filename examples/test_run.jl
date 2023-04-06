@@ -18,12 +18,12 @@ grid = RegRectilinearGrid(
     Δgrid,
     Δgrid,
 )
-zonal_ocn = Ocean(grid, 0.25, 0.0, 0.0)
+zonal_ocn = Ocean(grid, 0.5, 0.0, 0.0)
 
-zero_atmos = Atmos(grid, 0.0, -0.5, 0.0)
+zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
 
 
-open_domain_no_topo = Subzero.Domain(
+domain = Subzero.Domain(
     CollisionBoundary(grid, North()),
     CollisionBoundary(grid, South()),
     CollisionBoundary(grid, East()),
@@ -31,20 +31,10 @@ open_domain_no_topo = Subzero.Domain(
 )
 
 # Floe instantiation
-
-# file = jldopen("test/inputs/floe_shapes.jld2", "r")
-# funky_floe_coords = file["floe_vertices"][1:25]
-# funky_floe_arr = initialize_floe_field(
-#     funky_floe_coords,
-#     open_domain_no_topo,
-#     hmean,
-#     Δh,
-# )
-# close(file)
 funky_floe_arr = initialize_floe_field(
-    25,
+    100,
     [0.5],
-    open_domain_no_topo,
+    domain,
     hmean,
     Δh,
 )
@@ -55,8 +45,8 @@ model = Model(
     grid,
     zonal_ocn,
     zero_atmos,
-    open_domain_no_topo,
-    deepcopy(funky_floe_arr),
+    domain,
+    funky_floe_arr,
 )
 dir = "output/sim"
 writers = OutputWriters(
@@ -65,7 +55,7 @@ writers = OutputWriters(
         overwrite = true
     )]),
     floewriters = StructArray([FloeOutputWriter(
-        1,
+        250,
         dir = dir,
         overwrite = true,
     )]),
@@ -74,9 +64,14 @@ simulation = Simulation(
     name = "sim",
     model = model,
     Δt = 10,
-    nΔt = 1000,
+    nΔt = 2000,
     writers = writers,
-    verbose = false
+    verbose = true,
+    fracture_settings = FractureSettings(
+        fractures_on = true,
+        criteria = HiblerYieldCurve(model.floes),
+        Δt = 75,
+    )
 )
 
 
@@ -93,8 +88,8 @@ simulation = Simulation(
 #     Float64,
 # ) setup=(sim=deepcopy(simulation))
 
-#time_run(simulation) = @time run!(simulation)
-run!(simulation)
+time_run(simulation) = @time run!(simulation)
+time_run(simulation)
 # # Run simulation
 #time_run(simulation)
 #Profile.Allocs.clear()
