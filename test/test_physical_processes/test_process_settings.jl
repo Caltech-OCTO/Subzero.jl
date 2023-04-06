@@ -4,27 +4,27 @@
         default_info = CouplingSettings()
         @test default_info.coupling_on &&
             default_info.Δt == 10 &&
-            !default_info.calc_ocnτ_on
+            !default_info.two_way_coupling_on
         # Test custom correct
         custom_info = CouplingSettings(
             coupling_on = false,
             Δt = 20,
-            calc_ocnτ_on = false,
+            two_way_coupling_on = false,
         )
         @test !custom_info.coupling_on &&
             custom_info.Δt == 20 &&
-            !custom_info.calc_ocnτ_on
+            !custom_info.two_way_coupling_on
         # Test negative timestep -> turns coupling off so turn calc_ocnτ off 
         warn_str1 = "Coupling can't occur on a multiple of negative timesteps. Turning coupling off."
-        warn_str2 = "Can't calculate stresses on ocean from ice and atmosphere without coupling. Turning calc_ocnτ_on off."
+        warn_str2 = "Can't calculate stresses on ocean from ice and atmosphere without coupling. Turning two_way_coupling_on off."
         neg_Δt_info = @test_logs (:warn, warn_str1) (:warn, warn_str2) CouplingSettings(
                 coupling_on = true,
                 Δt = -20,
-                calc_ocnτ_on = true,
+                two_way_coupling_on = true,
             )
         @test !neg_Δt_info.coupling_on &&
             neg_Δt_info.Δt == -20 &&
-            !neg_Δt_info.calc_ocnτ_on
+            !neg_Δt_info.two_way_coupling_on
     end
 
     @testset "CollisionSettings" begin

@@ -274,7 +274,7 @@ function Floe(
     coords = find_poly_coords(floe)
     moment = calc_moment_inertia(coords, centroid, height, ρi = ρi)
     angles = calc_poly_angles(coords)
-    translate!(coords, -centroid)
+    translate!(coords, -centroid[1], -centroid[2])
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
     alive = true
     # Generate Monte Carlo Points
@@ -286,7 +286,7 @@ function Floe(
         alive,
         rng,
     )
-    translate!(coords, centroid)
+    translate!(coords, centroid[1], centroid[2])
     # Generate Stress History
     stress_history = StressCircularBuffer{T}(nhistory)
     fill!(stress_history, zeros(T, 2, 2))
@@ -828,20 +828,15 @@ end
 
 Calculates the strain on a floe given the velocity at each vertex
 Inputs:
-    coords      <PolyVec{AbstractFloat}> floe's coordinates
-    centroid    <Vector{AbstractFloat}> floe's centroid as [x, y] coordinates
-    u           <AbstractFloat> floe's u velocity
-    v           <AbstractFloat> floe's v velocity
-    ξ           <AbstractFloat> floe's angular velocity
-    area        <AbstractFloat> floe's area
+    floe        <Floe{AbstractFloat}> a floe
 Outputs:
     strain      <Matrix{AbstractFloat}> 2x2 matrix for floe strain 
 """
 function calc_strain!(floe)
     # coordinates of floe centered at centroid
-    translate!(floe.coords, -floe.centroid)
+    translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
     xcoords, ycoords = separate_xy(floe.coords)
-    translate!(floe.coords, floe.centroid)
+    translate!(floe.coords, floe.centroid[1], floe.centroid[2])
     # Find distance between each vertex
     if xcoords[1] != xcoords[end] && ycoords[1] != ycoords[end]
         push!(xcoords, xcoords[1])
@@ -920,10 +915,18 @@ function timestep_floe_properties!(floes, Δt)
         Δα = 1.5Δt*floes.ξ[i] - 0.5Δt*floes.p_dαdt[i]
         floes.α[i] += Δα
 
-        translate!(floes.coords[i], -floes.centroid[i])
+        translate!(
+            floes.coords[i],
+            -floes.centroid[i][1],
+            -floes.centroid[i][2],
+        )
         rotate_radians!(floes.coords[i], Δα)
         floes.centroid[i] .+= [Δx, Δy]
-        translate!(floes.coords[i], floes.centroid[i])
+        translate!(
+            floes.coords[i],
+            floes.centroid[i][1],
+            floes.centroid[i][2],
+        )
         floes.p_dxdt[i] = floes.u[i]
         floes.p_dydt[i] = floes.v[i]
         floes.p_dαdt[i] = floes.ξ[i]

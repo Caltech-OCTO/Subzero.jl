@@ -6,9 +6,12 @@ Structs and functions used to define a Subzero model
     CellFloes{FT<:AbstractFloat}
 
 Struct that tracks which floes are within given cell, as well as the translation
-vector needed to move floe each from current postion into cell if it is in cell due
-to periodic boundaries. Each index in floeidx is the index of a floe within the
-cell and the Δx and Δy with the same index are that floe's translation vector.
+vector needed to move floe each from current postion into cell if it is in cell
+due to periodic boundaries. Each index in floeidx is the index of a floe within
+the cell and the Δx and Δy with the same index are that floe's translation
+vector.
+Note: the floeidx is the index of grid cells centered on grid lines, not on the
+grid cells defined by the regular, rectilinear grid. 
 """
 struct CellFloes{FT<:AbstractFloat}
     floeidx::Vector{Int}
@@ -108,7 +111,9 @@ end
 
 Construct a RegRectilinearGrid for model given bounds for grid x and y and grid
 cell dimensions.
-Inputs: 
+Inputs:
+    Type{FT} <AbstractFloat> Type for grid's numberical fields - determines
+                simulation run type
     xbounds  <Tuple{Real, Real}> bound of grid x-direction in form (left, right)
     ybounds  <Tuple{Real, Real}> bound of grid y-direction in form (bottom, top)
     Δx       <Real> length/height of grid cells in x-direction
@@ -134,7 +139,7 @@ function RegRectilinearGrid(
     ny = length(yg) - 1
     xc = collect(FT, xg[1]+Δx/2:Δx:xg[end]-Δx/2)
     yc = collect(FT, yg[1]+Δy/2:Δy:yg[end]-Δy/2)
-    locations = [CellFloes{FT}() for i in 1:nvals[1], j in 1:nvals[2]]
+    locations = [CellFloes{FT}() for i in 1:(ny + 1), j in 1:(nx + 1)]
     return RegRectilinearGrid((ny, nx), xg, yg, xc, yc, locations)
 end
 
@@ -149,7 +154,7 @@ end
 Construct a RegRectilinearGrid for model given bounds for grid x and y and the
 number of grid cells in both the x and y direction.
 Inputs: 
-    Type{FT} <<:AbstractFloat> Type for grid's numberical fields - determines
+    Type{FT} <AbstractFloat> Type for grid's numberical fields - determines
                 simulation run type
     xbounds  <Tuple{Real, Real}> bound of grid x-direction in form (left, right)
     ybounds  <Tuple{Real, Real}> bound of grid y-direction in form (bottom, top)
@@ -197,7 +202,7 @@ end
 
 Constructs an IceStressCell object with empty lists for fields.
 """
-IceStressCell{FT}() where {FT} = OceanStressCell{FT}(
+IceStressCell{FT}() where {FT} = IceStressCell{FT}(
     Vector{FT}(),
     Vector{FT}(),
     Vector{Int}()
@@ -249,7 +254,7 @@ struct Ocean{FT<:AbstractFloat}
         v::Matrix{FT},
         temp::Matrix{FT},
         hflx::Matrix{FT},
-        scells::Matrix{OceanStressCell{FT}},
+        scells::Matrix{IceStressCell{FT}},
         τx::Matrix{FT},
         τy::Matrix{FT},
         si_frac::Matrix{FT},
@@ -266,7 +271,7 @@ struct Ocean{FT<:AbstractFloat}
         v::Matrix{FT},
         temp::Matrix{FT},
         hflx::Matrix{FT},
-        scells::Matrix{OceanStressCell{FT}},
+        scells::Matrix{IceStressCell{FT}},
         τx::Matrix{FT},
         τy::Matrix{FT},
         si_frac::Matrix{FT},
@@ -275,14 +280,15 @@ struct Ocean{FT<:AbstractFloat}
 end
 
 """
-    Ocean(u, v, temp, ::Type{T} = Float64)
+    Ocean(::Type{T}, u, v, temp)
 
 Construct model ocean.
 Inputs:
-        u       <Matrix> ocean x-velocity matrix with u for each grid line
-        v       <Matrix> ocean y-velocity matrix with u for each grid line
-        temp    <Matrix> temperature matrix with ocean/ice interface temperature for each grid line
-                <Type> datatype to convert ocean fields - must be a Float!
+    Type{FT} <AbstractFloat> Type for grid's numberical fields - determines
+            simulation run type
+    u       <Matrix> ocean x-velocity matrix with u for each grid line
+    v       <Matrix> ocean y-velocity matrix with u for each grid line
+    temp    <Matrix> temperature matrix with ocean/ice interface temperature for each grid line
 Output: 
         Ocean with given velocity and temperature fields on each grid line.
 """
@@ -298,7 +304,7 @@ function Ocean(
         convert(Matrix{FT}, v),
         convert(Matrix{FT}, temp),
         zeros(FT, nvals),
-        [OceanStressCell{FT}() for i in 1:nvals[1], j in 1:nvals[2]],
+        [IceStressCell{FT}() for i in 1:nvals[1], j in 1:nvals[2]],
         zeros(FT, nvals),
         zeros(FT, nvals),
         zeros(FT, nvals),
@@ -306,15 +312,16 @@ function Ocean(
 end
 
 """
-    Ocean(grid::AbstractGrid, u, v, temp, ::Type{T} = Float64)
+    Ocean(::Type{FT}, grid::AbstractGrid, u, v, temp, ::Type{T} = Float64)
 
 Construct model ocean.
 Inputs: 
-        grid    <AbstractGrid> model grid
-        u       <Real> ocean x-velocity for each grid line
-        v       <Real> ocean y-velocity for each grid line
-        temp    <Real> temperature at ocean/ice interface per grid cell
-        t       <Type> datatype to convert ocean fields - must be a Float!
+    Type{FT} <AbstractFloat> Type for grid's numberical fields - determines
+        simulation run type
+    grid    <AbstractGrid> model grid
+    u       <Real> ocean x-velocity for each grid line
+    v       <Real> ocean y-velocity for each grid line
+    temp    <Real> temperature at ocean/ice interface per grid cell
 Output: 
         Ocean with constant velocity and temperature on each grid line.
 """
@@ -739,8 +746,18 @@ function TopographyElement(poly::LG.Polygon, ::Type{T} = Float64) where T
     topo = rmholes(poly)
     centroid = convert(Vector{T}, find_poly_centroid(topo))
     coords = convert(PolyVec{T}, find_poly_coords(topo))
-    origin_coords = translate(coords, -centroid)
-    rmax = sqrt(maximum([sum(c.^2) for c in origin_coords[1]]))
+    # Move coordinates to be centered at origin to calculate maximum radius
+    translate!(
+        coords,
+        -centroid[1],
+        -centroid[2],
+    )
+    rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
+    translate!(
+        coords,
+        centroid[1],
+        centroid[2],
+    )
     return TopographyElement(coords, centroid, rmax)
 end
 

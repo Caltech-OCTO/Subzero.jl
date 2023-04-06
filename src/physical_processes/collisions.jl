@@ -754,7 +754,7 @@ function timestep_collisions!(
 ) where {FT<:AbstractFloat}
     collide_pairs = Dict{Tuple{Int, Int}, Tuple{Int, Int}}()
     # floe-floe collisions for floes i and j where i<j
-    Threads.@threads for i in eachindex(floes)
+    for i in eachindex(floes)
         # reset collision values
         fill!(floes.collision_force[i], FT(0))
         floes.collision_trq[i] = FT(0.0)
@@ -857,7 +857,7 @@ function ghosts_on_bounds(element, ghosts, boundary, trans_vec)
         append!(new_ghosts, deepcopy.(ghosts))
         push!(new_ghosts, deepcopy(element))
         for i in eachindex(new_ghosts)
-            new_ghosts.coords[i] = translate(new_ghosts.coords[i], trans_vec)
+            translate!(new_ghosts.coords[i], trans_vec[1], trans_vec[2])
             new_ghosts.centroid[i] .+= trans_vec
         end
     end

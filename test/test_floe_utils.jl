@@ -49,17 +49,17 @@
     @test LG.equals(poly_lst[3], poly_hole2)
 
     # Test translating coordinates and polygons
-    @test Subzero.translate([ext], [0.0, 0.0]) == [ext]
-    trans_ext = Subzero.translate([ext], [1.0, 2.0])
+    @test Subzero.translate([ext], 0.0, 0.0) == [ext]
+    trans_ext = Subzero.translate([ext], 1.0, 2.0)
     @test trans_ext == [[[1.0, 3.0],  [1.0, 2.0],  [2.0, 2.0],
                         [2.0, 3.0], [1.0, 3.0]]]
     copy_ext = [deepcopy(ext)]
-    Subzero.translate!(copy_ext, [1.0, 2.0])
+    Subzero.translate!(copy_ext, 1.0, 2.0)
     @test copy_ext == trans_ext
     test_trans = [[[-2.0, 2.0], [-2.0, 1.0], [-1.0, 1.0], [-1.0, 2.0]]]
-    @test Subzero.translate(test_trans, [1.5, -1.5]) ==
+    @test Subzero.translate(test_trans, 1.5, -1.5) ==
         [[[-0.5, 0.5], [-0.5, -0.5], [0.5, -0.5], [0.5, 0.5]]]
-    Subzero.translate!(test_trans, [1.5, -1.5])
+    Subzero.translate!(test_trans, 1.5, -1.5)
     @test test_trans == [[[-0.5, 0.5], [-0.5, -0.5], [0.5, -0.5], [0.5, 0.5]]]
 
     # Test scaling polygons

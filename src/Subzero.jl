@@ -56,7 +56,9 @@ export
     SimplificationSettings,
     PolyVec,
     OutputWriters,
-    check_energy_momentum_conservation_julia
+    check_energy_momentum_conservation_julia,
+    IceStressCell,
+    CellFloes
 
 import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG

@@ -5,7 +5,11 @@
     close(file)
     poly1 = LG.Polygon(Subzero.valid_polyvec!(floe_coords[1]))
     centroid1 = LG.GeoInterface.coordinates(LG.centroid(poly1))
-    origin_coords = Subzero.translate(floe_coords[1], -centroid1)
+    origin_coords = Subzero.translate(
+        floe_coords[1],
+        -centroid1[1],
+        -centroid1[2],
+    )
     xo, yo = Subzero.separate_xy(origin_coords)
     rmax = sqrt(maximum([sum(xo[i]^2 + yo[i]^2) for i in eachindex(xo)]))
     area = LG.area(poly1)
@@ -246,7 +250,7 @@
     for j in 1:2
         for i in 1:2
             cell = LG.Polygon(
-                Subzero.translate(first_cell, [8e4*(j-1), 8e4*(i-1)])
+                Subzero.translate(first_cell, 8e4*(j-1), 8e4*(i-1))
             )
             open_cell_area = LG.area(LG.difference(cell, topo_polys))
             c = concentrations[i, j]
