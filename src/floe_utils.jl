@@ -54,6 +54,7 @@ Output:
 """
 find_poly_coords(poly::LG.Polygon) =
     LG.GeoInterface.coordinates(poly)::PolyVec{Float64}
+# [LG.GeoInterface.coordinates(LG.exteriorRing(poly))]::PolyVec{Float64}
 
 
 """
@@ -66,7 +67,7 @@ Output:
     <Vector{PolyVec}> representing the floe's coordinates xy plane
 """
 find_multipoly_coords(poly::LG.Polygon) =
-    [LG.GeoInterface.coordinates(poly)::PolyVec{Float64}]
+    [find_poly_coords(poly)]
 
 
 """
@@ -83,7 +84,7 @@ find_multipoly_coords(multipoly::LG.MultiPolygon) =
 
 
 """
-    translate(coords::PolyVec{T}, vec
+    translate(coords, vec)
 
 Translate each of the given coodinates by given vector -
 Coordinates and vector must be vectors of same underlying type
@@ -98,18 +99,22 @@ function translate(coords::PolyVec{T}, vec) where {T<:AbstractFloat}
 end
 
 """
-    translate(poly::LG.Polygon, vec)
+    translate!(coords, vec)
 
-Translate the given polygon by the given vector and return a new polygon -
+Translate each of the given coodinates by given vector in place -
+Coordinates and vector must be vectors of same underlying type
 Inputs:
-    coords <LibGEOS.Polygon>
-    vec <Vector{Float}>
+    coords PolyVec{Float}
+    vec <Vector{Real}>
 Output:
-    <LibGEOS.Polygon>
+    Updates given coords
 """
-function translate(poly::LG.Polygon, vec)
-    coords = find_poly_coords(poly)
-    return LG.Polygon(translate(coords, convert(Vector{Float64}, vec)))
+function translate!(coords::PolyVec{T}, vec) where {T<:AbstractFloat}
+    for i in eachindex(coords)
+        for j in eachindex(coords[i])
+            coords[i][j] .+= vec
+        end
+    end
 end
 
 """
@@ -128,31 +133,37 @@ function scale(poly::LG.Polygon, factor)
 end
 
 """
-    rotate_radians(coords::PolyVec, α)
+    rotate_radians!(coords::PolyVec, α)
 
 Rotate a polygon's coordinates by α radians around the origin.
 Inputs:
     coords  <PolyVec{AbstractFloat}> polygon coordinates
     α       <Real> radians to rotate the coordinates
 Outputs:
-    <PolyVec{AbstractFloat}> coords rotates by α radians
+    Updates coordinates in place
 """
-function rotate_radians(coords::PolyVec, α)
-    return [map(p -> [cos(α)*p[1] - sin(α)*p[2],
-                         sin(α)*p[1] + cos(α)p[2]], coords[1])]
+function rotate_radians!(coords::PolyVec, α)
+    for i in eachindex(coords)
+        for j in eachindex(coords[i])
+            x, y = coords[i][j]
+            coords[i][j][1] = cos(α)*x - sin(α)*y
+            coords[i][j][2] = sin(α)*x + cos(α)*y
+        end
+    end
+
 end
 
 """
-    rotate_degrees(coords::PolyVec, α)
+    rotate_degrees!(coords::PolyVec, α)
 
 Rotate a polygon's coordinates by α degrees around the origin.
 Inputs:
     coords <PolyVec{AbstractFloat}> polygon coordinates
     α       <Real> degrees to rotate the coordinates
 Outputs:
-    <PolyVec{AbstractFloat}> coords rotates by α degrees
+    Updates coordinates in place
 """
-rotate_degrees(coords::PolyVec, α) = rotate_radians(coords, α * π/180)
+rotate_degrees!(coords::PolyVec, α) = rotate_radians!(coords, α * π/180)
 
 """
     hashole(coords::PolyVec{FT})
@@ -210,6 +221,12 @@ Outputs:
 """
 function rmholes(coords::PolyVec{FT}) where {FT<:AbstractFloat}
     return [coords[1]]
+end
+
+function rmholes!(coords::PolyVec{FT}) where {FT<:AbstractFloat}
+    if length(coords) > 1
+        deleteat!(coords, 2:length(coords))
+    end
 end
 
 """
@@ -270,12 +287,11 @@ Outputs:
         order by area
 """
 function sortregions(multipoly::LG.MultiPolygon)
-    poly_lst = LG.getGeometries(multipoly)::Vector{LG.Polygon}
-    return sort(poly_lst, by=LG.area, rev=true)
+    return sort!(LG.getGeometries(multipoly), by=LG.area, rev=true)
 end
 
 """
-    seperate_xy(coords::PolyVec{T})
+    separate_xy(coords::PolyVec{T})
 
 Pulls x and y coordinates from standard polygon vector coordinates into seperate
 vectors. Only keeps external coordinates and disregards holes
@@ -285,7 +301,7 @@ Outputs:
     x <Vector{Float}> x coordinates
     y <Vector{Float}> y coordinates
 """
-function seperate_xy(coords::PolyVec{T}) where {T<:AbstractFloat}
+function separate_xy(coords::PolyVec{T}) where {T<:AbstractFloat}
     x = first.(coords[1])
     y = last.(coords[1])
     return x, y 
@@ -314,7 +330,7 @@ function calc_moment_inertia(
     h;
     ρi = 920.0
 ) where {T<:AbstractFloat}
-    x, y = seperate_xy(coords)
+    x, y = separate_xy(coords)
     x .-= centroid[1]
     y .-= centroid[2]
     N = length(x)
@@ -417,7 +433,7 @@ function orient_coords(coords::RingVec{T}) where T
 end
 
 """
-    convex_angle_test(coords::RingVec{T}, t::Type{T} = Float64)
+    convex_angle_test(coords::RingVec{T})
 
 Determine which angles in the polygon are convex, with the assumption that the
 first angle is convex, no other vertex has a smaller x-coordinate, and the
@@ -427,13 +443,12 @@ through the two vertices immediately following each vertex being considered.
 Inputs:
     coords <RingVec{Float}> Vector of [x, y] vectors that make up the exterior
         of a polygon
-    t  <AbstractFloat> datatype to run model with - must be a Float!
 Outputs:
         sgn <Vector of 1s and -1s> One element for each [x,y] pair - if 1 then
             the angle at that vertex is convex, if it is -1 then the angle is
             concave.
 """
-function convex_angle_test(coords::RingVec{T}, ::Type{T} = Float64) where T
+function convex_angle_test(coords::RingVec{T}) where T
     L = 10^25
     # Extreme points used in following loop, apended by a 1 for dot product
     top_left = [-L, -L, 1]
@@ -482,14 +497,13 @@ function convex_angle_test(coords::RingVec{T}, ::Type{T} = Float64) where T
 end
 
 """
-    calc_poly_angles(coords::PolyVec{T}, ::Type{T} = Float64))
+    calc_poly_angles(coords::PolyVec{T})
 
 Computes internal polygon angles (in degrees) of an arbitrary simple polygon.
 The program eliminates duplicate points, except that the first row must equal
 the last, so that the polygon is closed.
 Inputs:
     coords  <PolyVec{Float}> coordinates from a polygon
-    t       <AbstractFloat> datatype to run model with - must be a Float!
 Outputs:
     Vector of polygon's interior angles in degrees
 
@@ -499,10 +513,7 @@ Note - Translated into Julia from the following program (including helper
     Digital Image Processing Using MATLAB, Prentice-Hall, 2004
     Revision: 1.6 Date: 2003/11/21 14:44:06
 """
-function calc_poly_angles(
-    coords::PolyVec{T},
-    ::Type{T} = Float64
-) where {T<:AbstractFloat}
+function calc_poly_angles(coords::PolyVec{T}) where {T<:AbstractFloat}
     ext = orient_coords(coords[1]) # ignore any holes in the polygon
     # Calculate needed vectors
     pdiff = diff(ext)
@@ -513,8 +524,8 @@ function calc_poly_angles(
     mag_v1 = sqrt.([sum(v1[i].^2) for i in collect(1:npoints)])
     mag_v2 = sqrt.([sum(v2[i].^2) for i in collect(1:npoints)])
     # Protect against division by 0 caused by very close points
-    mag_v1[mag_v1 .== 0.0] .= eps()
-    mag_v2[abs.(mag_v2) .== 0.0] .= eps()
+    replace!(mag_v1, 0=>eps(T))
+    replace!(mag_v2, 0=>eps(T))
     angles = real.(acos.(v1_dot_v2 ./ mag_v1 ./ mag_v2) * 180 / pi)
 
     #= The first angle computed was for the second vertex, and the last was for
@@ -522,8 +533,10 @@ function calc_poly_angles(
     first. =#
     sangles = circshift(angles, 1)
     # Now determine if any vertices are concave and adjust angles accordingly.
-    sgn = convex_angle_test(ext, T)
-    sangles = [(sgn[i] == -1 ? 360 - sangles[i] : sangles[i]) for i in collect(1:length(sangles))]
+    sgn = convex_angle_test(ext)
+    for i in eachindex(sangles)
+        sangles[i] = (sgn[i] == -1) ? (-sangles[i] + 360) : sangles[i]
+    end
     return sangles
 end
 
@@ -550,10 +563,10 @@ We mimic version 1 functionality with 4 inputs and 1 output.
 Only needed code was translated.
 """
 function calc_point_poly_dist(
-    xp::Vector{T},
-    yp::Vector{T},
-    vec_poly::PolyVec{T}
-) where {T<:AbstractFloat}
+    xp::Vector{FT},
+    yp::Vector{FT},
+    vec_poly::PolyVec{FT}
+) where {FT<:AbstractFloat}
     @assert length(xp) == length(yp)
     min_lst = if !isempty(xp)
         # Vertices in polygon and given points
@@ -574,31 +587,30 @@ function calc_point_poly_dist(
         # Vector of distances between each pair of consecutive vertices
         vds = hypot.(Δv[:, 1], Δv[:, 2])
 
-        if (cumsum(vds)[end-1] - vds[end]) < 10eps(T)
+        if (cumsum(vds)[end-1] - vds[end]) < 10eps(FT)
             throw(ArgumentError("Polygon vertices should not lie on a straight \
                 line"))
         end
 
         #= Each pair of consecutive vertices V1[j], V2[j] defines a rotated
         coordinate system with origin at V1[j], and x axis along the vector
-        V2[j]-V1[j]. Build the rotation matrix Cer from original to rotated
-        system =#
+        V2[j]-V1[j]. cθ and sθ rotate from original to rotated system =#
         cθ = Δv[:, 1] ./ vds
         sθ = Δv[:, 2] ./  vds
-        Cer = zeros(T, 2, 2, nv-1)
+        Cer = zeros(FT, 2, 2, nv-1)
         Cer[1, 1, :] .= cθ
         Cer[1, 2, :] .= sθ
         Cer[2, 1, :] .= -sθ
         Cer[2, 2, :] .= cθ
 
         # Build origin translation vector P1r in rotated frame by rotating V1
-        V1r = hcat(cθ .* V1[:, 1] .+ sθ .* V1[:, 2],
-                -sθ .* V1[:, 1] .+ cθ .* V1[:, 2])
+        V1r = hcat(cθ .* V1[:, 1] .+ sθ .* V1[:, 2], 
+            -sθ .* V1[:, 1] .+ cθ .* V1[:, 2])
 
         #= Ppr is a 3D array of size 2*np*(nv-1). Ppr(1,j,k) is an X coordinate
         of point j in coordinate systems defined by segment k. Ppr(2,j,k) is its
         Y coordinate. =#
-        Ppr = zeros(T, 2, np, nv-1)
+        Ppr = zeros(FT, 2, np, nv-1)
         # Rotation and Translation
         Ppr[1, :, :] .= Pp * Cer[1, :, :] .-
             permutedims(repeat(V1r[:, 1], 1, 1, np), [2, 3, 1])[1, :, :]
@@ -609,7 +621,7 @@ function calc_point_poly_dist(
         # coordinate
         r = Ppr[1, :, :]
         cr = Ppr[2, :, :]
-        B = fill(convert(T, Inf), np, nv-1)
+        B = fill(convert(FT, Inf), np, nv-1)
         #= For the projections that fall inside the segments, find the minimum
         distances from points to their projections (note, that for some points
         these might not exist) =#
@@ -634,7 +646,7 @@ function calc_point_poly_dist(
         end
         dmin[:, 1]  # Turn array into a vector
     else
-        T[]
+        FT[]
     end
     return min_lst
 end
@@ -651,7 +663,7 @@ Inputs:
 Outputs:
     <Matrix{AbstractFloat}> N intersection points in a Nx2 matrix where column 1
         is the x-coordinates and column 2 is the y-coordinates and each row is
-        an intersection point .
+        an intersection point.
 
 Note - Translated into Julia from the following program:
     NS (2022). Curve intersections
@@ -660,8 +672,8 @@ Note - Translated into Julia from the following program:
     Only translated for the case where l1 and l2 are distinct. 
 """
 function intersect_lines(l1, l2)
-    x1, y1 = seperate_xy(l1)
-    x2, y2 = seperate_xy(l2)
+    x1, y1 = separate_xy(l1)
+    x2, y2 = separate_xy(l2)
     x2t = x2'
     y2t = y2'
     Δx1 = diff(x1)
@@ -670,13 +682,13 @@ function intersect_lines(l1, l2)
     Δy2 = diff(y2t, dims = 2)
 
     # Determine 'signed distances' 
-    S1 = Δx1 .* y1[1:end-1] - Δy1 .* x1[1:end-1]
+    S1 = Δx1 .* @view(y1[1:end-1]) .- Δy1 .* @view(x1[1:end-1])
     s1 = (Δx1 .* y2t .- Δy1 .*x2t)  # Needed for S1 calculation
-    C1 = (s1[:, 1:end-1] .- S1) .* (s1[:, 2:end] .- S1) .<= 0
+    C1 = (@view(s1[:, 1:end-1]) .- S1) .* (@view(s1[:, 2:end]) .- S1) .<= 0
 
-    S2 = Δx2 .* y2t[:, 1:end-1] - Δy2 .* x2t[:, 1:end-1]
+    S2 = Δx2 .* @view(y2t[:, 1:end-1]) .- Δy2 .* @view(x2t[:, 1:end-1])
     s2 = (y1 .* Δx2 .- x1 .* Δy2)'  # Needed for S2 calculation
-    C2 = ((s2[:, 1:end-1] .- S2') .* (s2[:, 2:end] .- S2') .<= 0)'
+    C2 = ((@view(s2[:, 1:end-1]) .- S2') .* (@view(s2[:, 2:end]) .- S2') .<= 0)'
 
     # Obtain the segments where an intersection is expected
     idx = findall(C1 .& C2)

@@ -1,4 +1,6 @@
-using Subzero, JLD2, NCDatasets, StructArrays, SplitApplyCombine, Statistics, VoronoiCells, GeometryBasics, Random, PolygonInbounds
+using DataStructures, Subzero, JLD2, NCDatasets, StructArrays,
+    SplitApplyCombine, Statistics, VoronoiCells, GeometryBasics, Random,
+    PolygonInbounds
 import LibGEOS as LG
 using Test
 
@@ -12,4 +14,5 @@ using Test
     include("test_model.jl")
     include("test_output.jl")
     include("test_simulation.jl")
+    include("test_conservation.jl")
 end

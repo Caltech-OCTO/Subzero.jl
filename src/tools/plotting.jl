@@ -51,7 +51,7 @@ function setup_plot(init_pn::String, plot_size = (1500, 1500))
                         margin = 10mm,
                         )
     if !isempty(d.topography)
-        topo_coords = seperate_xy.(d.topography.coords)
+        topo_coords = separate_xy.(d.topography.coords)
         plot!(plt, first.(topo_coords)./1000, last.(topo_coords)./1000, seriestype = [:shape,], fill = :grey, legend=false)
     end
     JLD2.close(file)
@@ -79,7 +79,7 @@ function create_sim_gif(floe_pn, init_pn, output_fn; plot_size = (1500, 1500), f
     times = keys(alive)
     anim = @animate for t in times
         new_frame = plot(plt)
-        verts = Subzero.seperate_xy.(coords[t])
+        verts = Subzero.separate_xy.(coords[t])
         for i in eachindex(verts)
             if alive[t][i]
                 plot!(new_frame, first(verts[i])./1000, last(verts[i])./1000, seriestype = [:shape,], fill = :lightblue, legend=false)

@@ -54,7 +54,9 @@ export
     FractureSettings,
     CouplingSettings,
     SimplificationSettings,
-    PolyVec
+    PolyVec,
+    OutputWriters,
+    check_energy_momentum_conservation_julia
 
 import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG
@@ -89,9 +91,11 @@ include("physical_processes/coupling.jl")
 include("physical_processes/collisions.jl")
 include("physical_processes/fractures.jl")
 include("physical_processes/process_settings.jl")
-# Simulation
-include("simulation.jl")
 # Tools
-include("plotting.jl")
+include("tools/plotting.jl")
+include("tools/conservation_em.jl")
+include("tools/compare_files.jl")
+# Simulation
 include("output.jl")
+include("simulation.jl")
 end

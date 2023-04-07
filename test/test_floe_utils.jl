@@ -34,6 +34,9 @@
     # Test removing holes from polygons and multipolygons
     @test [ext] == Subzero.rmholes([ext])
     @test [ext] == Subzero.rmholes([ext, hole1])
+    copy_holes = [ext, hole1]
+    Subzero.rmholes!(copy_holes)
+    @test copy_holes == [ext]
     @test LG.equals(Subzero.rmholes(poly_nohole), poly_nohole)
     @test LG.equals(Subzero.rmholes(poly_hole1), poly_nohole)
     @test LG.equals(Subzero.rmholes(poly_hole2), poly_nohole)
@@ -50,16 +53,14 @@
     trans_ext = Subzero.translate([ext], [1.0, 2.0])
     @test trans_ext == [[[1.0, 3.0],  [1.0, 2.0],  [2.0, 2.0],
                         [2.0, 3.0], [1.0, 3.0]]]
-    trans_nohole = Subzero.translate(poly_nohole, [1, 2])
-    @test LG.equals(trans_nohole, LG.Polygon(trans_ext))
-    trans_hole1 = Subzero.translate(poly_hole1, [1.0, 2.0])
-    @test LG.equals(trans_hole1, LG.Polygon(
-        [[[1.0, 3.0],  [1.0, 2.0],  [2.0, 2.0],  [2.0, 3.0], [1.0, 3.0]],
-         [[1.2, 2.3], [1.2, 2.2], [1.3, 2.2], [1.3, 2.3], [1.2, 2.3]]]))
-    @test Subzero.translate([[[-2.0, 2.0], [-2.0, 1.0], [-1.0, 1.0],
-                              [-1.0, 2.0]]], -1 .* [-1.5, 1.5]) ==
-                              [[[-0.5, 0.5], [-0.5, -0.5], [0.5, -0.5],
-                              [0.5, 0.5]]]
+    copy_ext = [deepcopy(ext)]
+    Subzero.translate!(copy_ext, [1.0, 2.0])
+    @test copy_ext == trans_ext
+    test_trans = [[[-2.0, 2.0], [-2.0, 1.0], [-1.0, 1.0], [-1.0, 2.0]]]
+    @test Subzero.translate(test_trans, [1.5, -1.5]) ==
+        [[[-0.5, 0.5], [-0.5, -0.5], [0.5, -0.5], [0.5, 0.5]]]
+    Subzero.translate!(test_trans, [1.5, -1.5])
+    @test test_trans == [[[-0.5, 0.5], [-0.5, -0.5], [0.5, -0.5], [0.5, 0.5]]]
 
     # Test scaling polygons
     centered_coords = [[[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], 
@@ -70,7 +71,7 @@
         LG.Polygon(centered_coords .* 2.0))
 
     # Test seperating x and y coordiantes from PolyVec form
-    x_ext, y_ext = Subzero.seperate_xy([ext])
+    x_ext, y_ext = Subzero.separate_xy([ext])
     @test x_ext == [0.0, 0.0, 1.0, 1.0, 0.0]
     @test y_ext == [1.0, 0.0, 0.0, 1.0, 1.0]
 
@@ -208,4 +209,23 @@
     @test all(Subzero.points_in_poly(points, [[[Vector{Float64}()]]]) .== 
     [false, false, false, false, false, false, false, false])
     @test all(Subzero.points_in_poly([], multi_coords) .== Vector{Bool}())
+
+    # ------------------ Test rotating coordinates ------------------
+    og_coords = [[[-1.0, -1.0], [-1, 1], [1, 1], [1, -1], [-1, -1]],
+        [[-1.0, -1.0], [-1, 1], [1, 1], [1, -1], [-1, -1]]]
+    copy_coords = deepcopy(og_coords)
+    Subzero.rotate_radians!(copy_coords, π/4)
+    same = true
+    answer = [[[0, -√2], [-√2, 0], [0, √2], [√2, 0], [0, -√2]],
+        [[0, -√2], [-√2, 0], [0, √2], [√2, 0], [0, -√2]]]
+    for i in eachindex(copy_coords)
+        same = same && all(isapprox.(copy_coords[i], answer[i]))
+    end
+    @test same
+    Subzero.rotate_radians!(copy_coords, 7π/4)
+    same = true
+    for i in eachindex(copy_coords)
+        same = same & all(isapprox.(copy_coords[i], og_coords[i]))
+    end
+    @test same
 end
