@@ -18,9 +18,9 @@ grid = RegRectilinearGrid(
     Δgrid,
     Δgrid,
 )
-zonal_ocn = Ocean(FT, grid, 0.25, 0.0, 0.0)
+zonal_ocn = Ocean(FT, grid, 0.5, 0.0, 0.0)
 
-zero_atmos = Atmos(grid, 0.0, -0.5, 0.0)
+zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
 
 open_domain_no_topo = Subzero.Domain(
     CollisionBoundary(grid, North()),
@@ -41,11 +41,12 @@ open_domain_no_topo = Subzero.Domain(
 # )
 # close(file)
 funky_floe_arr = initialize_floe_field(
-    25,
+    100,
     [0.5],
     open_domain_no_topo,
     hmean,
     Δh,
+    rng = Xoshiro(5),
 )
 #funky_floe_arr.u .= (-1)^rand(0:1) * (0.1 * rand(length(funky_floe_arr)))
 #funky_floe_arr.v .= (-1)^rand(0:1) * (0.1 * rand(length(funky_floe_arr)))
@@ -73,10 +74,17 @@ simulation = Simulation(
     name = "sim",
     model = model,
     Δt = 10,
-    nΔt = 1000,
+    nΔt = 50,
     writers = writers,
-    verbose = false,
-    coupling_settings = CouplingSettings(two_way_coupling_on = false)
+    verbose = true,
+    coupling_settings = CouplingSettings(two_way_coupling_on = false),
+    fracture_settings = FractureSettings(
+        fractures_on = true,
+        criteria = HiblerYieldCurve(model.floes),
+        Δt = 75,
+        deform_on = true,
+    ),
+    rng = Xoshiro(5),
 )
 
 #@benchmark timestep_sim!(simulation, 10) setup=(sim=deepcopy(simulation))
@@ -117,8 +125,8 @@ simulation = Simulation(
 #     simulation.coupling_settings,
 # )
 
-#time_run(simulation) = @time run!(simulation)
-run!(simulation)
+time_run(simulation) = @time run!(simulation)
+time_run(simulation)
 # # Run simulation
 #time_run(simulation)
 #Profile.Allocs.clear()

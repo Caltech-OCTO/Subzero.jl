@@ -754,7 +754,7 @@ function timestep_collisions!(
 ) where {FT<:AbstractFloat}
     collide_pairs = Dict{Tuple{Int, Int}, Tuple{Int, Int}}()
     # floe-floe collisions for floes i and j where i<j
-    for i in eachindex(floes)
+    Threads.@threads for i in eachindex(floes)
         # reset collision values
         fill!(floes.collision_force[i], FT(0))
         floes.collision_trq[i] = FT(0.0)
