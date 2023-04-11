@@ -284,7 +284,7 @@ function calc_mc_values(floe, grid, domain, ::Type{T} = Float64) where {T}
         mc_vels[:, 1] .= mc_u
         mc_vels[:, 2] .= mc_v
         # Find point indices for cells centered on grid lines
-        mc_cols, mc_rows = find_cell_indices(mc_xr, mc_yr, grid)
+        mc_cols, mc_rows = find_centered_cell_indices(mc_xr, mc_yr, grid)
         mc_grid_idx[:, 1] .= mc_cols
         mc_grid_idx[:, 2] .= mc_rows
     end

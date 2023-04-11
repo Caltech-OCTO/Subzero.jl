@@ -3,6 +3,24 @@ Structs and functions used to define floes and floe fields within Subzero
 """
 
 """
+Enum to index into floe interactions field with more intuituve names
+"""
+@enum StatusTag begin
+    active = 1
+    remove = 2
+    dissolve = 3
+    transfer_to = 4
+    transfer_from = 5
+end
+
+mutable struct Status
+    tag::StatusTag
+    transfer_idx::Int
+end
+
+Status() = Status(active, 0)  # active and without a transfer_idx
+
+"""
     StressCircularBuffer{FT<:AbstractFloat}
 
 Extended circular buffer for the stress history that hold 2x2 matrices of stress
@@ -106,10 +124,9 @@ Singular sea ice floe with fields describing current state.
                             #   sim - unique to all floes
     ghost_id::Int = 0       # ghost id - if floe is a ghost, ghost_id > 0
                             #   representing which ghost it is
-                            # if floe is not a ghost, ghost_id = 0
-    fracture_id::Int = 0    # fracture id - if the floe originated as a
-                            #   fractured piece of another floe
-                            # keep track of parent id - else id = 0
+                            #   if floe is not a ghost, ghost_id = 0
+    parent_ids::Vector{Int} = Vector{Int}()  # if the floe was originally part
+                            # of one or several floes, list parent ids
     ghosts::Vector{Int} = Vector{Int}()  # indices of ghost floes of given floe
     # Forces/Collisions ----------------------------------------------------
     fxOA::FT = 0.0          # force from ocean and atmos in x direction
@@ -382,14 +399,13 @@ Floe(
         nhistory::Int = 1000,
         rng = Xoshiro(),
         min_floe_area = 0,
-        t::Type{T} = Float64,
-    ) where T
+    )
 
 Split a given polygon into regions and split around any holes before turning
 each region with an area greater than the minimum floe area into a floe.
 Inputs:
     floe_poly       <LibGEOS.Polygon or LibGEOS.MultiPolygon> polygon/
-                        multipolygon to turn onto floes
+                        multipolygon to turn into floes
     hmean           <AbstratFloat> average floe height
     Δh              <AbstratFloat> height range - floes will range in height
                         from hmean - Δh to hmean + Δh
@@ -402,16 +418,14 @@ Inputs:
     rng             <RNG> random number generator to generate random floe
                         attributes - default is RNG using Xoshiro256++ algorithm
     min_floe_area   <AbstratFloat> minimum area for floe creation - default is 0
-    t               <AbstratFloat> datatype to run simulation with - either
-                        Float32 or Float64
 Output:
     <StructArray{Floe}> vector of floes making up input polygon(s) with area
         above given minimum floe area. Floe's with holes split around holes. 
 """
 function poly_to_floes(
     floe_poly,
-    hmean,
-    Δh;
+    hmean::FT,
+    Δh::FT;
     ρi = 920.0,
     u = 0.0,
     v = 0.0,
@@ -420,16 +434,16 @@ function poly_to_floes(
     nhistory::Int = 1000,
     rng = Xoshiro(),
     min_floe_area = 0,
-    t::Type{T} = Float64,
-) where T
-    floes = StructArray{Floe{T}}(undef, 0)
+) where {FT <: AbstractFloat}
+    floes = StructArray{Floe{FT}}(undef, 0)
     regions = LG.getGeometries(floe_poly)::Vector{LG.Polygon}
     while !isempty(regions)
         r = pop!(regions)
-        if LG.area(r) > min_floe_area
+        a = LG.area(r)
+        if a > min_floe_area && a > 0
             if !hashole(r)
                 floe = Floe(
-                    r,
+                    r::LG.Polygon,
                     hmean,
                     Δh,
                     ρi = ρi,
@@ -439,11 +453,11 @@ function poly_to_floes(
                     mc_n = mc_n,
                     nhistory = nhistory,
                     rng = rng,
-                    t = T,
+                    t = FT,
                 )
                 push!(floes, floe)
             else
-                region_bottom, region_top = split_polygon_hole(r, T)
+                region_bottom, region_top = split_polygon_hole(r, FT)
                 append!(regions, region_bottom)
                 append!(regions, region_top)
             end
@@ -451,6 +465,45 @@ function poly_to_floes(
     end
     return floes
 end
+
+function create_floes_conserve_mass!(
+    pieces_polys,
+    total_mass::FT,
+    u::FT, 
+    v, 
+    ξ,
+    mc_n,
+    nhistory,
+    rng,
+    consts,
+    new_floes,
+) where {FT <: AbstractFloat}
+    # Conserve mass within pieces
+    piece_areas = [LG.area(p) for p in pieces_polys]
+    total_area = sum(piece_areas)
+    # Create floes out of each piece
+    for i in eachindex(pieces_polys)
+        if pieces_areas[i] > 0
+            mass = total_mass * (pieces_areas[i]/total_area)
+            height = mass / (consts.ρi * pieces_areas[i])
+            pieces_floes = poly_to_floes(
+                pieces_polys[i]::LG.Polygon,
+                FT(height),
+                FT(0);  # Δh - range of random height difference between floes
+                ρi = consts.ρi,
+                u = u,
+                v = v,
+                ξ = ξ,
+                mc_n = mc_n,
+                nhistory = nhistory,
+                rng = rng,
+            )
+            append!(new_floes, pieces_floes)
+        end
+    end
+    return
+end
+
 
 """
     initialize_floe_field(
@@ -514,14 +567,13 @@ function initialize_floe_field(
             floe_arr, 
             poly_to_floes(
                 p,
-                hmean,
-                Δh;
+                T(hmean),
+                T(Δh);
                 ρi = ρi,
                 mc_n = mc_n,
                 nhistory = nhistory,
                 rng = rng,
                 min_floe_area = min_floe_area,
-                t = T,
             ),
         )
     end
@@ -768,14 +820,13 @@ function initialize_floe_field(
                         )
                         floes = poly_to_floes(
                             floe_poly,
-                            hmean,
-                            Δh;
+                            T(hmean),
+                            T(Δh);
                             ρi = ρi,
                             mc_n = mc_n,
                             nhistory = nhistory,
                             rng = rng,
                             min_floe_area = min_floe_area,
-                            t = T,
                         )
                         append!(floe_arr, floes)
                         floes_area += sum(floes.area)

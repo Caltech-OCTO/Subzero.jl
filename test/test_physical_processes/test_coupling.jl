@@ -7,10 +7,10 @@
             2,
             4,
         )
-        # Test find_cell_indices
-        @test Subzero.find_cell_indices([], [], grid) ==
+        # Test find_centered_cell_indices
+        @test Subzero.find_centered_cell_indices([], [], grid) ==
             (Vector{Int}(undef, 0), Vector{Int}(undef, 0))
-        @test Subzero.find_cell_indices(
+        @test Subzero.find_centered_cell_indices(
             [-10.5, -10, -10, -6.5, -6, -4, 10, 10.5, 12],
             [0.0, 6.0, -8.0, 4.5, 0.0, 5.0, -8.0, 0.0, 0.0],
             grid

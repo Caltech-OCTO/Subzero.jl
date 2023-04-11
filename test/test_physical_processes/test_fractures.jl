@@ -197,6 +197,6 @@
         @test max_idx == 10
         @test length(floes) == 8
         @test all(floes.id .== [3, 4, 5, 6, 7, 8, 9, 10])
-        @test all(floes.fracture_id .== [0, 0, 2, 2, 2, 1, 1, 1])
+        @test all(floes.parent_id .== [[0], [0], [2], [2], [2], [1], [1], [1]])
     end
 end

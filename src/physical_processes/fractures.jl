@@ -270,27 +270,18 @@ function split_floe(
             LG.intersection(LG.Polygon(p), floe_poly)
         ) for p in pieces]
         # Conserve mass within pieces
-        piece_areas = [LG.area(p) for p in pieces_polys]
-        area_fracs = piece_areas/sum(piece_areas)
-        piece_masses = floe.mass * area_fracs
-        piece_heights = piece_masses ./ (consts.ρi * piece_areas)
-        # Create floes out of each piece
-        for i in eachindex(pieces_polys)
-            pieces_floes = poly_to_floes(
-                pieces_polys[i],
-                piece_heights[i],
-                0;  # Δh - range of random height difference between floes
-                ρi = consts.ρi,
-                u = floe.u,
-                v = floe.v,
-                ξ = floe.ξ,
-                mc_n = coupling_settings.mc_n,
-                nhistory = fracture_settings.nhistory,
-                rng = rng,
-                t = T,
-            )
-            append!(new_floes, pieces_floes)
-        end
+        create_floes_conserve_mass!(
+            pieces_polys,
+            floe.mass,
+            floe.u, 
+            floe.v, 
+            floe.ξ,
+            coupling_settings.mc_n,
+            fracture_settings.nhistory,
+            rng,
+            consts,
+            new_floes,
+        )
     end
 
     # Update new floe pieces with parent information
@@ -382,7 +373,9 @@ function fracture_floes!(
         if !isempty(new_floes)
             n_new_floes = length(new_floes)
             new_floes.id .= range(max_floe_id + 1, max_floe_id + n_new_floes)
-            new_floes.fracture_id .= floes.id[frac_idx[i]]
+            for i in eachindex(new_floes)
+                push!(new_floes.parent_id[i], floes.id[frac_idx[i]])
+            end
             append!(floes, new_floes)
             max_floe_id += n_new_floes
             StructArrays.foreachfield(f -> deleteat!(f, frac_idx[i]), floes)

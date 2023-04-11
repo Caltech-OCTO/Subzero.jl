@@ -189,13 +189,13 @@ function check_energy_momentum_conservation_julia(
     for i in eachindex(tsteps)
         t = tsteps[i]
         # Needed values
-        parent_idx = file["ghost_id"][t] .== 0
-        mass = file["mass"][t][parent_idx]
-        moment = file["moment"][t][parent_idx]
-        u = file["u"][t][parent_idx]
-        v = file["v"][t][parent_idx]
-        ξ = file["ξ"][t][parent_idx]
-        centroid = file["centroid"][t][parent_idx]
+        original_idx = file["ghost_id"][t] .== 0
+        mass = file["mass"][t][original_idx]
+        moment = file["moment"][t][original_idx]
+        u = file["u"][t][original_idx]
+        v = file["v"][t][original_idx]
+        ξ = file["ξ"][t][original_idx]
+        centroid = file["centroid"][t][original_idx]
         x = first.(centroid)
         y = last.(centroid)
         # calculations

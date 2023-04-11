@@ -113,11 +113,23 @@
         τy = fx
         si_area = fx
         hflx_factor = fx
-        ocn = Subzero.Ocean(uocn, vocn, tempocn, hflx_factor, τx, τy, fx, fy, si_area)
+        dissolved = fx
+        ocn = Subzero.Ocean(
+            uocn,
+            vocn,
+            tempocn,
+            hflx_factor,
+            τx,
+            τy,
+            fx,
+            fy,
+            si_area,
+            dissolved,
+            )
         @test ocn.u == uocn
         @test ocn.v == vocn
         @test ocn.temp == tempocn
-        @test fx == ocn.fx == ocn.fy == ocn.si_area == ocn.hflx_factor == ocn.τx == ocn.τx
+        @test fx == ocn.fx == ocn.fy == ocn.si_area == ocn.hflx_factor == ocn.τx == ocn.τx == ocn.dissolved
         # Custom constructor
         ocn2 = Subzero.Ocean(g, 3.0, 4.0, -2.0)
         @test ocn.u == ocn2.u
