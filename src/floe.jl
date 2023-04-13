@@ -632,7 +632,8 @@ function generate_voronoi_coords(
             tess_cells = voronoicells(
                 xpoints,
                 ypoints,
-                Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0))
+                Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0)),
+                rng = rng
             ).Cells
             # Scale and translate voronoi coordinates
             [[valid_ringvec!([

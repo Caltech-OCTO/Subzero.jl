@@ -97,9 +97,17 @@
     concave_tri_coords = [[[-3.0, -2.0], [0.0,0.0], [5.0, 0.0]]]
     @test prod(isapprox.(Subzero.calc_poly_angles(concave_tri_coords), [19.6538, 146.3099, 14.0362], atol = 0.001))
     # generate list of random polygons
-    polygon_lst = voronoicells(rand(10), rand(10), Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0))).Cells
+    polygon_lst = voronoicells(
+        rand(10),
+        rand(10),
+        Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0)),
+    ).Cells
     for poly in polygon_lst
-        @test isapprox(sum(Subzero.calc_poly_angles([Vector{Vector{Float64}}(poly)])), 180 * (length(poly) - 2), atol = 1e-3)
+        @test isapprox(
+            sum(Subzero.calc_poly_angles([Vector{Vector{Float64}}(poly)])),
+            180 * (length(poly) - 2),
+            atol = 1e-3,
+        )
     end
 
     # Test calc_point_poly_dist - some basic shapes and compared to values from MATLAB

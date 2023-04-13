@@ -60,21 +60,21 @@ model = Model(
 )
 dir = "output/sim"
 writers = OutputWriters(
-    initialwriters = StructArray([InitialStateOutputWriter(
-        dir = dir,
-        overwrite = true
-    )]),
-    floewriters = StructArray([FloeOutputWriter(
-        1,
-        dir = dir,
-        overwrite = true,
-    )]),
+    # initialwriters = StructArray([InitialStateOutputWriter(
+    #     dir = dir,
+    #     overwrite = true
+    # )]),
+    # floewriters = StructArray([FloeOutputWriter(
+    #     100,
+    #     dir = dir,
+    #     overwrite = true,
+    # )]),
 )
 simulation = Simulation(
     name = "sim",
     model = model,
     Δt = 10,
-    nΔt = 50,
+    nΔt = 1500,
     writers = writers,
     verbose = true,
     coupling_settings = CouplingSettings(two_way_coupling_on = false),
