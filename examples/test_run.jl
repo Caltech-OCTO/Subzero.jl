@@ -65,7 +65,7 @@ writers = OutputWriters(
     #     overwrite = true
     # )]),
     # floewriters = StructArray([FloeOutputWriter(
-    #     100,
+    #     150,
     #     dir = dir,
     #     overwrite = true,
     # )]),

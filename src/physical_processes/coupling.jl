@@ -772,8 +772,8 @@ function calc_atmosphere_forcing(
     vatm = vatm_interp(mc_yr, mc_xr)
 
     # Stress on ice from atmopshere
-    Δu_AI = uatm #- upoint
-    Δv_AI = vatm #- vpoint
+    Δu_AI = uatm - upoint
+    Δv_AI = vatm - vpoint
     norm = sqrt(Δu_AI^2 + Δv_AI^2)
     τx_atm = c.ρa * c.Cd_ia * norm * Δu_AI
     τy_atm = c.ρa * c.Cd_ia * norm * Δv_AI
@@ -980,7 +980,7 @@ function floe_to_grid_info!(
     shifted_col = shift_cell_idx(col, grid.dims[2] + 1, ew_bound)
     Δx = (shifted_col - col) * (grid.xg[2] - grid.xg[1])
     Δy = (shifted_row - row) * (grid.yg[2] - grid.yg[1])
-    if coupling_settings.two_way_coupling_on
+    if coupling_settings.two_way_coupling_on 
         # If two-way coupling, save stress on ocean per cell
         add_point!(
             grid.floe_locations[shifted_row, shifted_col],
@@ -1167,7 +1167,7 @@ function calc_two_way_coupling!(
 ) where {FT}
     # Determine force from floe on each grid cell it is in
     cell_area = (grid.xg[2] - grid.xg[1]) * (grid.yg[2] - grid.yg[1])
-    Threads.@threads for cartidx in CartesianIndices(ocean.scells)
+    for cartidx in CartesianIndices(ocean.scells)
         ocean.τx[cartidx] = FT(0)
         ocean.τy[cartidx] = FT(0)
         ocean.si_frac[cartidx] = FT(0)
@@ -1249,6 +1249,10 @@ function timestep_coupling!(
     consts,
     coupling_settings,
 )
+    empty!.(model.grid.floe_locations)
+    if coupling_settings.two_way_coupling_on
+        empty!.(model.ocean.scells)
+    end
     calc_one_way_coupling!(
         model.floes,
         model.grid,
