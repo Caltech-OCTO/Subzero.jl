@@ -9,12 +9,12 @@
     xo, yo = Subzero.separate_xy(origin_coords)
     rmax = sqrt(maximum([sum(xo[i]^2 + yo[i]^2) for i in eachindex(xo)]))
     area = LG.area(poly1)
-    mc_x, mc_y, alive = Subzero.generate_mc_points(
+    mc_x, mc_y, status = Subzero.generate_mc_points(
         1000,
         origin_coords,
         rmax,
         area,
-        true,
+        Subzero.Status(),
         Xoshiro(1)
     )
     @test length(mc_x) == length(mc_y) && length(mc_x) > 0
@@ -22,19 +22,19 @@
     mc_in = in_on[:, 1] .|  in_on[:, 2]
     @test all(mc_in)
     @test abs(sum(mc_in)/1000 * 4 * rmax^2 - area)/area < 0.1
-    @test alive
+    @test status.tag == Subzero.active
     # Test that random number generator is working
-    mc_x2, mc_y2, alive2 = Subzero.generate_mc_points(
+    mc_x2, mc_y2, status2 = Subzero.generate_mc_points(
         1000,
         origin_coords,
         rmax,
         area,
-        true,
+        Subzero.Status(),
         Xoshiro(1)
     )
     @test all(mc_x .== mc_x2)
     @test all(mc_y .== mc_y2)
-    @test alive == alive2
+    @test status2.tag == Subzero.active
 
     # Test InteractionFields enum
     interactions = range(1, 7)'
@@ -49,7 +49,7 @@
     @test 0.49 <= floe_from_coords.height <= 0.51
     @test floe_from_coords.centroid == centroid1
     @test floe_from_coords.area == area
-    @test floe_from_coords.alive
+    @test floe_from_coords.status.tag == Subzero.active
     
     # Test with polygon input
     floe_from_poly = Floe(poly1, 0.5, 0.01, v = -0.2, rng = Xoshiro(1))
@@ -59,7 +59,7 @@
     @test 0.49 <= floe_from_poly.height <= 0.51
     @test floe_from_poly.centroid == centroid1
     @test floe_from_poly.area == area
-    @test floe_from_poly.alive
+    @test floe_from_poly.status.tag == Subzero.active
 
     # Test poly_to_floes
     rect_poly = [[[0.0, 0.0], [0.0, 5.0], [10.0, 5.0], [10.0, 0.0], [0.0, 0.0]]]
@@ -281,10 +281,8 @@
         @test all(mean(scb) .== 0.9)
 
         # Test Stress and Strain Calculations
-        floes = load(
-            "inputs/test_floes.jld2",
-            "stress_strain_floe1",
-            "stress_strain_floe2",
+        floe_dict = load(
+            "inputs/test_values.jld2"  # uses the first 2 element
         )
         stresses = [[-10.065, 36.171, 36.171, -117.458],
             [7.905, 21.913, 21.913, -422.242]]
@@ -293,32 +291,41 @@
         strains = [[-3.724, 0, 0, 0], [7.419, 0, 0,	-6.987]]
         strain_multiplier = [1e28, 1e6]
 
-        for i in eachindex(floes)
-            f = floes[i]
-            stress = Subzero.calc_stress(
-                f.interactions,
-                f.centroid,
-                f.area,
-                f.height,
+        for i in 1:2
+            floe = Floe(
+                floe_dict["coords"][i],
+                floe_dict["height"][i],
+                0.0,
+                u = floe_dict["u"][i],
+                v = floe_dict["v"][i],
+                ξ = floe_dict["ξ"][i]
             )
-            push!(f.stress_history, stress)
-            f.stress = mean(f.stress_history)
-            @test all(isapprox.(vec(f.stress), stresses[i], atol = 1e-3))
+            floe.interactions = floe_dict["interactions"][i]
+            floe.stress_history = floe_dict["stress_history"][i]
+            stress = Subzero.calc_stress(
+                floe.interactions,
+                floe.centroid,
+                floe.area,
+                floe.height,
+            )
+            push!(floe.stress_history, stress)
+            floe.stress = mean(floe.stress_history)
+            @test all(isapprox.(vec(floe.stress), stresses[i], atol = 1e-3))
             @test all(isapprox.(
-                vec(f.stress_history.cb[end]),
+                vec(floe.stress_history.cb[end]),
                 stress_histories[i],
                 atol = 1e-3
             ))
-            f.strain = Subzero.calc_strain(
-                f.coords,
-                f.centroid,
-                f.u,
-                f.v,
-                f.ξ,
-                f.area,
+            floe.strain = Subzero.calc_strain(
+                floe.coords,
+                floe.centroid,
+                floe.u,
+                floe.v,
+                floe.ξ,
+                floe.area,
             )
             @test all(isapprox.(
-                vec(f.strain) .* strain_multiplier[i],
+                vec(floe.strain) .* strain_multiplier[i],
                 strains[i],
                 atol = 1e-3
             ))

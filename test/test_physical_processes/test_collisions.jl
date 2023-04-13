@@ -128,17 +128,17 @@
         # Test floe overlapping >75% with collision boundary
         Subzero.floe_domain_interaction!(efloe_large, domain, consts, Δt, max_overlap)
         @test isempty(efloe_large.interactions)
-        @test !efloe_large.alive
+        @test efloe_large.status.tag == Subzero.remove
         # Test floe overlapping >75% with collision boundary -> but max overlap is now 1
         Subzero.floe_domain_interaction!(efloe_large, domain, consts, Δt, 1.0)
         @test !isempty(efloe_large.interactions)
         # Test floe passing through open boundary is killed
         Subzero.floe_domain_interaction!(wfloe, domain, consts, Δt, max_overlap)
-        @test !wfloe.alive
+        @test wfloe.status.tag == Subzero.remove
         # Test floes not not interact with periodic boundary
         nfloe_copy = deepcopy(nfloe)
         Subzero.floe_domain_interaction!(nfloe, domain, consts, Δt, max_overlap)
-        @test nfloe_copy.alive == nfloe.alive && nfloe_copy.interactions == nfloe.interactions
+        @test nfloe_copy.status.tag == nfloe.status.tag && nfloe_copy.interactions == nfloe.interactions
         # Test floe overlapping with topography -> different from Subzero since topography are now boundaries
         Subzero.floe_domain_interaction!(tfloe, domain, consts, Δt, max_overlap)
         @test tfloe.interactions[1, xforce] < 0

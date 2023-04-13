@@ -75,15 +75,11 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
         write_data!(sim, tstep)  # Horribly type unstable
         
         # Collisions
-        remove = zeros(Int, n_init_floes)
-        transfer = zeros(Int, n_init_floes)
         if sim.collision_settings.collisions_on
-            remove, transfer = timestep_collisions!(
+            timestep_collisions!(
                 sim.model.floes,
                 n_init_floes,
                 sim.model.domain,
-                remove,
-                transfer,
                 sim.consts,
                 sim.Δt,
                 sim.collision_settings,
@@ -131,8 +127,8 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
         
         # Remove floes that were killed or are too small in this timestep
         for i in reverse(eachindex(sim.model.floes))
-            if (!sim.model.floes.alive[i] ||
-                sim.model.floes.area[i] < sim.simp_settings.min_floe_area)
+            if (sim.model.floes.status[i].tag == remove ||
+                sim.model.floes.area[i] < sim.simp_settings.min_floe_area) # This needs to be dissolved!!
                 StructArrays.foreachfield(
                     field -> deleteat!(field, i),
                     sim.model.floes,

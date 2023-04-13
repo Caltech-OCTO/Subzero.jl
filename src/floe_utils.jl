@@ -57,6 +57,18 @@ find_poly_coords(poly::LG.Polygon) =
 # [LG.GeoInterface.coordinates(LG.exteriorRing(poly))]::PolyVec{Float64}
 
 
+get_polygons(poly::LG.Polygon) = [poly]
+
+function get_polygons(multipoly::LG.MultiPolygon)
+    sub_geoms = LG.getGeometries(multipoly)
+    for i in reverse(eachindex(sub_geoms))
+        if LG.area(sub_geoms) == 0
+            deleteat!(sub_geoms, i)
+        end
+    end
+    return sub_geoms::Vector{LG.Polygon}
+end
+
 """
     find_multipoly_coords(poly)
 

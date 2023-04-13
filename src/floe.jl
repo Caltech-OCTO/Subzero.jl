@@ -9,16 +9,15 @@ Enum to index into floe interactions field with more intuituve names
     active = 1
     remove = 2
     dissolve = 3
-    transfer_to = 4
-    transfer_from = 5
+    fuse = 4
 end
 
 mutable struct Status
     tag::StatusTag
-    transfer_idx::Int
+    fuse_idx::Vector{Int}
 end
 
-Status() = Status(active, 0)  # active and without a transfer_idx
+Status() = Status(active, Vector{Int}())  # active floe
 
 """
     StressCircularBuffer{FT<:AbstractFloat}
@@ -119,7 +118,7 @@ Singular sea ice floe with fields describing current state.
     v::FT = 0.0             # floe y-velocity
     ξ::FT = 0.0             # floe angular velocity
     # Status ---------------------------------------------------------------
-    alive::Bool = true      # floe is still active in simulation
+    status::Status = Status() # floe is active in simulation
     id::Int = 0             # floe id - set to index in floe array at start of
                             #   sim - unique to all floes
     ghost_id::Int = 0       # ghost id - if floe is a ghost, ghost_id > 0
@@ -178,7 +177,7 @@ Base.:(:)(a::InteractionFields, b::InteractionFields) = Int(a):Int(b)
         yfloe,
         rmax,
         area,
-        alive,
+        status,
         rng,
         ::Type{T} = Float64,
     ) where T
@@ -191,12 +190,12 @@ Inputs:
     yfloe   <Vector{Float}> vector of floe y-coordinates centered on the origin
     rmax    <Int> floe maximum radius
     area    <Int> floe area
-    alive   <Bool> true if floe is alive (i.e. will continue in the simulation)
+    status  <Status> floe status (i.e. active, dissolved, etc in simulation)
     rng     <RNG> random number generator to generate monte carlo points
 Outputs:
-    mc_x  <Vector{T}> vector of monte carlo point x-coords that are within floe
-    mc_y  <Vector{T}> vector of monte carlo point y-coords that are within floe
-    alive <Bool> true if floe is alive (i.e. will continue in the simulation)
+    mc_x   <Vector{T}> vector of monte carlo point x-coords that are within floe
+    mc_y   <Vector{T}> vector of monte carlo point y-coords that are within floe
+    status <Status> tag is `active` if points created correctly, else `remove``
 Note:
     You will not end up with npoints. This is the number originally generated,
     but any not in the floe are deleted. The more oblong the floe shape, the
@@ -207,7 +206,7 @@ function generate_mc_points(
     coords::PolyVec{T},
     rmax::T,
     area::T,
-    alive::Bool,
+    status,
     rng,
 ) where {T<:AbstractFloat}
     count = 1
@@ -218,7 +217,7 @@ function generate_mc_points(
     while err > 0.1
         if count > 10
             err = 0.0
-            alive = false
+            status.tag = remove
         else
             mc_x .= rmax * (2rand(rng, T, Int(npoints)) .- 1)
             mc_y .= rmax * (2rand(rng, T, Int(npoints)) .- 1)
@@ -228,7 +227,7 @@ function generate_mc_points(
         end
     end
 
-    return mc_x[mc_in], mc_y[mc_in], alive
+    return mc_x[mc_in], mc_y[mc_in], status
 end
 
 """
@@ -260,8 +259,8 @@ Inputs:
     t     <Float> datatype to run simulation with - either Float32 or Float64
 Output:
     <Floe> with needed fields defined - all default field values used so all
-        forcings start at 0 and floe is "alive". Velocities and the density of
-        ice can be optionally set.
+        forcings start at 0 and floe's status is "active". Velocities and the
+        density of ice can be optionally set.
 Note:
     Types are specified at Float64 below as type annotations given that when
     written LibGEOS could exclusivley use Float64 (as of 09/29/22). When this is
@@ -293,14 +292,14 @@ function Floe(
     angles = calc_poly_angles(coords)
     translate!(coords, -centroid)
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
-    alive = true
+    status = Status()
     # Generate Monte Carlo Points
-    mc_x, mc_y, alive = generate_mc_points(
+    mc_x, mc_y, status = generate_mc_points(
         mc_n,
         coords,
         rmax,
         area_tot,
-        alive,
+        status,
         rng,
     )
     translate!(coords, centroid)
@@ -323,7 +322,7 @@ function Floe(
         mc_x = mc_x,
         mc_y = mc_y,
         stress_history = stress_history,
-        alive = alive,
+        status = status,
     )
 end
 
@@ -356,7 +355,7 @@ Inputs:
     t           <Float> datatype to run simulation with - either Float32 or 64
 Output:
     <Floe> with needed fields defined - all default field values used so all
-        forcings and velocities start at 0 and floe is "alive"
+        forcings and velocities start at 0 and floe's status is "active"
 """
 Floe(
     coords::PolyVec,
@@ -479,8 +478,8 @@ function create_floes_conserve_mass!(
     new_floes,
 ) where {FT <: AbstractFloat}
     # Conserve mass within pieces
-    piece_areas = [LG.area(p) for p in pieces_polys]
-    total_area = sum(piece_areas)
+    pieces_areas = [LG.area(p) for p in pieces_polys]
+    total_area = sum(pieces_areas)
     # Create floes out of each piece
     for i in eachindex(pieces_polys)
         if pieces_areas[i] > 0
@@ -952,7 +951,7 @@ function timestep_floe_properties!(floes, Δt)
         if floes.mass[i] < 100
             #@warn "Increasing mass to 1000 kg"
             floes.mass[i] = 1e3
-            floes.alive[i] = false
+            floes.status[i].tag = dissolve
         end
         while maximum(abs.(cforce)) > floes.mass[i]/(5Δt)
             #@warn "Decreasing collision forces by a factor of 10"

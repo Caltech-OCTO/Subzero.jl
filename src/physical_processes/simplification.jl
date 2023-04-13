@@ -6,7 +6,7 @@ end
 
 function dissolve_small_floes(model, simp_settings)
     small_floe_idx = (model.floes.area .< simp_settings.min_floe_area) .&&
-        model.floes.alive  # if floe is alive and small then 'melt' it
+        model.floes.active  # if floe is active and small then 'melt' it
     small_floe_centroids = model.floes.centroid[small_floe_idx]
     small_floe_areas = model.floes.area[small_floe_idx]
     xidx, yidx = find_cell_indices(
@@ -19,43 +19,55 @@ function dissolve_small_floes(model, simp_settings)
     end
 end
 
-function remove_transfer_floes(remove, transfer, n_init_floes, ocean.dissolved)
-    transfer = transfer[transfer .<= n_init_floes]
-end
-
-function simplify_floe(
-    i,
+function simplify_floes!(
     floes::StructArray{Floe{FT}},
-    topo_poly,
+    topography,
     simp_settings,
     collision_settings,
+    coupling_settings,
+    consts,
+    rng,
 ) where {FT <: AbstractFloat}
-    poly = LG.simplify(LG.Polygon(floes.coords[i]), simp_settings.tol)
-    # Remove overlaps with topography
-    if !isempty(domain.topography)
-        poly = LG.difference(simp_poly, topo_poly)
-    end
-    simp_poly = rmholes(poly)
-    simp_coords = find_poly_coords(simp_poly)::PolyVec{FT}
-    simp_centroid = find_poly_centroid(simp_poly)::Vector{FT}
-    # Scale floe by area change
-    simp_area = LG.area(simp_poly)::FT
-    translate!(simp_coords, [-simp_centroid[1], -simp_centroid[2]])
-    simp_coords .*= sqrt(floes.area[i]/simp_area)
-    translate!(simp_coords, [simp_centroid[1], simp_centroid[2]])
-    simp_poly = LG.Polygon(simp_coords)  # what if this is multiple pieces... --> we will just take the largest??
-    for j in eachindex(floes)
-        if i != j && (sum((floes.centroid[i] .- floes.centroid[j]).^2) < (floes.rmax[i] + floes.rmax[j])^2)
-            intersect_poly = LG.Polygon(floes.coords[j])
-            intersect_area = LG.area(LG.intersection(simp_poly, intersect_poly))
-            if intersect_area/floes.area[j] > collision_settings.floe_floe_max_overlap
-                # set status to fuse
+    topo_coords = topography.coords
+    for i in eachindex(floes)
+        poly = LG.simplify(LG.Polygon(floes.coords[i]), simp_settings.tol)
+        if !isempty(topo_coords)
+            poly = LG.difference(simp_poly, LG.MultiPolygon(topo_coords))
+        end
+        poly_lst = get_polygons(rmholes(poly))::Vector{LG.Polygon}
+        new_poly =
+            if length(poly_list) == 1
+                poly_list[1]
+            else
+                areas = [LG.area(p) for p in poly_lst]
+                _, max_idx = findmax(areas)
+                poly_lst[max_idx]
+            end
+        replace_floe!(
+            LazyRow(floes, i),
+            new_poly,
+            floes.mass[i],
+            consts,
+            coupling_settings.mc_n,
+            rng,
+        ) 
+        # Mark interactions for fusion
+        for j in eachindex(floes)
+            if i != j && floes.status[j] != remove && potential_interaction(
+                floes.coords[i],
+                floes.coords[j],
+                floes.rmax[i],
+                floes.rmax[j],
+            )
+            jpoly = LG.Polygon(floes.coords[j])
+            intersect_area = LG.area(LG.intersection(new_poly, jpoly))
+            if intersect_area/LG.area(jpoly) > collision_settings.floe_floe_max_overlap
+                floes.status[i].tag = fuse
+                push!(floes.status[i].fuse_idx, j)
             end
         end
     end
-    # re-do all of the floe's stuff
-
-
+    return
 end
 
 """
@@ -70,77 +82,116 @@ Inputs:
 Outputs:
     new_floes   <StructArray{Floe}> new fused floe(s) to add to model floe list
 """
+# function find_fuse_groups(floes)
+#     fuse_groups = Dict{Int, Set{Int}}()
+#     for i in eachindex(floes)
+#         if floes.status[i] == fuse_floes
+#             sort!(floes.status[i].fuse_idx)
+#             min_idx = floes.status[i].fuse_idx[1]  # smallest is now first
+#             if min_idx > i  # have not seen a fusion group involving this floe
+#                 fuse_groups[i] = floes.status[i].fuse_idx
+#             else  # this floe is in a fusion group with a lesser-index floe
+#                 while !haskey(fuse_groups, min_idx)
+#                     min_idx = floes.status[min_idx].fuse_idx[1]
+#                 end
+#                 # Add new indices to group and delete any duplicate groups
+#                 for j in eachindex(floes.status[i].fuse_idx[2:end])
+#                     push!(fuse_groups[min_idx], floes.status[i].fuse_idx[j])
+#                     delete!(fuse_groups, floes.status[i].fuse_idx[j])
+#                 end
+#             end
+#         end
+#     end
+# end
 
-#=
-Let's use the new idea on the board. Let's take in all floes and go through
-and create the groupings.
-
-Issues:
-For collisions, the floes have since moved so they might not be overlapping and
-the union could return two seperate floes
-For simplification, this won't happen since we know that floe's are still in the
-same spot...
-=#
-function fuse_floes(
-    floes::Vector{Union{Floe{FT}}, LazyRow{Floe{FT}}},
-) where {FT <: AbstractFloat}
-    polys = [LG.Polygon(f) for f in floes]
-    new_poly = reduce(LG.union, polys)
-    new_poly_list = LG.getGeometries(new_poly)
-    for i in eachindex(new_poly_list)
-        new_poly_list[i] = rmholes(new_poly_list[i])
-    end
-    new_floes = StructArray{Floe{FT}}(undef, 0)
-    total_mass = FT(0)
-    id_lst = Vector{Int}()
-    for f in floes
-        total_mass += f.mass
-        push!(id_lst, f.id)
-    end
-    create_floes_conserve_mass!(  # Do we want to just assume one floe??
-        new_poly_list,
-        total_mass::FT,
-        u::FT, 
-        v, 
-        ξ,
-        mc_n,
-        nhistory,
-        rng,
-        consts,
-        new_floes,
+function replace_floe!(
+    floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
+    new_poly,
+    new_mass,
+    consts,
+    mc_n,
+    rng,
+) where {FT}
+    # Floe shape
+    floe.centroid = find_poly_centroid(new_poly)
+    floe.coords = rmholes(find_poly_coords(new_poly)::PolyVec{FT})
+    floe.area = LG.area(new_poly)
+    floe.height = new_mass/(floe.area * consts.ρi)
+    floe.mass = new_mass
+    floe.moment = calc_moment_inertia(
+        floe.coords,
+        floe.centroid,
+        floe.height;
+        ρi = consts.ρi,
     )
-    if !isempty(new_floes)
-        centroid = find_poly_centroid(new_poly)::Vector{FT}
-        total_inertia = FT(0)
-        for i in eachindex(new_floes)
-            sqr_dist = (centroid[1] - new_floes.centroid[i][1])^2 +
-                (centroid[2] -  new_floes.centroid[i][2])^2
-            total_inertia += new_floes.moment[i] + new_floes.mass[i] * sqr_dist
-            append!(new_floes.parent_id[i], id_lst)
-        end
+    floe.angles = calc_poly_angles(floe.coords)
+    floe.α = FT(0)
+    translate!(floe.coords, -floe.centroid)
+    floe.rmax = sqrt(maximum([sum(c.^2) for c in floe.coords[1]]))
+    # Floe monte carlo points
+    mc_x, mc_y, status = generate_mc_points(
+        mc_n,
+        floe.coords,
+        floe.rmax,
+        floe.area,
+        floe.status,
+        rng,
+    )
+    translate!(coords, centroid)
+    floe.mc_x = mc_x
+    floe.mc_y = mc_y
+    # Floe status / identification
+    floe.status = status
+end
 
-        # Add original floe values, weighted by mass
-        for f in eachindex(floes)
-            mass_frac = f.mass / total_mass
-            moment_frac = f.moment / total_inertia
-            new_floes.u .+= f.u * mass_frac
-            new_floes.v .+= f.v * mass_frac
-            new_floes.ξ .+= f.ξ * moment_frac
-            new_floes.p_dudt .+= f.p_dudt * mass_frac
-            new_floes.p_dvdt .+= f.p_dvdt * mass_frac
-            new_floes.p_dxdt .+= f.p_dxdt * mass_frac
-            new_floes.p_dydt .+= f.p_dydt * mass_frac
-            new_floes.p_dξdt .+= f.p_dξdt * moment_frac
-            # Update stress history
-            new_floes.stress_history[1].cb .+= f.stress_history.cb * mass_frac
-            new_floes.stress_history[1].total += f.stress_history.total * mass_frac
-            for sh in @view new_floes.stress_history[2:end]
-                sh.cb .= new_floes.stress_history[1].cb
-                sh.total = new_floes.stress_history[1].total
+function fuse_floes!(
+    floe1,
+    floe2,
+    consts,
+    coupling_settings,
+    rng,
+)
+    poly1 = LG.Polygon(floe1)::LG.Polygon
+    poly2 = LG.Polygon(floe2)::LG.Polygon
+    new_poly_list = get_polygons(LG.union(poly1, poly2))::Vector{LG.Polygon}
+    if length(new_poly_list) == 1  # if they fused, they will make one polygon
+        new_poly = rmholes(new_poly_list[1])
+        mass1 = floe1.mass
+        mass2 = floe2.mass
+        moment1 = floe1.moment
+        moment2 = floe2.moment
+        total_mass = mass1 + mass2
+        new_floe =
+            if floe1.area > floe2.area
+                floe2.status = remove
+                floe1
+            else
+                floe1.status = remove
+                floe2
             end
-        end
-        # new_floes.id ??
-        floes.alive .= false  # going to switch this to 'remove' once status is updated
+        replace_floe!(
+            new_floe,
+            new_poly,
+            total_mass,
+            consts,
+            coupling_settings.mc_n,
+            rng,
+        )
+        # Conservation of momentum
+        new_floe.u = (floe1.u * mass1 + floe2.u * mass2)/total_mass
+        new_floe.v = (floe1.v * mass1 + floe2.v * mass2)/total_mass
+        new_floe.ξ = (floe1.ξ * moment1 + floe2.ξ * moment2)/new_floe.moment
+        new_floe.p_dudt = (floe1.p_dudt * mass1 + floe2.p_dudt * mass2)/total_mass
+        new_floe.p_dvdt = (floe1.p_dvdt * mass1 + floe2.p_dvdt * mass2)/total_mass
+        new_floe.p_dxdt = (floe1.p_dxdt * mass1 + floe2.p_dxdt * mass2)/total_mass
+        new_floe.p_dydt = (floe1.p_dydt * mass1 + floe2.p_dydt * mass2)/total_mass
+        new_floe.p_dξdt = (floe1.p_dξdt * mass1 + floe2.p_dξdt * mass2)/total_mass
+        # Update stress history
+        new_floe.stress .= (floe1.stress * mass1 .+ floe2.stress * mass2)/total_mass
+        new_floe.stress_history.cb .= (floe1.stress_history.cb * mass1 .+
+            floe2.stress_history.cb * mass2)/total_mass
+        new_floe.stress_history.total = (floe1.stress_history.total * mass1 +
+            floe2.stress_history.total * mass2)/total_mass
     end
-    return new_floes
+    return
 end

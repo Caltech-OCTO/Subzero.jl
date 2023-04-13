@@ -245,13 +245,10 @@ Inputs:
     consts      <Constants> model constants needed for calculations
     Δt          <Int> Simulation's current timestep
     max_overlap <Float> Percent two floes can overlap before marking them
-                        for combination with remove/transfer
+                        for fusion
 Outputs:
-    remove   <Int> index of floe to remove from simulation due to overlap (will
-                be transfered to over floe in collision) - if 0 then no floes to
-                be removed from this collision
-    transfer <Int> index of floe to transfer mass to if the other floe is to be
-                removed - if 0 then no floes transfered from this collision
+    None. Updates floes interactions fields. If floes overlap by more than
+    the max_overlap fraction, they will be marked for fusion.
 Note:
     If ifloe interacts with jfloe, only ifloe's interactions field is updated
     with the details of each region of overlap. The interactions field will have
@@ -272,8 +269,6 @@ function floe_floe_interaction!(
     Δt,
     max_overlap::FT,
 ) where {FT<:AbstractFloat}
-    remove = Int(0)
-    transfer = Int(0)
     ifloe_poly = LG.Polygon(ifloe.coords)
     jfloe_poly = LG.Polygon(jfloe.coords)
     if LG.intersects(ifloe_poly, jfloe_poly)  # Check if floes intersect
@@ -281,20 +276,10 @@ function floe_floe_interaction!(
         inter_regions = LG.getGeometries(inter_floe)
         region_areas = [LG.area(r) for r in inter_regions]
         total_area = sum(region_areas)
-        # Floes overlap too much - remove floe or transfer floe mass
-        if total_area/ifloe.area > max_overlap
-            if i <= nfloes  # If i is not a ghost floe
-                remove = i
-                transfer = j  # Will transfer mass to jfloe
-            elseif j <= nfloes  # If j is not a ghost floe
-                # Will transfer mass to ifloe - can't be updated here due to parallelization
-                remove = j 
-            end
-        elseif total_area/jfloe.area > max_overlap
-            if j <= nfloes  # If j is not a ghost floe
-                # Will transfer mass to ifloe - can't be updated here due to parallelization
-                remove = j
-            end
+        # Floes overlap too much - mark floes to be fused
+        if max(total_area/ifloe.area, total_area/jfloe.area) > max_overlap
+            ifloe.status.tag = fuse
+            push!(ifloe.status.fuse_idx, j)
         else
             # Constant needed to calculate force
             ih = ifloe.height
@@ -340,7 +325,7 @@ function floe_floe_interaction!(
             end
         end
     end
-    return remove, transfer
+    return
 end
 
 """
@@ -359,8 +344,8 @@ Inputs:
     _               <Type> Float type model is running on (Float64 or Float32) -
                         not needed here
 Output:
-    None. If floe is interacting with the boundary, floe.alive field is set to
-    0. Else, nothing is changed. 
+    None. If floe is interacting with the boundary, floe's status is set to
+    remove. Else, nothing is changed. 
 """
 function floe_domain_element_interaction!(
     floe,
@@ -374,7 +359,7 @@ function floe_domain_element_interaction!(
     bounds_poly = LG.Polygon(boundary.coords)
     # Check if the floe and boundary actually overlap
     if LG.area(LG.intersection(floe_poly, bounds_poly)) > 0
-        floe.alive = false
+        floe.status.tag = remove
     end
     return
 end
@@ -571,7 +556,7 @@ function floe_domain_element_interaction!(
         region_areas = [LG.area(poly) for poly in inter_regions]::Vector{Float64}
         # Regions overlap too much
         if maximum(region_areas)/floe.area > max_overlap
-            floe.alive = false
+            floe.status.tag = remove
         else
             # Constant needed for force calculations
             force_factor = consts.E * floe.height / sqrt(floe.area)
@@ -729,13 +714,19 @@ function calc_torque!(floe, ::Type{T} = Float64) where T
     end
 end
 
+potential_interaction(
+    centroid1,
+    centroid2,
+    rmax1,
+    rmax2,
+) = (sum((centroid1 .- centroid2).^2) < (rmax1 + rmax2)^2)
+
+
 """
     timestep_collisions!(
         floes,
         n_init_floes,
         domain,
-        remove,
-        transfer,
         consts,
         Δt,
         collision_settings,
@@ -749,10 +740,6 @@ Inputs:
     floes               <StructArray{Floe}> model's list of floes
     n_init_floes        <Int> number of floes without ghost floes
     domain              <Domain> model's domain
-    remove              <Vector{Int}> indices of floes to remove from list of
-                            floes due to floe-floe overlap
-    transfer            <Vector{Int}> indices of floes to transfer mass to from
-                            list of floes due to floe-floe overlap
     consts              <Constants> simulation constants
     Δt                  <Int> length of simulation timestep in seconds
     collision_settings  <CollisionSettings> simulation collision settings
@@ -764,8 +751,6 @@ function timestep_collisions!(
     floes,
     n_init_floes,
     domain,
-    remove,
-    transfer,
     consts,
     Δt,
     collision_settings,
@@ -788,7 +773,12 @@ function timestep_collisions!(
                 ghost_id_pair = reverse(ghost_id_pair)
             end
             # If checking two distinct floes (i.e. not a parent ghost pair) and they are in close proximity continue
-            if (id_pair[1] != id_pair[2]) && (sum((ifloe.centroid .- floes.centroid[j]).^2) < (ifloe.rmax + floes.rmax[j])^2)
+            if (id_pair[1] != id_pair[2]) && potential_interaction(
+                floes.centroid[i],
+                floes.centroid[j],
+                floes.rmax[i],
+                floes.rmax[j],
+            )
                 # Never seen any combo of these floes/ghosts
                 new_collision = !(id_pair in keys(collide_pairs))
                 if new_collision
@@ -798,7 +788,7 @@ function timestep_collisions!(
                 end
                 # New collision or floe and ghost colliding with same floe - not a repeat collision
                 if new_collision || (ghost_id_pair[1] == collide_pairs[id_pair][1]) ⊻ (ghost_id_pair[2] == collide_pairs[id_pair][2])
-                    iremove, itransfer = floe_floe_interaction!(
+                    floe_floe_interaction!(
                         ifloe,
                         i,
                         floes[j],
@@ -808,10 +798,6 @@ function timestep_collisions!(
                         Δt,
                         collision_settings.floe_floe_max_overlap,
                     )
-                    if iremove != 0 || itransfer != 0
-                        remove[i] = iremove
-                        transfer[i] = itransfer
-                    end
                 end
             end
         end
@@ -827,14 +813,18 @@ function timestep_collisions!(
     end
     # Update floes not directly calculated above where i>j - can't be parallelized
     for i in eachindex(floes)
-        # if we are removing floe j = remove[i] floe j's mass must be transfered to floe i
-        if i <= n_init_floes && remove[i] > 0 && remove[i] != i
-            transfer[remove[i]] = i
+        # Update fuse information
+        if floes.status[i].tag == fuse
+            for idx in floes.status[i].fuse_idx
+                push!(floes.status[idx].fuse_idx, i)
+            end
         end
+        # Update interaction information
         ij_inters = floes.interactions[i]
         if !isempty(ij_inters)
-            for inter_idx in axes(ij_inters, 1)  # Loop over each interaction with Floe i
-                j = ij_inters[inter_idx, floeidx]  # Index of floe to update in model floe list
+            # Loop over each interaction with floe i
+            for inter_idx in axes(ij_inters, 1)
+                j = ij_inters[inter_idx, floeidx]  # Index of floe to update
                 if j <= length(floes) && j > i
                     jidx = Int(j)
                     floes.interactions[jidx] = [floes.interactions[jidx]; i -ij_inters[inter_idx, xforce] -ij_inters[inter_idx, yforce] #=
@@ -844,7 +834,7 @@ function timestep_collisions!(
             end
         end
     end
-    # Calculate total force and torque on parents by summing interactins on parent and children
+    # Calculate total on parents by summing interactions on parent and children
     for i in range(1, n_init_floes)
         ifloe = floes[i]
         for g in ifloe.ghosts
@@ -859,7 +849,7 @@ function timestep_collisions!(
         ifloe.collision_trq += sum(ifloe.interactions[:, torque])
         floes[i] = ifloe
     end
-    return remove, transfer
+    return
 end
 
 """
@@ -972,7 +962,8 @@ function add_floe_ghosts!(floes::StructArray{Floe{T}}, max_boundary, min_boundar
     nfloes = length(floes)
     for i in eachindex(floes)  # uses initial length of floes so we can append to list
         f = floes[i]
-        if f.alive && f.ghost_id == 0  # the floe is alive and a parent floe
+        # the floe is active in the simulation and a parent floe
+        if f.status.tag == active && f.ghost_id == 0
             f, new_ghosts = find_ghosts(f, floes[f.ghosts], max_boundary, min_boundary, T)
             if !isempty(new_ghosts)
                 nghosts = length(new_ghosts)
