@@ -12,6 +12,7 @@
             yg,
             xc,
             yc,
+            [CellFloes{Float64}() for i in 1:61, j in 1:81]
         )
         @test gbig.dims == (60, 80)
         @test gbig.xg == xg
@@ -25,6 +26,7 @@
             yg,
             Float64[0.0],
             yc,
+            [CellFloes{Float64}() for i in 1:61, j in 1:81],
         )
         @test_throws ArgumentError Subzero.RegRectilinearGrid(
             (60, 80),
@@ -32,6 +34,7 @@
             yg,
             xc,
             Float64[0.0],
+            [CellFloes{Float64}() for i in 1:61, j in 1:81],
         )
         @test_throws ArgumentError Subzero.RegRectilinearGrid(
             (60, 80),
@@ -39,6 +42,7 @@
             yg,
             xc,
             yc,
+            [CellFloes{Float64}() for i in 1:61, j in 1:81],
         )
         @test_throws ArgumentError Subzero.RegRectilinearGrid(
             (60, 80),
@@ -46,6 +50,7 @@
             Float64[0.0],
             xc,
             yc,
+            [CellFloes{Float64}() for i in 1:61, j in 1:81],
         )
         
         # Non-square grid using custom constructor
@@ -111,25 +116,33 @@
         fy = fx
         τx = fx
         τy = fx
-        si_area = fx
+        si_frac = fx
         hflx_factor = fx
-        ocn = Subzero.Ocean(uocn, vocn, tempocn, hflx_factor, τx, τy, fx, fy, si_area)
+        ocn = Subzero.Ocean(
+            uocn,
+            vocn,
+            tempocn,
+            hflx_factor,
+            [IceStressCell{Float64}() for i in 1:g.dims[1] + 1, j in 1:g.dims[2] + 1],
+            τx,
+            τy,
+            si_frac,
+        )
         @test ocn.u == uocn
         @test ocn.v == vocn
         @test ocn.temp == tempocn
-        @test fx == ocn.fx == ocn.fy == ocn.si_area == ocn.hflx_factor == ocn.τx == ocn.τx
+        @test ocn.si_frac == ocn.hflx_factor == ocn.τx == ocn.τx
         # Custom constructor
-        ocn2 = Subzero.Ocean(g, 3.0, 4.0, -2.0)
+        ocn2 = Subzero.Ocean(Float64, g, 3.0, 4.0, -2.0)
         @test ocn.u == ocn2.u
         @test ocn.v == ocn2.v
         @test ocn.temp == ocn2.temp
-        @test ocn.fx == ocn2.fx
-        @test ocn.si_area == ocn2.si_area
+        @test ocn.si_frac == ocn2.si_frac
         @test ocn.hflx_factor == ocn2.hflx_factor
         @test ocn.τx == ocn2.τx
         @test ocn.τy == ocn2.τy
         # Custom constructor Float32
-        @test typeof(Subzero.Ocean(g, 3.0, 4.0, -2.0, Float32)) ==
+        @test typeof(Subzero.Ocean(Float32, g, 3.0, 4.0, -2.0)) ==
               Subzero.Ocean{Float32}
     end
 

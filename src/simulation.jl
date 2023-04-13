@@ -88,7 +88,6 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
                 sim.Δt,
                 sim.collision_settings,
                 spinlock,
-                T,
             )
         end
 
@@ -101,15 +100,11 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
         if sim.coupling_settings.coupling_on && mod(tstep, sim.coupling_settings.Δt) == 0
             timestep_coupling!(
                 sim.model,
+                sim.Δt,
                 sim.consts,
                 sim.coupling_settings,
-                spinlock,
-                T,
             )
         end
-
-        # Timestep ocean
-        timestep_ocean!(sim.model, sim.consts, sim.Δt)
         
         # Move and update floes based on collisions and ocean/atmosphere forcing
         timestep_floe_properties!(sim.model.floes, sim.Δt)

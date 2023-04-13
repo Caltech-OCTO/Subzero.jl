@@ -1,5 +1,5 @@
 function conservation_simulation(grid, domain, floes, plot = false)
-    ocean = Ocean(grid, 0.0, 0.0, 0.0)
+    ocean = Ocean(Float64, grid, 0.0, 0.0, 0.0)
     atmos = Atmos(grid, 0.0, 0.0, 0.0)
     model = Model(grid, ocean, atmos, domain, floes)
     dir = "output/conservation"
@@ -100,7 +100,7 @@ end
     # Two blocks crashing offset - rotation
     rng = Xoshiro(1)
     offset_floes = initialize_floe_field(
-        [floe1, Subzero.translate(floe2, [0.0, 1e4])],
+        [floe1, Subzero.translate(floe2, 0.0, 1e4)],
         open_domain, # Just affects shape, type doesn't matter
         0.25,
         0.0,
@@ -145,7 +145,7 @@ end
     file = jldopen("inputs/floe_shapes.jld2", "r")
     complex_floes = initialize_floe_field(
         [
-            Subzero.translate(file["floe_vertices"][3], [0.0, 2e4]),
+            Subzero.translate(file["floe_vertices"][3], 0.0, 2e4),
             file["floe_vertices"][4],
             file["floe_vertices"][5],
         ],
@@ -169,7 +169,7 @@ end
     rng = Xoshiro(1)
     file = jldopen("inputs/floe_shapes.jld2", "r")
     floe_on_wall_topo = file["floe_vertices"][1]
-    floe_on_wall_topo = Subzero.translate(floe_on_wall_topo, [-1.75e4, -0.9e4])
+    floe_on_wall_topo = Subzero.translate(floe_on_wall_topo, -1.75e4, -0.9e4)
     floe_arr = initialize_floe_field(
         [floe_on_wall_topo],
         open_domain_w_topography,

@@ -10,7 +10,7 @@ If coupling_on is true, the model will be coupled with the simulation's ocean
 and atmosphere. The Δt determines how many simulation timesteps between
 calculating ocean and atmospheric forces on the floes. Δd number of buffer grid
 cells on each side of floe for monte carlo interpolation and mc_n is the number
-of monte carlo points to attempt to generage for each floe. If calc_ocnτ_on is
+of monte carlo points to attempt to generage for each floe. If two_way_coupling_on is
 true then the simulation calculates the stress the ice/atmosphere put on the
 ocean. 
 """
@@ -19,25 +19,25 @@ ocean.
     Δt::Int = 10
     Δd::Int = 1
     mc_n::Int = 1000
-    calc_ocnτ_on::Bool = false
+    two_way_coupling_on::Bool = false
 
-    function CouplingSettings(coupling_on, Δt, Δd, mc_n, calc_ocnτ_on)
+    function CouplingSettings(coupling_on, Δt, Δd, mc_n, two_way_coupling_on)
         if coupling_on && Δt < 0
             @warn "Coupling can't occur on a multiple of negative timesteps. \
                 Turning coupling off."
             coupling_on = false
         end
-        if !coupling_on && calc_ocnτ_on
+        if !coupling_on && two_way_coupling_on
             @warn "Can't calculate stresses on ocean from ice and atmosphere \
-                without coupling. Turning calc_ocnτ_on off."
-            calc_ocnτ_on = false
+                without coupling. Turning two_way_coupling_on off."
+            two_way_coupling_on = false
         end
         if Δd < 0
             @warn "Can't complete interpolation of ocean and atmosphere forces \
                 with a buffer of less than 0 grid cells. Setting Δd = 0."
             Δd = 0
         end
-        new(coupling_on, Δt, Δd, mc_n, calc_ocnτ_on)
+        new(coupling_on, Δt, Δd, mc_n, two_way_coupling_on)
     end
 end
 

@@ -10,7 +10,7 @@ elements or else it cannot be made into a valid ring as it is a line segment.
 function valid_ringvec!(ring::RingVec{FT}) where {FT<:AbstractFloat}
     deleteat!(ring, findall(i->ring[i]==ring[i+1], collect(1:length(ring)-1)))
     if ring[1] != ring[end]
-        push!(ring, ring[1])
+        push!(ring, deepcopy(ring[1]))
     end
     @assert length(ring) > 3 "Polgon needs at least 3 distinct points."
     return ring
@@ -82,39 +82,41 @@ Output:
 find_multipoly_coords(multipoly::LG.MultiPolygon) =
     LG.GeoInterface.coordinates(multipoly)::Vector{PolyVec{Float64}}
 
-
 """
-    translate(coords, vec)
+    translate!(coords, Δx, Δy)
 
-Translate each of the given coodinates by given vector -
-Coordinates and vector must be vectors of same underlying type
-Inputs:
-    coords PolyVec{Float}
-    vec <Vector{Real}>
-Output:
-    PolyVec{Float}
-"""
-function translate(coords::PolyVec{T}, vec) where {T<:AbstractFloat}
-    return [c .+ repeat([vec], length(c)) for c in coords]
-end
-
-"""
-    translate!(coords, vec)
-
-Translate each of the given coodinates by given vector in place -
-Coordinates and vector must be vectors of same underlying type
+Make a copy of given coordinates and translate by given deltas. 
 Inputs:
     coords PolyVec{Float}
     vec <Vector{Real}>
 Output:
     Updates given coords
 """
-function translate!(coords::PolyVec{T}, vec) where {T<:AbstractFloat}
+function translate(coords::PolyVec{FT}, Δx, Δy) where {FT<:AbstractFloat}
+    new_coords = deepcopy(coords)
+    translate!(new_coords, Δx, Δy)
+    return new_coords
+end
+
+
+"""
+    translate!(coords, Δx, Δy)
+
+Translate each of the given coodinates by given deltas in place
+Inputs:
+    coords PolyVec{Float}
+    vec <Vector{Real}>
+Output:
+    Updates given coords
+"""
+function translate!(coords::PolyVec{FT}, Δx, Δy) where {FT<:AbstractFloat}
     for i in eachindex(coords)
         for j in eachindex(coords[i])
-            coords[i][j] .+= vec
+            coords[i][j][1] += Δx
+            coords[i][j][2] += Δy
         end
     end
+    return
 end
 
 """
@@ -764,7 +766,7 @@ function cut_polygon_coords(poly_coords::PolyVec, yp, ::Type{T} = Float64) where
     # If no NaNs, just add coordiantes to list
     if isempty(nanidx_all)
         if new_poly_coords[1] != new_poly_coords[end]
-            push!(new_poly_coords, new_poly_coords[1])
+            push!(new_poly_coords, deepcopy(new_poly_coords[1]))
         end
         if length(new_poly_coords) > 3
             push!(new_polygons, [new_poly_coords])
@@ -784,7 +786,7 @@ function cut_polygon_coords(poly_coords::PolyVec, yp, ::Type{T} = Float64) where
             if start_poly[i] <= end_poly[i]
                 poly = new_poly_coords[start_poly[i]:end_poly[i]]
                 if poly[1] != poly[end]
-                    push!(poly, poly[1])
+                    push!(poly, deepcopy(poly[1]))
                 end
                 if length(poly) > 3
                     push!(new_polygons, [poly])

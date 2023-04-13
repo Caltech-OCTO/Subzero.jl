@@ -25,8 +25,8 @@ grid = RegRectilinearGrid(
     Δgrid,
 )
 
-zero_ocn = Ocean(grid, 0.0, 0.0, 0.0)
-meridional_ocn = Ocean(grid, 0.0, 1.0, 0.0)
+zero_ocn = Ocean(FT, grid, 0.0, 0.0, 0.0)
+meridional_ocn = Ocean(FT, grid, 0.0, 1.0, 0.0)
 
 zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
 zonal_atmos = Atmos(grid, -3.0, 0.0, 0.0)

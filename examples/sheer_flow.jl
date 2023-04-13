@@ -19,7 +19,7 @@ grid = RegRectilinearGrid(
     Δgrid,
 )
 uvels = repeat([range(0, 0.5, length = 26); range(0.5, 0, length = 25)], outer = (1, 51))
-ocean = Ocean(uvels, zeros(grid.dims .+ 1), zeros(grid.dims .+ 1))
+ocean = Ocean(FT, uvels, zeros(grid.dims .+ 1), zeros(grid.dims .+ 1))
 atmos = Atmos(grid, 0.0, 0.0, -1.0)
 
 # Domain creation

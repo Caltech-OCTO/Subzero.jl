@@ -23,7 +23,7 @@ function matfloe2julfloes(filename)
     vars = matread(filename)
     coords = vars["floe"]["c_alpha"]
     coords = splitdims(coords)
-    coords = Subzero.translate([coords], [vars["floe"]["Xi"], vars["floe"]["Yi"]])
+    coords = Subzero.translate([coords], vars["floe"]["Xi"], vars["floe"]["Yi"])
     floe = Floe(coords, vars["floe"]["h"], 0.0)
     floe.centroid = [vars["floe"]["Xi"], vars["floe"]["Yi"]]
     floe.mc_x = vec(vars["floe"]["X"])[vec(vars["floe"]["A"]) .== 1]

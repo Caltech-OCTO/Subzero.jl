@@ -42,7 +42,7 @@
         cfloe.interactions = zeros(0, 7)
         # Floes overlapping more than 55%  - rectangle and shifted rectangle
         shift_rect = deepcopy(rect)
-        shift_rect.coords = Subzero.translate(shift_rect.coords, [0.5e4, 0.0])
+        shift_rect.coords = Subzero.translate(shift_rect.coords, 0.5e4, 0.0)
         r, t = Subzero.floe_floe_interaction!(rect, 1, shift_rect, 2, 2, consts, Δt, max_overlap)
         @test r == 1
         @test t == 2
@@ -55,7 +55,7 @@
         
         # Overlapping barely floes - such a small overlap that forces are not calculated
         shift_rect = deepcopy(rect)
-        shift_rect.coords = Subzero.translate(shift_rect.coords, [1.9999999e4, 0.0])
+        shift_rect.coords = Subzero.translate(shift_rect.coords, 1.9999999e4, 0.0)
         Subzero.floe_floe_interaction!(shift_rect, 1, rect, 2, 2, consts, Δt, max_overlap)
         @test isempty(shift_rect.interactions)
     end
@@ -204,10 +204,10 @@
         add_ghosts!(new_floe_arr, ew_periodic_domain)
         @test -1e5 < new_floe_arr[1].centroid[1] < 1e5
         @test -1e5 < new_floe_arr[2].centroid[2] < 1e5
-        @test new_floe_arr.coords[1] == Subzero.translate(floe_arr.coords[1], [-2e5, 0.0])
+        @test new_floe_arr.coords[1] == Subzero.translate(floe_arr.coords[1], -2e5, 0.0)
         @test new_floe_arr.coords[2:4] == floe_arr.coords[2:4]
         @test new_floe_arr.coords[5] == floe_arr.coords[1]
-        @test new_floe_arr.coords[6] == Subzero.translate(floe_arr.coords[2], [2e5, 0.0])
+        @test new_floe_arr.coords[6] == Subzero.translate(floe_arr.coords[2], 2e5, 0.0)
         @test new_floe_arr.id == [1, 2, 3, 4, 1, 2]
         @test new_floe_arr.ghost_id == [0, 0, 0, 0, 1, 1]
         @test new_floe_arr.ghosts[1] == [5]
@@ -219,8 +219,8 @@
         add_ghosts!(new_floe_arr, ns_periodic_domain)
         @test -1e5 < new_floe_arr[1].centroid[2] < 1e5
         @test -1e5 < new_floe_arr[3].centroid[2] < 1e5
-        @test new_floe_arr.coords[1] == Subzero.translate(floe_arr.coords[1], [0.0, -2e5])
-        @test new_floe_arr.coords[3] == Subzero.translate(floe_arr.coords[3], [0.0, -2e5])
+        @test new_floe_arr.coords[1] == Subzero.translate(floe_arr.coords[1], 0.0, -2e5)
+        @test new_floe_arr.coords[3] == Subzero.translate(floe_arr.coords[3], 0.0, -2e5)
         @test new_floe_arr.coords[[2, 4]] == floe_arr.coords[[2, 4]]
         @test new_floe_arr.coords[5] == floe_arr.coords[1]
         @test new_floe_arr.coords[6] == floe_arr.coords[3]
@@ -235,13 +235,13 @@
         add_ghosts!(new_floe_arr, double_periodic_domain)
         @test -1e5 < new_floe_arr.centroid[1][1] < 1e5
         @test -1e5 < new_floe_arr.centroid[1][2] < 1e5
-        @test new_floe_arr.coords[1] == Subzero.translate(floe_arr.coords[1], [-2e5, -2e5])
-        @test new_floe_arr.coords[3] == Subzero.translate(floe_arr.coords[3], [0.0, -2e5])
+        @test new_floe_arr.coords[1] == Subzero.translate(floe_arr.coords[1], -2e5, -2e5)
+        @test new_floe_arr.coords[3] == Subzero.translate(floe_arr.coords[3], 0.0, -2e5)
         @test new_floe_arr.coords[[2, 4]] == floe_arr.coords[[2, 4]]
         @test new_floe_arr.coords[5] == floe_arr.coords[1]
-        @test new_floe_arr.coords[6] == Subzero.translate(floe_arr.coords[2], [2e5, 0.0])
-        @test new_floe_arr.coords[7] == Subzero.translate(floe_arr.coords[1], [0.0, -2e5])
-        @test new_floe_arr.coords[8] == Subzero.translate(floe_arr.coords[1], [-2e5, 0.0])
+        @test new_floe_arr.coords[6] == Subzero.translate(floe_arr.coords[2], 2e5, 0.0)
+        @test new_floe_arr.coords[7] == Subzero.translate(floe_arr.coords[1], 0.0, -2e5)
+        @test new_floe_arr.coords[8] == Subzero.translate(floe_arr.coords[1], -2e5, 0.0)
         @test new_floe_arr.coords[9] == floe_arr.coords[3]
         @test new_floe_arr.id == [1, 2, 3, 4, 1, 2, 1, 1, 3]
         @test new_floe_arr.ghost_id == [0, 0, 0, 0, 1, 1, 2, 3, 1]
@@ -287,8 +287,8 @@
             collision_settings,
             spinlock,
         )
-        xforce = abs(floe_arr[1].collision_force[1])
-        yforce = abs(floe_arr[1].collision_force[2])
+        xforce_vals = abs(floe_arr[1].collision_force[1])
+        yforce_vals = abs(floe_arr[1].collision_force[2])
         f1_torque = floe_arr[1].collision_trq
         f2_torque = floe_arr[2].collision_trq
         add_ghosts!(floe_arr, double_periodic_domain)
@@ -304,8 +304,8 @@
             spinlock,
         )
         # 1 and 2 are the "parent" floes - floe 1 and floe 2 interact
-        @test xforce == abs(floe_arr[1].collision_force[1]) == abs(floe_arr[2].collision_force[1])
-        @test yforce == abs(floe_arr[2].collision_force[2]) == abs(floe_arr[2].collision_force[2])
+        @test xforce_vals == abs(floe_arr[1].collision_force[1]) == abs(floe_arr[2].collision_force[1])
+        @test yforce_vals == abs(floe_arr[2].collision_force[2]) == abs(floe_arr[2].collision_force[2])
         @test f1_torque == floe_arr[1].collision_trq
         @test f2_torque == floe_arr[2].collision_trq
         # All other ghost floes aren't calculated
@@ -318,12 +318,12 @@
         coords2 = splitdims(vcat(-[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000], -[7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8]))
         floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
         for i in eachindex(floe_arr)
-            floe_arr.id[i] = Float64(i)
+            floe_arr.id[i] = i
         end
-        trans_arr = StructArray([Floe(Subzero.translate([coords1], [0.0, -2Ly]), 0.5, 0.0),
-                                 Floe(Subzero.translate([coords2], [2Lx, 0.0]), 0.5, 0.0)])
+        trans_arr = StructArray([Floe(Subzero.translate([coords1], 0.0, -2Ly), 0.5, 0.0),
+                                 Floe(Subzero.translate([coords2], 2Lx, 0.0), 0.5, 0.0)])
         for i in eachindex(trans_arr)
-            trans_arr.id[i] = Float64(i)
+            trans_arr.id[i] = i
         end
         Subzero.timestep_collisions!(
             trans_arr,
@@ -336,8 +336,8 @@
             collision_settings,
             spinlock,
         )
-        xforce = abs(trans_arr[1].collision_force[1])
-        yforce = abs(trans_arr[1].collision_force[2])
+        xforce_vals = abs(trans_arr[1].collision_force[1])
+        yforce_vals = abs(trans_arr[1].collision_force[2])
         f1_torque = trans_arr[1].collision_trq
         f2_torque = trans_arr[2].collision_trq
         add_ghosts!(floe_arr, double_periodic_domain)
@@ -354,8 +354,8 @@
         )
         # floes 1 and 2 are the parents - floe 4 is floe 1's ghost and floe 3 is
         # floe 2's ghost - floe 3 and 4 collide 
-        @test repeat([xforce], 2) == abs.(first.(floe_arr.collision_force[1:2]))
-        @test repeat([yforce], 2) == abs.(last.(floe_arr.collision_force[1:2]))
+        @test repeat([xforce_vals], 2) == abs.(first.(floe_arr.collision_force[1:2]))
+        @test repeat([yforce_vals], 2) == abs.(last.(floe_arr.collision_force[1:2]))
         @test f1_torque == floe_arr[1].collision_trq
         @test f2_torque == floe_arr[2].collision_trq
         # interactions copied from ghosts
@@ -369,7 +369,7 @@
         for i in eachindex(floe_arr)
             floe_arr.id[i] = Float64(i)
         end
-        trans_arr = StructArray([Floe(Subzero.translate([coords1], [-2Lx, 0.0]), 0.5, 0.0),
+        trans_arr = StructArray([Floe(Subzero.translate([coords1], -2Lx, 0.0), 0.5, 0.0),
                                  Floe([coords2], 0.5, 0.0)])
         for i in eachindex(trans_arr)
             trans_arr.id[i] = Float64(i)
@@ -385,8 +385,8 @@
             collision_settings,
             spinlock,
         )
-        xforce = abs(trans_arr[1].collision_force[1])
-        yforce = abs(trans_arr[1].collision_force[2])
+        xforce_vals = abs(trans_arr[1].collision_force[1])
+        yforce_vals = abs(trans_arr[1].collision_force[2])
         f1_torque = trans_arr[1].collision_trq
         f2_torque = trans_arr[2].collision_trq
         add_ghosts!(floe_arr, double_periodic_domain)
@@ -402,8 +402,8 @@
             spinlock,
         )
         # Floe 1's ghost if floe 4 and floe 2's ghost is floe 3 and floe 3 and floe 1 interact
-        @test repeat([xforce], 2) == abs.(first.(floe_arr.collision_force[1:2]))
-        @test repeat([yforce], 2) == abs.(last.(floe_arr.collision_force[1:2]))
+        @test repeat([xforce_vals], 2) == abs.(first.(floe_arr.collision_force[1:2]))
+        @test repeat([yforce_vals], 2) == abs.(last.(floe_arr.collision_force[1:2]))
         @test f1_torque == floe_arr[1].collision_trq
         @test f2_torque == floe_arr[2].collision_trq
         @test floe_arr[2].interactions[:, [1:5; 7]] == floe_arr[3].interactions[:, [1:5; 7]]
