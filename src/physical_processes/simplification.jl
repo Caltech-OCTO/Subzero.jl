@@ -104,6 +104,27 @@ Outputs:
 #     end
 # end
 
+"""
+    replace_floe!(
+        floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
+        new_poly,
+        new_mass,
+        consts,
+        mc_n,
+        rng,
+    )
+Updates existing floe shape and related physical properties based of the polygon
+defining the floe.
+Inputs:
+    floe        <Union{Floe, LazyRow{Floe}}> floe to update
+    new_poly    <LG.Polygon> polygon representing new outline of floe
+    new_mass    <AbstractFloat> mass of floe
+    consts      <Constants> simulation's constants
+    mc_n        <Int> number of monte carlo points to attempt to generate
+    rng         <RNG> random number generator
+Ouputs:
+    Updates a given floe's physical properties given new shape and total mass.
+"""
 function replace_floe!(
     floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
     new_poly,
@@ -126,7 +147,7 @@ function replace_floe!(
     )
     floe.angles = calc_poly_angles(floe.coords)
     floe.α = FT(0)
-    translate!(floe.coords, -floe.centroid)
+    translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
     floe.rmax = sqrt(maximum([sum(c.^2) for c in floe.coords[1]]))
     # Floe monte carlo points
     mc_x, mc_y, status = generate_mc_points(
@@ -137,18 +158,42 @@ function replace_floe!(
         floe.status,
         rng,
     )
-    translate!(coords, centroid)
+    translate!(floe.coords, floe.centroid[1], floe.centroid[2])
     floe.mc_x = mc_x
     floe.mc_y = mc_y
     # Floe status / identification
     floe.status = status
 end
 
+"""
+    fuse_floes!(
+        floe1,
+        floe2,
+        consts,
+        coupling_settings,
+        max_floe_id,
+        rng,
+    )
+Fuses two floes together if they intersect and replaces the larger of the two
+floes with their union. Mass and momentum are conserved.
+Inputs:
+    floe1               <Union{Floe, LazyRow{Floe}}> first floe
+    floe2               <Union{Floe, LazyRow{Floe}}> second floe
+    consts              <Constants> simulation's constants
+    coupling_settings   <CouplingSettings> simulation's coupling settings
+    max_floe_id         <Int> maximum floe ID used yet in simulation
+    rng                 <RNG> random number generator
+Outputs:
+    If floes are not intersecting, no changes. If intersecing, the fused floe
+    replaces the larger of the two floes and the smaller floe is marked for
+    removal. 
+"""
 function fuse_floes!(
     floe1,
     floe2,
     consts,
     coupling_settings,
+    max_floe_id,
     rng,
 )
     poly1 = LG.Polygon(floe1)::LG.Polygon
@@ -163,10 +208,10 @@ function fuse_floes!(
         total_mass = mass1 + mass2
         new_floe =
             if floe1.area > floe2.area
-                floe2.status = remove
+                floe2.status.tag = remove
                 floe1
             else
-                floe1.status = remove
+                floe1.status.tag = remove
                 floe2
             end
         replace_floe!(
@@ -185,13 +230,19 @@ function fuse_floes!(
         new_floe.p_dvdt = (floe1.p_dvdt * mass1 + floe2.p_dvdt * mass2)/total_mass
         new_floe.p_dxdt = (floe1.p_dxdt * mass1 + floe2.p_dxdt * mass2)/total_mass
         new_floe.p_dydt = (floe1.p_dydt * mass1 + floe2.p_dydt * mass2)/total_mass
-        new_floe.p_dξdt = (floe1.p_dξdt * mass1 + floe2.p_dξdt * mass2)/total_mass
+        new_floe.p_dξdt = (floe1.p_dξdt * moment1 + floe2.p_dξdt * moment2)/new_floe.moment
         # Update stress history
         new_floe.stress .= (floe1.stress * mass1 .+ floe2.stress * mass2)/total_mass
         new_floe.stress_history.cb .= (floe1.stress_history.cb * mass1 .+
             floe2.stress_history.cb * mass2)/total_mass
         new_floe.stress_history.total = (floe1.stress_history.total * mass1 +
             floe2.stress_history.total * mass2)/total_mass
+        # Update IDs
+        empty!(floe.parent_ids)
+        push!(floe.parent_ids, floe1.id)
+        push!(floe.parent_ids, floe2.id)
+        new_floe.id = max_floe_id
+        max_floe_idx += 1
     end
-    return
+    return max_floe_id
 end
