@@ -56,13 +56,15 @@ export
     SimplificationSettings,
     PolyVec,
     OutputWriters,
-    check_energy_momentum_conservation_julia
+    check_energy_momentum_conservation_julia,
+    IceStressCell,
+    CellFloes
 
 import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG
 using DataStructures, GeometryBasics, Interpolations, JLD2, LinearAlgebra,  
     Measures, NamedArrays, NCDatasets, Plots, PolygonInbounds, Random,
-    SplitApplyCombine, Statistics, StructArrays, VoronoiCells
+    SplitApplyCombine, StaticArrays, Statistics, StructArrays, VoronoiCells
 
 """
 Coordinates are vector of vector of vector of points of the form:

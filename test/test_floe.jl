@@ -5,7 +5,11 @@
     close(file)
     poly1 = LG.Polygon(Subzero.valid_polyvec!(floe_coords[1]))
     centroid1 = LG.GeoInterface.coordinates(LG.centroid(poly1))
-    origin_coords = Subzero.translate(floe_coords[1], -centroid1)
+    origin_coords = Subzero.translate(
+        floe_coords[1],
+        -centroid1[1],
+        -centroid1[2],
+    )
     xo, yo = Subzero.separate_xy(origin_coords)
     rmax = sqrt(maximum([sum(xo[i]^2 + yo[i]^2) for i in eachindex(xo)]))
     area = LG.area(poly1)
@@ -246,7 +250,7 @@
     for j in 1:2
         for i in 1:2
             cell = LG.Polygon(
-                Subzero.translate(first_cell, [8e4*(j-1), 8e4*(i-1)])
+                Subzero.translate(first_cell, 8e4*(j-1), 8e4*(i-1))
             )
             open_cell_area = LG.area(LG.difference(cell, topo_polys))
             c = concentrations[i, j]
@@ -291,39 +295,16 @@
         strains = [[-3.724, 0, 0, 0], [7.419, 0, 0,	-6.987]]
         strain_multiplier = [1e28, 1e6]
 
-        for i in 1:2
-            floe = Floe(
-                floe_dict["coords"][i],
-                floe_dict["height"][i],
-                0.0,
-                u = floe_dict["u"][i],
-                v = floe_dict["v"][i],
-                ξ = floe_dict["ξ"][i]
-            )
-            floe.interactions = floe_dict["interactions"][i]
-            floe.stress_history = floe_dict["stress_history"][i]
-            stress = Subzero.calc_stress(
-                floe.interactions,
-                floe.centroid,
-                floe.area,
-                floe.height,
-            )
-            push!(floe.stress_history, stress)
-            floe.stress = mean(floe.stress_history)
-            @test all(isapprox.(vec(floe.stress), stresses[i], atol = 1e-3))
+        for i in eachindex(floes)
+            f = floes[i]
+            stress = Subzero.calc_stress!(f)
+            @test all(isapprox.(vec(f.stress), stresses[i], atol = 1e-3))
             @test all(isapprox.(
                 vec(floe.stress_history.cb[end]),
                 stress_histories[i],
                 atol = 1e-3
             ))
-            floe.strain = Subzero.calc_strain(
-                floe.coords,
-                floe.centroid,
-                floe.u,
-                floe.v,
-                floe.ξ,
-                floe.area,
-            )
+            Subzero.calc_strain!(f)
             @test all(isapprox.(
                 vec(floe.strain) .* strain_multiplier[i],
                 strains[i],

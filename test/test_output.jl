@@ -7,7 +7,7 @@ function test_basic_outputwriters()
         1e4,
         1e4,
     )
-    ocean = Ocean(grid, 0.0, 0.0, 0.0)
+    ocean = Ocean(Float64, grid, 0.0, 0.0, 0.0)
     atmos = Atmos(grid, 0.0, 0.0, 0.0)
     domain = Domain(
         OpenBoundary(grid, North()),

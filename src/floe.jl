@@ -290,7 +290,7 @@ function Floe(
     coords = find_poly_coords(floe)
     moment = calc_moment_inertia(coords, centroid, height, ρi = ρi)
     angles = calc_poly_angles(coords)
-    translate!(coords, -centroid)
+    translate!(coords, -centroid[1], -centroid[2])
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
     status = Status()
     # Generate Monte Carlo Points
@@ -302,7 +302,7 @@ function Floe(
         status,
         rng,
     )
-    translate!(coords, centroid)
+    translate!(coords, centroid[1], centroid[2])
     # Generate Stress History
     stress_history = StressCircularBuffer{T}(nhistory)
     fill!(stress_history, zeros(T, 2, 2))
@@ -683,7 +683,8 @@ function generate_voronoi_coords(
             tess_cells = voronoicells(
                 xpoints,
                 ypoints,
-                Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0))
+                Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0)),
+                rng = rng
             ).Cells
             # Scale and translate voronoi coordinates
             [[valid_ringvec!([
@@ -840,7 +841,7 @@ function initialize_floe_field(
 end
 
 """
-    calc_stress(floe)
+    calc_stress!(floe)
 
 Calculates the stress on a floe for current collisions given interactions and
 floe properties.
@@ -852,11 +853,12 @@ Inputs:
 Outputs:
     Caculates stress on floe at current timestep from interactions
 """
-function calc_stress(inters, centroid, area, height)
+function calc_stress!(floe)
     # Stress calcultions
-    xi, yi = centroid
+    xi, yi = floe.centroid
+    inters = floe.interactions
     # Calculates timestep stress
-    stress = fill(1/(2area * height), 2, 2)
+    stress = fill(1/(2* floe.area * floe.height), 2, 2)
     stress[1, 1] *= sum((inters[:, xpoint] .- xi) .* inters[:, xforce]) +
         sum(inters[:, xforce] .* (inters[:, xpoint] .- xi))
     stress[1, 2] *= sum((inters[:, ypoint] .- yi) .* inters[:, xforce]) + 
@@ -865,28 +867,27 @@ function calc_stress(inters, centroid, area, height)
         sum(inters[:, xforce] .* (inters[:, ypoint] .- yi))
     stress[2, 2] *= sum((inters[:, ypoint] .- yi) .* inters[:, yforce]) +
         sum(inters[:, yforce] .* (inters[:, ypoint] .- yi))
-    return stress
+    # Add timestep stress to stress history
+    push!(floe.stress_history, stress)
+    # Average stress history to find floe's average stress
+    floe.stress = mean(floe.stress_history)
+    return
 end
 
 """
-    calc_strain(coords, centroid, u, v, ξ, area)
+    calc_strain!(coords, centroid, u, v, ξ, area)
 
 Calculates the strain on a floe given the velocity at each vertex
 Inputs:
-    coords      <PolyVec{AbstractFloat}> floe's coordinates
-    centroid    <Vector{AbstractFloat}> floe's centroid as [x, y] coordinates
-    u           <AbstractFloat> floe's u velocity
-    v           <AbstractFloat> floe's v velocity
-    ξ           <AbstractFloat> floe's angular velocity
-    area        <AbstractFloat> floe's area
+    floe        <Floe{AbstractFloat}> a floe
 Outputs:
     strain      <Matrix{AbstractFloat}> 2x2 matrix for floe strain 
 """
-function calc_strain(coords, centroid, u, v, ξ, area::FT) where {FT}
+function calc_strain!(floe)
     # coordinates of floe centered at centroid
-    translate!(coords, -centroid)
-    xcoords, ycoords = separate_xy(coords)
-    translate!(coords, centroid)
+    translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
+    xcoords, ycoords = separate_xy(floe.coords)
+    translate!(floe.coords, floe.centroid[1], floe.centroid[2])
     # Find distance between each vertex
     if xcoords[1] != xcoords[end] && ycoords[1] != ycoords[end]
         push!(xcoords, xcoords[1])
@@ -895,23 +896,23 @@ function calc_strain(coords, centroid, u, v, ξ, area::FT) where {FT}
     xcoords_diff = diff(xcoords)
     ycoords_diff = diff(ycoords)
     # u and v velocities of floes at each vertex
-    ucoords = fill(u, size(xcoords))
-    vcoords = fill(v, size(xcoords))
+    ucoords = fill(floe.u, size(xcoords))
+    vcoords = fill(floe.v, size(xcoords))
     for i in eachindex(ucoords)
         rad = sqrt(xcoords[i]^2 + ycoords[i]^2)
         θ = atan(ycoords[i], xcoords[i])
-        ucoords[i] -= ξ * rad * sin(θ)
-        vcoords[i] += ξ * rad * cos(θ)
+        ucoords[i] -= floe.ξ * rad * sin(θ)
+        vcoords[i] += floe.ξ * rad * cos(θ)
     end
     ucoords_diff = diff(ucoords)
     vcoords_diff = diff(vcoords)
-    strain = fill(1/(2area), 2, 2)
-    strain[1, 1] *= sum(ucoords_diff .* ycoords_diff) # dudx
-    strain[1, 2] *= 0.5(sum(ucoords_diff .* xcoords_diff) +
+    fill!(floe.strain, 1/(2 * floe.area))
+    floe.strain[1, 1] *= sum(ucoords_diff .* ycoords_diff) # dudx
+    floe.strain[1, 2] *= 0.5(sum(ucoords_diff .* xcoords_diff) +
         sum(vcoords_diff .* ycoords_diff)) # dudy + dvdx
-    strain[2, 1] = strain[1, 2]
-    strain[2, 2] *= sum(vcoords_diff .* xcoords_diff) # dvdy
-    return strain
+    floe.strain[2, 1] = floe.strain[1, 2]
+    floe.strain[2, 2] *= sum(vcoords_diff .* xcoords_diff) # dvdy
+    return
 end
 
 """
@@ -932,16 +933,7 @@ function timestep_floe_properties!(floes, Δt)
         ctrq = floes.collision_trq[i]
         # Update stress
         if !isempty(floes.interactions[i])
-            stress = calc_stress(
-                floes.interactions[i],
-                floes.centroid[i],
-                floes.area[i],
-                floes.height[i],
-            )
-            # Add timestep stress to stress history
-            push!(floes.stress_history[i], stress)
-            # Average stress history to find floe's average stress
-            floes.stress[i] = mean(floes.stress_history[i])
+            calc_stress!(LazyRow(floes, i))
         end
         # Ensure no extreem values due to model instability
         if floes.height[i] > 10
@@ -974,10 +966,18 @@ function timestep_floe_properties!(floes, Δt)
         Δα = 1.5Δt*floes.ξ[i] - 0.5Δt*floes.p_dαdt[i]
         floes.α[i] += Δα
 
-        translate!(floes.coords[i], -floes.centroid[i])
+        translate!(
+            floes.coords[i],
+            -floes.centroid[i][1],
+            -floes.centroid[i][2],
+        )
         rotate_radians!(floes.coords[i], Δα)
         floes.centroid[i] .+= [Δx, Δy]
-        translate!(floes.coords[i], floes.centroid[i])
+        translate!(
+            floes.coords[i],
+            floes.centroid[i][1],
+            floes.centroid[i][2],
+        )
         floes.p_dxdt[i] = floes.u[i]
         floes.p_dydt[i] = floes.v[i]
         floes.p_dαdt[i] = floes.ξ[i]
@@ -1017,14 +1017,7 @@ function timestep_floe_properties!(floes, Δt)
         floes.p_dξdt[i] = dξdt
 
         # Update strain
-        floes.strain[i] .= calc_strain(
-            floes.coords[i],
-            floes.centroid[i],
-            floes.u[i],
-            floes.v[i],
-            floes.ξ[i],
-            floes.area[i],
-        )
+        calc_strain!(LazyRow(floes, i))
     end
     return
 end

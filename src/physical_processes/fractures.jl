@@ -98,7 +98,7 @@ function calculate_hibler(mean_height, pstar, c)
     y = b*sin.(t)
     vertices = [splitdims([x'; y'])]
     rotate_degrees!(vertices, 45)
-    translate!(vertices, fill(-p/2, 2))
+    translate!(vertices, -p/2, -p/2)
     return valid_polyvec!(vertices)
 end
 
@@ -208,7 +208,7 @@ function deform_floe!(
         force_fracs = deforming_forces ./ 2norm(deforming_forces)
         Δx, Δy = abs.(dist)[1] .* force_fracs
         # Temporarily move deformer floe to find new shape of floe
-        deformer_poly = LG.Polygon(translate(deformer_coords, [Δx, Δy]))
+        deformer_poly = LG.Polygon(translate(deformer_coords, Δx, Δy))
         new_floe = sortregions(LG.difference(poly, deformer_poly))[1]
         new_floe_area = LG.area(new_floe)
         # If floes still overlap and didn't change floe area by more than 90%

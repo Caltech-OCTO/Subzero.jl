@@ -18,7 +18,7 @@ grid = RegRectilinearGrid(
     Δgrid,
     Δgrid,
 )
-zonal_ocn = Ocean(grid, 0.5, 0.0, 0.0)
+zonal_ocn = Ocean(FT, grid, 0.5, 0.0, 0.0)
 
 zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
 
@@ -37,6 +37,7 @@ funky_floe_arr = initialize_floe_field(
     domain,
     hmean,
     Δh,
+    rng = Xoshiro(5),
 )
 #funky_floe_arr.u .= (-1)^rand(0:1) * (0.1 * rand(length(funky_floe_arr)))
 #funky_floe_arr.v .= (-1)^rand(0:1) * (0.1 * rand(length(funky_floe_arr)))
@@ -74,6 +75,7 @@ simulation = Simulation(
     )
 )
 
+#@benchmark timestep_sim!(simulation, 10) setup=(sim=deepcopy(simulation))
 
 # @benchmark Subzero.timestep_collisions!(
 #     sim.model.floes,
@@ -85,7 +87,6 @@ simulation = Simulation(
 #     sim.Δt,
 #     sim.collision_settings,
 #     Threads.SpinLock(),
-#     Float64,
 # ) setup=(sim=deepcopy(simulation))
 
 time_run(simulation) = @time run!(simulation)
@@ -96,8 +97,25 @@ time_run(simulation)
 #@time run!(simulation)
 #ProfileView.@profview run!(simulation)
 #Profile.Allocs.@profile timestep_sim!(simulation, 1)
-#Profile.Allocs.@profile sample_rate=1 Subzero.timestep_floe_properties!(simulation.model.floes, simulation.Δt)
-#PProf.Allocs.pprof(from_c = false)
+# Profile.Allocs.@profile sample_rate=1 Subzero.timestep_coupling!(
+#     simulation.model.floes,
+#     simulation.model.grid,
+#     simulation.model.domain,
+#     simulation.model.ocean,
+#     simulation.model.atmos,
+#     simulation.consts,
+#     simulation.coupling_settings,
+# )
+
+
+# Profile.Allocs.@profile sample_rate=1 Subzero.timestep_coupling!(
+#     simulation.model,
+#     simulation.consts,
+#     simulation.coupling_settings,
+#     Threads.SpinLock(),
+# )
+
+# PProf.Allocs.pprof(from_c = false)
 # last(sort(results.allocs, by=x->x.size))
 # Subzero.create_sim_gif(
 #     joinpath(dir, "floes.jld2"), 

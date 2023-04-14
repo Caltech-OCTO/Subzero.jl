@@ -1,6 +1,7 @@
 *.jl.*.cov
 *.jl.cov
 *.jl.mem
+*.gz
 /Manifest.toml
 /docs/build/
 /output/
