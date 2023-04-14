@@ -192,6 +192,7 @@ more vertices than max_vertices will be simplified every Δt_smooth timesteps.
     dissolve_on::Bool = true
     min_floe_area::FT = 1e6
     smooth_vertices_on::Bool = true
+    tol::FT = 100.0  # Douglas–Peucker algorithm tolerance in (m)
     max_vertices::Int = 30
     Δt_smooth::Int = 20
 
@@ -199,21 +200,25 @@ more vertices than max_vertices will be simplified every Δt_smooth timesteps.
         dissolve_on,
         min_floe_area::FT,
         smooth_vertices_on,
+        tol::FT,
         max_vertices,
         Δt_smooth
     ) where {FT<:AbstractFloat}
         if dissolve_on && min_floe_area <= 0
-            @warn "If the minimum floe area is less than or equal to 0, no floes will be dissolved. Turning dissolve floes off."
+            @warn "If the minimum floe area is less than or equal to 0, no \
+                floes will be dissolved. Turning dissolve floes off."
             dissolve_on = false
         end
         if smooth_vertices_on && Δt_smooth < 0
-            @warn "Floe smoothing can't occur on a multiple of negative timesteps. Turning floe simplification off."
+            @warn "Floe smoothing can't occur on a multiple of negative \
+                timesteps. Turning floe simplification off."
             smooth_vertices_on = false
         end
         new{FT}(
             dissolve_on,
             min_floe_area,
             smooth_vertices_on,
+            tol,
             max_vertices,
             Δt_smooth,
         )
@@ -223,6 +228,7 @@ more vertices than max_vertices will be simplified every Δt_smooth timesteps.
         dissolve_on,
         min_floe_area::FT,
         smooth_vertices_on,
+        tol,
         max_vertices,
         Δt_smooth
     ) where {FT<:AbstractFloat} = 
@@ -230,6 +236,7 @@ more vertices than max_vertices will be simplified every Δt_smooth timesteps.
             dissolve_on,
             min_floe_area,
             smooth_vertices_on,
+            tol,
             max_vertices,
             Δt_smooth
         )

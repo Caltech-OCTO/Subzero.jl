@@ -295,18 +295,27 @@
         strains = [[-3.724, 0, 0, 0], [7.419, 0, 0,	-6.987]]
         strain_multiplier = [1e28, 1e6]
 
-        for i in eachindex(floes)
-            f = floes[i]
+        for i in 1:2
+            f = Floe(
+                floe_dict["coords"][i],
+                floe_dict["height"][i],
+                0.0,
+                u = floe_dict["u"][i],
+                v = floe_dict["v"][i],
+                ξ = floe_dict["ξ"][i],
+            )
+            f.interactions = floe_dict["interactions"][i]
+            f.stress_history = floe_dict["stress_history"][i]
             stress = Subzero.calc_stress!(f)
             @test all(isapprox.(vec(f.stress), stresses[i], atol = 1e-3))
             @test all(isapprox.(
-                vec(floe.stress_history.cb[end]),
+                vec(f.stress_history.cb[end]),
                 stress_histories[i],
                 atol = 1e-3
             ))
             Subzero.calc_strain!(f)
             @test all(isapprox.(
-                vec(floe.strain) .* strain_multiplier[i],
+                vec(f.strain) .* strain_multiplier[i],
                 strains[i],
                 atol = 1e-3
             ))

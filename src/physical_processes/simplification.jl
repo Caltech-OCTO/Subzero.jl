@@ -1,108 +1,25 @@
-function find_cell_indices(xp, yp, grid::RegRectilinearGrid)
-    xidx = floor.(Int, (xp .- grid.xg[1])/(grid.xg[2] - grid.xg[1])) .+ 1
-    yidx = floor.(Int, (yp .- grid.yg[1])/(grid.yg[2] - grid.yg[1])) .+ 1
-    return xidx, yidx
-end
-
-function dissolve_small_floes(model, simp_settings)
-    small_floe_idx = (model.floes.area .< simp_settings.min_floe_area) .&&
-        model.floes.active  # if floe is active and small then 'melt' it
-    small_floe_centroids = model.floes.centroid[small_floe_idx]
-    small_floe_areas = model.floes.area[small_floe_idx]
-    xidx, yidx = find_cell_indices(
-        first.(small_floe_centroids),
-        last.(small_floe_centroids),
-        model.grid,
-    )
-    for i in eachindex(xidx)
-        model.ocean.dissolve[yidx[i], xidx[i]] += small_floe_areas[i]
-    end
-end
-
-function simplify_floes!(
-    floes::StructArray{Floe{FT}},
-    topography,
-    simp_settings,
-    collision_settings,
-    coupling_settings,
-    consts,
-    rng,
-) where {FT <: AbstractFloat}
-    topo_coords = topography.coords
-    for i in eachindex(floes)
-        poly = LG.simplify(LG.Polygon(floes.coords[i]), simp_settings.tol)
-        if !isempty(topo_coords)
-            poly = LG.difference(simp_poly, LG.MultiPolygon(topo_coords))
-        end
-        poly_lst = get_polygons(rmholes(poly))::Vector{LG.Polygon}
-        new_poly =
-            if length(poly_list) == 1
-                poly_list[1]
-            else
-                areas = [LG.area(p) for p in poly_lst]
-                _, max_idx = findmax(areas)
-                poly_lst[max_idx]
-            end
-        replace_floe!(
-            LazyRow(floes, i),
-            new_poly,
-            floes.mass[i],
-            consts,
-            coupling_settings.mc_n,
-            rng,
-        ) 
-        # Mark interactions for fusion
-        for j in eachindex(floes)
-            if i != j && floes.status[j] != remove && potential_interaction(
-                floes.coords[i],
-                floes.coords[j],
-                floes.rmax[i],
-                floes.rmax[j],
-            )
-            jpoly = LG.Polygon(floes.coords[j])
-            intersect_area = LG.area(LG.intersection(new_poly, jpoly))
-            if intersect_area/LG.area(jpoly) > collision_settings.floe_floe_max_overlap
-                floes.status[i].tag = fuse
-                push!(floes.status[i].fuse_idx, j)
-            end
-        end
-    end
-    return
-end
+"""
+Functions to simplify and reduce individual floes and floe list. 
+"""
 
 """
-    fuse_floes(
-        floes::Vector{Union{Floe{FT}}, LazyRow{Floe{FT}}},
-    )
+    dissolve_floe(floe, grid, dissolved)
 
-Fuse two floes together into their union. If there is no union, leave original
-floes unchanged. 
+Dissolve given floe into dissolved ocean matrix.
 Inputs:
-    floes       <Vector{Floe}> vector of floes to fuse together
-Outputs:
-    new_floes   <StructArray{Floe}> new fused floe(s) to add to model floe list
+    floe        <Union{Floe, LazyRow{Floe}}>
+    grid        <RegRectilinearGrid> model grid
+    dissolved   <Matrix{AbstractFloat}> ocean's dissolved field
 """
-# function find_fuse_groups(floes)
-#     fuse_groups = Dict{Int, Set{Int}}()
-#     for i in eachindex(floes)
-#         if floes.status[i] == fuse_floes
-#             sort!(floes.status[i].fuse_idx)
-#             min_idx = floes.status[i].fuse_idx[1]  # smallest is now first
-#             if min_idx > i  # have not seen a fusion group involving this floe
-#                 fuse_groups[i] = floes.status[i].fuse_idx
-#             else  # this floe is in a fusion group with a lesser-index floe
-#                 while !haskey(fuse_groups, min_idx)
-#                     min_idx = floes.status[min_idx].fuse_idx[1]
-#                 end
-#                 # Add new indices to group and delete any duplicate groups
-#                 for j in eachindex(floes.status[i].fuse_idx[2:end])
-#                     push!(fuse_groups[min_idx], floes.status[i].fuse_idx[j])
-#                     delete!(fuse_groups, floes.status[i].fuse_idx[j])
-#                 end
-#             end
-#         end
-#     end
-# end
+function dissolve_floe!(floe, grid::RegRectilinearGrid, dissolved)
+    xidx, yidx = find_grid_cell_index(
+        floe.centroid[1],
+        floe.centroid[2],
+        grid,
+    )
+    dissolve[yidx, xidx] += floe.area
+    floe.status.tag = remove
+end
 
 """
     replace_floe!(
@@ -166,6 +83,84 @@ function replace_floe!(
 end
 
 """
+    smooth_floes!(
+        floes,
+        topography,
+        simp_settings,
+        collision_settings,
+        coupling_settings,
+        consts,
+        rng,
+    )
+Smooths floe coordinates for floes with more vertices than the maximum
+allowed number. Uses Ramer–Douglas–Peucker algorithm with a user-defined
+tolerance. If new shape causes overlap greater with another floe greater than
+the maximum percentage allowed, mark the two floes for fusion.
+Inputs:
+    floes               <StructArray{Floe}> model's floes
+    topography          <StructArray{TopographyElement}> domain's topography
+    simp_settings       <SimplificationSettings> simulation's simplification
+                            settings
+    collision_settings  <CollisionSettings> simulation's collision settings
+    coupling_settings   <CouplingSettings> simulation's coupling settings
+    consts              <Constants> simulation's constants
+    rng                 <RNG> random number generator for new monte carlo points
+"""
+function smooth_floes!(
+    floes::StructArray{Floe{FT}},
+    topography,
+    simp_settings,
+    collision_settings,
+    coupling_settings,
+    consts,
+    rng,
+) where {FT <: AbstractFloat}
+    topo_coords = topography.coords
+    Threads.@threads for i in eachindex(floes)
+        if length(floes.coords[i][1]) > simp_settings.max_vertices
+            poly = LG.simplify(LG.Polygon(floes.coords[i]), simp_settings.tol)
+            if !isempty(topo_coords)
+                poly = LG.difference(simp_poly, LG.MultiPolygon(topo_coords))
+            end
+            poly_list = get_polygons(rmholes(poly))::Vector{LG.Polygon}
+            new_poly =
+                if length(poly_list) == 1
+                    poly_list[1]
+                else
+                    areas = [LG.area(p) for p in poly_list]
+                    _, max_idx = findmax(areas)
+                    poly_list[max_idx]
+                end
+            replace_floe!(
+                LazyRow(floes, i),
+                new_poly,
+                floes.mass[i],
+                consts,
+                coupling_settings.mc_n,
+                rng,
+            ) 
+            # Mark interactions for fusion
+            for j in eachindex(floes)
+                if i != j && floes.status[j] != remove && potential_interaction(
+                    floes.centroid[i],
+                    floes.centroid[j],
+                    floes.rmax[i],
+                    floes.rmax[j],
+                )
+                    jpoly = LG.Polygon(floes.coords[j])
+                    intersect_area = LG.area(LG.intersection(new_poly, jpoly))
+                    if intersect_area/LG.area(jpoly) > collision_settings.floe_floe_max_overlap
+                        floes.status[i].tag = fuse
+                        push!(floes.status[i].fuse_idx, j)
+                    end
+                end
+            end
+        end
+    end
+    return
+end
+
+"""
     fuse_floes!(
         floe1,
         floe2,
@@ -196,18 +191,20 @@ function fuse_floes!(
     max_floe_id,
     rng,
 )
-    poly1 = LG.Polygon(floe1)::LG.Polygon
-    poly2 = LG.Polygon(floe2)::LG.Polygon
+    poly1 = LG.Polygon(floe1.coords)::LG.Polygon
+    poly2 = LG.Polygon(floe2.coords)::LG.Polygon
     new_poly_list = get_polygons(LG.union(poly1, poly2))::Vector{LG.Polygon}
     if length(new_poly_list) == 1  # if they fused, they will make one polygon
         new_poly = rmholes(new_poly_list[1])
         mass1 = floe1.mass
         mass2 = floe2.mass
+        total_mass = mass1 + mass2
         moment1 = floe1.moment
         moment2 = floe2.moment
-        total_mass = mass1 + mass2
+        centroid1 = floe1.centroid
+        centroid2 = floe2.centroid
         new_floe =
-            if floe1.area > floe2.area
+            if floe1.area >= floe2.area
                 floe2.status.tag = remove
                 floe1
             else
@@ -238,11 +235,98 @@ function fuse_floes!(
         new_floe.stress_history.total = (floe1.stress_history.total * mass1 +
             floe2.stress_history.total * mass2)/total_mass
         # Update IDs
-        empty!(floe.parent_ids)
-        push!(floe.parent_ids, floe1.id)
-        push!(floe.parent_ids, floe2.id)
+        empty!(new_floe.parent_ids)
+        push!(new_floe.parent_ids, floe1.id)
+        push!(new_floe.parent_ids, floe2.id)
+        max_floe_id += 1
         new_floe.id = max_floe_id
-        max_floe_idx += 1
     end
     return max_floe_id
+end
+
+"""
+    simplify_floes!(
+        model,
+        simp_settings,
+        collision_settings,
+        coupling_settings,
+        consts,
+        rng,
+    )
+Simplify the floe list be smoothing vertices, fusing floes, dissolving floes,
+and removing floes as needed. 
+Inputs:
+    model               <Model> model
+    simp_settings       <SimplificationSettings> simulation's simplification
+                            settings
+    collision_settings  <CollisionSettings> simulation's collision settings
+    coupling_settings   <CouplingSettings>  simulation's coupling settings
+    consts              <Constants> simulation's constants
+    rng                 <RNG> random number generator
+Outputs:
+    Updates floe list and removes floe that won't continue to the next timestep
+"""
+function simplify_floes!(
+    floes,
+    model,
+    simp_settings,
+    collision_settings,
+    coupling_settings,
+    consts,
+    rng,
+)
+    # Smooth coordinates to reduce total number of vertices
+    if smooth_vertices_on
+        smooth_floes!(
+            floes,
+            model.domain.topography,
+            simp_settings,
+            collision_settings,
+            coupling_settings,
+            consts,
+            rng,
+        )
+    end
+    # Fuse floes that have been marked for fusion
+    max_floe_id = model.max_floe_id
+    for i in eachindex(floes)
+        if floes.status[i] == fuse
+            for j in eachindex(floes.status[i].floeidx)
+                max_floe_id = fuse_floes!(
+                    LazyRow(floes, i),
+                    LazyRow(floes, j),
+                    consts,
+                    coupling_settings,
+                    max_floe_id,
+                    rng,
+                )
+            end
+        end
+    end
+    model.max_floe_id = max_floe_id
+
+    for i in reverse(eachindex(floes))
+        if simp_settings.dissolve_on &&
+            floes.area[i] < simp_settings.min_floe_area &&
+            floes.status[i].tag != remove
+            # Dissolve small floes and add mass to ocean
+            dissolve_floe!(
+                LazyRow(floes, i),
+                model.grid,
+                model.ocean.dissolved,
+            )
+            # remove dissolved floes
+            StructArrays.foreachfield(
+                    field -> deleteat!(field, i),
+                    floes,
+            )
+        # maybe seperate this out??
+        elseif floes.status[i].tag == remove
+            StructArrays.foreachfield(
+                    field -> deleteat!(field, i),
+                    floes,
+            )
+        end
+    end
+    return
 end

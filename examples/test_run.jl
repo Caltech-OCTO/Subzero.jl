@@ -31,14 +31,32 @@ domain = Subzero.Domain(
 )
 
 # Floe instantiation
+f = jldopen("examples/floe_shapes.jld2", "r") 
 funky_floe_arr = initialize_floe_field(
-    100,
-    [0.5],
+    vec(f["floe_vertices"]),
     domain,
-    hmean,
-    Δh,
-    rng = Xoshiro(5),
+    0.25,
+    0.0
 )
+close(f)
+
+Subzero.simplify_floes!(
+    funky_floe_arr,
+    domain.topography,
+    SimplificationSettings(tol = 100.0),
+    CollisionSettings(),
+    CouplingSettings(),
+    Constants(),
+    Xoshiro(5),
+)
+# funky_floe_arr = initialize_floe_field(
+#     100,
+#     [0.5],
+#     domain,
+#     hmean,
+#     Δh,
+#     rng = Xoshiro(5),
+# )
 #funky_floe_arr.u .= (-1)^rand(0:1) * (0.1 * rand(length(funky_floe_arr)))
 #funky_floe_arr.v .= (-1)^rand(0:1) * (0.1 * rand(length(funky_floe_arr)))
 
@@ -81,8 +99,6 @@ simulation = Simulation(
 #     sim.model.floes,
 #     sim.model.max_floe_id,
 #     sim.model.domain,
-#     zeros(Int, sim.model.max_floe_id),
-#     zeros(Int, sim.model.max_floe_id),
 #     sim.consts,
 #     sim.Δt,
 #     sim.collision_settings,

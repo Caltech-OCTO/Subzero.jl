@@ -5,10 +5,34 @@ Functions needed for coupling the ice, ocean, and atmosphere.
 #-------------- Monte Carlo Point Calculations --------------#
 
 """
-    find_centered_cell_indices(xp, yp, grid::RegRectilinearGrid)
+    find_grid_cell_index(xp, yp, grid::RegRectilinearGrid)
+Find index of the grid cell of the given RegRectilinearGrid that the given
+x-coordinate and y-coordinate falls within.
+Method depends on grid being a regular rectilinear grid.
+Inputs:
+    xp      <AbstractFloat> x-coordinates of point
+    yp      <AbstractFloat> y-coordinate of point
+    grid    <RegRectilinearGrid> simulation grid
+Outputs:
+    xidx    <AbstractFloat> x-index of grid cell x-point is within - this is the
+                column
+    yidx    <AbstractFloat> y-index of grid cell y-point is within - this is the
+                row
+Note:
+    Points can be outside of the grid, so index can be less than 1 or greater
+    than the number of grid cells
+"""
+function find_grid_cell_index(xp, yp, grid::RegRectilinearGrid)
+    xidx = floor(Int, (xp - grid.xg[1])/(grid.xg[2] - grid.xg[1])) + 1
+    yidx = floor(Int, (yp - grid.yg[1])/(grid.yg[2] - grid.yg[1])) + 1
+    return xidx, yidx
+end
 
+
+"""
+    find_center_cell_index(xp, yp, grid::RegRectilinearGrid)
 Find index of the cell centered on grid lines of the given RegRectilinearGrid
-that the given x-coordinate and y-coordinate fall within.
+that the given x-coordinate and y-coordinate falls within.
 This cell is centered around the grid lines, so it is a shifted grid cell
 by half a cell. Method depends on grid being a regular rectilinear grid.
 Inputs:
@@ -24,12 +48,11 @@ Note:
     Points can be outside of the grid, so index can be less than 1 or greater
     than the number of grid lines in a given direction.
 """
-function find_centered_cell_indices(xp, yp, grid::RegRectilinearGrid)
-    xidx = floor.(Int, (xp .- grid.xg[1])/(grid.xg[2] - grid.xg[1]) .+ 0.5) .+ 1
-    yidx = floor.(Int, (yp .- grid.yg[1])/(grid.yg[2] - grid.yg[1]) .+ 0.5) .+ 1
+function find_center_cell_index(xp, yp, grid::RegRectilinearGrid)
+    xidx = floor(Int, (xp - grid.xg[1])/(grid.xg[2] - grid.xg[1]) + 0.5) + 1
+    yidx = floor(Int, (yp - grid.yg[1])/(grid.yg[2] - grid.yg[1]) + 0.5) + 1
     return xidx, yidx
 end
-
 """
     in_bounds(
         xr,
@@ -206,7 +229,7 @@ function calc_mc_values!(
             j += 1  # if added to outputs, move to next index in output array
             mc_cart[j, 1] = mc_x
             mc_cart[j, 2] = mc_y
-            mc_grid_idx[j, 1], mc_grid_idx[j, 2] = find_cell_index(
+            mc_grid_idx[j, 1], mc_grid_idx[j, 2] = find_center_cell_index(
                 mc_cart[j, 1],
                 mc_cart[j, 2],
                 grid,

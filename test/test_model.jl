@@ -112,14 +112,11 @@
         uocn = fill(3.0, g.dims .+ 1)
         vocn = fill(4.0, g.dims .+ 1)
         tempocn = fill(-2.0, g.dims .+ 1)
-        fx = fill(0.0, g.dims .+ 1)
-        fy = fx
-        τx = fx
-        τy = fx
-        si_frac = fx
-        hflx_factor = fx
-        dissolved = fx
-        scells = fx
+        τx = fill(0.0, g.dims .+ 1)
+        τy = τx
+        si_frac = τx
+        hflx_factor = τx
+        dissolved = τx
         ocn = Subzero.Ocean(
             uocn,
             vocn,
@@ -134,7 +131,7 @@
         @test ocn.u == uocn
         @test ocn.v == vocn
         @test ocn.temp == tempocn
-        @test fx == ocn.fx == ocn.fy == ocn.si_area == ocn.hflx_factor == ocn.τx == ocn.τx == ocn.dissolved
+        @test τx == ocn.si_frac == ocn.hflx_factor == ocn.τx == ocn.τy == ocn.dissolved
         @test ocn.u == uocn
         @test ocn.v == vocn
         @test ocn.temp == tempocn

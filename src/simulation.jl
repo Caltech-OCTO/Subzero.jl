@@ -119,23 +119,21 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
                     T
                 )
         end
-        
-        # Remove floes that were killed or are too small in this timestep
-        for i in reverse(eachindex(sim.model.floes))
-            if (sim.model.floes.status[i].tag == remove ||
-                sim.model.floes.area[i] < sim.simp_settings.min_floe_area) # This needs to be dissolved!!
-                StructArrays.foreachfield(
-                    field -> deleteat!(field, i),
-                    sim.model.floes,
-                )
-            end
-        end
+        # TODO I don't know if this runs and the helper functions run but are untested
+        # simplify_floes!(
+        #     sim.model.floes,
+        #     sim.model,
+        #     sim.simp_settings,
+        #     sim.collision_settings,
+        #     sim.coupling_settings,
+        #     sim.consts,
+        #     sim.rng,
+        # )
     end
 
     # h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx)))
     # mean(h0)
 
-    #TODO: Add dissolved mass
     return 
 end
 

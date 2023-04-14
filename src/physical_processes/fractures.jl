@@ -248,9 +248,9 @@ function split_floe(
     fracture_settings,
     coupling_settings,
     consts,
-    ::Type{T} = Float64,
-) where T
-    new_floes = StructArray{Floe{T}}(undef, 0)
+    ::Type{FT} = Float64,
+) where {FT}
+    new_floes = StructArray{Floe{FT}}(undef, 0)
     # Generate voronoi tesselation in floe's bounding box
     scale_fac = fill(2floe.rmax, 2)
     trans_vec = [floe.centroid[1] - floe.rmax, floe.centroid[2] - floe.rmax]
@@ -261,7 +261,7 @@ function split_floe(
         [floe.coords],
         rng,
         1;  # Warn if only 1 point is identified as the floe won't be split
-        t = T
+        t = FT
     )
     if !isempty(pieces)
         # Intersect voronoi tesselation pieces with floe
