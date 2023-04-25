@@ -7,18 +7,29 @@ Functions to simplify and reduce individual floes and floe list.
 
 Dissolve given floe into dissolved ocean matrix.
 Inputs:
-    floe        <Union{Floe, LazyRow{Floe}}>
-    grid        <RegRectilinearGrid> model grid
-    dissolved   <Matrix{AbstractFloat}> ocean's dissolved field
+    floe        <Union{Floe, LazyRow{Floe}}> single floe
+    grid        <RegRectilinearGrid> model's grid
+    domain      <Domain> model's domain
+    dissolve    <Matrix{AbstractFloat}> ocean's dissolved field
+Outputs:
+    None. Update dissolve matrix with given floe's mass and mark floe for
+    removal.
 """
-function dissolve_floe!(floe, grid::RegRectilinearGrid, dissolved)
+function dissolve_floe!(floe, grid::RegRectilinearGrid, domain, dissolve)
     xidx, yidx = find_grid_cell_index(
         floe.centroid[1],
         floe.centroid[2],
         grid,
     )
-    dissolve[yidx, xidx] += floe.area
+    # Wrap indexes around grid if bounds are periodic 
+    xidx = shift_cell_idx(xidx, grid.dims[2] + 1, domain.east)
+    yidx = shift_cell_idx(yidx, grid.dims[1] + 1, domain.north)
+    # If centroid is within bounds after wrapping, add mass to dissolve
+    if 0 < xidx <= grid.dims[2] && 0 < yidx <= grid.dims[1]
+        dissolve[yidx, xidx] += floe.mass
+    end
     floe.status.tag = remove
+    return
 end
 
 """
@@ -165,6 +176,7 @@ end
         floe1,
         floe2,
         consts,
+        Δt,
         coupling_settings,
         max_floe_id,
         rng,
@@ -187,10 +199,12 @@ function fuse_floes!(
     floe1,
     floe2,
     consts,
+    Δt,
     coupling_settings,
     max_floe_id,
     rng,
 )
+    # Create new polygon if they fuse
     poly1 = LG.Polygon(floe1.coords)::LG.Polygon
     poly2 = LG.Polygon(floe2.coords)::LG.Polygon
     new_poly_list = get_polygons(LG.union(poly1, poly2))::Vector{LG.Polygon}
@@ -201,8 +215,8 @@ function fuse_floes!(
         total_mass = mass1 + mass2
         moment1 = floe1.moment
         moment2 = floe2.moment
-        centroid1 = floe1.centroid
-        centroid2 = floe2.centroid
+        x1, y1 = floe1.centroid
+        x2, y2 = floe2.centroid
         new_floe =
             if floe1.area >= floe2.area
                 floe2.status.tag = remove
@@ -219,23 +233,70 @@ function fuse_floes!(
             coupling_settings.mc_n,
             rng,
         )
-        # Conservation of momentum
+
+        # Conservation of momentum in current timestep values
+        new_floe.ξ = (1/new_floe.moment) * (
+            # averaged spin momentum
+            floe1.ξ * moment1 + floe2.ξ * moment2 +
+            # change in orbital momentum balanced by change in ξ
+            mass1 * (
+                floe1.v * (x1 - new_floe.centroid[1]) +
+                floe1.u * (y1 - new_floe.centroid[2])
+            ) +
+            mass2 * (
+                floe2.v * (x2 - new_floe.centroid[1]) +
+                floe2.u * (y2 - new_floe.centroid[2])
+            )
+        )
         new_floe.u = (floe1.u * mass1 + floe2.u * mass2)/total_mass
         new_floe.v = (floe1.v * mass1 + floe2.v * mass2)/total_mass
-        new_floe.ξ = (floe1.ξ * moment1 + floe2.ξ * moment2)/new_floe.moment
-        new_floe.p_dudt = (floe1.p_dudt * mass1 + floe2.p_dudt * mass2)/total_mass
-        new_floe.p_dvdt = (floe1.p_dvdt * mass1 + floe2.p_dvdt * mass2)/total_mass
-        new_floe.p_dxdt = (floe1.p_dxdt * mass1 + floe2.p_dxdt * mass2)/total_mass
-        new_floe.p_dydt = (floe1.p_dydt * mass1 + floe2.p_dydt * mass2)/total_mass
-        new_floe.p_dξdt = (floe1.p_dξdt * moment1 + floe2.p_dξdt * moment2)/new_floe.moment
+
+        #= Conservation of momentum in previous timestep values -
+            assumes that ratios of floe masses and moments of intertia do not
+            change between current and previous timestep. Also assumes simplifed
+            timestep equations (i.e. u = p_dxdt + Δt * p_dudt rather than
+            u = p_dxdt + 1.5p_dudt - 0.5pp_dudt where pp_dudt is the previous
+            value of p_dudt which we no longer have availible as it is replaced
+            to give p_dudt)
+        =#
+        new_p_dxdt = (floe1.p_dxdt * mass1 + floe2.p_dxdt * mass2)/total_mass
+        new_p_dydt = (floe1.p_dydt * mass1 + floe2.p_dydt * mass2)/total_mass
+        # If new floe existed in previous timestep, estimated centroid location
+        new_p_x = new_floe.centroid[1] - Δt * new_p_dxdt
+        new_p_y = new_floe.centroid[2] - Δt * new_p_dydt
+        new_floe.p_dαdt = (1/new_floe.moment) * (
+            # averaged spin momentum in previous timestep
+            floe1.p_dαdt * moment1 + floe2.p_dαdt * moment2 +
+            # change in orbital momentum balanced by change in previous ξ
+            mass1 * (
+                floe1.p_dydt * (x1 - Δt * floe1.p_dxdt - new_p_x) +
+                floe1.p_dxdt * (y1 - Δt * floe1.p_dydt - new_p_y)
+            ) +
+            mass2 * (
+                floe2.p_dydt * (x2 - Δt * floe2.p_dxdt - new_p_x) +
+                floe2.p_dxdt * (y2 - Δt * floe2.p_dydt - new_p_y)
+            )
+        )   
+        new_floe.p_dxdt = new_p_dxdt
+        new_floe.p_dydt = new_p_dydt
+        # Changes in acceleration in previous timestep determined by velocities
+        new_floe.p_dξdt = (new_floe.ξ - new_floe.p_dαdt) / Δt
+        new_floe.p_dudt = (new_floe.u - new_floe.p_dxdt) / Δt
+        new_floe.p_dvdt = (new_floe.v - new_floe.p_dydt) / Δt
+
         # Update stress history
-        new_floe.stress .= (floe1.stress * mass1 .+ floe2.stress * mass2)/total_mass
-        new_floe.stress_history.cb .= (floe1.stress_history.cb * mass1 .+
-            floe2.stress_history.cb * mass2)/total_mass
-        new_floe.stress_history.total = (floe1.stress_history.total * mass1 +
-            floe2.stress_history.total * mass2)/total_mass
+        new_floe.stress .= (1/total_mass) * (
+            floe1.stress * mass1 .+
+            floe2.stress * mass2
+        )
+        new_floe.stress_history.cb .= (1/total_mass) * (
+            floe1.stress_history.cb * mass1 .+
+            floe2.stress_history.cb * mass2
+        )
+        new_floe.stress_history.total = (1/total_mass) * (
+            floe1.stress_history.total * mass1 +
+            floe2.stress_history.total * mass2)
         # Update IDs
-        empty!(new_floe.parent_ids)
         push!(new_floe.parent_ids, floe1.id)
         push!(new_floe.parent_ids, floe2.id)
         max_floe_id += 1
@@ -272,6 +333,7 @@ function simplify_floes!(
     simp_settings,
     collision_settings,
     coupling_settings,
+    Δt,
     consts,
     rng,
 )
@@ -296,6 +358,7 @@ function simplify_floes!(
                     LazyRow(floes, i),
                     LazyRow(floes, j),
                     consts,
+                    Δt,
                     coupling_settings,
                     max_floe_id,
                     rng,

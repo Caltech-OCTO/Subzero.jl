@@ -105,6 +105,7 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
         # Move and update floes based on collisions and ocean/atmosphere forcing
         timestep_floe_properties!(sim.model.floes, sim.Δt)
 
+        # TODO: Remove parent ids ?
         # Fracture floes
         if sim.fracture_settings.fractures_on && mod(tstep, sim.fracture_settings.Δt) == 0
             sim.model.max_floe_id =

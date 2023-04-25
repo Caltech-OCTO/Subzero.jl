@@ -465,45 +465,6 @@ function poly_to_floes(
     return floes
 end
 
-function create_floes_conserve_mass!(
-    pieces_polys,
-    total_mass::FT,
-    u::FT, 
-    v, 
-    ξ,
-    mc_n,
-    nhistory,
-    rng,
-    consts,
-    new_floes,
-) where {FT <: AbstractFloat}
-    # Conserve mass within pieces
-    pieces_areas = [LG.area(p) for p in pieces_polys]
-    total_area = sum(pieces_areas)
-    # Create floes out of each piece
-    for i in eachindex(pieces_polys)
-        if pieces_areas[i] > 0
-            mass = total_mass * (pieces_areas[i]/total_area)
-            height = mass / (consts.ρi * pieces_areas[i])
-            pieces_floes = poly_to_floes(
-                pieces_polys[i]::LG.Polygon,
-                FT(height),
-                FT(0);  # Δh - range of random height difference between floes
-                ρi = consts.ρi,
-                u = u,
-                v = v,
-                ξ = ξ,
-                mc_n = mc_n,
-                nhistory = nhistory,
-                rng = rng,
-            )
-            append!(new_floes, pieces_floes)
-        end
-    end
-    return
-end
-
-
 """
     initialize_floe_field(
         coords::Vector{PolyVec{T}},
