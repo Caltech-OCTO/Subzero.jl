@@ -103,7 +103,11 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
         end
         
         # Move and update floes based on collisions and ocean/atmosphere forcing
-        timestep_floe_properties!(sim.model.floes, sim.Δt)
+        timestep_floe_properties!(
+            sim.model.floes,
+            sim.Δt,
+            sim.simp_settings.max_floe_height,
+        )
 
         # TODO: Remove parent ids ?
         # Fracture floes
@@ -120,16 +124,15 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
                     T
                 )
         end
-        # TODO I don't know if this runs and the helper functions run but are untested
-        # simplify_floes!(
-        #     sim.model.floes,
-        #     sim.model,
-        #     sim.simp_settings,
-        #     sim.collision_settings,
-        #     sim.coupling_settings,
-        #     sim.consts,
-        #     sim.rng,
-        # )
+        simplify_floes!(
+            sim.model,
+            sim.simp_settings,
+            sim.collision_settings,
+            sim.coupling_settings,
+            sim.Δt,
+            sim.consts,
+            sim.rng,
+        )
     end
 
     # h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx)))

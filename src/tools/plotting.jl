@@ -98,7 +98,7 @@ function create_sim_gif(
         new_frame = plot(plt)
         verts = Subzero.separate_xy.(coords[t])
         for i in eachindex(verts)
-            if status[t][i].tag != remove || status[t][i].tag != dissolve
+            if status[t][i].tag != remove
                 plot!(
                     new_frame,
                     first(verts[i])./1000,
@@ -186,7 +186,7 @@ function plot_sim_timestep(model, plt, time)
         plt_new,
         [LG.Polygon(
             [floe_coords[i][1] ./ 1000]
-        ) for i in eachindex(floe_coords) if floe_status[i].tag != remove || floe_status[i].tag != dissolve],
+        ) for i in eachindex(floe_coords) if floe_status[i].tag != remove],
         fill = :lightblue,
     )
           

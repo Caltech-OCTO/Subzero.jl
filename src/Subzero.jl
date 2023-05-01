@@ -89,6 +89,7 @@ include("floe.jl")
 include("floe_utils.jl")
 include("model.jl")
 # Physical Processes
+include("physical_processes/update_floe.jl")
 include("physical_processes/coupling.jl")
 include("physical_processes/collisions.jl")
 include("physical_processes/fractures.jl")

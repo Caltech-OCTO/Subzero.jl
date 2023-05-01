@@ -1,4 +1,10 @@
-function conservation_simulation(grid, domain, floes, plot = false)
+function conservation_simulation(
+    grid,
+    domain,
+    floes,
+    smoothing = false,
+    plot = false,
+)
     ocean = Ocean(Float64, grid, 0.0, 0.0, 0.0)
     atmos = Atmos(grid, 0.0, 0.0, 0.0)
     model = Model(grid, ocean, atmos, domain, floes)
@@ -21,6 +27,9 @@ function conservation_simulation(grid, domain, floes, plot = false)
     consts = Constants(E = modulus, μ = 0.0)
     # No ocean/atmosphere interactions
     coupling_settings = CouplingSettings(coupling_on = false)
+    simplification_settings = SimplificationSettings(
+        smooth_vertices_on = smoothing,
+    )
 
     simulation = Simulation(
         model = model,
@@ -29,6 +38,7 @@ function conservation_simulation(grid, domain, floes, plot = false)
         nΔt = 10000,
         verbose = false,
         coupling_settings = coupling_settings,
+        simp_settings = simplification_settings,
         writers = writers,
     )
     run!(simulation)
@@ -159,11 +169,12 @@ end
     complex_floes.v[2] = -0.2
     complex_floes.v[3] = 0.2
     # Slightly higher change in energy due to strage shapes
-    @test all(abs.(conservation_simulation(
-        grid,
-        open_domain,
-        complex_floes,
-    )) .< 2.1)
+    @test all(abs.(
+        conservation_simulation(
+            grid,
+            open_domain,
+            complex_floes,)
+    ) .< 2.1)
 
     # One non-convex block hits the wall and topography -> only check conservation of energy
     rng = Xoshiro(1)

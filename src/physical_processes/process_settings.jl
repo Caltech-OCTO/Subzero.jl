@@ -184,105 +184,66 @@ end
     struct SimplificationSettings{FT<:AbstractFloat}
 
 Settings needed for simplification within the model.
-If dissolve_on is true, floes below the min_floe_area will be removed from the
-simulation every timestep. If smooth_vertices_on is true then floe's with
-more vertices than max_vertices will be simplified every Δt_smooth timesteps.
+Floes below the min_floe_area and below min_floe_height will be removed from the
+simulation every timestep. Floes above max_floe_height will not be able to gain
+height. If smooth_vertices_on is true then floe's with more vertices than
+max_vertices will be simplified every Δt_smooth timesteps.
+
+A reasonable formula for minimum floe area is the following:
+min_floe_area = 4(grid.xg[end] - grid.xg[1]) * (grid.yg[end] - grid.yg[1]) / 1e4
 """
 @kwdef struct SimplificationSettings{FT<:AbstractFloat}
-    dissolve_on::Bool = true
     min_floe_area::FT = 1e6
+    min_floe_height::FT = 0.1
+    max_floe_height::FT = 10.0
     smooth_vertices_on::Bool = true
-    tol::FT = 100.0  # Douglas–Peucker algorithm tolerance in (m)
     max_vertices::Int = 30
+    tol::FT = 100.0  # Douglas–Peucker algorithm tolerance in (m)
     Δt_smooth::Int = 20
 
     function SimplificationSettings{FT}(
-        dissolve_on,
         min_floe_area::FT,
+        min_floe_height,
+        max_floe_height,
         smooth_vertices_on,
-        tol::FT,
         max_vertices,
+        tol::FT,
         Δt_smooth
     ) where {FT<:AbstractFloat}
-        if dissolve_on && min_floe_area <= 0
-            @warn "If the minimum floe area is less than or equal to 0, no \
-                floes will be dissolved. Turning dissolve floes off."
-            dissolve_on = false
-        end
         if smooth_vertices_on && Δt_smooth < 0
             @warn "Floe smoothing can't occur on a multiple of negative \
                 timesteps. Turning floe simplification off."
             smooth_vertices_on = false
         end
         new{FT}(
-            dissolve_on,
             min_floe_area,
+            min_floe_height,
+            max_floe_height,
             smooth_vertices_on,
-            tol,
             max_vertices,
+            tol,
             Δt_smooth,
         )
     end
 
     SimplificationSettings(
-        dissolve_on,
         min_floe_area::FT,
+        min_floe_height,
+        max_floe_height,
         smooth_vertices_on,
-        tol,
         max_vertices,
+        tol,
         Δt_smooth
     ) where {FT<:AbstractFloat} = 
         SimplificationSettings{FT}(
-            dissolve_on,
             min_floe_area,
+            min_floe_height,
+            max_floe_height,
             smooth_vertices_on,
-            tol,
             max_vertices,
+            tol,
             Δt_smooth
         )
-end
-
-"""
-    SimplificationSettings(
-        grid::AbstractGrid,
-        dissolve_on::Bool,
-        smooth_vertices_on::Bool,
-        max_vertices::Int,
-        Δt_smooth::Int,
-    )
-Determine simplification settings with minimum floe area depending on the size
-of the model's grid. 
-Inputs:
-    grid                <AbstractGrid> model's grid
-    dissolve_on         <Bool> true if floes below minimum floe area should be
-                            removed from simulation
-    smooth_vertices_on  <Bool> true if floes with more vertices than
-                            max_vertices should be simplified
-    max_vertices        <Int> maximum number of verticies before simplifying
-                            floe shape
-    Δt_smooth           <Int> number of timesteps between each round of floe
-                            vertex simplification
-Outputs:
-    SimplificationSettings object where the minimum floe area is set to 4 times
-    the grid area, divided by 1e4 and the rest of the parameters are user input
-"""
-function SimplificationSettings(
-    grid::AbstractGrid,
-    dissolve_on::Bool,
-    smooth_vertices_on::Bool,
-    max_vertices::Int,
-    Δt_smooth::Int,
-)
-    min_floe_area = 4 * (grid.xg[end] - grid.xg[1]) *
-        (grid.yg[end] - grid.yg[1]) / 1e4
-
-    return SimplificationSettings(
-        dissolve_on,
-        eltype(grid.xg)(min_floe_area),
-        smooth_vertices_on,
-        max_vertices,
-        Δt_smooth,
-    ) 
 end
 
 # CORNERS::Bool = false           # If true, corners of floes can break

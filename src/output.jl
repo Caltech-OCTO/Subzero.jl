@@ -513,6 +513,8 @@ function write_floe_data!(sim, tstep)
             end
         end
     end
+    # once parents are recorded, they should be deleted
+    empty!.(sim.model.floes.parent_ids) 
     return
 end
 
