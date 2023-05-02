@@ -94,7 +94,7 @@ function smooth_floes!(
                 rng,
             )
             # conserve momentum
-            conserve_momentum_combination(
+            conserve_momentum_combination!(
                 floes.mass[i],
                 moment_tmp,
                 x_tmp,
@@ -189,7 +189,7 @@ function fuse_two_floes!(
             rng,
         )
         # conserve momentum
-        conserve_momentum_combination(
+        conserve_momentum_combination!(
             mass_tmp,
             moment_tmp,
             x_tmp,

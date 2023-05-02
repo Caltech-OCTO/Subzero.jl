@@ -1,4 +1,10 @@
 """
+Functions to update floe's shape and fields. Function typically called from
+other physical processes, other than timestep_floe_properties!, which is called
+from the timestep_simulation! function.
+"""
+
+"""
     replace_floe!(
         floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
         new_poly,
@@ -57,10 +63,11 @@ function replace_floe!(
     floe.mc_y = mc_y
     # Floe status / identification
     floe.status = status
+    return
 end
 
 """
-    conserve_momentum_combination(
+    conserve_momentum_combination!(
         mass_tmp,
         moment_tmp,
         x_tmp,
@@ -94,7 +101,7 @@ Note:
     changed, or if we have remove_floe then the sum of remove_floe's mass and
     mass_tmp must be equal to keep_floe's mass.
 """
-function conserve_momentum_combination(
+function conserve_momentum_combination!(
     mass_tmp,
     moment_tmp,
     x_tmp,
