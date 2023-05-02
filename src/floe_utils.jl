@@ -202,7 +202,7 @@ Outputs:
     <Bool> true if there is a hole in the polygons, else false
 """
 function hashole(poly::LG.Polygon)
-    return LG.numInteriorRings(poly.ptr) > 0
+    return LG.numInteriorRings(poly) > 0
 end 
 
 """
