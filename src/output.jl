@@ -513,6 +513,8 @@ function write_floe_data!(sim, tstep)
             end
         end
     end
+    # once parents are recorded, they should be deleted
+    empty!.(sim.model.floes.parent_ids) 
     return
 end
 
@@ -528,7 +530,7 @@ Output:
     timestep.
 """
 function write_grid_data!(sim, tstep)
-    live_floes = filter(f -> f.alive, sim.model.floes)
+    live_floes = filter(f -> f.status.tag == active, sim.model.floes)
     w_idx = mod.(tstep, sim.writers.gridwriters.Δtout) .== 0
     if !isempty(live_floes) && sum(w_idx) != 0
         for w in sim.writers.gridwriters[w_idx]
@@ -899,7 +901,7 @@ function getattrs(output::Symbol)
         output == :u ? ("m/s", "Floe x-direction velocity") :
         output == :v ? ("m/s", "Floe y-direction velocity") :
         output == :ξ ? ("rad/s", "Floe angular velocity") :
-        output == :alive ? ("unitless", "Flag if floe is still active in simulation") :
+        output == :status ? ("unitless", "Flag if floe is still active in simulation") :
         output == :id ? ("unitless", "Floe ID - represents unique floe (ghosts have the same as parents since they are copies)") :
         output == :ghost_id ? ("unitless", "Ghost ID - represents individual ghosts so every ghost of 1 parent has unique ID (parents have ghost ID of 0)") :
         output == :ghosts ? ("unitless", "Index of floe's ghost floes in list") :

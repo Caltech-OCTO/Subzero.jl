@@ -29,7 +29,7 @@ zero_ocn = Ocean(FT, grid, 0.0, 0.0, 0.0)
 meridional_ocn = Ocean(FT, grid, 0.0, 1.0, 0.0)
 
 zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
-zonal_atmos = Atmos(grid, -3.0, 0.0, 0.0)
+zonal_atmos = Atmos(grid, -15.0, 0.0, 0.0)
 
 open_domain_no_topo = Subzero.Domain(
     OpenBoundary(grid, North()),
@@ -89,12 +89,6 @@ zonal_3rect_floes = initialize_floe_field(
 )
 zonal_3rect_floes.u .= [3.0, -3.0, 0.0]
 
-no_ocndrag_consts = Constants(
-    Cd_io = 0.0,
-    Cd_ao = 0.0,
-    μ = 0.0,
-)
-
 collisions_off_settings = CollisionSettings(collisions_on = false)
 
 sim_arr = Vector{Simulation}(undef, 0)
@@ -134,11 +128,11 @@ simulation1 = Simulation(
 push!(sim_arr, simulation1)
 """
 Simulation 2:
-    One floe pushed by zonal (west-to-east) 1m/s atmos flow. Ocean-ice drag
-    coefficent set to 0. Floe is initally stationary.
+    One floe pushed by zonal (west-to-east) -15m/s atmos flow. Floe is initally
+    stationary.
 Expected Behavior:
-    Floe should drift to the right due to Coriolis force in the northern
-    hemisphere. 
+    Floe should drift to the right of movement due to Coriolis force in the
+    northern hemisphere. 
 """
 model2 = Model(
     grid,
@@ -161,7 +155,6 @@ writers2 = OutputWriters(
 simulation2 = Simulation(
     name = "sim2",
     model = model2,
-    consts = no_ocndrag_consts,
     Δt = 10,
     nΔt = nΔt,
     collision_settings = collisions_off_settings,

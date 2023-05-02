@@ -248,6 +248,7 @@ struct Ocean{FT<:AbstractFloat}
     τx::Matrix{FT}
     τy::Matrix{FT}
     si_frac::Matrix{FT}
+    dissolved::Matrix{FT}
 
     function Ocean{FT}(
         u::Matrix{FT},
@@ -258,12 +259,13 @@ struct Ocean{FT<:AbstractFloat}
         τx::Matrix{FT},
         τy::Matrix{FT},
         si_frac::Matrix{FT},
+        dissolved::Matrix{FT},
     ) where {FT <: AbstractFloat}
         if !all(-3 .<= temp .<= 0)
             @warn "Ocean temperatures are above the range for freezing. The \
                 thermodynamics aren't currently setup for these conditions."
         end
-        new{FT}(u, v, temp, hflx, scells, τx, τy, si_frac)
+        new{FT}(u, v, temp, hflx, scells, τx, τy, si_frac, dissolved)
     end
 
     Ocean(
@@ -275,8 +277,19 @@ struct Ocean{FT<:AbstractFloat}
         τx::Matrix{FT},
         τy::Matrix{FT},
         si_frac::Matrix{FT},
+        dissolved::Matrix{FT},
     ) where {FT<:AbstractFloat} =
-        Ocean{FT}(u, v, temp, hflx, scells, τx, τy, si_frac)
+        Ocean{FT}(
+            u,
+            v,
+            temp,
+            hflx,
+            scells,
+            τx,
+            τy,
+            si_frac,
+            dissolved,
+        )
 end
 
 """
@@ -290,7 +303,7 @@ Inputs:
     v       <Matrix> ocean y-velocity matrix with u for each grid line
     temp    <Matrix> temperature matrix with ocean/ice interface temperature for each grid line
 Output: 
-        Ocean with given velocity and temperature fields on each grid line.
+    Ocean with given velocity and temperature fields on each grid line.
 """
 function Ocean(
     ::Type{FT},
@@ -305,6 +318,7 @@ function Ocean(
         convert(Matrix{FT}, temp),
         zeros(FT, nvals),
         [IceStressCell{FT}() for i in 1:nvals[1], j in 1:nvals[2]],
+        zeros(FT, nvals),
         zeros(FT, nvals),
         zeros(FT, nvals),
         zeros(FT, nvals),
@@ -337,9 +351,11 @@ function Ocean(
 end
 
 """
-Atmos velocities in the x-direction (u) and y-direction (v). u and v should match the size of the corresponding
-model grid so that there is one x and y velocity value for each grid cell. Atmos also needs temperature at the
-atmosphere/ice interface in each grid cell. Model cannot be constructed if size of atmos fields and grid do not match.
+Atmos velocities in the x-direction (u) and y-direction (v). u and v should
+match the size of the corresponding model grid so that there is one x and y
+velocity value for each grid cell. Atmos also needs temperature at the
+atmosphere/ice interface in each grid cell. Model cannot be constructed if size
+of atmos fields and grid do not match.
 """
 struct Atmos{FT<:AbstractFloat}
     u::Matrix{FT}

@@ -57,6 +57,18 @@ find_poly_coords(poly::LG.Polygon) =
 # [LG.GeoInterface.coordinates(LG.exteriorRing(poly))]::PolyVec{Float64}
 
 
+get_polygons(poly::LG.Polygon) = [poly]
+
+function get_polygons(multipoly::LG.MultiPolygon)
+    sub_geoms = LG.getGeometries(multipoly)
+    for i in reverse(eachindex(sub_geoms))
+        if LG.area(sub_geoms[i]) == 0
+            deleteat!(sub_geoms, i)
+        end
+    end
+    return sub_geoms::Vector{LG.Polygon}
+end
+
 """
     find_multipoly_coords(poly)
 
@@ -190,7 +202,7 @@ Outputs:
     <Bool> true if there is a hole in the polygons, else false
 """
 function hashole(poly::LG.Polygon)
-    return LG.numInteriorRings(poly.ptr) > 0
+    return LG.numInteriorRings(poly) > 0
 end 
 
 """
@@ -515,7 +527,7 @@ Note - Translated into Julia from the following program (including helper
     Digital Image Processing Using MATLAB, Prentice-Hall, 2004
     Revision: 1.6 Date: 2003/11/21 14:44:06
 """
-function calc_poly_angles(coords::PolyVec{T}) where {T<:AbstractFloat}
+function calc_poly_angles(coords::PolyVec{FT}) where {FT<:AbstractFloat}
     ext = orient_coords(coords[1]) # ignore any holes in the polygon
     # Calculate needed vectors
     pdiff = diff(ext)
@@ -526,9 +538,13 @@ function calc_poly_angles(coords::PolyVec{T}) where {T<:AbstractFloat}
     mag_v1 = sqrt.([sum(v1[i].^2) for i in collect(1:npoints)])
     mag_v2 = sqrt.([sum(v2[i].^2) for i in collect(1:npoints)])
     # Protect against division by 0 caused by very close points
-    replace!(mag_v1, 0=>eps(T))
-    replace!(mag_v2, 0=>eps(T))
-    angles = real.(acos.(v1_dot_v2 ./ mag_v1 ./ mag_v2) * 180 / pi)
+    replace!(mag_v1, 0=>eps(FT))
+    replace!(mag_v2, 0=>eps(FT))
+    angles = real.(
+        acos.(
+            clamp!(v1_dot_v2 ./ mag_v1 ./ mag_v2, FT(-1), FT(1))
+        ) * 180 / pi
+    )
 
     #= The first angle computed was for the second vertex, and the last was for
     the first vertex. Scroll one position down to make the last vertex be the

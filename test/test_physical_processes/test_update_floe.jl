@@ -1,0 +1,330 @@
+@testset "Update floe" begin
+    @testset "Stress/Strain" begin
+        # Test Stress History buffer
+        scb = Subzero.StressCircularBuffer{Float64}(10)
+        @test scb.cb.capacity == 10
+        @test scb.cb.length == 0
+        @test eltype(scb.cb) <: Matrix{Float64}
+        @test scb.total isa Matrix{Float64}
+        @test all(scb.total .== 0)
+        fill!(scb, ones(Float64, 2, 2))
+        @test scb.cb.length == 10
+        @test all(scb.total .== 10)
+        @test scb.cb[1] == scb.cb[end] == ones(Float64, 2, 2)
+        @test mean(scb) == ones(Float64, 2, 2)
+        push!(scb, zeros(Float64, 2, 2))
+        @test scb.cb.length == 10
+        @test all(scb.total .== 9)
+        @test scb.cb[end] == zeros(Float64, 2, 2)
+        @test scb.cb[1] == ones(Float64, 2, 2)
+        @test all(mean(scb) .== 0.9)
+
+        # Test Stress and Strain Calculations
+        floe_dict = load(
+            "inputs/test_values.jld2"  # uses the first 2 element
+        )
+        stresses = [[-10.065, 36.171, 36.171, -117.458],
+            [7.905, 21.913, 21.913, -422.242]]
+        stress_histories = [[-4971.252, 17483.052, 17483.052, -57097.458],
+            [4028.520, 9502.886, 9502.886, -205199.791]]
+        strains = [[-3.724, 0, 0, 0], [7.419, 0, 0,	-6.987]]
+        strain_multiplier = [1e28, 1e6]
+
+        for i in 1:2
+            f = Floe(
+                floe_dict["coords"][i],
+                floe_dict["height"][i],
+                0.0,
+                u = floe_dict["u"][i],
+                v = floe_dict["v"][i],
+                ξ = floe_dict["ξ"][i],
+            )
+            f.interactions = floe_dict["interactions"][i]
+            f.stress_history = floe_dict["stress_history"][i]
+            stress = Subzero.calc_stress!(f)
+            @test all(isapprox.(vec(f.stress), stresses[i], atol = 1e-3))
+            @test all(isapprox.(
+                vec(f.stress_history.cb[end]),
+                stress_histories[i],
+                atol = 1e-3
+            ))
+            Subzero.calc_strain!(f)
+            @test all(isapprox.(
+                vec(f.strain) .* strain_multiplier[i],
+                strains[i],
+                atol = 1e-3
+            ))
+        end
+    end
+    @testset "Replace floe" begin
+        # Test replace floe
+        coords1 = [[
+            [0.0, 0.0],
+            [0.0, 10.0],
+            [10.0, 10.0],
+            [10.0, 0.0],
+            [0.0, 0.0],
+        ]]
+        f1 = Floe(coords1, 0.5, 0.0)  # this is a square
+        mass1 = f1.mass
+        triangle_coords = [[
+            [0.0, 0.0],
+            [0.0, 10.0],
+            [10.0, 10.0],
+            [0.0, 0.0],
+        ]]
+        tri_poly = LG.Polygon(triangle_coords)  # this is a triangle
+        Subzero.replace_floe!(
+            f1,
+            tri_poly,
+            f1.mass,
+            Constants(),
+            100,
+            Xoshiro(1)
+        )
+        @test f1.centroid == Subzero.find_poly_centroid(tri_poly)
+        @test f1.coords == Subzero.find_poly_coords(tri_poly)
+        @test f1.area == LG.area(tri_poly)
+        @test f1.mass == mass1
+        @test f1.height * f1.area * 920.0 == f1.mass
+        @test f1.α == 0
+        @test f1.status.tag == Subzero.active
+        @test f1.rmax == 10*√5 / 3
+    end
+    @testset "Conserve momentum" begin
+        square_coords = [[
+            [0.0, 0.0],
+            [0.0, 20.0],
+            [20.0, 20.0],
+            [20.0, 0.0],
+            [0.0, 0.0],
+        ]]
+        triangle_coords = [[
+            [0.0, 0.0],
+            [10.0, 20.0],
+            [20.0, 0.0],
+            [0.0, 0.0],
+        ]]
+        sqr_floe = Floe(
+            square_coords,
+            0.5,
+            0.0,
+            u = 0.1,
+            v = 0.25,
+            ξ = -0.5,
+        )
+        sqr_floe.p_dxdt = 0.11
+        sqr_floe.p_dydt = 0.22
+        sqr_floe.p_dαdt = -0.45
+
+        tri_floe = Floe(
+            triangle_coords,
+            0.5,
+            0.0,
+            u = 0.1,
+            v = 0.25,
+            ξ = -0.5,
+        )
+        tri_floe.p_dxdt = 0.11
+        tri_floe.p_dydt = 0.22
+        tri_floe.p_dαdt = -0.45
+        # Test one floe changing shape
+        x_momentum_init, y_momentum_init = Subzero.calc_linear_momentum(
+            [sqr_floe.u],
+            [sqr_floe.v],
+            [sqr_floe.mass],
+        )
+        spin_momentum_init, angular_momentum_init = Subzero.calc_angular_momentum(
+            [sqr_floe.u],
+            [sqr_floe.v],
+            [sqr_floe.mass],
+            [sqr_floe.ξ],
+            [sqr_floe.moment],
+            [sqr_floe.centroid[1]],
+            [sqr_floe.centroid[2]],
+        )
+        p_x_momentum_init, p_y_momentum_init = Subzero.calc_linear_momentum(
+            [sqr_floe.p_dxdt],
+            [sqr_floe.p_dydt],
+            [sqr_floe.mass],
+        )
+        p_spin_momentum_init, p_angular_momentum_init = Subzero.calc_angular_momentum(
+            [sqr_floe.p_dxdt],
+            [sqr_floe.p_dydt],
+            [sqr_floe.mass],
+            [sqr_floe.p_dαdt],
+            [sqr_floe.moment],
+            [sqr_floe.centroid[1]],
+            [sqr_floe.centroid[2]],
+        )
+        Subzero.conserve_momentum_combination!(
+            sqr_floe.mass,
+            sqr_floe.moment,
+            sqr_floe.centroid[1],
+            sqr_floe.centroid[2],
+            10,
+            tri_floe,
+        )
+        x_momentum_after, y_momentum_after = Subzero.calc_linear_momentum(
+            [tri_floe.u],
+            [tri_floe.v],
+            [tri_floe.mass],
+        )
+        spin_momentum_after, angular_momentum_after = Subzero.calc_angular_momentum(
+            [tri_floe.u],
+            [tri_floe.v],
+            [tri_floe.mass],
+            [tri_floe.ξ],
+            [tri_floe.moment],
+            [tri_floe.centroid[1]],
+            [tri_floe.centroid[2]],
+        )
+        p_x_momentum_after, p_y_momentum_after = Subzero.calc_linear_momentum(
+            [tri_floe.p_dxdt],
+            [tri_floe.p_dydt],
+            [tri_floe.mass],
+        )
+        p_spin_momentum_after, p_angular_momentum_after = Subzero.calc_angular_momentum(
+            [tri_floe.p_dxdt],
+            [tri_floe.p_dydt],
+            [tri_floe.mass],
+            [tri_floe.p_dαdt],
+            [tri_floe.moment],
+            [tri_floe.centroid[1]],
+            [tri_floe.centroid[2]],
+        )
+        @test isapprox(x_momentum_init, x_momentum_after, atol = 1e-8)
+        @test isapprox(y_momentum_init, y_momentum_after, atol = 1e-8)
+        @test isapprox(p_x_momentum_init, p_x_momentum_after, atol = 1e-8)
+        @test isapprox(p_y_momentum_init, p_y_momentum_after, atol = 1e-8)
+        @test isapprox(
+            spin_momentum_init + angular_momentum_init,
+            spin_momentum_after + angular_momentum_after,
+            atol = 1e-8,
+        )
+        @test isapprox(
+            p_spin_momentum_init + p_angular_momentum_init,
+            p_spin_momentum_after + p_angular_momentum_after,
+            atol = 1e-8,
+        )
+        # Test two floes combining
+        Subzero.translate!(triangle_coords, 10.0, 0.0)
+        sqr_floe = Floe(
+            square_coords,
+            0.5,
+            0.0,
+            u = 0.1,
+            v = 0.25,
+            ξ = -0.5,
+        )
+        sqr_floe.p_dxdt = 0.11
+        sqr_floe.p_dydt = 0.22
+        sqr_floe.p_dαdt = -0.45
+
+        tri_floe = Floe(
+            triangle_coords,
+            0.5,
+            0.0,
+            u = 0.3,
+            v = 0.05,
+            ξ = 0.2,
+        )
+        tri_floe.p_dxdt = 0.2
+        tri_floe.p_dydt = 0.04
+        tri_floe.p_dαdt = 0.19
+
+        x_momentum_init, y_momentum_init = Subzero.calc_linear_momentum(
+            [sqr_floe.u, tri_floe.u],
+            [sqr_floe.v, tri_floe.v],
+            [sqr_floe.mass, tri_floe.mass],
+        )
+        spin_momentum_init, angular_momentum_init = Subzero.calc_angular_momentum(
+            [sqr_floe.u, tri_floe.u],
+            [sqr_floe.v, tri_floe.v],
+            [sqr_floe.mass, tri_floe.mass],
+            [sqr_floe.ξ, tri_floe.ξ],
+            [sqr_floe.moment, tri_floe.moment],
+            [sqr_floe.centroid[1], tri_floe.centroid[1]],
+            [sqr_floe.centroid[2], tri_floe.centroid[2]],
+        )
+        p_x_momentum_init, p_y_momentum_init = Subzero.calc_linear_momentum(
+            [sqr_floe.p_dxdt, tri_floe.p_dxdt],
+            [sqr_floe.p_dydt, tri_floe.p_dydt],
+            [sqr_floe.mass, tri_floe.mass],
+        )
+        p_spin_momentum_init, p_angular_momentum_init = Subzero.calc_angular_momentum(
+            [sqr_floe.p_dxdt, tri_floe.p_dxdt],
+            [sqr_floe.p_dydt, tri_floe.p_dydt],
+            [sqr_floe.mass, tri_floe.mass],
+            [sqr_floe.p_dαdt, tri_floe.p_dαdt],
+            [sqr_floe.moment, tri_floe.moment],
+            [sqr_floe.centroid[1], tri_floe.centroid[1]],
+            [sqr_floe.centroid[2], tri_floe.centroid[2]],
+        )
+        mass1 = sqr_floe.mass
+        moment1 = sqr_floe.moment
+        x1, y1 = sqr_floe.centroid
+        Subzero.replace_floe!(
+            sqr_floe,
+            LG.union(
+                LG.Polygon(square_coords),
+                LG.Polygon(triangle_coords)
+            ),
+            sqr_floe.mass + tri_floe.mass,
+            Constants(),
+            1000,
+            Xoshiro(1)
+        )
+        Subzero.conserve_momentum_combination!(
+            mass1,
+            moment1,
+            x1,
+            y1,
+            10,
+            sqr_floe,
+            tri_floe,
+        )
+        x_momentum_after, y_momentum_after = Subzero.calc_linear_momentum(
+            [sqr_floe.u],
+            [sqr_floe.v],
+            [sqr_floe.mass],
+        )
+        spin_momentum_after, angular_momentum_after = Subzero.calc_angular_momentum(
+            [sqr_floe.u],
+            [sqr_floe.v],
+            [sqr_floe.mass],
+            [sqr_floe.ξ],
+            [sqr_floe.moment],
+            [sqr_floe.centroid[1]],
+            [sqr_floe.centroid[2]],
+        )
+        p_x_momentum_after, p_y_momentum_after = Subzero.calc_linear_momentum(
+            [sqr_floe.p_dxdt],
+            [sqr_floe.p_dydt],
+            [sqr_floe.mass],
+        )
+        p_spin_momentum_after, p_angular_momentum_after = Subzero.calc_angular_momentum(
+            [sqr_floe.p_dxdt],
+            [sqr_floe.p_dydt],
+            [sqr_floe.mass],
+            [sqr_floe.p_dαdt],
+            [sqr_floe.moment],
+            [sqr_floe.centroid[1]],
+            [sqr_floe.centroid[2]],
+        )
+        @test isapprox(x_momentum_init, x_momentum_after, atol = 1e-8)
+        @test isapprox(y_momentum_init, y_momentum_after, atol = 1e-8)
+        @test isapprox(p_x_momentum_init, p_x_momentum_after, atol = 1e-8)
+        @test isapprox(p_y_momentum_init, p_y_momentum_after, atol = 1e-8)
+        @test isapprox(
+            spin_momentum_init + angular_momentum_init,
+            spin_momentum_after + angular_momentum_after,
+            atol = 1e-8,
+        )
+        @test isapprox(
+            p_spin_momentum_init + p_angular_momentum_init,
+            p_spin_momentum_after + p_angular_momentum_after,
+            atol = 1e-8,
+        )
+    end
+end

@@ -248,9 +248,9 @@ function split_floe(
     fracture_settings,
     coupling_settings,
     consts,
-    ::Type{T} = Float64,
-) where T
-    new_floes = StructArray{Floe{T}}(undef, 0)
+    ::Type{FT} = Float64,
+) where {FT}
+    new_floes = StructArray{Floe{FT}}(undef, 0)
     # Generate voronoi tesselation in floe's bounding box
     scale_fac = fill(2floe.rmax, 2)
     trans_vec = [floe.centroid[1] - floe.rmax, floe.centroid[2] - floe.rmax]
@@ -261,7 +261,7 @@ function split_floe(
         [floe.coords],
         rng,
         1;  # Warn if only 1 point is identified as the floe won't be split
-        t = T
+        t = FT
     )
     if !isempty(pieces)
         # Intersect voronoi tesselation pieces with floe
@@ -270,26 +270,27 @@ function split_floe(
             LG.intersection(LG.Polygon(p), floe_poly)
         ) for p in pieces]
         # Conserve mass within pieces
-        piece_areas = [LG.area(p) for p in pieces_polys]
-        area_fracs = piece_areas/sum(piece_areas)
-        piece_masses = floe.mass * area_fracs
-        piece_heights = piece_masses ./ (consts.ρi * piece_areas)
+        pieces_areas = [LG.area(p) for p in pieces_polys]
+        total_area = sum(pieces_areas)
         # Create floes out of each piece
         for i in eachindex(pieces_polys)
-            pieces_floes = poly_to_floes(
-                pieces_polys[i],
-                piece_heights[i],
-                0;  # Δh - range of random height difference between floes
-                ρi = consts.ρi,
-                u = floe.u,
-                v = floe.v,
-                ξ = floe.ξ,
-                mc_n = coupling_settings.mc_n,
-                nhistory = fracture_settings.nhistory,
-                rng = rng,
-                t = T,
-            )
-            append!(new_floes, pieces_floes)
+            if pieces_areas[i] > 0
+                mass = floe.mass * (pieces_areas[i]/total_area)
+                height = mass / (consts.ρi * pieces_areas[i])
+                pieces_floes = poly_to_floes(
+                    pieces_polys[i]::LG.Polygon,
+                    FT(height),
+                    FT(0);  # Δh - range of random height difference between floes
+                    ρi = consts.ρi,
+                    u = floe.u,
+                    v = floe.v,
+                    ξ = floe.ξ,
+                    mc_n = coupling_settings.mc_n,
+                    nhistory = fracture_settings.nhistory,
+                    rng = rng,
+                )
+                append!(new_floes, pieces_floes)
+            end
         end
     end
 
@@ -382,7 +383,7 @@ function fracture_floes!(
         if !isempty(new_floes)
             n_new_floes = length(new_floes)
             new_floes.id .= range(max_floe_id + 1, max_floe_id + n_new_floes)
-            new_floes.fracture_id .= floes.id[frac_idx[i]]
+            push!.(new_floes.parent_ids, floes.id[frac_idx[i]])
             append!(floes, new_floes)
             max_floe_id += n_new_floes
             StructArrays.foreachfield(f -> deleteat!(f, frac_idx[i]), floes)

@@ -10,6 +10,78 @@ const hmean = 0.25
 const Δh = 0.0
 const Δt = 10
 
+grid = RegRectilinearGrid(
+    Float64,
+    (-2.5e4, 1e5),
+    (-2.5e4, 1e5),
+    1e4,
+    1e4,
+)
+open_domain_no_topo = Subzero.Domain(
+    OpenBoundary(grid, North()),
+    OpenBoundary(grid, South()),
+    OpenBoundary(grid, East()),
+    OpenBoundary(grid, West()),
+)
+coords1 = [[  # large floe
+    [0.0, 0.0],
+    [0.0, 1e4],
+    [1e4, 1e4],
+    [1e4, 0.0],
+    [0.0, 0.0],
+]]
+coords2 = [[  # small floe
+    [8e3, 5e3],
+    [8e3, 8e3],
+    [1.2e4, 8e3],
+    [1.2e4, 5e3],
+    [8e3, 5e3],
+]]
+coords3 = [[  # large floe
+    [1.1e4, 0.0],
+    [1.1e4, 1e4],
+    [2.1e4, 1e4],
+    [2.1e4, 0.0],
+    [1.1e4, 0.0]
+]]
+coords4 = [[  # small floe
+    [5e3, -2e3],
+    [5e3, 3e3],
+    [8e3, 3e3],
+    [8e3, -2e3],
+    [5e3, -2e3],
+]]
+
+floe_arr = initialize_floe_field(
+    [coords1, coords2, coords3, coords4],
+    open_domain_no_topo,
+    0.5,
+    0.0,
+    min_floe_area = 1e6,
+    rng = Xoshiro(1),
+)
+floe_arr.status[1].tag = Subzero.fuse
+floe_arr.status[1].fuse_idx = [2, 4]
+floe_arr.status[2].tag = Subzero.fuse
+floe_arr.status[2].fuse_idx = [1, 3]
+floe_arr.status[3].tag = Subzero.fuse
+floe_arr.status[3].fuse_idx = [2]
+floe_arr.status[4].tag = Subzero.fuse
+floe_arr.status[4].fuse_idx = [4]
+
+max_floe_id = Subzero.fuse_floes!(
+    floe_arr,
+    4,
+    CouplingSettings(),
+    10,
+    Constants(),
+    Xoshiro(1),
+)
+
+
+
+
+
 # Model instantiation
 grid = RegRectilinearGrid(
     FT,
@@ -31,14 +103,32 @@ domain = Subzero.Domain(
 )
 
 # Floe instantiation
+f = jldopen("examples/floe_shapes.jld2", "r") 
 funky_floe_arr = initialize_floe_field(
-    100,
-    [0.5],
+    vec(f["floe_vertices"]),
     domain,
-    hmean,
-    Δh,
-    rng = Xoshiro(5),
+    0.25,
+    0.0
 )
+close(f)
+
+Subzero.simplify_floes!(
+    funky_floe_arr,
+    domain.topography,
+    SimplificationSettings(tol = 100.0),
+    CollisionSettings(),
+    CouplingSettings(),
+    Constants(),
+    Xoshiro(5),
+)
+# funky_floe_arr = initialize_floe_field(
+#     100,
+#     [0.5],
+#     domain,
+#     hmean,
+#     Δh,
+#     rng = Xoshiro(5),
+# )
 #funky_floe_arr.u .= (-1)^rand(0:1) * (0.1 * rand(length(funky_floe_arr)))
 #funky_floe_arr.v .= (-1)^rand(0:1) * (0.1 * rand(length(funky_floe_arr)))
 
@@ -81,8 +171,6 @@ simulation = Simulation(
 #     sim.model.floes,
 #     sim.model.max_floe_id,
 #     sim.model.domain,
-#     zeros(Int, sim.model.max_floe_id),
-#     zeros(Int, sim.model.max_floe_id),
 #     sim.consts,
 #     sim.Δt,
 #     sim.collision_settings,

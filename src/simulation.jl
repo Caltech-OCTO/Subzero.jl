@@ -75,15 +75,11 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
         write_data!(sim, tstep)  # Horribly type unstable
         
         # Collisions
-        remove = zeros(Int, n_init_floes)
-        transfer = zeros(Int, n_init_floes)
         if sim.collision_settings.collisions_on
-            remove, transfer = timestep_collisions!(
+            timestep_collisions!(
                 sim.model.floes,
                 n_init_floes,
                 sim.model.domain,
-                remove,
-                transfer,
                 sim.consts,
                 sim.Δt,
                 sim.collision_settings,
@@ -107,8 +103,13 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
         end
         
         # Move and update floes based on collisions and ocean/atmosphere forcing
-        timestep_floe_properties!(sim.model.floes, sim.Δt)
+        timestep_floe_properties!(
+            sim.model.floes,
+            sim.Δt,
+            sim.simp_settings.max_floe_height,
+        )
 
+        # TODO: Remove parent ids ?
         # Fracture floes
         if sim.fracture_settings.fractures_on && mod(tstep, sim.fracture_settings.Δt) == 0
             sim.model.max_floe_id =
@@ -123,23 +124,20 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
                     T
                 )
         end
-        
-        # Remove floes that were killed or are too small in this timestep
-        for i in reverse(eachindex(sim.model.floes))
-            if (!sim.model.floes.alive[i] ||
-                sim.model.floes.area[i] < sim.simp_settings.min_floe_area)
-                StructArrays.foreachfield(
-                    field -> deleteat!(field, i),
-                    sim.model.floes,
-                )
-            end
-        end
+        simplify_floes!(
+            sim.model,
+            sim.simp_settings,
+            sim.collision_settings,
+            sim.coupling_settings,
+            sim.Δt,
+            sim.consts,
+            sim.rng,
+        )
     end
 
     # h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx)))
     # mean(h0)
 
-    #TODO: Add dissolved mass
     return 
 end
 

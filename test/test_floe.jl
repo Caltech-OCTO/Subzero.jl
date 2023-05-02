@@ -13,12 +13,12 @@
     xo, yo = Subzero.separate_xy(origin_coords)
     rmax = sqrt(maximum([sum(xo[i]^2 + yo[i]^2) for i in eachindex(xo)]))
     area = LG.area(poly1)
-    mc_x, mc_y, alive = Subzero.generate_mc_points(
+    mc_x, mc_y, status = Subzero.generate_mc_points(
         1000,
         origin_coords,
         rmax,
         area,
-        true,
+        Subzero.Status(),
         Xoshiro(1)
     )
     @test length(mc_x) == length(mc_y) && length(mc_x) > 0
@@ -26,19 +26,19 @@
     mc_in = in_on[:, 1] .|  in_on[:, 2]
     @test all(mc_in)
     @test abs(sum(mc_in)/1000 * 4 * rmax^2 - area)/area < 0.1
-    @test alive
+    @test status.tag == Subzero.active
     # Test that random number generator is working
-    mc_x2, mc_y2, alive2 = Subzero.generate_mc_points(
+    mc_x2, mc_y2, status2 = Subzero.generate_mc_points(
         1000,
         origin_coords,
         rmax,
         area,
-        true,
+        Subzero.Status(),
         Xoshiro(1)
     )
     @test all(mc_x .== mc_x2)
     @test all(mc_y .== mc_y2)
-    @test alive == alive2
+    @test status2.tag == Subzero.active
 
     # Test InteractionFields enum
     interactions = range(1, 7)'
@@ -53,7 +53,7 @@
     @test 0.49 <= floe_from_coords.height <= 0.51
     @test floe_from_coords.centroid == centroid1
     @test floe_from_coords.area == area
-    @test floe_from_coords.alive
+    @test floe_from_coords.status.tag == Subzero.active
     
     # Test with polygon input
     floe_from_poly = Floe(poly1, 0.5, 0.01, v = -0.2, rng = Xoshiro(1))
@@ -63,7 +63,7 @@
     @test 0.49 <= floe_from_poly.height <= 0.51
     @test floe_from_poly.centroid == centroid1
     @test floe_from_poly.area == area
-    @test floe_from_poly.alive
+    @test floe_from_poly.status.tag == Subzero.active
 
     # Test poly_to_floes
     rect_poly = [[[0.0, 0.0], [0.0, 5.0], [10.0, 5.0], [10.0, 0.0], [0.0, 0.0]]]
@@ -263,55 +263,4 @@
     ) for p in floe_polys] .< 1e-3)
     @test all([LG.isValid(p) for p in floe_polys])
     @test all(floe_arr.id .== range(1, nfloes))
-
-    @testset "Stress/Strain" begin
-        # Test Stress History buffer
-        scb = Subzero.StressCircularBuffer{Float64}(10)
-        @test scb.cb.capacity == 10
-        @test scb.cb.length == 0
-        @test eltype(scb.cb) <: Matrix{Float64}
-        @test scb.total isa Matrix{Float64}
-        @test all(scb.total .== 0)
-        fill!(scb, ones(Float64, 2, 2))
-        @test scb.cb.length == 10
-        @test all(scb.total .== 10)
-        @test scb.cb[1] == scb.cb[end] == ones(Float64, 2, 2)
-        @test mean(scb) == ones(Float64, 2, 2)
-        push!(scb, zeros(Float64, 2, 2))
-        @test scb.cb.length == 10
-        @test all(scb.total .== 9)
-        @test scb.cb[end] == zeros(Float64, 2, 2)
-        @test scb.cb[1] == ones(Float64, 2, 2)
-        @test all(mean(scb) .== 0.9)
-
-        # Test Stress and Strain Calculations
-        floes = load(
-            "inputs/test_floes.jld2",
-            "stress_strain_floe1",
-            "stress_strain_floe2",
-        )
-        stresses = [[-10.065, 36.171, 36.171, -117.458],
-            [7.905, 21.913, 21.913, -422.242]]
-        stress_histories = [[-4971.252, 17483.052, 17483.052, -57097.458],
-            [4028.520, 9502.886, 9502.886, -205199.791]]
-        strains = [[-3.724, 0, 0, 0], [7.419, 0, 0,	-6.987]]
-        strain_multiplier = [1e28, 1e6]
-
-        for i in eachindex(floes)
-            f = floes[i]
-            stress = Subzero.calc_stress!(f)
-            @test all(isapprox.(vec(f.stress), stresses[i], atol = 1e-3))
-            @test all(isapprox.(
-                vec(f.stress_history.cb[end]),
-                stress_histories[i],
-                atol = 1e-3
-            ))
-            Subzero.calc_strain!(f)
-            @test all(isapprox.(
-                vec(f.strain) .* strain_multiplier[i],
-                strains[i],
-                atol = 1e-3
-            ))
-        end
-    end
 end

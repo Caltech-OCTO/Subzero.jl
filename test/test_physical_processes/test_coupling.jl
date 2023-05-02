@@ -13,7 +13,7 @@
         xidx = [1, 1, 1, 3, 3, 4, 11, 11, 12]
         yidx = [3, 5, 1, 4, 3, 4, 1, 3, 3]
         for i in eachindex(xpoints)
-            @test  Subzero.find_cell_index(
+            @test  Subzero.find_center_cell_index(
                 xpoints[i],
                 ypoints[i],
                 grid,

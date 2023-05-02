@@ -13,18 +13,19 @@
         cfloe.u = 0.3
         consts = Constants()
         # Triange tip intersected with a rectangle
-        r, t = Subzero.floe_floe_interaction!(tri, 1, rect, 2, 2, consts, Δt, max_overlap)
+        Subzero.floe_floe_interaction!(tri, 1, rect, 2, 2, consts, Δt, max_overlap)
         @test isapprox(tri.interactions[1, xforce], -64613382.47, atol = 1e-2)
         @test isapprox(tri.interactions[1, yforce], -521498991.51, atol = 1e-2)
         @test isapprox(tri.interactions[1, xpoint], 10000.00, atol = 1e-2)
         @test isapprox(tri.interactions[1, ypoint], 26555.55, atol = 1e-2)
         @test isapprox(tri.interactions[1, overlap], 8000000, atol = 1e-2)
-        @test r == t == 0
+        @test tri.status.tag != Subzero.fuse && rect.status.tag != Subzero.fuse
+        @test isempty(tri.status.fuse_idx)
         Subzero.calc_torque!(tri)
         @test isapprox(tri.interactions[1, torque], 1069710443203.99, atol = 1e-2)
         tri.interactions = zeros(0, 7)
         # Sideways C intersected with rectangle so there are two areas of overlap
-        r, t = Subzero.floe_floe_interaction!(cfloe, 1, rect, 2, 2, consts, Δt, max_overlap)
+        Subzero.floe_floe_interaction!(cfloe, 1, rect, 2, 2, consts, Δt, max_overlap)
         @test isapprox(cfloe.interactions[1, xforce], -163013665.41, atol = 1e-2)
         @test isapprox(cfloe.interactions[2, xforce], -81506832.70, atol = 1e-2)
         @test isapprox(cfloe.interactions[1, yforce], 804819565.60, atol = 1e-2)
@@ -35,7 +36,7 @@
         @test isapprox(cfloe.interactions[2, ypoint], 28000.00, atol = 1e-2)
         @test isapprox(cfloe.interactions[1, overlap], 10000000, atol = 1e-2)
         @test isapprox(cfloe.interactions[2, overlap], 5000000, atol = 1e-2)
-        @test r == t == 0
+        @test tri.status.tag != Subzero.fuse && rect.status.tag != Subzero.fuse
         Subzero.calc_torque!(cfloe)
         @test isapprox(cfloe.interactions[1, torque], -2439177121266.03, atol = 1e-2)
         @test isapprox(cfloe.interactions[2, torque], 1295472581868.05, atol = 1e-2)
@@ -43,15 +44,17 @@
         # Floes overlapping more than 55%  - rectangle and shifted rectangle
         shift_rect = deepcopy(rect)
         shift_rect.coords = Subzero.translate(shift_rect.coords, 0.5e4, 0.0)
-        r, t = Subzero.floe_floe_interaction!(rect, 1, shift_rect, 2, 2, consts, Δt, max_overlap)
-        @test r == 1
-        @test t == 2
+        Subzero.floe_floe_interaction!(rect, 1, shift_rect, 2, 2, consts, Δt, max_overlap)
+        @test rect.status.tag == Subzero.fuse 
+        @test rect.status.fuse_idx == [2]
         @test isempty(rect.interactions)
+        empty!(rect.status.fuse_idx)
+        rect.status.tag == Subzero.active
         # Floe 2 (small rectangle) is overlapping with rectangle by more than 55%
         small_rect = Floe([[[1.8e4, 2.7e4], [1.8e4, 2.8e4], [2.1e4, 2.8e4], [2.1e4, 2.7e4], [1.8e4, 2.7e4]]], hmean, Δh)
-        r, t = Subzero.floe_floe_interaction!(rect, 1, small_rect, 2, 2, consts, Δt, max_overlap)
-        @test r == 2
-        @test t == 0
+        Subzero.floe_floe_interaction!(rect, 1, small_rect, 2, 2, consts, Δt, max_overlap)
+        @test rect.status.tag == Subzero.fuse 
+        @test rect.status.fuse_idx == [2]
         
         # Overlapping barely floes - such a small overlap that forces are not calculated
         shift_rect = deepcopy(rect)
@@ -128,17 +131,17 @@
         # Test floe overlapping >75% with collision boundary
         Subzero.floe_domain_interaction!(efloe_large, domain, consts, Δt, max_overlap)
         @test isempty(efloe_large.interactions)
-        @test !efloe_large.alive
+        @test efloe_large.status.tag == Subzero.remove
         # Test floe overlapping >75% with collision boundary -> but max overlap is now 1
         Subzero.floe_domain_interaction!(efloe_large, domain, consts, Δt, 1.0)
         @test !isempty(efloe_large.interactions)
         # Test floe passing through open boundary is killed
         Subzero.floe_domain_interaction!(wfloe, domain, consts, Δt, max_overlap)
-        @test !wfloe.alive
+        @test wfloe.status.tag == Subzero.remove
         # Test floes not not interact with periodic boundary
         nfloe_copy = deepcopy(nfloe)
         Subzero.floe_domain_interaction!(nfloe, domain, consts, Δt, max_overlap)
-        @test nfloe_copy.alive == nfloe.alive && nfloe_copy.interactions == nfloe.interactions
+        @test nfloe_copy.status.tag == nfloe.status.tag && nfloe_copy.interactions == nfloe.interactions
         # Test floe overlapping with topography -> different from Subzero since topography are now boundaries
         Subzero.floe_domain_interaction!(tfloe, domain, consts, Δt, max_overlap)
         @test tfloe.interactions[1, xforce] < 0
@@ -280,8 +283,6 @@
             floe_arr,
             2,
             double_periodic_domain,
-            zeros(Int, 2),
-            zeros(Int, 2),
             Subzero.Constants(),
             Δt,
             collision_settings,
@@ -296,8 +297,6 @@
             floe_arr,
             2,
             double_periodic_domain,
-            zeros(Int, 2),
-            zeros(Int, 2),
             Subzero.Constants(),
             Δt,
             collision_settings,
@@ -329,8 +328,6 @@
             trans_arr,
             2,
             double_periodic_domain,
-            zeros(Int, 2),
-            zeros(Int, 2),
             Subzero.Constants(),
             Δt,
             collision_settings,
@@ -345,8 +342,6 @@
             floe_arr,
             2,
             double_periodic_domain,
-            zeros(Int, 2),
-            zeros(Int, 2),
             Subzero.Constants(),
             Δt,
             collision_settings,
@@ -378,8 +373,6 @@
             trans_arr,
             2,
             double_periodic_domain,
-            zeros(Int, 2),
-            zeros(Int, 2),
             Subzero.Constants(),
             Δt,
             collision_settings,
@@ -394,8 +387,6 @@
             floe_arr,
             2,
             double_periodic_domain,
-            zeros(Int, 2),
-            zeros(Int, 2),
             Subzero.Constants(),
             Δt,
             collision_settings,
@@ -426,8 +417,6 @@
             floe_arr,
             2,
             double_periodic_domain,
-            zeros(Int, 2),
-            zeros(Int, 2),
             Subzero.Constants(),
             Δt,
             collision_settings,
@@ -448,8 +437,6 @@
             floe_arr,
             2,
             double_periodic_domain,
-            zeros(Int, 2),
-            zeros(Int, 2),
             Subzero.Constants(),
             Δt,
             collision_settings,

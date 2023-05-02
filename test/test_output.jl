@@ -40,7 +40,7 @@ function test_basic_outputwriters()
         overwrite = true,
     )
     floewriter = FloeOutputWriter(
-        [:alive, :coords, :area, :mass, :u, :v],
+        [:status, :coords, :area, :mass, :u, :v],
         50,
         dir = dir,
         filename = "floe.jld2",
@@ -84,8 +84,8 @@ function test_basic_outputwriters()
     fn = joinpath(dir, "floe.jld2")
     file = jldopen(fn, "r")
     @test Set(keys(file)) ==
-        Set(["alive", "coords", "area", "mass", "u", "v", "metadata"])
-    @test length(keys(file["alive"])) == 11
+        Set(["status", "coords", "area", "mass", "u", "v", "metadata"])
+    @test length(keys(file["status"])) == 11
     close(file)
     rm(fn)
 

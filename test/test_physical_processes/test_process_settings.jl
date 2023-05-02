@@ -133,19 +133,14 @@
     @testset "SimplificationSettings" begin
         # Test defaults
         default_info = SimplificationSettings()
-        @test default_info.dissolve_on &&
-            default_info.min_floe_area == 1e6 &&
+        @test default_info.min_floe_area == 1e6 &&
+            default_info.max_floe_height == 10 &&
             default_info.smooth_vertices_on &&
             default_info.max_vertices == 30 &&
             default_info.Δt_smooth == 20
-
-        # Test warnings
-        neg_min_str = "If the minimum floe area is less than or equal to 0, no floes will be dissolved. Turning dissolve floes off."
-        neg_min_info =
-            @test_logs (:warn, neg_min_str) SimplificationSettings(min_floe_area = 0.0)
-        @test !neg_min_info.dissolve_on
         
-        neg_Δt_str = "Floe smoothing can't occur on a multiple of negative timesteps. Turning floe simplification off."
+        neg_Δt_str = "Floe smoothing can't occur on a multiple of negative \
+            timesteps. Turning floe simplification off."
         neg_Δt_info = @test_logs (:warn, neg_Δt_str) SimplificationSettings(Δt_smooth = -20)
         @test !neg_Δt_info.smooth_vertices_on
     end
