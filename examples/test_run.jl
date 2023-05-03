@@ -1,4 +1,4 @@
-using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero, BenchmarkTools, MAT, ProfileView, Profile, PProf
+using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero, BenchmarkTools, MAT
 import LibGEOS as LG
 
 # User Inputs
