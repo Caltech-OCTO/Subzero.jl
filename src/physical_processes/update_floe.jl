@@ -162,6 +162,67 @@ function conserve_momentum_combination!(
 end
 
 """
+    conserve_momentum_fracture!(
+        init_floe,
+        new_floes,
+        Δt,
+    )
+Update new_floes's current and previous velocity/acceleration fields to conserve
+momentum when a floe has been fractured into several new floes, given the
+previous mass, momentum, and centroid. The assumption is made that each new floe
+has the same velocities/accelerations
+Inputs:
+    init_floe   <Union{Floe, LazyRow{Floe}}> original floe
+    new_floes   <StructArray{Floe}> fractured pieces of original floe
+    Δt          <Int> simulation's timestep in seconds
+Output:
+    None. new_floes velocities and accelerations are updated for current and
+    previous timestep to conserve momentum.
+"""
+function conserve_momentum_fracture!(
+    init_floe,
+    new_floes,
+    Δt,
+)
+    if !isempty(new_floes)
+        x_init, y_init = init_floe.centroid
+        # conserve linear momentum by keeping linear velocity the same
+        new_floes.u .= init_floe.u 
+        new_floes.v .= init_floe.v
+        new_floes.p_dxdt .= init_floe.p_dxdt
+        new_floes.p_dydt .= init_floe.p_dydt
+        # conserve rotational moment by offsetting change in orbital momentum
+        sum_moments = sum(new_floes.moment)
+        new_floes.ξ .= init_floe.moment * init_floe.ξ + # initial spin velocity
+            init_floe.mass * ( # initial orbital velocity
+                x_init * init_floe.v -
+                y_init * init_floe.u
+            )
+        new_floes.p_dαdt .= init_floe.moment * init_floe.p_dαdt + 
+            init_floe.mass * (
+                x_init * init_floe.p_dydt -
+                y_init * init_floe.p_dxdt
+            )
+        for i in eachindex(new_floes)
+            new_floes.ξ .-= new_floes.mass[i] * (
+                new_floes.centroid[i][1] * new_floes.v[i] -
+                new_floes.centroid[i][2] * new_floes.u[i]
+            )
+            new_floes.p_dαdt .-= new_floes.mass[i] * (
+                new_floes.centroid[i][1] * new_floes.p_dydt[i] -
+                new_floes.centroid[i][2] * new_floes.p_dxdt[i]
+            )
+        end
+        new_floes.ξ /= sum_moments
+        new_floes.p_dαdt /= sum_moments
+        # Calculate previous accelerations
+        new_floes.p_dξdt .= (new_floes.ξ[1] - new_floes.p_dαdt[1]) / Δt
+        new_floes.p_dudt .= (new_floes.u[1] - new_floes.p_dxdt[1]) / Δt
+        new_floes.p_dvdt .= (new_floes.v[1] - new_floes.p_dydt[1]) / Δt
+    end
+end
+
+"""
     calc_stress!(floe)
 
 Calculates the stress on a floe for current collisions given interactions and

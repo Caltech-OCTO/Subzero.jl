@@ -149,7 +149,15 @@
             LG.Polygon(floe1_copy.coords),
             LG.Polygon(colliding_coords),
         ))
-        Subzero.deform_floe!(floe1_copy, colliding_coords, deforming_forces)
+        Subzero.deform_floe!(
+            floe1_copy,
+            colliding_coords,
+            deforming_forces,
+            Constants(),
+            10,
+            1000,
+            Xoshiro(1),
+        )
         @test init_overlap > LG.area(LG.intersection(
             LG.Polygon(floe1_copy.coords),  # These coords have changed
             LG.Polygon(colliding_coords),
@@ -193,6 +201,7 @@
             CouplingSettings(),
             SimplificationSettings(),
             Constants(),
+            10,
         )
         @test max_idx == 10
         @test length(floes) == 8

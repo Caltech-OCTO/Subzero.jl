@@ -326,5 +326,8 @@
             p_spin_momentum_after + p_angular_momentum_after,
             atol = 1e-8,
         )
+
+        # One floe splitting into three floes
+
     end
 end

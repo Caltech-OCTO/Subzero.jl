@@ -192,6 +192,10 @@ function deform_floe!(
     floe,
     deformer_coords,
     deforming_forces,
+    consts,
+    Δt,
+    mc_n,
+    rng,
 )
     poly = LG.Polygon(floe.coords)
     deformer_poly = LG.Polygon(deformer_coords)
@@ -209,14 +213,29 @@ function deform_floe!(
         Δx, Δy = abs.(dist)[1] .* force_fracs
         # Temporarily move deformer floe to find new shape of floe
         deformer_poly = LG.Polygon(translate(deformer_coords, Δx, Δy))
-        new_floe = sortregions(LG.difference(poly, deformer_poly))[1]
-        new_floe_area = LG.area(new_floe)
-        # If floes still overlap and didn't change floe area by more than 90%
+        new_floe_poly = sortregions(LG.difference(poly, deformer_poly))[1]
+        new_floe_area = LG.area(new_floe_poly)
+        # If didn't change floe area by more than 90%
         if new_floe_area > 0 && new_floe_area/floe.area > 0.9
-            # Update floe to new position
-            floe.centroid = find_poly_centroid(new_floe)
-            floe.coords = find_poly_coords(new_floe)
-            floe.area = new_floe_area
+            # Update floe shape and conserve mass
+            moment_tmp = floe.moment
+            x_tmp, y_tmp = floe.centroid
+            replace_floe!(
+                floe,
+                new_floe_poly,
+                floe.mass,
+                consts,
+                mc_n,
+                rng,
+            )
+            conserve_momentum_combination!(
+                floe.mass,
+                moment_tmp,
+                x_tmp,
+                y_tmp,
+                Δt,
+                floe,
+            )
         end
     end
     return
@@ -243,12 +262,11 @@ Outputs:
                     which is a new floe
 """
 function split_floe(
-    floe,
+    floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
     rng,
     fracture_settings,
     coupling_settings,
     consts,
-    ::Type{FT} = Float64,
 ) where {FT}
     new_floes = StructArray{Floe{FT}}(undef, 0)
     # Generate voronoi tesselation in floe's bounding box
@@ -260,8 +278,7 @@ function split_floe(
         trans_vec,
         [floe.coords],
         rng,
-        1;  # Warn if only 1 point is identified as the floe won't be split
-        t = FT
+        1,  # Warn if only 1 point is identified as the floe won't be split
     )
     if !isempty(pieces)
         # Intersect voronoi tesselation pieces with floe
@@ -310,19 +327,24 @@ end
 """
     fracture_floes!(
         floes,
+        max_floe_id,
         rng,
         fracture_settings,
+        coupling_settings,
         simp_settings,
-        max_floe_id,
-        ::Type{T} = Float64
-    ) where T
+        consts::Constants{FT},
+        Δt,
+    )
 Fractures floes that meet the criteria defined in the fracture settings.
 Inputs:
-    floes   <StructArray{Floe}> model's list of floes
-    rng     <RNG> random number generator
+    floes       <StructArray{Floe}> model's list of floes
+    max_floe_id <Int> maximum ID of any floe created so far in simulation
+    rng         <RNG> random number generator
     fracture_settings   <FractureSettings> sim's fracture settings
+    coupling_settings   <CouplingSettings> sim's coupling settings
     simp_settings       <SimplificationSettings> sim's simplification settings
-    max_floe_id         <Int> highest ID of any floe created in the simulation
+    consts              <Constants> sim's constants
+    Δtout               <Int> length of simulation timestep in seconds
 Outputs:
     max_floe_id <Int> new highest floe ID after adding new floes to floe array.
     Floe pieces added to floe array and original fractured floes removed.
@@ -334,9 +356,9 @@ function fracture_floes!(
     fracture_settings,
     coupling_settings,
     simp_settings,
-    consts,
-    ::Type{T} = Float64
-) where T
+    consts::Constants{FT},
+    Δt,
+) where FT
     # Determine which floes will fracture
     frac_idx = determine_fractures(
         floes,
@@ -345,13 +367,12 @@ function fracture_floes!(
     )
     # Initialize list for new floes created from fracturing existing floes
     nfloes2frac = length(frac_idx)
-    fracture_list = [StructArray{Floe{T}}(undef, 0) for _ in 1:nfloes2frac]
+    fracture_list = [StructArray{Floe{FT}}(undef, 0) for _ in 1:nfloes2frac]
     # Fracture floes that meet criteria 
     Threads.@threads for i in 1:nfloes2frac
-        ifloe = floes[frac_idx[i]]
         # Deform floe around largest impact site
         if fracture_settings.deform_on
-            inters = ifloe.interactions
+            inters = floes.interactions[frac_idx[i]]
             inters = inters[.!(isinf.(inters[:, floeidx])), :]
             if !isempty(inters)
                 _, max_inters_idx = findmax(inters[:, overlap])
@@ -359,21 +380,24 @@ function fracture_floes!(
                 deforming_floe_idx = Int(deforming_inter[floeidx])
                 if deforming_floe_idx <= length(floes)
                     deform_floe!(
-                        ifloe, 
+                        LazyRow(floes, frac_idx[i]), 
                         floes.coords[deforming_floe_idx],
                         deforming_inter[xforce:yforce],
+                        consts,
+                        Δt,
+                        coupling_settings.mc_n,
+                        rng,
                     )
                 end
             end
         end
         # Split flie into pieces
         new_floes = split_floe(
-            ifloe,
+            LazyRow(floes, frac_idx[i]),
             rng,
             fracture_settings,
             coupling_settings,
             consts,
-            T,
         )
         append!(fracture_list[i], new_floes)
     end
