@@ -2,6 +2,23 @@
 
 You have a lot of flexibility in designing a simulation within Subzero. First, you need to create all the pieces of your model, including the grid, the ocean, the atmosphere, the domain, and the floes. After than, you can use your model to create a simulation, where you will also specify physical constants and other runtime parameters.
 
+## Contents
+* [Building a Model](#building-a-model)
+    * [Model Calculations Type](#model-calculations-type)
+    * [Grid](#grid)
+    * [Ocean](#ocean)
+    * [Atmosphere](#atmosphere)
+    * [Domain](#domain)
+    * [Floes](#floes)
+    * [Making the Model](#making-the-model)
+* [Building a Simulation](#building-a-simulation)
+    * [Constants](#constants)
+    * [Physical Process Settings](#physical-process-settings)
+    * [Timesteps](#timesteps)
+    * [Output Writers](#output-writers)
+    * [Reproducibility](#reproducibility)
+    * [Creating the Simulation](#creating-the-simulation)
+
 ## Building a Model
 ### Model Calculations Type: 
 
