@@ -22,21 +22,21 @@ You have a lot of flexibility in designing a simulation within Subzero. First, y
 ## Building a Model
 ### Model Calculations Type: 
 
-Simulations are designed to run with either Float64 or Float32 calculations. However, as of now, only runs in Float64 have been confirmed and are supported. When you are creating a model and a simulation, you need to create all elements in the same type that you are trying to run the model in. At the beginning of each example file, you will see the line: 
+Simulations are designed to run with either Float64 or Float32 calculations. However, as of now, only Float64 is tested and supported. When you are creating a model and a simulation, you need to create all elements in the same type that you are trying to run the model in. At the beginning of each example file, you will see the line: 
 
 ```julia 
 const FT = Float64 
 ``` 
 
-And then FT is used as an argument in the creation of the model and simulation. If all elements of the model and simulation are Float64, the simulation will run all calculations with Float64. Eventually, if all elements are created with Float32, the simulation will run all calculations with Float32. 
+And then FT is used as an argument in the creation of the model and simulation elements. If all elements of the model and simulation are Float64, the simulation will run all calculations with Float64. Eventually, if all elements are created with Float32, the simulation will run all calculations with Float32. 
 
 ### Grid: 
-The first thing that you need to create in your grid. For now, the ocean and atmosphere must be on the same grid. The only grid for now is a RegularRectilinearGrid, where every grid cell is a rectangle of the same size. You can create a regular rectilinear grid one of two ways. Both methods require specifying the minimum and maximum x and y points in meters. 
+The first thing that you need to create in your grid. For now, the ocean and atmosphere must be on the same grid and the only grid is a RegularRectilinearGrid, where every grid cell is a rectangle of the same size. You can create a regular rectilinear grid one of two ways. Both methods require specifying the minimum and maximum x and y points in meters. 
 
 The first method has you provide the size of each grid cell with ∆x and ∆y arguments. That can be seen here: 
 
 ```julia 
-RegRectilinearGrid( 
+grid = RegRectilinearGrid( 
   FT, 
   xbounds = (-1e5, 1e5), 
   Ybounds = (0.0, 1e5) 
@@ -45,12 +45,17 @@ RegRectilinearGrid(
 ) 
 ``` 
 
-Which will create a grid that has a width of 2e5m from –1e5m to 1e5m and each grid cell was a width of 2e4 and a height of 1e4. This would then create a 100 cell grid, 10 cells across and 10 cells wide. Note that if you provide grid cells dimensions that don’t divide the grid width and height evenly, the grid will be truncated to the nearest grid cell. 
+Which will create a grid that has a width of 2e5m from –1e5m to 1e5m and each grid cell was a width of 2e4 and a height of 1e4. This would then create a grid with 100 cells, 10 cells across and 10 cells wide. Note that if you provide grid cells dimensions that don’t divide the grid width and height evenly, the grid will be truncated to the nearest grid cell. 
 
 The other way to create this same grid is to use: 
 
 ```julia 
-RegRectilinearGrid(-1e5, 1e5, 0.0, 1e5, (10, 10)) 
+grid = RegRectilinearGrid(
+   FT,
+   xbounds = (-1e5, 1e5),
+   ybounds = (0.0, 1e5),
+   dims = (10, 10),
+) 
 ``` 
 by specifying the desired grid dimensions. Here you are guaranteed to always get a 10 by 10 grid, but do not have as fine-grained control over the size of your cells.  
 
@@ -59,9 +64,37 @@ A grid object has the following fields: dims, xg, yg, xc, and yc. The dims field
 Additionally, RegRectilinearGrid is a concrete subtype of AbstractGrid. More concrete subtypes may be added in the future.  
 
 ### Ocean: 
-The ocean here represents 2-dimensional vector fields. It includes the following: u velocity, v velocity, temperature, stress and forces in the x and y direction, the amount of area per cell covered in ice, and the hflx_factor per cell, which allows local heat flux calculations based on the difference in atmosphere and ocean temperature in each cell.  
+The ocean here represents 2D vector fields of the surface layer of the ocean. It includes the following: u-velocity, v-velocity, temperature, and stresses in the x and y direction, the amount of area per cell covered in ice, and the `hflx_factor` per cell, which allows local heat flux calculations based on the difference in atmosphere and ocean temperature in each cell. If you want to run Subzero without coupling, the ocean will be a set of prescribed fields. If you couple Subzero to Oceananigans, Oceananigans will provide the velocity and temperature fields, and Subzero will provide oceananigans with stress fields from the ice and atmosphere on the top layer of the ocean.
+
+There are several ways to initialize an ocean using Subzero. If you want to create uniform velocity and temperature fields, those constant values can simply be provided. This is useful for testing as a quick way to create a simple environment. This can be done as follows:
+
+```
+ocean = Ocean(FT, grid, -0.3, 0.2, 0.0)
+```
+to create an ocean with a -0.3m/s zonal velocity, a 0.2m/s meridional velocity, and a 0.0°C temperature field. The other ocean fields, such as the ocean stresses, will be calculated through out the simulation. 
+
+To create more interesting fields, the ocean fields must be defined and explicitly provided to the Ocean constructor. To create an equivalent ocean as above, the following syntax can be used:
+```
+ocean = Ocean(
+   FT,
+   fill(-0.3, 11, 11), # ocean values are stored on grid lines
+   fill(0.2, 11, 11),
+   zeros(FT, 11, 11)
+)
+```
 
 ### Atmosphere: 
+The atmosphere is very similar to the ocean in that is also represents a collection of 2D vector fields. We have not yet coupled Subzero with any atmosphere model. Therefore, for now, the atmosphere will be perscribed. It also has a u-velocity, v-velocity, and temperature field and can be created identically to the ocean. The two methods for creating the atmosphere are shown below:
+```
+atmos = Atmos(FT, grid, -0.3, 0.2, 0.0)
+
+atmos = Atmos(
+   FT,
+   fill(-0.3, 11, 11), # atmosphere values are stored on grid lines
+   fill(0.2, 11, 11),
+   zeros(FT, 11, 11)
+)
+```
 
 ### Domain: 
 The domain includes both the boundaries of the simulation and the topographic features. It defines the areas where the floes cannot go. Before you can define a domain, you need to define each boundary wall. As of now, only rectangular boundaries around the edge of the grid are allowed so we need a north, east, south, and west boundary wall. We have four types of boundary wall: open, collision, periodic, and compression (not implemented yet).  
@@ -87,7 +120,7 @@ However, if we want topography, we can also add it to the domain. To do that, we
 
 ```julia 
 island = [[[6e4, 4e4], [6e4, 4.5e4], [6.5e4, 4.5e4], [6.5e4, 4e4], [6e4, 4e4]]] 
-topo_arr = StructVector([TopographyElement(t) for t in [island, topo1, topo2]]) 
+topo_arr = StructVector([island]) 
 ``` 
 
 We can then add an additional argument to the domain when it is created:  
@@ -98,11 +131,11 @@ domain = Domain(nboundary, sboundary, eboundary, topo_arr)
 
 These are the two ways to define a domain in Subzero.  
 
-For now, you will need to define ocean velocities that go around your topography, as Subzero does not change the given ocean velocities. This holds true on coupled scenarios as well. You need to make sure that if you do couple Subzero to Oceananigans that you set the ocean height to 0m at these locations so that the current floes around the topography. 
+For now, you will need to define ocean velocities that go around your topography, as Subzero does not change the given ocean velocities. This holds true on coupled scenarios as well. You need to make sure that if you do couple Subzero to Oceananigans that you set the ocean height to 0m at these locations so that the current flows around the topography. 
 
 ### Floes
 
-Floes are quite complex objects as they have a lot of needed fields. Here we will talk about a floe struct's fields, as well as how to create a configuration of floes to start your simulation.
+Floes are quite complex objects as they need a lot fields. Here we will talk about a floe struct's fields, as well as how to create a configuration of floes to start your simulation.
 
 #### Floe Struct Fields
 A floe's fields can be broken down into several catagories. We will go through each catagory and describe the fields within in briefly in table-form.
@@ -131,7 +164,7 @@ coords = [
 | moment         | floe's mass moment of intertia in [kg m^2]    | Float64 or Float32|
 | angles         | list of floe's vertex angles in [degrees] | Vector of Float64 or Float32|
 
-The second catagory is **monte carlo points**. These are used for interpolation of the ocean and atmosphere onto the floe. They are a list of random points within the floe. They are randomly generated, with the user providing an initial target number of points using the `mc_n` argument in the floe constructor or in the initial floe field function. The user will not end up with `mc_n` monte carlo points. These are the number of points generated in a bounding box around the floe generated using the floe's `rmax` as the side lengths. However, every point that is outside of the floe will be removed. The monte carlo points are repeatedly generated until a set is created with 5% accuracy. If a set cannot be determined in 10 tries, the floe will be marked for removal using the `alive` field (see below)
+The second catagory is **monte carlo points**. These are used for interpolation of the ocean and atmosphere onto the floe. They are a list of random points within the floe. They are randomly generated, with the user providing an initial target number of points using the `mc_n` argument in the floe constructor or in the initial floe field function. The user will not end up with `mc_n` monte carlo points. These are the number of points generated in a bounding box around the floe generated using the floe's `rmax` as the side lengths. However, every point that is outside of the floe will be removed. The monte carlo points are repeatedly generated until a set is created with 5% accuracy. If a set cannot be determined in 10 tries, the floe will be marked for removal using the `status` field (see below)
 | Monte Carlo Fields| Meaning                                 | Type                        |
 | ----------------- | --------------------------------------- | --------------------------- |
 | mc_x              | floe's monte carlo points x-coordinates | Vector of Float64 or Float32|
@@ -148,11 +181,13 @@ The third catagory is **velocities and orientations**. Floe's have both linear a
 The fourth catagory is **status**. These fields hold logistical information about each floe and through which process it originated.
 | Status Fields  | Meaning                         | Type               |
 | -------------- | ------------------------------- | ------------------ |
-| alive          | if the floe is still active in the simulation        | Bool |
+| status         | if the floe is still active in the simulation        | Subzero.Status (see below)|
 | id             | unique floe id for tracking the floe throughout the simulation | Int |
 | ghost_id       | if floe is not a ghost, `ghost_id = 0`, else it is in `[1, 4]`<br> as each floe can have up to 4 ghosts| Int |
-| fracture_id    | if floe is created from a fracture, `fracture_id` is equal to <br> the original floe's `id`, else it is 0| Int |
+| parent_id    | if floe is created from a fracture or the fusion of two floes, `parent_id` is a list of <br> the original floes' `id`, else it is emtpy | Vector of Ints |
 | ghosts         | indices of floe's ghost floes within the floe list| Vector of Ints |
+
+A Status object has two fields: a tag and a fuse index list. There are currently three different tags: `active`, `remove`, and `fuse`. If a floe is `active`, it will continue in the simulation at the end of a timestep. If a floe's tag is `remove`, it will be removed at the end of the timestep. This ususally happens if a floe exits the domain, or becomes unstable for some reason. If a floe is marked at `fuse`, this means that is is overlapping with another floe by more than the user defined maximum overlap percent (see [Physical Process Settings](#physical-process-settings) for more information on this maximum fraction value. If a floe is marked for fusion, the index of the floe it is supposed to fuse with will be listed in the `fuse_idx` list.  
 
 The fifth catagory is **forces and collisions**. These fields hold information about the forces on each floe and the collisions it has been in.
 | Force Fields      | Meaning                                    | Type                        |
@@ -166,7 +201,7 @@ The fifth catagory is **forces and collisions**. These fields hold information a
 | collision_trq     | torque on floe from collisions in [N m]          | Float64 or Float32|
 | interactions      | each row holds one collision's information, see below for more information | `n`x7 Matrix of Float64 or Float32 <br> where `n` is the number of collisions|
 | stress            | stress on floe at current timestep where it is of the form [xx yx; xy yy] | 2x2 Matrix of Float64 or Float32|
-| stress_history    | history of stress on floe | circular buffer with capacity `nhistory` where each element is a previous timesteps stress <br> where `nhistory` is the number of previous timesteps to save|
+| stress_history    | history of stress on floe | Subzer.StressCircularBuffer with capacity `nhistory` where each element is a previous timesteps stress <br> where `nhistory` is the number of previous timesteps to save|
 | strain            | strain on floe where it is of the form [ux vx; uy vy] | 2x2 Matrix of Float64 or Float32|
 
 The `interactions` field is a matrix where every row is a different collision that the floe has experienced in the given timestep. There are then seven columns, which are as follows:
@@ -179,16 +214,15 @@ The `interactions` field is a matrix where every row is a different collision th
 - `overlap`, which is the overlap area between the two floes in the collision. 
 You can use these column names to access columns of `interactions`. For example: `floe.interactions[:, xforce]` gives the list of x-force values for all collisions a given floe was involved in as that timestep.
 
-
 The fifth catagory is **previous values**.
 | Previous Value Fields | Meaning                                       | Type               |
 | --------------------- | --------------------------------------------- | -------------------|
-| p_dxdt                | previous timestep x-velocity in [m/s]         | Float64 or Float32|
-| p_dydt                | previous timestep y-velocity in [m/s]         | Float64 or Float32|
+| p_dxdt                | previous timestep x-velocity (u) in [m/s]         | Float64 or Float32|
+| p_dydt                | previous timestep y-velocity (v) in [m/s]         | Float64 or Float32|
 | p_dudt                | previous timestep x-acceleration in [m/s^2]   | Float64 or Float32|
 | p_dvdt                | previous timestep y-acceleration in [m/s^2]   | Float64 or Float32|
-| p_dξdt                | previous timestep time angular acceleration in [rad/s^2] | Float64 or Float32|
 | p_dαdt                | previous timestep angular-velocity in [rad/s] | Float64 or Float32|
+| p_dξdt                | previous timestep time angular acceleration in [rad/s^2] | Float64 or Float32|
 
 You can create one floe at a time using floe constructors that will set initial values for all of these fields depending on your inputs.
 
@@ -206,15 +240,15 @@ floe = Floe(
     ξ = 0.0,
     mc_n = 1000,
     nhistory = 1000,
-    rng = Xoshiro(),
+    rng = Xoshiro(1), # seed of 1
 )
 ```
-All of the arguments below Δh, and their default values are give above.
+Only `coords`, `hmean`, and `Δh` are neccesary arguments. The rest aer optional, and the default values are the values shown in the code snippit above.
 
-However, it is not recomended that you manually create each floe. It is recomended that you use the `initialize_floe_field` functions instead to create your simulation starting configuration of floes.
+However, it is not recomended that you manually create each floe. It is recomended that you use the `initialize_floe_field` functions instead to create your simulation's starting configuration of floes.
  
 #### Initial Floe Configuration
-It is recomeneded that you use the `initialize_floe_field` to create your starting configuration on floes. There are two ways to use this function. One is to provide a list of `PolyVecs` representing a list of the coordinates of all of the floes you want in the initial state. This will initialize all of the given polygons specified as floes. The other is to provide a number of floes and a concentration over a specific area. This will create a starting floe field using Voronoi Tesselation that aims to achieve the requested number of floes and concentrations.
+It is recomeneded that you use the `initialize_floe_field` to create your starting configuration on floes. There are two ways to use this function. The first way is to provide a list of `PolyVecs` representing a list of the coordinates of all of the floes you want in the initial state. This will initialize all of the given polygons specified as floes. The other way is to provide a number of floes and a concentration over a specific area. This will create a starting floe field using voronoi tesselation that aims to achieve the requested number of floes and concentrations.
 
 Both of these functions share most arguments. They are as follows (with default values if they exist):
 - `domain`, which is the model's domain so that the floes can be fit into the open space using polygon intersections/differences
@@ -258,7 +292,7 @@ floe_arr = initialize_floe_field(
 We now focus on the first two arguments. The first is the number of floes to attempt to create with Voronoi tesselation. We are not guarenteed to get exactly that number. It depends on the amount of open space in the domain and the generation of random seed points. For example, if the domain is filled with lots of topography and islands, it will be more difficult to hit the exact number of floes requested. However, it will be in the ballpark. The second argument is the concentrations, which is a matrix. We can split the domain into quadrents that are the same shape at matrix and then request concentrations of ice in each of those quadrents equal to the corresponding value in the concentrations matrix. The other arguments are the same as in the floe coordinate version on the function.
 
 ### Making the Model
-Once you have made all of the above components, you are now able to make a model. You will simply do that as follows:
+Once you have made all of the above components, you are now able to make a model. You will do that as follows:
 ```julia
 model = Model(grid, ocean, atmos, domain, floe_arr)
 ```
@@ -290,20 +324,20 @@ The list of constants and their default values are shown below:
 | μ             | Coefficent of friction             | 0.2           |
 | E             | Young's Modulus                    | 6e6 N/m2      |
 
-In particular, Young's Modulus is calculated usually calculated using the total floe area after floe initialization in the original Subzero code:
+In particular, Young's Modulus is usually calculated using the total floe area after floe initialization in the original Subzero code:
 ```julia
 E = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 ```
 
 ### Physical Process Settings
-Subzero allows you to turn on and off various physical processes, as well as change various settings for these physical processes. The physical processes availible are: coupling, collisions, fractures, and simplfication. We will be adding corner fracturing, packing, rafting, ridging, and welding. For each of these physical processes, you can create a settings object, and change the parameters within that object to change the physical process to meet your simulation needs. 
+Subzero allows you to turn on and off various physical processes, as well as change the settings for these physical processes. The physical processes availible are: coupling, collisions, fractures, and simplfication. We will be adding corner fracturing, packing, rafting, ridging, and welding. For each of these physical processes, you can create a settings object, and change the parameters within that object to change the physical process to meet your simulation needs. 
 #### Coupling Settings
-`CouplingSettings` changes how Subzero uses the ocean and atmosphere two-dimensional vector fields within the `Ocean` and `Atmos` structs, whether those values are static user-provided values of values that are updated every timesteps through coulpling with Oceananigans. The availible settings are:
+`CouplingSettings` changes how Subzero uses the ocean and atmosphere two-dimensional vector fields within the `Ocean` and `Atmos` structs, whether those values are static user-provided values or values that are updated every timesteps through coupling with Oceananigans. The availible settings are:
 - coupling_on, which turns this process on and off
 - ∆t, which sets the number of timesteps between this process running
 - ∆d, which sets the number of ocean/atmosphere grid cells around a floe to consider when interpolating ocean/atmosphere forcings
 - mc_n, which sets the number of monte carlo points for each floe that are used for the interpolation
-- calc_ocnτ_on, which turns on and off the calculation of the ice effects on the ocean and stores output in the ocean's fx, fy, and si_area fields
+- two_way_coupling_on, which turns on and off the calculation of the ice and atmosphere effects on the ocean and stores output in the ocean's stress fields.
 
 Here is an example of creating your own coupling settings, using the default values:
 ```julia
@@ -312,7 +346,7 @@ couple_settings = CouplingSettings(
   Δt = 10,
   Δd = 1,
   mc_n = 1000,
-  calc_ocnτ_on = false,
+  two_way_coupling_on = false,
 )
 Note that you only need to provide values to the fields that you wish to change from the defaults.
 ```
@@ -336,7 +370,7 @@ Note that you only need to provide values to the fields that you wish to change 
 - fractures_on, which turns this process on and off
 - criteria, which sets the rules for which floes fractures (see more below)
 - Δt, which sets the number of timesteps between this process running
-- deform_on, which turns on a sub-process where a floe is deformed around the largest collision on that timestep before it is fractured
+- deform_on, which turns on a sub-process where a floe is deformed around the floe that is overlaps with the most during that timestep before it is fractured
 - npieces, which sets the number of pieces a floe should try to fracture into (note that this number might not be met depending on floe shape)
 - nhistory, which sets the length of stress history, stress from the previous `nhistory` timesteps, to record in order to determine a floe's current stress, which is the mean of the stress history
 
@@ -361,8 +395,9 @@ criteria = HiblerYieldCurve(floe_arr, pstar, c)
 ```
 #### Simplification Settings
 `SimplificationSettings` changes Subzero's floe simplification. The availible settings are:
-- dissolve_on, which turns on and off the dissolving of small floes
 - min_floe_area, which sets the minimum size for floes before they are dissolved, and also a barrier for making floes smaller through fracture and other processes
+- min_floe_height, which sets the minimum height for floes before they are dissolved
+- max_floe_height, which sets the maximum height for floes before their thermodynamic thickening is stopped
 - smooth_vertices_on, which turns on and off the process of smoothing floe vertices to decrease the total number of vertices
 - max_vertices, the total number of verticies a floe can have before smoothing
 - Δt_smooth, which sets the number of timesteps between floe smoothing
@@ -370,7 +405,6 @@ criteria = HiblerYieldCurve(floe_arr, pstar, c)
 Here is an example of creating your own simplification settings, using the default values:
 ```julia
 simp_settings = SimplificationSettings(
-    dissolve_on = true,
     min_floe_area = 1e6,
     smooth_vertices_on = true,
     max_vertices = 30,
@@ -383,7 +417,7 @@ Note that you only need to provide values to the fields that you wish to change 
 You have the ability to set the simulation's timestep in seconds using `∆t` and set the total number of timsteps the simulation will run for, `n∆t`. The default is `∆t = 10` seconds and `n∆t = 7500` timesteps. 
 
 ### Output Writers
-You can add four types of output writers, and as many of each type as you would like. The four types are as follows: `InitialStateOutputWriter`, `CheckpointOutputWriter`, `FloeOutputWriter`, and `GridOutputWriter`. When any of these objects are create, the file that they will write to is also created automatically. A brief desctiption of each is below:
+You can add four types of output writers, and as many of each type as you would like. The four types are as follows: `InitialStateOutputWriter`, `CheckpointOutputWriter`, `FloeOutputWriter`, and `GridOutputWriter`. When any of these objects are created, the file that they will write to is also created automatically. A brief desctiption of each is below:
 #### InitialStateOutputWriter
 The initial state output writer allows you to save the initial state of your simulation so that you can re-load it later. It saves the simulation object that you are currently creating to a JLD2 file. An `InitialStateOutputWriter` has two fields:
 - `filename`, including the path to the file, to save the file to
@@ -488,9 +522,12 @@ outputwriters2 = OutputWriters(
 Here you can see that you can choose which values to supply and that you can supply more than one of each type if desired. You might want to do this is you want different outputs at different timeframes. 
 
 ### Reproducibility
+The simulations are currently completly reproducible when run single-threaded. The simulation takes a `rng` argument, and if it is provided with a seeded random number generator, the two simulations with the same set of starting floes will produce the exact same results. Note that the same set of floes can be reproduced by providing a seeded random number generator to the floe creation functions. 
+
+This has not yet been achieved for multi-threaded runs. 
 
 ### Creating the Simulation
-Once you have created all of the above objects, you can combine them to create a `Simulation`. A simulation has quite a few fields, all of which are talked about in more detail above. Since there are so many fields, they are keyword defined, so you must provide a keyword when creating the struct. The only necessary argument is the `model` as everything else has a default value. However, a table of optional elements, and their default values, is as follows:
+Once you have created all of the above objects, you can combine them to create a `Simulation`. A simulation has quite a few fields, all of which are talked about above in more detail. Since there are so many fields, they are keyword defined, so you must provide a keyword when creating the struct. The only necessary argument is the `model` as everything else has a default value. However, a table of optional elements, and their default values, is as follows:
 
 | Keyword           |    Default Value        | What is it?                                               |
 | ----------------- | ------------------------| --------------------------------------------------------- |
@@ -518,3 +555,21 @@ my_simulation = Simulation(
     writers = my_writers,
 )
 ```
+
+### Running the simulation
+
+You can now use the `run!` function to run the simulation:
+```
+run!(my_simulation)
+```
+
+If you wish to couple to Oceananigans, you will need to run each model timestep by timestep and pass the needed fields back and forth. You can run a single timestep of the simulation using the `timestep_sim!` function. This also needs the length of a timestep in seconds as an argument (`tstep`).
+
+```
+timestep_sim!(
+   my_simulation,
+   tstep,
+)
+```
+
+Note that we are working on a more elegant solution to coupling with Oceananigans and CliMA and this page will be updated once that is in place. 
