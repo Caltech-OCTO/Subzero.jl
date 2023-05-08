@@ -63,11 +63,14 @@ which will add Subzero as a package.
 
 ## Running your first model:
 
-Let’s run a basic simulation with stationary floes pushed into a collision boundary by a uniform, zonally flowing ocean. In this simulation, collisions between floes are on by default and we will enable floe fracturing.  
+For detailed instructions on how to create different types of models and simulations, please see the [documentation.md file](https://github.com/Caltech-OCTO/Subzero.jl/blob/documentation/documentation.md). However, we will give a basic example here.
 
-```julia 
-grid = RegRectilinearGrid(0, 1e5, 0, 1e5, 1e4, 1e4) 
-ocean = Ocean(grid, 0.25, 0.0, 0.0) 
+Let’s run a basic simulation with initially stationary floes pushed into a collision boundary by a uniform, zonally flowing ocean. In this simulation, collisions between floes are on by default and we will enable floe fracturing.  
+
+```julia
+const FT = Float64
+grid = RegRectilinearGrid(FT, 0, 1e5, 0, 1e5, 1e4, 1e4) 
+ocean = Ocean(FT, grid, 0.25, 0.0, 0.0) 
 atmos = Atmos(grid, 0.0, 0.0, 0.0) 
 domain = Domain( 
   CollisionBoundary(grid, North()), 
@@ -103,15 +106,20 @@ floewriter = FloeOutputWriter(100, dir = "output/sim", filename = "floes.jld2", 
 run!(simulation, [floewriter])
 ``` 
 
-Check out our documentation for more examples. Below you will find videos from simulations initially described in Manucharyan and Montemuro’s paper, as well as a coupled simulation with Oceananigans.  
+Check out our [documentation](https://github.com/Caltech-OCTO/Subzero.jl/blob/documentation/documentation.md) for more examples and explanations for the code above.
 
 ## Citing:
-TODO
+We still need to figure this out. Please reach out so we can discuss thing.
 
 ## Contributing:
-If you’re interested in helping develop Subzero, have found a bug, or have a new feature that you want implemented, please open an issue on the repository.  For more information, please see our contributor's guide.  
+If you’re interested in helping develop Subzero, have found a bug, or have a new feature that you want implemented, please open an issue on the repository and we can talk about this.  We will be working on a contributers guide for this in the future.
 
 ## Movies:
+**Shear Flow**
+In this simulation, the ocean flow is 0m/s at the top and bottom of the domain, gradually increasing towards 0.5m/s in the middle of the domain. All four boundaries are periodic. We used a timestep of 20 seconds for 4,320 timesteps, which is one day. 
+
+**Simple Strait**
+In this simulation, the ocean floe is uniformly -0.3 m/s from top to bottom of the simulation. The top and bottom boundaries are periodic, with the right and left being collision boundaries. However, the collision boundaries are covered by two pieces of topography forming the strait. This simulation also has 20 second timesteps, run for 4,320 timesteps, which is one day.
 
 ## Performance Benchmarks: 
-INSERT RESULTS
+Here we compare Subzero runtimes in Julia and MATLAB for the above simulations. The code was run on a 2013 desktop Mac with 4 cores and 8 GB of memory. Each simulation was run 10 times. The Julia code was run with 8 threads. The MATLAB code has parfor loops and was run with the 4 cores on the computer.
