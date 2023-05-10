@@ -54,31 +54,30 @@ fracture_settings = FractureSettings(
 
 # Output setup
 dir = "output/simple_strait"
-
-
-initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
-floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
-writers = OutputWriters(
-    initialwriters = StructArray([initwriter]),
-    floewriters = StructArray([floewriter]),
-)
-
-simulation = Simulation(
-    model = model,
-    consts = consts,
-    Δt = Δt,
-    nΔt = 4320,
-    verbose = true,
-    fracture_settings = fracture_settings,
-    writers = writers,
-)
-
-# Run simulation
-# Run simulation
 run_time!(simulation) = @time run!(simulation)
-run_time!(simulation)
+for i in 1:10
+    local initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
+    local floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
+    local writers = OutputWriters(
+        initialwriters = StructArray([initwriter]),
+        floewriters = StructArray([floewriter]),
+    )
+
+    local simulation = Simulation(
+        model = model,
+        consts = consts,
+        Δt = Δt,
+        nΔt = 4320,
+        verbose = false,
+        fracture_settings = fracture_settings,
+        writers = writers,
+    )
+
+    # Run simulation
+    run_time!(simulation)
+end
  
 
-Subzero.create_sim_gif("output/simple_strait/floes.jld2", 
-                       "output/simple_strait/initial_state.jld2",
-                       "output/simple_strait/simple_strait.gif")
+# Subzero.create_sim_gif("output/simple_strait/floes.jld2", 
+#                        "output/simple_strait/initial_state.jld2",
+#                        "output/simple_strait/simple_strait.gif")

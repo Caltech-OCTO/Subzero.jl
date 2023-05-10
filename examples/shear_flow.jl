@@ -43,7 +43,7 @@ consts = Constants(E = modulus)
 # Run simulation
 run_time!(simulation) = @time run!(simulation)
 dir = "output/shear_flow"
-for i in 1:3
+for i in 1:10
     # Output setup
     local initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
     local floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
@@ -65,6 +65,6 @@ for i in 1:3
     run_time!(simulation)
 end
  
-# Subzero.create_sim_gif("output/shear_flow/floes.jld2", 
-#                        "output/shear_flow/initial_state.jld2",
-#                        "output/shear_flow/shear_flow.gif")
+Subzero.create_sim_gif("output/shear_flow/floes.jld2", 
+                       "output/shear_flow/initial_state.jld2",
+                       "output/shear_flow/shear_flow.gif")
