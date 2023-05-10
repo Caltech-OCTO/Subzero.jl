@@ -176,6 +176,7 @@
             frac_settings,
             CouplingSettings(),
             Constants(),
+            10,
         ) 
         # Test that the pieces all fit within original floe
         og_floe_poly = LG.Polygon(floes.coords[1])
@@ -185,12 +186,25 @@
             LG.area(og_floe_poly),
             atol = 1e-6,
         )
+        # Conserve mass
         @test isapprox(sum(new_floes.mass), floes.mass[1], atol = 1e-4)
+        # Linear velocities unchanged -> linear momentum conserved
         @test all(new_floes.u .== floes.u[1])
         @test all(new_floes.v .== floes.v[1])
-        @test all(new_floes.ξ .== floes.ξ[1])
+        @test all(new_floes.p_dxdt .== floes.p_dxdt[1])
         @test all(new_floes.p_dudt .== floes.p_dudt[1])
         @test all([all(f.strain .== floes.strain[1]) for f in new_floes])
+        # Angular momentum is conserved
+        @test isapprox(
+            sum(new_floes.ξ .* new_floes.moment),
+            floes.ξ[1] * floes.moment[1],
+            atol = 1e-8,
+        )
+        @test isapprox(
+            sum(new_floes.p_dαdt .* new_floes.moment),
+            floes.p_dαdt[1] * floes.moment[1],
+            atol = 1e-8,
+        )
 
         # Test fracture_floes!
         max_idx = Subzero.fracture_floes!(

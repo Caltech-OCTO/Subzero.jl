@@ -56,9 +56,26 @@ find_poly_coords(poly::LG.Polygon) =
     LG.GeoInterface.coordinates(poly)::PolyVec{Float64}
 # [LG.GeoInterface.coordinates(LG.exteriorRing(poly))]::PolyVec{Float64}
 
+"""
+    get_polygons(poly::LG.Polygon) = [poly]
 
+Return a polygon list with polygon element provided.
+Inputs:
+    poly    <LG.Polygon>
+Outputs:
+            <Vector{LG.Polygon}>
+"""
 get_polygons(poly::LG.Polygon) = [poly]
 
+"""
+    get_polygons(multipoly::LG.MultiPolygon)
+
+Returns a list of polygons that make up multipolygon input
+Inputs:
+    multipoly   <LG.MultiPolygon>
+Outputs:
+    sub_geoms   <Vector{LG.Polygon}>
+"""
 function get_polygons(multipoly::LG.MultiPolygon)
     sub_geoms = LG.getGeometries(multipoly)
     for i in reverse(eachindex(sub_geoms))

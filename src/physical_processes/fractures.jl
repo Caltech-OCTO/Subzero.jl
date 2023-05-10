@@ -267,6 +267,7 @@ function split_floe(
     fracture_settings,
     coupling_settings,
     consts,
+    Δt,
 ) where {FT}
     new_floes = StructArray{Floe{FT}}(undef, 0)
     # Generate voronoi tesselation in floe's bounding box
@@ -295,7 +296,7 @@ function split_floe(
                 mass = floe.mass * (pieces_areas[i]/total_area)
                 height = mass / (consts.ρi * pieces_areas[i])
                 pieces_floes = poly_to_floes(
-                    pieces_polys[i]::LG.Polygon,
+                    pieces_polys[i],
                     FT(height),
                     FT(0);  # Δh - range of random height difference between floes
                     ρi = consts.ρi,
@@ -311,12 +312,12 @@ function split_floe(
         end
     end
 
-    # Update new floe pieces with parent information
-    new_floes.p_dxdt .= floe.p_dxdt
-    new_floes.p_dydt .= floe.p_dydt
-    new_floes.p_dudt .= floe.p_dudt
-    new_floes.p_dvdt .= floe.p_dvdt
-    new_floes.p_dξdt .= floe.p_dξdt
+    # Conserve momentum and update strain
+    conserve_momentum_fracture!(
+        floe,
+        new_floes,
+        Δt,
+    )
     for s in new_floes.strain
         s .= floe.strain
     end
@@ -350,15 +351,15 @@ Outputs:
     Floe pieces added to floe array and original fractured floes removed.
 """
 function fracture_floes!(
-    floes,
+    floes::StructArray{Floe{FT}},
     max_floe_id,
     rng,
     fracture_settings,
     coupling_settings,
     simp_settings,
-    consts::Constants{FT},
+    consts,
     Δt,
-) where FT
+) where {FT <: AbstractFloat}
     # Determine which floes will fracture
     frac_idx = determine_fractures(
         floes,
@@ -398,6 +399,7 @@ function fracture_floes!(
             fracture_settings,
             coupling_settings,
             consts,
+            Δt,
         )
         append!(fracture_list[i], new_floes)
     end

@@ -91,3 +91,10 @@ function julfloe2matfloe(floes, Δg, out_fn)
         "stress_history" => floes.stress_history
     );)
 end
+
+    matwrite(out_fn, Dict(
+        "mc_x" => floes.mc_x,
+        "mc_y" =>  floes.mc_y,
+        "xcoords" => reshaped_x,
+        "ycoords" => reshaped_y,
+    );)
