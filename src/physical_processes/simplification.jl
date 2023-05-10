@@ -68,7 +68,7 @@ function smooth_floes!(
     rng,
 ) where {FT <: AbstractFloat}
     topo_coords = topography.coords
-    Threads.@threads for i in eachindex(floes)
+    for i in eachindex(floes)
         if length(floes.coords[i][1]) > simp_settings.max_vertices
             poly = LG.simplify(LG.Polygon(floes.coords[i]), simp_settings.tol)
             if !isempty(topo_coords)

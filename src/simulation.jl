@@ -121,7 +121,7 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
                     sim.coupling_settings,
                     sim.simp_settings,
                     sim.consts,
-                    T
+                    sim.Δt,
                 )
         end
         simplify_floes!(

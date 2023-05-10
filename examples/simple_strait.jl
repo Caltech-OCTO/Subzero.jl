@@ -18,8 +18,8 @@ grid = RegRectilinearGrid(
     Δgrid,
     Δgrid,
 )
-ocean = Ocean(grid, 0.0, -0.3, 0.0)
-atmos = Atmos(zeros(grid.dims .+ 1), zeros(grid.dims .+ 1), zeros(grid.dims .+ 1))
+ocean = Ocean(FT, grid, 0.0, -0.3, 0.0)
+atmos = Atmos(grid, 0.0, 0.0, 0.0)
 
 # Domain creation
 nboundary = PeriodicBoundary(grid, North())
@@ -35,7 +35,7 @@ topo_arr = StructVector([TopographyElement(t) for t in [island, topo1, topo2]])
 domain = Domain(nboundary, sboundary, eboundary, wboundary, topo_arr)
 
 # Floe creation
-floe_arr = initialize_floe_field(50, [0.7], domain, hmean, Δh, rng = Xoshiro(1))
+floe_arr = initialize_floe_field(50, [0.7], domain, hmean, Δh, rng = Xoshiro(3))
 
 # Model creation
 model = Model(grid, ocean, atmos, domain, floe_arr)
@@ -54,28 +54,30 @@ fracture_settings = FractureSettings(
 
 # Output setup
 dir = "output/simple_strait"
-initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
-floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
-checkpointwriter = CheckpointOutputWriter(1000, dir = dir, overwrite = true)
-writers = OutputWriters(
-    initialwriters = StructArray([initwriter]),
-    floewriters = StructArray([floewriter]),
-    checkpointwriters = StructArray([checkpointwriter]),
-)
+run_time!(simulation) = @time run!(simulation)
+for i in 1:10
+    local initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
+    local floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
+    local writers = OutputWriters(
+        initialwriters = StructArray([initwriter]),
+        floewriters = StructArray([floewriter]),
+    )
 
-simulation = Simulation(
-    model = model,
-    consts = consts,
-    Δt = Δt,
-    nΔt = 3000,
-    verbose = true,
-    fracture_settings = fracture_settings,
-    writers = writers,
-)
+    local simulation = Simulation(
+        model = model,
+        consts = consts,
+        Δt = Δt,
+        nΔt = 4320,
+        verbose = false,
+        fracture_settings = fracture_settings,
+        writers = writers,
+    )
 
-# Run simulation
-run!(simulation)
+    # Run simulation
+    run_time!(simulation)
+end
+ 
 
-Subzero.create_sim_gif("output/simple_strait/floes.jld2", 
-                       "output/simple_strait/initial_state.jld2",
-                       "output/simple_strait/simple_strait.gif")
+# Subzero.create_sim_gif("output/simple_strait/floes.jld2", 
+#                        "output/simple_strait/initial_state.jld2",
+#                        "output/simple_strait/simple_strait.gif")

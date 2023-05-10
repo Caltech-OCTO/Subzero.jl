@@ -185,7 +185,7 @@
         domain_coords,
         Xoshiro(1),
         10,
-        max_tries = 20 # 20 tries makes it very likely to reach 10 polygons
+        max_tries = 20, # 20 tries makes it very likely to reach 10 polygons
     )
     bounding_poly = LG.Polygon(bounding_box)
     @test length(voronoi_coords) == 10

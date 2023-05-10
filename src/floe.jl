@@ -567,8 +567,7 @@ end
         domain_coords,
         rng;
         max_tries = 10,
-        t::Type{T} = Float64,
-    ) where T
+    )
 
 Generate voronoi coords within a bounding box defined by its lower left corner
 and its height and width. Attempt to generate `npieces` cells within the box.
@@ -598,22 +597,21 @@ function generate_voronoi_coords(
     desired_points::Int,
     scale_fac,
     trans_vec,
-    domain_coords::Vector{<:PolyVec{<:T}},
+    domain_coords::Vector{<:PolyVec{<:FT}},
     rng,
     min_to_warn::Int;
     max_tries::Int = 10,
-    t::Type{T} = Float64,
-) where T
-    xpoints = Vector{T}()
-    ypoints = Vector{T}()
+) where {FT <: AbstractFloat}
+    xpoints = Vector{FT}()
+    ypoints = Vector{FT}()
     area_frac = LG.area(LG.MultiPolygon(domain_coords)) / reduce(*, scale_fac)
     # Increase the number of points based on availible percent of bounding box
     npoints = ceil(Int, desired_points / area_frac)
     current_points = 0
     tries = 0
     while current_points < desired_points && tries <= max_tries
-        x = rand(rng, T, npoints)
-        y = rand(rng, T, npoints)
+        x = rand(rng, FT, npoints)
+        y = rand(rng, FT, npoints)
         # Scaled and translated points
         st_xy = hcat(
             scale_fac[1] * x .+ trans_vec[1],
@@ -651,7 +649,7 @@ function generate_voronoi_coords(
                 Vector(c) .* scale_fac .+ trans_vec for c in tess
             ])] for tess in tess_cells]
         else
-            Vector{Vector{Vector{T}}}()
+            Vector{Vector{Vector{FT}}}()
         end
     return coords
 end
@@ -766,7 +764,6 @@ function initialize_floe_field(
                     open_coords,
                     rng,
                     ncells,
-                    t = T,
                 )
                 nfloes = length(floe_coords)
                 if nfloes > 0

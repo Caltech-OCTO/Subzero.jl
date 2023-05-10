@@ -36,6 +36,9 @@ function replace_floe!(
     # Floe shape
     floe.centroid = find_poly_centroid(new_poly)
     floe.coords = rmholes(find_poly_coords(new_poly)::PolyVec{FT})
+    if floe.coords[1][1] != floe.coords[1][end]
+        push!(floe.coords, floe.coords[1][1])
+    end
     floe.area = LG.area(new_poly)
     floe.height = new_mass/(floe.area * consts.ρi)
     floe.mass = new_mass
@@ -159,6 +162,67 @@ function conserve_momentum_combination!(
     keep_floe.p_dudt = (keep_floe.u - keep_floe.p_dxdt) / Δt
     keep_floe.p_dvdt = (keep_floe.v - keep_floe.p_dydt) / Δt
     return
+end
+
+"""
+    conserve_momentum_fracture!(
+        init_floe,
+        new_floes,
+        Δt,
+    )
+Update new_floes's current and previous velocity/acceleration fields to conserve
+momentum when a floe has been fractured into several new floes, given the
+previous mass, momentum, and centroid. The assumption is made that each new floe
+has the same velocities/accelerations
+Inputs:
+    init_floe   <Union{Floe, LazyRow{Floe}}> original floe
+    new_floes   <StructArray{Floe}> fractured pieces of original floe
+    Δt          <Int> simulation's timestep in seconds
+Output:
+    None. new_floes velocities and accelerations are updated for current and
+    previous timestep to conserve momentum.
+"""
+function conserve_momentum_fracture!(
+    init_floe,
+    new_floes,
+    Δt,
+)
+    if !isempty(new_floes)
+        x_init, y_init = init_floe.centroid
+        # conserve linear momentum by keeping linear velocities the same
+        new_floes.u .= init_floe.u 
+        new_floes.v .= init_floe.v
+        new_floes.p_dxdt .= init_floe.p_dxdt
+        new_floes.p_dydt .= init_floe.p_dydt
+        new_floes.p_dudt .= init_floe.p_dudt
+        new_floes.p_dvdt .= init_floe.p_dvdt
+        # conserve rotational moment by offsetting change in orbital momentum
+        sum_moments = sum(new_floes.moment)
+        new_floes.ξ .= init_floe.moment * init_floe.ξ + # initial spin velocity
+            init_floe.mass * ( # initial orbital velocity
+                x_init * init_floe.v -
+                y_init * init_floe.u
+            )
+        new_floes.p_dαdt .= init_floe.moment * init_floe.p_dαdt + 
+            init_floe.mass * (
+                x_init * init_floe.p_dydt -
+                y_init * init_floe.p_dxdt
+            )
+        for i in eachindex(new_floes)
+            new_floes.ξ .-= new_floes.mass[i] * (
+                new_floes.centroid[i][1] * new_floes.v[i] -
+                new_floes.centroid[i][2] * new_floes.u[i]
+            )
+            new_floes.p_dαdt .-= new_floes.mass[i] * (
+                new_floes.centroid[i][1] * new_floes.p_dydt[i] -
+                new_floes.centroid[i][2] * new_floes.p_dxdt[i]
+            )
+        end
+        new_floes.ξ ./= sum_moments
+        new_floes.p_dαdt ./= sum_moments
+        # Calculate previous rotational acceleration
+        new_floes.p_dξdt .= (new_floes.ξ[1] - new_floes.p_dαdt[1]) / Δt
+    end
 end
 
 """
@@ -332,9 +396,9 @@ function timestep_floe_properties!(
         dξdt = (floes.trqOA[i] + ctrq)/floes.moment[i]
         dξdt = frac*dξdt
         ξ = floes.ξ[i] + 1.5Δt*dξdt-0.5Δt*floes.p_dξdt[i]
-        if abs(ξ) > 1e-4
+        if abs(ξ) > 1e-5
             #@warn "Shrinking ξ"
-            ξ = sign(ξ) * 1e-4
+            ξ = sign(ξ) * 1e-5
         end
         floes.ξ[i] = ξ
         floes.p_dξdt[i] = dξdt

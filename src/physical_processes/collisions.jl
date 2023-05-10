@@ -200,7 +200,7 @@ function calc_friction_forces(
     Δt,
 ) where {FT}
     force = zeros(FT, size(v1, 1), 2)
-    G = consts.E/(2*(1+consts.ν))  # Sheer modulus
+    G = consts.E/(2*(1+consts.ν))  # Shear modulus
     # Difference in velocities between floes in x and y direction
     vdiff = v1 .- v2
     # Friction forces for each vector
@@ -763,10 +763,11 @@ function timestep_collisions!(
                 floes.rmax[j],
             )
                 # Never seen any combo of these floes/ghosts
-                new_collision = !(id_pair in keys(collide_pairs))
-                if new_collision
-                    Threads.lock(spinlock) do
-                        collide_pairs[id_pair] = ghost_id_pair
+                new_collision = false
+                Threads.lock(spinlock) do
+                    new_collision = !(id_pair in keys(collide_pairs))
+                    if new_collision
+                            collide_pairs[id_pair] = ghost_id_pair
                     end
                 end
                 # New collision or floe and ghost colliding with same floe - not a repeat collision
@@ -797,6 +798,7 @@ function timestep_collisions!(
         # Update fuse information
         if floes.status[i].tag == fuse
             for idx in floes.status[i].fuse_idx
+                floes.status[idx].tag = fuse
                 push!(floes.status[idx].fuse_idx, i)
             end
         end

@@ -34,8 +34,8 @@ function conservation_simulation(
     simulation = Simulation(
         model = model,
         consts = consts,
-        Δt = 10,
-        nΔt = 10000,
+        Δt = 1,
+        nΔt = 5000,
         verbose = false,
         coupling_settings = coupling_settings,
         simp_settings = simplification_settings,
