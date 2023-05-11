@@ -57,13 +57,24 @@ find_poly_coords(poly::LG.Polygon) =
 # [LG.GeoInterface.coordinates(LG.exteriorRing(poly))]::PolyVec{Float64}
 
 """
+    get_polygons(geom)
+
+Returns an empty polygon list as non-polygon element was provided
+Inputs:
+    geom    <LG.AbstractGeometry>
+Outputs:
+    <Vector{LG.Polygon}>
+"""
+get_polygons(geom) = Vector{LG.Polygon}()
+
+"""
     get_polygons(poly::LG.Polygon) = [poly]
 
 Return a polygon list with polygon element provided.
 Inputs:
     poly    <LG.Polygon>
 Outputs:
-            <Vector{LG.Polygon}>
+    <Vector{LG.Polygon}>
 """
 get_polygons(poly::LG.Polygon) = [poly]
 

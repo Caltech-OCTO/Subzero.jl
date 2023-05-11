@@ -115,6 +115,35 @@ function create_sim_gif(
     return
 end
 
+# function create_coupled_sim_gif(
+#     floe_pn,
+#     init_pn,
+#     output_fn;
+#     plot_size = (1500, 1500),
+#     fps = 15,
+# )
+
+#         # Loading surface data
+#     fname = "../data/" * run_name * "/surface.nc"
+#     xc = ncread(fname, "xC")
+#     yc = ncread(fname, "yC")
+#     Nx = length(xc)
+#     Ny = length(yc)
+#     usurf = ncread(fname, "u")[1:Nx,1:Ny,:,:]
+#     vsurf = ncread(fname, "v")[1:Nx,1:Ny,:,:]
+#     wsurf = ncread(fname, "w")
+#     Tsurf = ncread(fname, "T")
+#     Ssurf = ncread(fname, "S")
+#     t = ncread(fname, "time")
+#     sigma = gsw_sigma0.(Ssurf, Tsurf)
+#     nit = length(t)
+#     dx = xc[2] - xc[1]
+#     dy = yc[2] - yc[1]
+#     Lx = xc[end] + dx/2
+#     Ly = yc[end] + dy/2
+
+# end
+
 #------------ Plotting for Debugging During Simulation Run --------------#
 
 """

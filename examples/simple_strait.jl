@@ -5,7 +5,7 @@ import LibGEOS as LG
 const FT = Float64
 const Lx = 1e5
 const Ly = 1e5
-const Δgrid = 10000
+const Δgrid = 1e4
 const hmean = 0.25
 const Δh = 0.0
 const Δt = 20
@@ -35,10 +35,8 @@ topo_arr = StructVector([TopographyElement(t) for t in [island, topo1, topo2]])
 domain = Domain(nboundary, sboundary, eboundary, wboundary, topo_arr)
 
 # Floe creation
-floe_arr = initialize_floe_field(50, [0.7], domain, hmean, Δh, rng = Xoshiro(3))
-
-# Model creation
-model = Model(grid, ocean, atmos, domain, floe_arr)
+#floe_arr = initialize_floe_field(100, [0.7], domain, hmean, Δh, rng = Xoshiro(3))
+floe_arr = load("output/strait_25floes.jld2")["floe_arr"]
 
 # Simulation setup
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
@@ -55,7 +53,9 @@ fracture_settings = FractureSettings(
 # Output setup
 dir = "output/simple_strait"
 run_time!(simulation) = @time run!(simulation)
-for i in 1:10
+for i in 1:5
+    # Model creation
+    local model = Model(grid, ocean, atmos, domain, deepcopy(floe_arr))
     local initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
     local floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
     local writers = OutputWriters(
@@ -71,6 +71,7 @@ for i in 1:10
         verbose = false,
         fracture_settings = fracture_settings,
         writers = writers,
+        rng = Xoshiro(1)
     )
 
     # Run simulation
@@ -78,6 +79,6 @@ for i in 1:10
 end
  
 
-# Subzero.create_sim_gif("output/simple_strait/floes.jld2", 
-#                        "output/simple_strait/initial_state.jld2",
-#                        "output/simple_strait/simple_strait.gif")
+Subzero.create_sim_gif("output/simple_strait/floes.jld2", 
+                       "output/simple_strait/initial_state.jld2",
+                       "output/simple_strait/simple_strait.gif")
