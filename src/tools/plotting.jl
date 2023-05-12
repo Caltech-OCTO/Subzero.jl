@@ -115,6 +115,45 @@ function create_sim_gif(
     return
 end
 
+# function prettytime(t)
+#     # Modified from: https://github.com/JuliaCI/BenchmarkTools.jl/blob/master/src/trials.jl
+#     iszero(t) && return "0 seconds"
+
+#     t = maybe_int(t)
+
+#     if t < 1e-9
+#         # No point going to picoseconds, just return something readable.
+#         return @sprintf("%.3e seconds", t)
+#     elseif t < 1e-6
+#         value, units = t * 1e9, "ns"
+#     elseif t < 1e-3
+#         value, units = t * 1e6, "μs"
+#     elseif t < 1
+#         value, units = t * 1e3, "ms"
+#     elseif t < minute
+#         value = t
+#         units = value == 1 ? "second" : "seconds"
+#     elseif t < hour
+#         value = maybe_int(t / minute)
+#         units = value == 1 ? "minute" : "minutes"
+#     elseif t < day
+#         value = maybe_int(t / hour)
+#         units = value == 1 ? "hour" : "hours"
+#     elseif t < year
+#         value = maybe_int(t / day)
+#         units = value == 1 ? "day" : "days"
+#     else
+#         value = maybe_int(t / year)
+#         units = value == 1 ? "year" : "years"
+#     end
+
+#     if isinteger(value)
+#         return @sprintf("%d %s", value, units)
+#     else
+#         return @sprintf("%.3f %s", value, units)
+#     end
+# end
+
 # function create_coupled_sim_gif(
 #     floe_pn,
 #     init_pn,
@@ -123,7 +162,7 @@ end
 #     fps = 15,
 # )
 
-#         # Loading surface data
+#     # Loading surface data
 #     fname = "../data/" * run_name * "/surface.nc"
 #     xc = ncread(fname, "xC")
 #     yc = ncread(fname, "yC")
@@ -141,7 +180,48 @@ end
 #     dy = yc[2] - yc[1]
 #     Lx = xc[end] + dx/2
 #     Ly = yc[end] + dy/2
+#     omega = 2*π/(3600*24)
+#     f = 2*omega*sin(70*π/180)
 
+#     # Get floe data
+#     floe_data = jldopen(floe_pn, "r")
+#     status = floe_data["status"]
+#     coords = floe_data["coords"]
+
+#     # Plot floe data
+#     plt = setup_plot(init_pn, plot_size)
+#     times = keys(coords)
+#     anim = @animate for t in times
+#         new_frame = plot(plt)
+#         # plot ocean
+#         vort = get_curl(usurf[:,:,1,i],vsurf[:,:,1,i],dx,dy) # curl
+#         verts = Subzero.separate_xy.(coords[t])
+#         Ro = vort/f
+#         conv = -get_div(usurf[:,:,1,i],vsurf[:,:,1,i],dx,dy)
+#         title_plt = plot(
+#             title = prettytime(t[i]),
+#             grid = false,
+#             showaxis = false,
+#             bottom_margin = -30Plots.px,
+#             ticks=nothing,
+#         )
+#         # plot floes
+#         for i in eachindex(verts)
+#             if status[t][i].tag != remove
+#                 plot!(
+#                     new_frame,
+#                     first(verts[i])./1000,
+#                     last(verts[i])./1000,
+#                     seriestype = [:shape,],
+#                     fill = :lightblue,
+#                     legend=false,
+#                 )
+#             end
+#         end
+#     end
+#     JLD2.close(floe_data)
+#     gif(anim, output_fn, fps = fps)
+#     return
 # end
 
 #------------ Plotting for Debugging During Simulation Run --------------#
