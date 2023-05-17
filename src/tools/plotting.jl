@@ -95,12 +95,10 @@ function create_sim_gif(
     plt = setup_plot(init_pn, plot_size)
     times = keys(coords)
     anim = @animate for t in times
-        new_frame = plot(plt)
         verts = Subzero.separate_xy.(coords[t])
         for i in eachindex(verts)
             if status[t][i].tag != remove
                 plot!(
-                    new_frame,
                     first(verts[i])./1000,
                     last(verts[i])./1000,
                     seriestype = [:shape,],
@@ -115,114 +113,168 @@ function create_sim_gif(
     return
 end
 
-# function prettytime(t)
-#     # Modified from: https://github.com/JuliaCI/BenchmarkTools.jl/blob/master/src/trials.jl
-#     iszero(t) && return "0 seconds"
+"""
+    prettytime(t)
 
-#     t = maybe_int(t)
+Turn time in seconds into units of minutes, hours, days, or years as appropriate
+Input:
+    t   <Real> number of seconds
+Output:
+    String with value and units
+Note:
+    modified from
+    https://github.com/JuliaCI/BenchmarkTools.jl/blob/master/src/trials.jl
+"""
+function prettytime(t)
+    minute = 60
+    hour = 3600
+    day = 24*3600
+    year = 360*day
 
-#     if t < 1e-9
-#         # No point going to picoseconds, just return something readable.
-#         return @sprintf("%.3e seconds", t)
-#     elseif t < 1e-6
-#         value, units = t * 1e9, "ns"
-#     elseif t < 1e-3
-#         value, units = t * 1e6, "μs"
-#     elseif t < 1
-#         value, units = t * 1e3, "ms"
-#     elseif t < minute
-#         value = t
-#         units = value == 1 ? "second" : "seconds"
-#     elseif t < hour
-#         value = maybe_int(t / minute)
-#         units = value == 1 ? "minute" : "minutes"
-#     elseif t < day
-#         value = maybe_int(t / hour)
-#         units = value == 1 ? "hour" : "hours"
-#     elseif t < year
-#         value = maybe_int(t / day)
-#         units = value == 1 ? "day" : "days"
-#     else
-#         value = maybe_int(t / year)
-#         units = value == 1 ? "year" : "years"
-#     end
+    iszero(t) && return "0 seconds"
+    if t < minute
+        value = floor(Int, t)
+        units = value == 1 ? "second" : "seconds"
+    elseif t < hour
+        value = floor(Int, t / minute)
+        units = value == 1 ? "minute" : "minutes"
+    elseif t < day
+        value = floor(Int, t / hour)
+        units = value == 1 ? "hour" : "hours"
+    elseif t < year
+        value = floor(Int, t / day)
+        units = value == 1 ? "day" : "days"
+    else
+        value = floor(Int, t / year)
+        units = value == 1 ? "year" : "years"
+    end
+    return @sprintf("%d %s", value, units)
+end
 
-#     if isinteger(value)
-#         return @sprintf("%d %s", value, units)
-#     else
-#         return @sprintf("%.3f %s", value, units)
-#     end
-# end
+"""
+    get_curl(fldx,fldy,dx,dy)
 
-# function create_coupled_sim_gif(
-#     floe_pn,
-#     init_pn,
-#     output_fn;
-#     plot_size = (1500, 1500),
-#     fps = 15,
-# )
+Calculate curl from ocean u and v velocity fields
+Inputs:
+    fldx    <Matrix{AbstractFloat}> ocean u velocity field
+    fldy    <Matrix{AbstractFloat}> ocean v velocity field
+    dx      <AbstractFloat> x-distance over which velocity fields are provided
+    dy      <AbstractFloat> y-distance over which velocity fields are provided
+Output:
+    <Matrix{AbstractFloat}> curl
+"""
+function get_curl(fldx,fldy,dx,dy)
+    # fldx must be on the u-grid point and fldy on the v-grid
+    # returns field on the omega grid
+    nx,ny = size(fldx)
+    dvdx = zeros((ny,nx))
+    dudy = zeros((ny,nx))
+    dvdx[1:end-1,:] = diff(fldy,dims=1)/dx
+    dudy[:,1:end-1] = diff(fldx,dims=2)/dy
+    return (dvdx - dudy)
+end
 
-#     # Loading surface data
-#     fname = "../data/" * run_name * "/surface.nc"
-#     xc = ncread(fname, "xC")
-#     yc = ncread(fname, "yC")
-#     Nx = length(xc)
-#     Ny = length(yc)
-#     usurf = ncread(fname, "u")[1:Nx,1:Ny,:,:]
-#     vsurf = ncread(fname, "v")[1:Nx,1:Ny,:,:]
-#     wsurf = ncread(fname, "w")
-#     Tsurf = ncread(fname, "T")
-#     Ssurf = ncread(fname, "S")
-#     t = ncread(fname, "time")
-#     sigma = gsw_sigma0.(Ssurf, Tsurf)
-#     nit = length(t)
-#     dx = xc[2] - xc[1]
-#     dy = yc[2] - yc[1]
-#     Lx = xc[end] + dx/2
-#     Ly = yc[end] + dy/2
-#     omega = 2*π/(3600*24)
-#     f = 2*omega*sin(70*π/180)
+"""
+    create_coupled_ro_sim_gif(
+        floe_pn,
+        init_pn,
+        surface_pn,
+        output_fn;
+        plot_size = (1500, 1500),
+        fps = 15,
+    )
 
-#     # Get floe data
-#     floe_data = jldopen(floe_pn, "r")
-#     status = floe_data["status"]
-#     coords = floe_data["coords"]
+Plots floes over Oceananigans surface Ro = ξ/f.
+Inputs:
+    floes_pn    <String> file path to file output by floe output writer that
+                    inclues coordinate and status fields
+    init_pn     <String> file path to JLD2 file holding domain information
+    surface_pn  <String> file path to NetCDF file holding Oceananigans surface
+                    data
+    output_fn   <String> file path to save gif
+    plot_size   <Tuple(Int, Int)> size of output gif in pixels - default
+                    (1500, 1500)
+    fps         <Int> frames per second - default 15
+Output:
+    Saves gif to output_fn
+"""
+function create_coupled_ro_sim_gif(
+    floe_pn,
+    init_pn,
+    surface_pn,
+    output_fn;
+    plot_size = (1500, 1500),
+    fps = 15,
+)
+    # Loading surface data
+    fname = surface_pn
+    xc = NetCDF.ncread(fname, "xC")
+    yc = NetCDF.ncread(fname, "yC")
+    Nx = length(xc)
+    Ny = length(yc)
+    usurf = NetCDF.ncread(fname, "u")[1:Nx,1:Ny,:,:]
+    vsurf = NetCDF.ncread(fname, "v")[1:Nx,1:Ny,:,:]
+    t = NetCDF.ncread(fname, "time")
+    nit = length(t)
+    dx = xc[2] - xc[1]
+    dy = yc[2] - yc[1]
+    omega = 2*π/(3600*24)
+    f = 2*omega*sin(70*π/180)
 
-#     # Plot floe data
-#     plt = setup_plot(init_pn, plot_size)
-#     times = keys(coords)
-#     anim = @animate for t in times
-#         new_frame = plot(plt)
-#         # plot ocean
-#         vort = get_curl(usurf[:,:,1,i],vsurf[:,:,1,i],dx,dy) # curl
-#         verts = Subzero.separate_xy.(coords[t])
-#         Ro = vort/f
-#         conv = -get_div(usurf[:,:,1,i],vsurf[:,:,1,i],dx,dy)
-#         title_plt = plot(
-#             title = prettytime(t[i]),
-#             grid = false,
-#             showaxis = false,
-#             bottom_margin = -30Plots.px,
-#             ticks=nothing,
-#         )
-#         # plot floes
-#         for i in eachindex(verts)
-#             if status[t][i].tag != remove
-#                 plot!(
-#                     new_frame,
-#                     first(verts[i])./1000,
-#                     last(verts[i])./1000,
-#                     seriestype = [:shape,],
-#                     fill = :lightblue,
-#                     legend=false,
-#                 )
-#             end
-#         end
-#     end
-#     JLD2.close(floe_data)
-#     gif(anim, output_fn, fps = fps)
-#     return
-# end
+    # Get floe data
+    floe_data = jldopen(floe_pn, "r")
+    status = floe_data["status"]
+    coords = floe_data["coords"]
+
+    # Plot floe data
+    plt = setup_plot(init_pn, plot_size)
+    times = keys(coords)
+    anim = @animate for i = 1:nit
+        ts = times[i]
+        # get floe coords at timestep
+        verts = Subzero.separate_xy.(coords[ts])
+        # calculate Ro for timestep
+        vort = get_curl(usurf[:,:,1,i],vsurf[:,:,1,i],dx,dy) # curl
+        Ro = vort/f
+        # Setup plot for timestep
+        plt = setup_plot(init_pn, plot_size)
+        # Plot ocean for timestep
+        contour!(
+            plt,
+            xc/1000,
+            yc/1000,
+            Ro',
+            xlabel="x [km]",
+            ylabel="y [km]",
+            title=prettytime(t[i]),
+            titlefontsize = 35,
+            linewidth = 0,
+            fill=true,
+            color=:balance,
+            clims=(-0.6, 0.6),
+            legend=false,
+            colorbar=true,
+            colorbar_title = "Ro = ζ/f",
+            colorbar_titlefontsize = 25,
+        )
+        # Plot floes for timestep
+        for j in eachindex(verts)
+            if status[ts][j].tag != remove
+                plot!(
+                    plt,
+                    first(verts[j])./1000,
+                    last(verts[j])./1000,
+                    seriestype = [:shape,],
+                    fill = :lightblue,
+                    legend=false,
+                )
+            end
+        end
+    end
+    JLD2.close(floe_data)
+    gif(anim, output_fn, fps = fps)
+    return
+end
 
 #------------ Plotting for Debugging During Simulation Run --------------#
 
