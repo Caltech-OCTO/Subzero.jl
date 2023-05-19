@@ -69,21 +69,24 @@ Let’s run a basic simulation with initially stationary floes pushed into a col
 
 ```julia
 const FT = Float64
+# Create environment
 grid = RegRectilinearGrid(FT, 0, 1e5, 0, 1e5, 1e4, 1e4) 
 ocean = Ocean(FT, grid, 0.25, 0.0, 0.0) 
-atmos = Atmos(grid, 0.0, 0.0, 0.0) 
+atmos = Atmos(FT, grid, 0.0, 0.0, 0.0) 
+# Create domain
 domain = Domain( 
-  CollisionBoundary(grid, North()), 
-  CollisionBoundary(grid, South()), 
-  CollisionBoundary(grid, East()),
-  CollisionBoundary(grid, West()),
-) 
+  CollisionBoundary(FT, North, grid), 
+  CollisionBoundary(FT, South, grid), 
+  CollisionBoundary(FT, East, grid),
+  CollisionBoundary(FT, West, grid),
+)
+# Create floes
 floe_arr = initialize_floe_field(50, [0.7], domain, 0.5, 0.05) 
+# Create model
 model = Model(grid, ocean, atmos, domain, floe_arr) 
-
+# Create simulation
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area))) 
 consts = Constants(E = modulus) 
-
 fracture_settings = FractureSettings( 
   fractures_on = true,
   criteria = HiblerYieldCurve(floe_arr),
@@ -92,7 +95,8 @@ fracture_settings = FractureSettings(
   nhistory = 1000,
   deform_on = true, 
 ) 
-
+floewriter = FloeOutputWriter(100, dir = "output/sim", filename = "floes.jld2", overwrite = true)
+writers = OutputWriters(floewriters = StructArray([floewriter]))
 simulation = Simulation( 
   model = model, 
   consts = consts, 
@@ -100,10 +104,10 @@ simulation = Simulation(
   nΔt = 5000, 
   verbose = true, 
   fracture_settings,
+  writers = writers,
 )
-
-floewriter = FloeOutputWriter(100, dir = "output/sim", filename = "floes.jld2", overwrite = true)
-run!(simulation, [floewriter])
+# Run simulation
+run!(simulation)
 ``` 
 
 Check out our [documentation](https://github.com/Caltech-OCTO/Subzero.jl/blob/documentation/documentation.md) for more examples and explanations for the code above.
@@ -119,9 +123,15 @@ If you’re interested in helping develop Subzero, have found a bug, or have a n
 **Shear Flow**
 In this simulation, the ocean flow is 0m/s at the top and bottom of the domain, gradually increasing towards 0.5m/s in the middle of the domain. All four boundaries are periodic. We used a timestep of 20 seconds for 4,320 timesteps, which is one day. 
 
+<img src="https://github.com/Caltech-OCTO/Subzero.jl/assets/60117338/2b13746e-e4db-4ceb-92c5-59f50f2cab32" alt="Shear flow" width="800">
 
 **Simple Strait**
 In this simulation, the ocean floe is uniformly -0.3 m/s from top to bottom of the simulation. The top and bottom boundaries are periodic, with the right and left being collision boundaries. However, the collision boundaries are covered by two pieces of topography forming the strait. This simulation also has 20 second timesteps, run for 4,320 timesteps, which is one day.
 
+<img src="https://github.com/Caltech-OCTO/Subzero.jl/assets/60117338/ec331900-aeb7-4b05-a713-a0d5a2b529b8" alt="Simple strait" width="800">
+
 ## Performance Benchmarks: 
-Here we compare Subzero runtimes in Julia and MATLAB for the above simulations. The code was run on a 2013 desktop Mac with 4 cores and 8 GB of memory. Each simulation was run 10 times. The Julia code was run with 8 threads. The MATLAB code has parfor loops and was run with the 4 cores on the computer.
+Here we compare Subzero runtimes in Julia and MATLAB for the shear flow simulation. The code was run on Caltech's HPC cluster. The Julia code was run with 12 threads (12 CPUs per 1 node and 1 task). The MATLAB code has parfor loops with 12 workers (12 tasks, 1 CPU per task).
+
+<img src="https://github.com/Caltech-OCTO/Subzero.jl/assets/60117338/9532e883-0f1d-4399-b713-de24803de72f" alt="Performance data" width="800">
+
