@@ -81,7 +81,14 @@ domain = Domain(
   CollisionBoundary(FT, West, grid),
 )
 # Create floes
-floe_arr = initialize_floe_field(50, [0.7], domain, 0.5, 0.05) 
+floe_arr = initialize_floe_field(
+  FT,
+  50,  # number of floes
+  [0.7],  # floe concentration
+  domain,
+  0.5,  # average floe height
+  0.05,  # floe height variability
+) 
 # Create model
 model = Model(grid, ocean, atmos, domain, floe_arr) 
 # Create simulation
