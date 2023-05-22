@@ -178,8 +178,7 @@ Base.:(:)(a::InteractionFields, b::InteractionFields) = Int(a):Int(b)
         area,
         status,
         rng,
-        ::Type{T} = Float64,
-    ) where T
+    )
 
 Generate monte carlo points, determine which are within the given floe, and the
 error associated with the points
@@ -192,8 +191,8 @@ Inputs:
     status  <Status> floe status (i.e. active, fuse, etc in simulation)
     rng     <RNG> random number generator to generate monte carlo points
 Outputs:
-    mc_x   <Vector{T}> vector of monte carlo point x-coords that are within floe
-    mc_y   <Vector{T}> vector of monte carlo point y-coords that are within floe
+    mc_x   <Vector{FT}> vector of monte carlo point x-coords that are within floe
+    mc_y   <Vector{FT}> vector of monte carlo point y-coords that are within floe
     status <Status> tag is `active` if points created correctly, else `remove``
 Note:
     You will not end up with npoints. This is the number originally generated,
@@ -202,24 +201,24 @@ Note:
 """
 function generate_mc_points(
     npoints::Int,
-    coords::PolyVec{T},
-    rmax::T,
-    area::T,
+    coords::PolyVec{FT},
+    rmax::FT,
+    area::FT,
     status,
     rng,
-) where {T<:AbstractFloat}
+) where {FT<:AbstractFloat}
     count = 1
-    err = T(1)
-    mc_x = zeros(T, npoints)
-    mc_y = zeros(T, npoints)
+    err = FT(1)
+    mc_x = zeros(FT, npoints)
+    mc_y = zeros(FT, npoints)
     mc_in = fill(false, npoints)
     while err > 0.1
         if count > 10
             err = 0.0
             status.tag = remove
         else
-            mc_x .= rmax * (2rand(rng, T, Int(npoints)) .- 1)
-            mc_y .= rmax * (2rand(rng, T, Int(npoints)) .- 1)
+            mc_x .= rmax * (2rand(rng, FT, Int(npoints)) .- 1)
+            mc_y .= rmax * (2rand(rng, FT, Int(npoints)) .- 1)
             mc_in = points_in_poly(hcat(mc_x, mc_y), coords)
             err = abs(sum(mc_in)/npoints * 4 * rmax^2 - area)/area
             count += 1
@@ -231,6 +230,7 @@ end
 
 """
     Floe(
+        ::Type{FT},
         poly::LG.Polygon,
         hmean,
         Δh;
@@ -239,23 +239,23 @@ end
         v = 0.0,
         ξ = 0.0,
         mc_n = 1000.0,
-        t::Type{T} = Float64,
     )
 
 Constructor for floe with LibGEOS Polygon
 Inputs:
-    poly  <LibGEOS.Polygon> 
-    hmean <Real> mean height for floes
-    Δh    <Real> variability in height for floes
-    grid  <Grid> simulation grid
-    ρi    <Real> ice density kg/m3 - default 920
-    u     <Real> x-velocity of the floe - default 0.0
-    v     <Real> y-velcoity of the floe - default 0.0
-    ξ     <Real> angular velocity of the floe - default 0.0
-    mc_n  <Real> number of monte carlo points
-    rng   <RNG> random number generator to generate random floe attributes
-            default is RNG using Xoshiro256++ algorithm
-    t     <Float> datatype to run simulation with - either Float32 or Float64
+    Type{FT}    <AbstractFloat> Type for grid's numberical fields - determines
+                    simulation run type
+    poly        <LibGEOS.Polygon> 
+    hmean       <Real> mean height for floes
+    Δh          <Real> variability in height for floes
+    grid        <Grid> simulation grid
+    ρi          <Real> ice density kg/m3 - default 920
+    u           <Real> x-velocity of the floe - default 0.0
+    v           <Real> y-velcoity of the floe - default 0.0
+    ξ           <Real> angular velocity of the floe - default 0.0
+    mc_n        <Real> number of monte carlo points
+    rng         <RNG> random number generator to generate random floe attributes
+                    default is RNG using Xoshiro256++ algorithm
 Output:
     <Floe> with needed fields defined - all default field values used so all
         forcings start at 0 and floe's status is "active". Velocities and the
@@ -268,6 +268,7 @@ Note:
     forth all of the time. 
 """
 function Floe(
+    ::Type{FT},
     poly::LG.Polygon,
     hmean,
     Δh;
@@ -278,13 +279,12 @@ function Floe(
     mc_n::Int = 1000,
     nhistory = 1000,
     rng = Xoshiro(),
-    t::Type{T} = Float64,
-) where T
+) where {FT <: AbstractFloat}
     floe = rmholes(poly)
     # Floe physical properties
     centroid = find_poly_centroid(floe)
-    height = hmean + (-1)^rand(rng, 0:1) * rand(rng, T) * Δh
-    area_tot = LG.area(floe)::Float64
+    height = hmean + (-1)^rand(rng, 0:1) * rand(rng, FT) * Δh
+    area_tot = LG.area(floe)
     mass = area_tot * height * ρi
     coords = find_poly_coords(floe)
     moment = calc_moment_inertia(coords, centroid, height, ρi = ρi)
@@ -303,21 +303,21 @@ function Floe(
     )
     translate!(coords, centroid[1], centroid[2])
     # Generate Stress History
-    stress_history = StressCircularBuffer{T}(nhistory)
-    fill!(stress_history, zeros(T, 2, 2))
+    stress_history = StressCircularBuffer{FT}(nhistory)
+    fill!(stress_history, zeros(FT, 2, 2))
 
     return Floe(
-        centroid = convert(Vector{T}, centroid),
-        coords = convert(PolyVec{T}, coords),
-        height = convert(T, height),
-        area = convert(T, area_tot),
-        mass = convert(T, mass),
-        rmax = convert(T, rmax),
-        moment = convert(T, moment),
+        centroid = convert(Vector{FT}, centroid),
+        coords = convert(PolyVec{FT}, coords),
+        height = convert(FT, height),
+        area = convert(FT, area_tot),
+        mass = convert(FT, mass),
+        rmax = convert(FT, rmax),
+        moment = convert(FT, moment),
         angles = angles,
-        u = convert(T, u),
-        v = convert(T, v),
-        ξ = convert(T, ξ),
+        u = convert(FT, u),
+        v = convert(FT, v),
+        ξ = convert(FT, ξ),
         mc_x = mc_x,
         mc_y = mc_y,
         stress_history = stress_history,
@@ -327,6 +327,7 @@ end
 
 """
     Floe(
+        ::Type{FT},
         coords::PolyVec,
         hmean,
         Δh;
@@ -335,13 +336,14 @@ end
         v = 0.0,
         ξ = 0.0,
         mc_n = 1000,
-        t::Type{T} = Float64,
     )
 
 Floe constructor with PolyVec{AbstractFloat} coordinates
 Inputs:
+    Type{FT}    <AbstractFloat> Type for grid's numberical fields - determines
+                    simulation run type
     coords      <Vector{Vector{Vector{Float64}}}> floe coordinates
-    hmean      <Real> mean height for floes
+    hmean       <Real> mean height for floes
     Δh          <Real> variability in height for floes
     grid        <Grid> simulationg grid
     ρi          <Real> ice density kg/m3 - default 920
@@ -357,6 +359,7 @@ Output:
         forcings and velocities start at 0 and floe's status is "active"
 """
 Floe(
+    ::Type{FT},
     coords::PolyVec,
     hmean,
     Δh;
@@ -367,9 +370,9 @@ Floe(
     mc_n::Int = 1000,
     nhistory = 1000,
     rng = Xoshiro(),
-    t::Type{T} = Float64,
-) where T =
-    Floe( # Polygon convert is needed since LibGEOS only takes Float64 - when this is fixed convert can be removed
+) where {FT <: AbstractFloat} =
+    Floe( # Polygon convert is needed since LibGEOS only takes Float64
+        FT,
         LG.Polygon(convert(PolyVec{Float64},
         valid_polyvec!(rmholes(coords)))),
         hmean,
@@ -381,11 +384,11 @@ Floe(
         mc_n = mc_n,
         nhistory = nhistory,
         rng = rng,
-        t = T,
     ) 
 
 """
     poly_to_floes(
+        ::Type{FT},
         floe_poly,
         hmean,
         Δh;
@@ -402,6 +405,8 @@ Floe(
 Split a given polygon into regions and split around any holes before turning
 each region with an area greater than the minimum floe area into a floe.
 Inputs:
+    Type{FT}        <AbstractFloat> Type for grid's numberical fields -
+                        determines simulation run type
     floe_poly       <LibGEOS.Polygon or LibGEOS.MultiPolygon> polygon/
                         multipolygon to turn into floes
     hmean           <AbstratFloat> average floe height
@@ -421,9 +426,10 @@ Output:
         above given minimum floe area. Floe's with holes split around holes. 
 """
 function poly_to_floes(
+    ::Type{FT},
     floe_poly,
-    hmean::FT,
-    Δh::FT;
+    hmean,
+    Δh;
     ρi = 920.0,
     u = 0.0,
     v = 0.0,
@@ -441,6 +447,7 @@ function poly_to_floes(
         if a >= min_floe_area && a > 0
             if !hashole(r)
                 floe = Floe(
+                    FT,
                     r::LG.Polygon,
                     hmean,
                     Δh,
@@ -451,7 +458,6 @@ function poly_to_floes(
                     mc_n = mc_n,
                     nhistory = nhistory,
                     rng = rng,
-                    t = FT,
                 )
                 push!(floes, floe)
             else
@@ -466,7 +472,8 @@ end
 
 """
     initialize_floe_field(
-        coords::Vector{PolyVec{T}},
+        ::Type{FT},
+        coords,
         domain,
         hmean,
         Δh;
@@ -475,12 +482,13 @@ end
         mc_n::Int = 1000,
         nhistory::Int = 1000,
         rng = Xoshiro(),
-        t::Type{T} = Float64,
-    ) where T
+    )
 
 Create a field of floes from a list of polygon coordiantes. User is wanrned if
 floe's do not meet minimum size requirment. 
 Inputs:
+    Type{FT}        <AbstractFloat> Type for grid's numberical fields -
+                        determines simulation run type
     coords          <Vector{PolyVec}> list of polygon coords to make into floes
     domain          <Domain> model domain 
     hmean           <Float> average floe height
@@ -496,13 +504,12 @@ Inputs:
                         outside of the floe
     rng             <RNG> random number generator to generate random floe
                         attributes - default is RNG using Xoshiro256++ algorithm
-    T               <Type> An abstract float type to run the simulation in
-                        (optional) - default is Float64
 Output:
     floe_arr <StructArray> list of floes created from given polygon coordinates
 """
 function initialize_floe_field(
-    coords::Vector{PolyVec{T}},
+    ::Type{FT},
+    coords,
     domain,
     hmean,
     Δh;
@@ -511,9 +518,8 @@ function initialize_floe_field(
     mc_n::Int = 1000,
     nhistory::Int = 1000,
     rng = Xoshiro(),
-    t::Type{T} = Float64,
-) where T
-    floe_arr = StructArray{Floe{T}}(undef, 0)
+) where {FT <: AbstractFloat}
+    floe_arr = StructArray{Floe{FT}}(undef, 0)
     floe_polys = [LG.Polygon(valid_polyvec!(c)) for c in coords]
     # Remove overlaps with topography
     if !isempty(domain.topography)
@@ -525,9 +531,10 @@ function initialize_floe_field(
         append!(
             floe_arr, 
             poly_to_floes(
+                FT,
                 p,
-                T(hmean),
-                T(Δh);
+                hmean,
+                Δh;
                 ρi = ρi,
                 mc_n = mc_n,
                 nhistory = nhistory,
@@ -539,7 +546,7 @@ function initialize_floe_field(
     # Warn about floes with area less than minimum floe size
     min_floe_area = min_floe_area > 0 ?
         min_floe_area :
-        T(
+        FT(
             4 * (domain.east.val - domain.west.val) *
             (domain.north.val - domain.south.val) / 1e4
         )
@@ -585,8 +592,6 @@ Inputs:
                         seed voronoi
     max_tries       <Int> number of tires to generate desired number of points
                         within domain_coords to seed voronoi cell creation
-    T               <Type> An abstract float type to run the simulation in
-                        (optional) - default is Float64
 Outputs:
     coords  <Vector{PolyVec{Float}}> vector of polygon coordinates generated by
         voronoi tesselation. These polygons all fall within the space defined by
@@ -656,6 +661,7 @@ end
 
 """
     initialize_floe_field(
+        ::Type{FT},
         nfloes::Int,
         concentrations,
         domain,
@@ -664,43 +670,43 @@ end
         min_floe_area = 0.0,
         ρi = 920.0,
         mc_n::Int = 1000,
-        t::Type{T} = Float64)
 
 Create a field of floes using Voronoi Tesselation.
 Inputs:
-        nfloes          <Int> number of floes to try to create - note you
-                            might not end up with this number of floes -
-                            topography in domain and multiple concentrations can
-                            decrease number of floes created
-        concentrations  <Matrix> matrix of concentrations to fill domain. If
-                            size(concentrations) = N, M then split the domain
-                            into NxM cells, each to be filled with the
-                            corresponding concentration. If concentration is
-                            below 0, it will default to 0. If it is above 1, it
-                            will default to 1
-        domain          <Domain> model domain 
-        hmean           <Float> average floe height
-        Δh              <Float> height range - floes will range in height from
-                            hmean - Δh to hmean + Δh
-        min_floe_area   <Float> if a floe below this minimum floe size is
-                            created it will be deleted (optional) - default is
-                            0, but if a negative is provided it will be replaced
-                            with 4*Lx*Ly/1e4 where Lx and Ly are the size of the
-                            domain edges
-        ρi              <Float> ice density (optional) - default is 920.0
-        mc_n            <Int> number of monte carlo points to intially generate
-                            for each floe (optional) - default is 1000 - note
-                            that this is not the number you will end up with as
-                            some will be outside of the floe
-        rng             <RNG> random number generator to generate random floe
-                            attributes - default is RNG using Xoshiro256++
-        T               <Type> an abstract float type to run the simulation in
-                            (optional) - default is Float64
+    Type{FT}        <AbstractFloat> Type for grid's numberical fields -
+                        determines simulation run type
+    nfloes          <Int> number of floes to try to create - note you
+                        might not end up with this number of floes -
+                        topography in domain and multiple concentrations can
+                        decrease number of floes created
+    concentrations  <Matrix> matrix of concentrations to fill domain. If
+                        size(concentrations) = N, M then split the domain
+                        into NxM cells, each to be filled with the
+                        corresponding concentration. If concentration is
+                        below 0, it will default to 0. If it is above 1, it
+                        will default to 1
+    domain          <Domain> model domain 
+    hmean           <Float> average floe height
+    Δh              <Float> height range - floes will range in height from
+                        hmean - Δh to hmean + Δh
+    min_floe_area   <Float> if a floe below this minimum floe size is
+                        created it will be deleted (optional) - default is
+                        0, but if a negative is provided it will be replaced
+                        with 4*Lx*Ly/1e4 where Lx and Ly are the size of the
+                        domain edges
+    ρi              <Float> ice density (optional) - default is 920.0
+    mc_n            <Int> number of monte carlo points to intially generate
+                        for each floe (optional) - default is 1000 - note
+                        that this is not the number you will end up with as
+                        some will be outside of the floe
+    rng             <RNG> random number generator to generate random floe
+                        attributes - default is RNG using Xoshiro256++
 Output:
-        floe_arr <StructArray> list of floes created using Voronoi Tesselation
-            of the domain with given concentrations.
+    floe_arr <StructArray> list of floes created using Voronoi Tesselation
+        of the domain with given concentrations.
 """
 function initialize_floe_field(
+    ::Type{FT},
     nfloes::Int,
     concentrations,
     domain,
@@ -711,9 +717,8 @@ function initialize_floe_field(
     mc_n::Int = 1000,
     nhistory::Int = 1000,
     rng = Xoshiro(),
-    t::Type{T} = Float64
-) where T
-    floe_arr = StructArray{Floe{T}}(undef, 0)
+) where {FT <: AbstractFloat}
+    floe_arr = StructArray{Floe{FT}}(undef, 0)
     # Split domain into cells with given concentrations
     nrows, ncols = size(concentrations[:, :])
     Lx = domain.east.val - domain.west.val
@@ -734,7 +739,7 @@ function initialize_floe_field(
         )
     end
     open_water_area = LG.area(open_water)
-    min_floe_area = min_floe_area >= 0 ? min_floe_area : T(4 * Lx * Lx / 1e4)
+    min_floe_area = min_floe_area >= 0 ? min_floe_area : FT(4 * Lx * Lx / 1e4)
     # Loop over cells
     for j in range(1, ncols)
         for i in range(1, nrows)
@@ -754,7 +759,7 @@ function initialize_floe_field(
                 # Open water in cell
                 open_cell = LG.intersection(LG.Polygon(cell_bounds), open_water)
                 open_coords = find_multipoly_coords(open_cell)
-                open_area = LG.area(open_cell)::T
+                open_area = LG.area(open_cell)
                 # Generate coords with voronoi tesselation and make into floes
                 ncells = ceil(Int, nfloes * open_area / open_water_area / c)
                 floe_coords = generate_voronoi_coords(
@@ -767,7 +772,7 @@ function initialize_floe_field(
                 )
                 nfloes = length(floe_coords)
                 if nfloes > 0
-                    floes_area = T(0.0)
+                    floes_area = FT(0.0)
                     floe_idx = shuffle(rng, range(1, nfloes))
                     while !isempty(floe_idx) && floes_area/open_area <= c
                         idx = pop!(floe_idx)
@@ -776,9 +781,10 @@ function initialize_floe_field(
                             open_cell
                         )
                         floes = poly_to_floes(
+                            FT,
                             floe_poly,
-                            T(hmean),
-                            T(Δh);
+                            hmean,
+                            Δh;
                             ρi = ρi,
                             mc_n = mc_n,
                             nhistory = nhistory,

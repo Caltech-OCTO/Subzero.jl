@@ -28,27 +28,35 @@ grid = RegRectilinearGrid(
 zero_ocn = Ocean(FT, grid, 0.0, 0.0, 0.0)
 meridional_ocn = Ocean(FT, grid, 0.0, 1.0, 0.0)
 
-zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
-zonal_atmos = Atmos(grid, -15.0, 0.0, 0.0)
+zero_atmos = Atmos(FT, grid, 0.0, 0.0, 0.0)
+zonal_atmos = Atmos(FT, grid, -15.0, 0.0, 0.0)
 
 open_domain_no_topo = Subzero.Domain(
-    OpenBoundary(grid, North()),
-    OpenBoundary(grid, South()),
-    OpenBoundary(grid, East()),
-    OpenBoundary(grid, West()),
+    OpenBoundary(FT, North, grid),
+    OpenBoundary(FT, South, grid),
+    OpenBoundary(FT, East, grid),
+    OpenBoundary(FT, West, grid),
 )
 
-topography = TopographyElement([[[2e4, 0.0], [2e4, 2e4], [2.5e4, 2e4], 
-                                 [2.5e4, 0.0], [2e4, 0.0]]])
+topography = TopographyElement(
+    FT, 
+    [[
+        [2e4, 0.0],
+        [2e4, 2e4],
+        [2.5e4, 2e4],
+        [2.5e4, 0.0],
+        [2e4, 0.0],
+    ]])
 collision_domain_topo = Subzero.Domain(
-    CollisionBoundary(grid, North()),
-    CollisionBoundary(grid, South()),
-    CollisionBoundary(grid, East()),
-    CollisionBoundary(grid, West()),
+    CollisionBoundary(FT, North, grid),
+    CollisionBoundary(FT, South, grid),
+    CollisionBoundary(FT, East, grid),
+    CollisionBoundary(FT, West, grid),
     StructArray([topography]),
 )
 
 stationary_rect_floe = StructArray([Floe(
+    FT,
     [[
         [0.0, 0.0],
         [0.0, 2e4],
@@ -60,6 +68,7 @@ stationary_rect_floe = StructArray([Floe(
     Δh,
 )])
 zonal_3rect_floes = initialize_floe_field(
+    FT,
     [  # List of 3 floe coordinates
         [[
             [0.0, 0.0],
@@ -159,7 +168,6 @@ simulation2 = Simulation(
     nΔt = nΔt,
     collision_settings = collisions_off_settings,
     writers = writers2,
-    verbose = true,
 )
 push!(sim_arr, simulation2)
 
@@ -213,11 +221,12 @@ Expected Behavior:
     back through the western wall. 
 """
 periodic_bounds_topo = Subzero.Domain(
-    PeriodicBoundary(grid, North()),
-    PeriodicBoundary(grid, South()),
-    PeriodicBoundary(grid, East()),
-    PeriodicBoundary(grid, West()),
+    PeriodicBoundary(FT, North, grid),
+    PeriodicBoundary(FT, South, grid),
+    PeriodicBoundary(FT, East, grid),
+    PeriodicBoundary(FT, West, grid),
     StructArray([TopographyElement(
+        FT,
         [[
             [-1.5e4, 4.5e4],
             [-1.5e4, 6.5e4],
@@ -243,7 +252,7 @@ p2_coords = [[
     [6.5e4, 4.5e4],
 ]]
 p_floe_arr = StructArray(
-    [Floe(c, hmean, Δh) for c in [p1_coords, p2_coords]]
+    [Floe(FT, c, hmean, Δh) for c in [p1_coords, p2_coords]]
 )
 p_floe_arr.u[1] = 1
 p_floe_arr.v[1] = 1
@@ -287,6 +296,7 @@ Expected Behavior:
 file = jldopen("test/inputs/floe_shapes.jld2", "r")
 funky_floe_coords = file["floe_vertices"][1:100]
 funky_floe_arr = initialize_floe_field(
+    FT,
     funky_floe_coords,
     collision_domain_topo,
     hmean,

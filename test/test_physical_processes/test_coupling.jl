@@ -1,7 +1,8 @@
 @testset "Coupling" begin
+    FT = Float64
     @testset "Coupling Helper Functions" begin
         grid = Subzero.RegRectilinearGrid(
-            Float64,
+            FT,
             (-10, 10),
             (-8, 8),
             2,
@@ -21,8 +22,8 @@
         end
 
         # Test filter_oob_points
-        open_bound = Subzero.OpenBoundary(grid, Subzero.East())
-        periodic_bound = Subzero.PeriodicBoundary(grid, Subzero.East())
+        open_bound = Subzero.OpenBoundary(FT, East, grid)
+        periodic_bound = Subzero.PeriodicBoundary(FT, East, grid)
         x = [-12, -10, -8, -6, 0, 4, 4, 10, 12, 12]
         y = [5, -6, 4, 10, -10, 8, -8, -6, 4, 10]
         open_open_answers = [false, true, true, false, false, true, true, true, false, false]
@@ -247,22 +248,24 @@
     end
     @testset "OA Forcings" begin
     #     # set up model and floe
+        FT = Float64
         grid = Subzero.RegRectilinearGrid(
-            Float64,
+            FT,
             (-1e5, 1e5),
             (-1e5, 1e5),
             1e4,
             1e4,
         )
         zonal_ocean = Subzero.Ocean(Float64, grid, 1.0, 0.0, 0.0)
-        zero_atmos = Subzero.Atmos(grid, 0.0, 0.0, -20.0)
+        zero_atmos = Subzero.Atmos(Float64, grid, 0.0, 0.0, -20.0)
         domain = Subzero.Domain(
-            Subzero.CollisionBoundary(grid, Subzero.North()),
-            Subzero.CollisionBoundary(grid, Subzero.South()),
-            Subzero.CollisionBoundary(grid, Subzero.East()),
-            Subzero.CollisionBoundary(grid, Subzero.West()),
+            Subzero.CollisionBoundary(FT, North, grid),
+            Subzero.CollisionBoundary(FT, South, grid),
+            Subzero.CollisionBoundary(FT, East, grid),
+            Subzero.CollisionBoundary(FT, West, grid),
         )
         floe = Subzero.Floe(
+            FT,
             [[
                 [-1.75e4, 5e4],
                 [-1.75e4, 7e4],
@@ -343,7 +346,7 @@
         @test isapprox(model3.floes[1].trqOA/area, 29.0465, atol = 1e-1)
         
         # stationary floe, diagonal atmos flow
-        diagonal_atmos = Subzero.Atmos(grid, -1, -0.5, 0.0)
+        diagonal_atmos = Subzero.Atmos(Float64, grid, -1, -0.5, 0.0)
         model4 = Subzero.Model(
             grid,
             zero_ocean,

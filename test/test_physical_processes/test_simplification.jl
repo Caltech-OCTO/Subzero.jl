@@ -1,17 +1,18 @@
 @testset "Simplification" begin
+    FT = Float64
     @testset "Dissolve Floes" begin
         grid = RegRectilinearGrid(
-            Float64,
+            FT,
             (-1e5, 1e5),
             (0.0, 1e5),
             1e4,
             1e4,
         )
         domain = Subzero.Domain(
-            CollisionBoundary(grid, North()),
-            CollisionBoundary(grid, South()),
-            PeriodicBoundary(grid, East()),
-            PeriodicBoundary(grid, West()),
+            CollisionBoundary(FT, North, grid),
+            CollisionBoundary(FT, South, grid),
+            PeriodicBoundary(FT, East, grid),
+            PeriodicBoundary(FT, West, grid),
         )
         height = 0.25
         ρi = 920.0
@@ -25,25 +26,25 @@
         mass = 9e8 * height * ρi
         dissolved = zeros(Float64, 10, 20)  # 20x20 ocean grid
         # Add 2 floes in the middle of the grid -> masses added to cell
-        floe = Floe(coords, height, 0.0,)
+        floe = Floe(FT, coords, height, 0.0,)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 12] == mass
-        floe = Floe(Subzero.translate(coords, 2.5e3, 2.5e3), height, 0.0)
+        floe = Floe(FT, Subzero.translate(coords, 2.5e3, 2.5e3), height, 0.0)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 12] == 2mass
         # Add floe over periodic bound -> mass added to cell wrapped around grid
-        floe = Floe(Subzero.translate(coords, 9e4, 0.0), height, 0.0)
+        floe = Floe(FT, Subzero.translate(coords, 9e4, 0.0), height, 0.0)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 1] == mass
-        floe = Floe(Subzero.translate(coords, -1.2e5, 0.0), height, 0.0)
+        floe = Floe(FT, Subzero.translate(coords, -1.2e5, 0.0), height, 0.0)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 20] == mass
         total_mass = sum(dissolved)
         # Add floe over non-periodic bound -> mass not added since out of bounds
-        floe = Floe(Subzero.translate(coords, 0.0, 6e4), height, 0.0)
+        floe = Floe(FT, Subzero.translate(coords, 0.0, 6e4), height, 0.0)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test total_mass == sum(dissolved)  # nothing was added
-        floe = Floe(Subzero.translate(coords, 0.0, -7e4), height, 0.0)
+        floe = Floe(FT, Subzero.translate(coords, 0.0, -7e4), height, 0.0)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test total_mass == sum(dissolved)  # nothing was added
     end
@@ -60,8 +61,8 @@
         # Test two floes not intersecting -> will not fuse
         coords2 = deepcopy(coords1)
         Subzero.translate!(coords2, 20.0, 0.0)
-        f1 = Floe(coords1, 0.5, 0.0)
-        f2 = Floe(coords2, 0.5, 0.0)
+        f1 = Floe(FT, coords1, 0.5, 0.0)
+        f2 = Floe(FT, coords2, 0.5, 0.0)
         max_id = Subzero.fuse_two_floes!(
             f1,
             f2,
@@ -78,7 +79,7 @@
 
         # Test two floes intersecting -> will fuse into floe1 since same size
         Subzero.Subzero.translate!(coords2, -13.0, 0.0)
-        f2 = Floe(coords2, 0.75, 0.0)
+        f2 = Floe(FT, coords2, 0.75, 0.0)
         f1.id = 1
         f2.id = 2
         mass_tot = f1.mass + f2.mass
@@ -191,8 +192,9 @@
         @test f1.stress == (stress1_init * (f2.mass - mass_tot) .+ f2.stress * f2.mass) / mass_tot
 
         # Test two floes intersecting -> will fuse into floe2 since bigger
-        f1 = Floe(coords1, 0.5, 0.0)
+        f1 = Floe(FT, coords1, 0.5, 0.0)
         f3 = Floe(
+            FT, 
             [[
                 [0.0, 0.0],
                 [0.0, 20.0],
@@ -227,10 +229,10 @@
             1e4,
         )
         open_domain_no_topo = Subzero.Domain(
-            OpenBoundary(grid, North()),
-            OpenBoundary(grid, South()),
-            OpenBoundary(grid, East()),
-            OpenBoundary(grid, West()),
+            OpenBoundary(FT, North, grid),
+            OpenBoundary(FT, South, grid),
+            OpenBoundary(FT, East, grid),
+            OpenBoundary(FT, West, grid),
         )
         coords1 = [[  # large floe
             [0.0, 0.0],
@@ -262,6 +264,7 @@
         ]]
 
         floe_arr = initialize_floe_field(
+            FT,
             [coords1, coords2, coords3, coords4],
             open_domain_no_topo,
             0.5,
@@ -305,16 +308,17 @@
             1e4,
         )
         open_domain_no_topo = Subzero.Domain(
-            OpenBoundary(grid, North()),
-            OpenBoundary(grid, South()),
-            OpenBoundary(grid, East()),
-            OpenBoundary(grid, West()),
+            OpenBoundary(FT, North, grid),
+            OpenBoundary(FT, South, grid),
+            OpenBoundary(FT, East, grid),
+            OpenBoundary(FT, West, grid),
         )
         # Create complex floes
         file = jldopen("inputs/floe_shapes.jld2", "r")
         floe_coords = file["floe_vertices"][1:20]
         Subzero.translate!(floe_coords[2], 0.0, -1e3)
         floe_arr = initialize_floe_field(
+            FT,
             floe_coords,
             open_domain_no_topo,
             0.5,
@@ -441,18 +445,21 @@
         # Two floes overlap, and one is cut into two pieces by topography
         floe_set2 = floe_arr[1:2]
         open_domain_with_topo = Subzero.Domain(
-            OpenBoundary(grid, North()),
-            OpenBoundary(grid, South()),
-            OpenBoundary(grid, East()),
-            OpenBoundary(grid, West()),
+            OpenBoundary(FT, North, grid),
+            OpenBoundary(FT, South, grid),
+            OpenBoundary(FT, East, grid),
+            OpenBoundary(FT, West, grid),
             StructVector(
-                [TopographyElement([[
-                    [0.0, 1.05e4],
-                    [0.0, 1.15e4],
-                    [3e3, 1.15e4],
-                    [3e3, 1.05e4],
-                    [0.0, 1.05e4],
-                ]])],
+                [TopographyElement(
+                    FT,
+                    [[
+                        [0.0, 1.05e4],
+                        [0.0, 1.15e4],
+                        [3e3, 1.15e4],
+                        [3e3, 1.05e4],
+                        [0.0, 1.05e4],
+                    ]],
+                )],
             ),
         )
         og_f1_area = floe_set2.area[1]
@@ -494,10 +501,10 @@
             1e4,
         )
         open_domain_no_topo = Subzero.Domain(
-            OpenBoundary(grid, North()),
-            OpenBoundary(grid, South()),
-            OpenBoundary(grid, East()),
-            OpenBoundary(grid, West()),
+            OpenBoundary(FT, North, grid),
+            OpenBoundary(FT, South, grid),
+            OpenBoundary(FT, East, grid),
+            OpenBoundary(FT, West, grid),
         )
         coords1 = [[  # large floe
             [0.0, 0.0],
@@ -529,6 +536,7 @@
     ]]
 
         floe_arr = initialize_floe_field(
+            FT,
             [coords1, coords2, coords3, coords4],
             open_domain_no_topo,
             0.5,

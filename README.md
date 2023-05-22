@@ -47,17 +47,18 @@ Subzero is not yet a registered Julia package. If you have access to this reposi
 
 Let’s run a basic simulation with stationary floes pushed into a collision boundary by a uniform, zonally flowing ocean. In this simulation, collisions between floes are on by default and we will enable floe fracturing.  
 
-```julia 
-grid = RegRectilinearGrid(Float64, 0, 1e5, 0, 1e5, 1e4, 1e4) 
-ocean = Ocean(Float64, grid, 0.25, 0.0, 0.0) 
-atmos = Atmos(grid, 0.0, 0.0, 0.0) 
+```julia
+FT = Float64
+grid = RegRectilinearGrid(FT, 0, 1e5, 0, 1e5, 1e4, 1e4) 
+ocean = Ocean(FT, grid, 0.25, 0.0, 0.0) 
+atmos = Atmos(FT, grid, 0.0, 0.0, 0.0) 
 domain = Domain( 
-  CollisionBoundary(grid, North()), 
-  CollisionBoundary(grid, South()), 
-  CollisionBoundary(grid, East()),
-  CollisionBoundary(grid, West()),
+  CollisionBoundary(FT, North, grid), 
+  CollisionBoundary(FT, South, grid), 
+  CollisionBoundary(FT, East, grid),
+  CollisionBoundary(FT, West, grid),
 ) 
-floe_arr = initialize_floe_field(50, [0.7], domain, 0.5, 0.05) 
+floe_arr = initialize_floe_field(FT, 50, [0.7], domain, 0.5, 0.05) 
 model = Model(grid, ocean, atmos, domain, floe_arr) 
 
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area))) 

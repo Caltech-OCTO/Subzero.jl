@@ -1,19 +1,20 @@
 
 function test_basic_outputwriters()
+    FT = Float64
     grid = RegRectilinearGrid(
-        Float64,
+        FT,
         (-1e5, 1e5),
         (-1e5, 1e5),
         1e4,
         1e4,
     )
-    ocean = Ocean(Float64, grid, 0.0, 0.0, 0.0)
-    atmos = Atmos(grid, 0.0, 0.0, 0.0)
+    ocean = Ocean(FT, grid, 0.0, 0.0, 0.0)
+    atmos = Atmos(FT, grid, 0.0, 0.0, 0.0)
     domain = Domain(
-        OpenBoundary(grid, North()),
-        OpenBoundary(grid, South()),
-        OpenBoundary(grid, East()),
-        OpenBoundary(grid, West()),
+        OpenBoundary(FT, North, grid),
+        OpenBoundary(FT, South, grid),
+        OpenBoundary(FT, East, grid),
+        OpenBoundary(FT, West, grid),
     )
     floe_coords = [[[7.5e4, 7.5e4], [7.5e4, 9.5e4], [9.5e4, 9.5e4], 
                     [9.5e4, 7.5e4], [7.5e4, 7.5e4]]]
@@ -22,7 +23,7 @@ function test_basic_outputwriters()
         ocean,
         atmos,
         domain,
-        StructArray([Floe(floe_coords, 0.5, 0.0)]),
+        StructArray([Floe(FT, floe_coords, 0.5, 0.0)]),
     )
 
     dir = "output/sim"

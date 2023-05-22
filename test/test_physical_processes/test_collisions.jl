@@ -1,15 +1,46 @@
 @testset "Collisions" begin
+    FT = Float64
     @testset "Floe-Floe Interactions" begin
         Δt = 10
         max_overlap = 0.55
         hmean = 0.25
         Δh = 0.0
-        tri = Floe([[[0.0, 0.0], [1e4, 3e4], [2e4, 0], [0.0, 0.0]]], hmean, Δh)
+        tri = Floe(
+            FT,
+            [[[0.0, 0.0], [1e4, 3e4], [2e4, 0], [0.0, 0.0]]],
+            hmean,
+            Δh,
+        )
         tri.u = 0.1
-        rect = Floe([[[0.0, 2.5e4], [0.0, 2.9e4], [2e4, 2.9e4], [2e4, 2.5e4], [0.0, 2.5e4]]], hmean, Δh)
+        rect = Floe(
+            FT,
+            [[
+                [0.0, 2.5e4],
+                [0.0, 2.9e4],
+                [2e4, 2.9e4],
+                [2e4, 2.5e4],
+                [0.0, 2.5e4],
+            ]],
+            hmean,
+            Δh,
+        )
         rect.v = -0.1
-        cfloe = Floe([[[0.5e4, 2.7e4], [0.5e4, 3.5e4], [1.5e4, 3.5e4], [1.5e4, 2.7e4], [1.25e4, 2.7e4],
-                       [1.25e4, 3e4], [1e4, 3e4], [1e4, 2.7e4], [0.5e4, 2.7e4]]], hmean, Δh)
+        cfloe = Floe(
+            FT,
+            [[
+                [0.5e4, 2.7e4],
+                [0.5e4, 3.5e4],
+                [1.5e4, 3.5e4],
+                [1.5e4, 2.7e4],
+                [1.25e4, 2.7e4],
+                [1.25e4, 3e4],
+                [1e4, 3e4],
+                [1e4, 2.7e4],
+                [0.5e4, 2.7e4],
+            ]],
+            hmean,
+            Δh,
+        )
         cfloe.u = 0.3
         consts = Constants()
         # Triange tip intersected with a rectangle
@@ -51,8 +82,28 @@
         empty!(rect.status.fuse_idx)
         rect.status.tag == Subzero.active
         # Floe 2 (small rectangle) is overlapping with rectangle by more than 55%
-        small_rect = Floe([[[1.8e4, 2.7e4], [1.8e4, 2.8e4], [2.1e4, 2.8e4], [2.1e4, 2.7e4], [1.8e4, 2.7e4]]], hmean, Δh)
-        Subzero.floe_floe_interaction!(rect, 1, small_rect, 2, 2, consts, Δt, max_overlap)
+        small_rect = Floe(
+            FT,
+            [[
+                [1.8e4, 2.7e4],
+                [1.8e4, 2.8e4],
+                [2.1e4, 2.8e4],
+                [2.1e4, 2.7e4],
+                [1.8e4, 2.7e4],
+            ]],
+            hmean,
+            Δh,
+        )
+        Subzero.floe_floe_interaction!(
+            rect,
+            1,
+            small_rect,
+            2,
+            2,
+            consts,
+            Δt,
+            max_overlap,
+        )
         @test rect.status.tag == Subzero.fuse 
         @test rect.status.fuse_idx == [2]
         
@@ -78,30 +129,102 @@
             1e4,
             1e4,
         )
-        nboundary = PeriodicBoundary(grid, North())
-        sboundary = PeriodicBoundary(grid, South())
-        eboundary = CollisionBoundary(grid, East())
-        wboundary = OpenBoundary(grid, West())
-        topo_elem = TopographyElement([[[1e4, 0.0], [0.0, 1e4], [1e4, 2e4], [2e4, 1e4], [1e4, 0.0]]])
+        nboundary = PeriodicBoundary(FT, North, grid)
+        sboundary = PeriodicBoundary(FT, South, grid)
+        eboundary = CollisionBoundary(FT, East, grid)
+        wboundary = OpenBoundary(FT, West, grid)
+        topo_elem = TopographyElement(
+            FT,
+            [[[1e4, 0.0], [0.0, 1e4], [1e4, 2e4], [2e4, 1e4], [1e4, 0.0]]],
+        )
         domain = Domain(nboundary, sboundary, eboundary, wboundary, StructArray([topo_elem]))
         # Diagonal floe barely overlaping with eastern collision boundary
-        efloe_small = Floe([[[9.5e4, 0.0], [9e4, 0.5e4], [10e4, 2.5e4], [10.05e4, 2e4], [9.5e4, 0.0]]], hmean, Δh)
+        efloe_small = Floe(
+            FT,
+            [[
+                [9.5e4, 0.0],
+                [9e4, 0.5e4],
+                [10e4, 2.5e4],
+                [10.05e4, 2e4],
+                [9.5e4, 0.0],
+            ]],
+            hmean,
+            Δh,
+        )
         efloe_small.u = 0.5
         efloe_small.v = 0.25
         # Floe overlapping with eastern collision boundary by more than 75% to trigger overlap condition
-        efloe_large = Floe([[[9e4, -7e4], [9e4, -5e4], [1.4e5, -5e4], [1.4e5, -7e4], [9e4, -7e4]]], hmean, Δh)
+        efloe_large = Floe(
+            FT,
+            [[
+                [9e4, -7e4],
+                [9e4, -5e4],
+                [1.4e5, -5e4],
+                [1.4e5, -7e4],
+                [9e4, -7e4],
+            ]],
+            hmean,
+            Δh,
+        )
         efloe_large.u = 0.1
         efloe_large.v = -0.35
         # Floe overlapping with boundary with more than one region
-        cfloe = Floe([[[9.5e4, 7e4], [9.5e4, 9e4], [1.05e5, 9e4], [1.05e5, 8.5e4], [9.9e4, 8.5e4],
-                       [9.9e4, 8e4], [1.05e5, 8e4], [1.05e5, 7e4], [9.5e4, 7e4]]], hmean, Δh)
+        cfloe = Floe(
+            FT,
+            [[
+                [9.5e4, 7e4],
+                [9.5e4, 9e4],
+                [1.05e5, 9e4],
+                [1.05e5, 8.5e4],
+                [9.9e4, 8.5e4],
+                [9.9e4, 8e4],
+                [1.05e5, 8e4],
+                [1.05e5, 7e4],
+                [9.5e4, 7e4],
+            ]],
+            hmean,
+            Δh,
+        )
         cfloe.v = -0.1
         # Floe overlapping with western open boundary
-        wfloe = Floe([[[-9.75e4, 7e4], [-9.75e4, 5e4], [-10.05e4, 5e4], [-10.05e4, 7e4], [-9.75e4, 7e4]]], hmean, Δh)
+        wfloe = Floe(
+            FT,
+            [[
+                [-9.75e4, 7e4],
+                [-9.75e4, 5e4],
+                [-10.05e4, 5e4],
+                [-10.05e4, 7e4],
+                [-9.75e4, 7e4],
+            ]],
+            hmean,
+            Δh,
+        )
         # Floe overlapping with northern periodic boundary
-        nfloe = Floe([[[5e4, 9.75e4], [5e4, 10.05e4], [7e4, 10.05e4], [7e4, 9.75e4], [5e4, 9.75e4]]], hmean, Δh)
+        nfloe = Floe(
+            FT,
+            [[
+                [5e4, 9.75e4],
+                [5e4, 10.05e4],
+                [7e4, 10.05e4],
+                [7e4, 9.75e4],
+                [5e4, 9.75e4],
+            ]],
+            hmean,
+            Δh,
+        )
         # Floe overlapping with topography element
-        tfloe = Floe([[[-0.5e4, 0.0], [-0.5e4, 0.75e4], [0.5e4, 0.75e4], [0.5e4, 0.0], [-0.5e4, 0.0]]], hmean, Δh)
+        tfloe = Floe(
+            FT,
+            [[
+                [-0.5e4, 0.0],
+                [-0.5e4, 0.75e4],
+                [0.5e4, 0.75e4],
+                [0.5e4, 0.0],
+                [-0.5e4, 0.0],
+            ]],
+            hmean,
+            Δh,
+        )
         efloe_large.u = -0.4
         efloe_large.v = 0.2
 
@@ -148,28 +271,50 @@
         @test tfloe.interactions[1, yforce] < 0
 
         # Test floe hitting more than one wall at once -> different from Subzero
-        collision_domain = Domain(CollisionBoundary(grid, North()), CollisionBoundary(grid, South()),
-                        CollisionBoundary(grid, East()), CollisionBoundary(grid, West()))
-        corner_floe = Floe([[[9.5e4, 7e4], [9e4, 7.5e4], [10e4, 1.05e5], [10.05e4, 9.5e4], [9.5e4, 7e4]]], hmean, Δh)
-        Subzero.floe_domain_interaction!(corner_floe, collision_domain, consts, Δt, max_overlap)
+        collision_domain = Domain(
+            CollisionBoundary(FT, North, grid),
+            CollisionBoundary(FT, South, grid),
+            CollisionBoundary(FT, East, grid),
+            CollisionBoundary(FT, West, grid),
+        )
+        corner_floe = Floe(
+            FT,
+            [[
+                [9.5e4, 7e4],
+                [9e4, 7.5e4],
+                [10e4, 1.05e5],
+                [10.05e4, 9.5e4],
+                [9.5e4, 7e4],
+            ]],
+            hmean,
+            Δh,
+        )
+        Subzero.floe_domain_interaction!(
+            corner_floe,
+            collision_domain,
+            consts,
+            Δt,
+            max_overlap,
+        )
         @test all(corner_floe.interactions[:, xforce] .<= 0)
         @test all(corner_floe.interactions[:, yforce] .<= 0)
 
     end
     
     @testset "Add Ghosts" begin
+        FT = Float64
         Lx = 1e5
         grid = RegRectilinearGrid(
-            Float64,
+            FT,
             (-Lx, Lx),
             (-Lx, Lx),
             1e4,
             1e4,
         )
-        nboundary = PeriodicBoundary(grid, North())
-        sboundary = PeriodicBoundary(grid, South())
-        eboundary = PeriodicBoundary(grid, East())
-        wboundary = PeriodicBoundary(grid, West())
+        nboundary = PeriodicBoundary(FT, North, grid)
+        sboundary = PeriodicBoundary(FT, South, grid)
+        eboundary = PeriodicBoundary(FT, East, grid)
+        wboundary = PeriodicBoundary(FT, West, grid)
 
         # corner floe - overlaps with north and east boundary
         coords1 = [[[9.9e4, 9.9e4], [9.9e4, 1.02e5], [1.02e5, 1.02e5], [1.02e5, 9.9e4], [9.9e4, 9.9e4]]]
@@ -180,22 +325,37 @@
         # doesn't overlap with any boundary
         coords4 = [[[0.0, 0.0], [0.0, 2e4], [2e4, 2e4], [2e4, 0.0], [0.0, 0.0]]]
 
-        floe_arr = StructArray([Floe(c, 0.5, 0.0) for c in [coords1, coords2, coords3, coords4]])
+        floe_arr = StructArray(
+            [Floe(FT, c, 0.5, 0.0) for c in [coords1, coords2, coords3, coords4]],
+        )
         for i in eachindex(floe_arr)
             floe_arr.id[i] = Float64(i)
         end
 
-        nonperiodic_domain = Domain(OpenBoundary(grid, North()), OpenBoundary(grid, South()),
-                                    OpenBoundary(grid, East()), OpenBoundary(grid, West()))
-
-        ew_periodic_domain = Domain(OpenBoundary(grid, North()), OpenBoundary(grid, South()),
-                                    PeriodicBoundary(grid, East()), PeriodicBoundary(grid, West()))
-
-        ns_periodic_domain = Domain(PeriodicBoundary(grid, North()), PeriodicBoundary(grid, South()),
-                                    OpenBoundary(grid, East()), OpenBoundary(grid, West()))
-
-        double_periodic_domain = Domain(PeriodicBoundary(grid, North()), PeriodicBoundary(grid, South()),
-                                        PeriodicBoundary(grid, East()), PeriodicBoundary(grid, West()))
+        nonperiodic_domain = Domain(
+            OpenBoundary(FT, North, grid),
+            OpenBoundary(FT, South, grid),
+            OpenBoundary(FT, East, grid),
+            OpenBoundary(FT, West, grid),
+        )
+        ew_periodic_domain = Domain(
+            OpenBoundary(FT, North, grid),
+            OpenBoundary(FT, South, grid),
+            PeriodicBoundary(FT, East, grid),
+            PeriodicBoundary(FT, West, grid),
+        )
+        ns_periodic_domain = Domain(
+            PeriodicBoundary(FT, North, grid),
+            PeriodicBoundary(FT, South, grid),
+            OpenBoundary(FT, East, grid),
+            OpenBoundary(FT, West, grid),
+        )
+        double_periodic_domain = Domain(
+            PeriodicBoundary(FT, North, grid),
+            PeriodicBoundary(FT, South, grid),
+            PeriodicBoundary(FT, East, grid),
+            PeriodicBoundary(FT, West, grid),
+        )
 
         # Make sure nothing is added with non-periodic domain
         new_floe_arr = deepcopy(floe_arr)
@@ -266,15 +426,19 @@
             1e4,
             1e4,
         )
-        double_periodic_domain = Domain(PeriodicBoundary(grid, North()), PeriodicBoundary(grid, South()),
-                                        PeriodicBoundary(grid, East()), PeriodicBoundary(grid, West()))
+        double_periodic_domain = Domain(
+            PeriodicBoundary(FT, North, grid),
+            PeriodicBoundary(FT, South, grid),
+            PeriodicBoundary(FT, East, grid),
+            PeriodicBoundary(FT, West, grid),
+        )
         # Parent-parent collison (parents are touching)
         coords1 = splitdims([Lx/2 Lx/2 3*Lx/4 3*Lx/4 Lx+10000 Lx+10000; Ly/2 Ly+10000 Ly+10000 3*Ly/4 3*Ly/4 Ly/2])
         th = 0:pi/50:2*pi
         r = Ly/4+1000
         coords2 = invert([r * cos.(th) .+ (Lx-1), r * sin.(th) .+ (Ly-1)])
 
-        floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
+        floe_arr = StructArray(Floe(FT, [c], 0.5, 0.0) for c in [coords1, coords2])
         for i in eachindex(floe_arr)
             floe_arr.id[i] = Float64(i)
         end
@@ -315,12 +479,25 @@
         # Ghost-Ghost collision (parents aren't touching, only ghosts touch)
         coords1 = splitdims(vcat([5*Lx/8 5*Lx/8 3*Lx/4 3*Lx/4].+1000, [3*Ly/4 5*Ly/4 5*Ly/4 3*Ly/4]))
         coords2 = splitdims(vcat(-[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000], -[7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8]))
-        floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
+        floe_arr = StructArray(Floe(FT, [c], 0.5, 0.0) for c in [coords1, coords2])
         for i in eachindex(floe_arr)
             floe_arr.id[i] = i
         end
-        trans_arr = StructArray([Floe(Subzero.translate([coords1], 0.0, -2Ly), 0.5, 0.0),
-                                 Floe(Subzero.translate([coords2], 2Lx, 0.0), 0.5, 0.0)])
+        trans_arr = StructArray([
+            Floe(
+                FT,
+                Subzero.translate([coords1],
+                0.0, -2Ly),
+                0.5,
+                0.0,
+            ),
+            Floe(
+                FT,
+                Subzero.translate([coords2], 2Lx, 0.0),
+                0.5,
+                0.0,
+            ),
+        ])
         for i in eachindex(trans_arr)
             trans_arr.id[i] = i
         end
@@ -360,12 +537,12 @@
         # Parent-Ghost Collision
         coords1 = splitdims(vcat([5*Lx/8 5*Lx/8 3*Lx/4 3*Lx/4].+1000, [3*Ly/4 5*Ly/4 5*Ly/4 3*Ly/4]))
         coords2 = splitdims(vcat(-[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000], [7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8]))
-        floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
+        floe_arr = StructArray(Floe(FT, [c], 0.5, 0.0) for c in [coords1, coords2])
         for i in eachindex(floe_arr)
             floe_arr.id[i] = Float64(i)
         end
-        trans_arr = StructArray([Floe(Subzero.translate([coords1], -2Lx, 0.0), 0.5, 0.0),
-                                 Floe([coords2], 0.5, 0.0)])
+        trans_arr = StructArray([Floe(FT, Subzero.translate([coords1], -2Lx, 0.0), 0.5, 0.0),
+                                 Floe(FT, [coords2], 0.5, 0.0)])
         for i in eachindex(trans_arr)
             trans_arr.id[i] = Float64(i)
         end
@@ -402,11 +579,43 @@
 
         # Parent and ghosts hitting the same floe
         # small rectangle in the corner that has 3 ghosts in all other corners
-        small_rect = Floe([[[-1.1e5, -1.1e5], [-1.1e5, -9.5e4], [-9.5e4, -9.5e4], [-9.5e4, -1.1e5], [-1.1e5, -1.1e5]]], 0.5, 0.0)
+        small_rect = Floe(
+            FT,
+            [[
+                [-1.1e5, -1.1e5],
+                [-1.1e5, -9.5e4],
+                [-9.5e4, -9.5e4],
+                [-9.5e4, -1.1e5],
+                [-1.1e5, -1.1e5],
+            ]],
+            0.5,
+            0.0,
+        )
         # triangle in the middle of the domain with no ghosts - touches 3/4 corners
-        large_tri = Floe([[[-1e5, -1e5], [-1e5, 1e5], [1e5, -1e5], [-1e5, -1e5]]], 0.5, 0.0)
+        large_tri = Floe(
+            FT,
+            [[
+                [-1e5, -1e5],
+                [-1e5, 1e5],
+                [1e5, -1e5],
+                [-1e5, -1e5],
+            ]],
+            0.5,
+            0.0,
+        )
         # rectangle along south boundary, ghost along north boundary
-        bound_rect =  Floe([[[-9.8e4, -1.1e5], [-9.8e4, -9.5e4], [9.8e4, -9.5e4], [9.8e4, -1.1e5], [-9.8e4, -1.1e5]]], 0.5, 0.0)
+        bound_rect =  Floe(
+            FT, 
+            [[
+                [-9.8e4, -1.1e5],
+                [-9.8e4, -9.5e4],
+                [9.8e4, -9.5e4],
+                [9.8e4, -1.1e5],
+                [-9.8e4, -1.1e5],
+            ]],
+            0.5,
+            0.0,
+        )
         floe_arr = StructArray([small_rect, large_tri])
         for i in eachindex(floe_arr)
             floe_arr.id[i] = Float64(i)

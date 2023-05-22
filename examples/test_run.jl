@@ -18,10 +18,10 @@ grid = RegRectilinearGrid(
     1e4,
 )
 open_domain_no_topo = Subzero.Domain(
-    OpenBoundary(grid, North()),
-    OpenBoundary(grid, South()),
-    OpenBoundary(grid, East()),
-    OpenBoundary(grid, West()),
+    OpenBoundary(FT, North, grid),
+    OpenBoundary(FT, South, grid),
+    OpenBoundary(FT, East, grid),
+    OpenBoundary(FT, West, grid),
 )
 coords1 = [[  # large floe
     [0.0, 0.0],
@@ -53,6 +53,7 @@ coords4 = [[  # small floe
 ]]
 
 floe_arr = initialize_floe_field(
+    FT,
     [coords1, coords2, coords3, coords4],
     open_domain_no_topo,
     0.5,
@@ -92,19 +93,20 @@ grid = RegRectilinearGrid(
 )
 zonal_ocn = Ocean(FT, grid, 0.5, 0.0, 0.0)
 
-zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
+zero_atmos = Atmos(FT, grid, 0.0, 0.0, 0.0)
 
 
 domain = Subzero.Domain(
-    CollisionBoundary(grid, North()),
-    CollisionBoundary(grid, South()),
-    CollisionBoundary(grid, East()),
-    CollisionBoundary(grid, West()),
+    CollisionBoundary(FT, North, grid),
+    CollisionBoundary(FT, South, grid),
+    CollisionBoundary(FT, East, grid),
+    CollisionBoundary(FT, West, grid),
 )
 
 # Floe instantiation
 f = jldopen("examples/floe_shapes.jld2", "r") 
 funky_floe_arr = initialize_floe_field(
+    FT,
     vec(f["floe_vertices"]),
     domain,
     0.25,
@@ -122,6 +124,7 @@ Subzero.simplify_floes!(
     Xoshiro(5),
 )
 # funky_floe_arr = initialize_floe_field(
+#     FT,
 #     100,
 #     [0.5],
 #     domain,

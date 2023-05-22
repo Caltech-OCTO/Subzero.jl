@@ -32,6 +32,7 @@
 
         for i in 1:2
             f = Floe(
+                Float64,
                 floe_dict["coords"][i],
                 floe_dict["height"][i],
                 0.0,
@@ -65,7 +66,7 @@
             [10.0, 0.0],
             [0.0, 0.0],
         ]]
-        f1 = Floe(coords1, 0.5, 0.0)  # this is a square
+        f1 = Floe(Float64, coords1, 0.5, 0.0)  # this is a square
         mass1 = f1.mass
         triangle_coords = [[
             [0.0, 0.0],
@@ -106,6 +107,7 @@
             [0.0, 0.0],
         ]]
         sqr_floe = Floe(
+            Float64,
             square_coords,
             0.5,
             0.0,
@@ -118,6 +120,7 @@
         sqr_floe.p_dαdt = -0.45
 
         tri_floe = Floe(
+            Float64,
             triangle_coords,
             0.5,
             0.0,
@@ -210,6 +213,7 @@
         # Test two floes combining
         Subzero.translate!(triangle_coords, 10.0, 0.0)
         sqr_floe = Floe(
+            Float64,
             square_coords,
             0.5,
             0.0,
@@ -222,6 +226,7 @@
         sqr_floe.p_dαdt = -0.45
 
         tri_floe = Floe(
+            Float64,
             triangle_coords,
             0.5,
             0.0,
@@ -365,6 +370,7 @@
         ]]
         #  One floe splitting into two floes
         initial_floe = Floe(
+            Float64,
             initial_coords,
             0.5,
             0.0
@@ -405,11 +411,13 @@
         )
         new_floes = StructArray([
             Floe(
+                Float64,
                 left_coords,
                 0.5,
                 0.0
             ),
             Floe(
+                Float64,
                 right_and_mid_coords,
                 0.5,
                 0.0,
@@ -466,16 +474,19 @@
         # One floe splitting into three floes
         new_floes = StructArray([
             Floe(
+                Float64,
                 left_coords,
                 0.5,
                 0.0
             ),
             Floe(
+                Float64,
                 right_coords,
                 0.5,
                 0.0
             ),
             Floe(
+                Float64,
                 mid_coords,
                 0.5,
                 0.0,

@@ -162,45 +162,46 @@
         uatmos = fill(3.0, g.dims .+ 1)
         vatmos = fill(4.0, g.dims .+ 1)
         tempatmos = fill(-2.0, g.dims .+ 1)
-        atmos = Subzero.Atmos(uatmos, vatmos, tempatmos)
+        atmos = Subzero.Atmos(Float64, uatmos, vatmos, tempatmos)
         @test atmos.u == uatmos
         @test atmos.v == vatmos
         @test atmos.temp == tempatmos
         # Custom constructor
-        atmos2 = Subzero.Atmos(g, 3.0, 4.0, -2.0)
+        atmos2 = Subzero.Atmos(Float64, g, 3.0, 4.0, -2.0)
         @test atmos.u == atmos2.u
         @test atmos.v == atmos2.v
         @test atmos.temp == atmos2.temp
         # Custom constructor Float32
-        @test typeof(Subzero.Atmos(g, 3.0, 4.0, -2.0, Float32)) ==
+        @test typeof(Subzero.Atmos(Float32, g, 3.0, 4.0, -2.0)) ==
               Subzero.Atmos{Float32}
     end
 
     @testset "Boundaries" begin
         # Boundaries using BoundaryCoords
+        FT = Float64
         g = Subzero.RegRectilinearGrid(
-            Float64,
+            FT,
             (0, 4e5),
             (0, 3e5),
             1e4,
             1e4,
         )
-        b1 = Subzero.PeriodicBoundary(g, Subzero.North())
-        b2 = Subzero.OpenBoundary(g, Subzero.East())
-        b3 = Subzero.CollisionBoundary(g, Subzero.West())
-        b4 = Subzero.PeriodicBoundary(g, Subzero.South())
-        b5 = Subzero.CompressionBoundary(g, Subzero.South(), 1.0)
+        b1 = Subzero.PeriodicBoundary(FT, North, g)
+        b2 = Subzero.OpenBoundary(FT, East, g)
+        b3 = Subzero.CollisionBoundary(FT, West, g)
+        b4 = Subzero.PeriodicBoundary(FT, South, g)
+        b5 = Subzero.CompressionBoundary(FT, South, g, 1.0)
         @test b1.val == 3e5
-        @test typeof(b1) == Subzero.PeriodicBoundary{Subzero.North, Float64}
+        @test typeof(b1) == Subzero.PeriodicBoundary{North, Float64}
         @test b1.coords == [[[-2e5, 3e5], [-2e5, 4.5e5], [6e5, 4.5e5], [6e5, 3e5], [-2e5, 3e5]]]
         @test b2.val == 4e5
-        @test typeof(b2) == Subzero.OpenBoundary{Subzero.East, Float64}
+        @test typeof(b2) == Subzero.OpenBoundary{East, Float64}
         @test b2.coords == [[[4e5, -1.5e5], [4e5, 4.5e5], [6e5, 4.5e5], [6e5, -1.5e5], [4e5, -1.5e5]]]
         @test b3.val == 0.0
-        @test typeof(b3) == Subzero.CollisionBoundary{Subzero.West, Float64}
+        @test typeof(b3) == Subzero.CollisionBoundary{West, Float64}
         @test b3.coords == [[[-2e5, -1.5e5], [-2e5, 4.5e5], [0.0, 4.5e5], [0.0, -1.5e5], [-2e5, -1.5e5]]]
         @test b4.val == 0.0
-        @test typeof(b4) == Subzero.PeriodicBoundary{Subzero.South, Float64}
+        @test typeof(b4) == Subzero.PeriodicBoundary{South, Float64}
         @test b4.coords == [[[-2e5, -1.5e5], [-2e5, 0.0], [6e5, 0.0], [6e5, -1.5e5], [-2e5, -1.5e5]]]
         @test b5.velocity == 1.0
         @test b5.val == 0.0
@@ -211,9 +212,9 @@
         @test_throws Exception b4.val = 1.0
 
         # Creation of Float32 Boundary
-        b32 = Subzero.OpenBoundary(g, Subzero.North(), Float32)
+        b32 = Subzero.OpenBoundary(Float32, North, g)
         @test typeof(b32.val) == Float32
-        @test typeof(b32) == Subzero.OpenBoundary{Subzero.North, Float32}
+        @test typeof(b32) == Subzero.OpenBoundary{North, Float32}
 
         # Periodic Compat
         @test !Subzero.periodic_compat(b1, b2)
@@ -226,38 +227,50 @@
         coords = [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]]
         poly = LG.Polygon(coords)
         # Polygon Constructor
-        topo1 = Subzero.TopographyElement(poly)
+        topo1 = Subzero.TopographyElement(Float64, poly)
         @test topo1.coords == coords
         @test topo1.centroid == [0.5, 0.5]
         @test topo1.rmax == sqrt(0.5)
-        topo32 = Subzero.TopographyElement(poly, Float32)
+        topo32 = Subzero.TopographyElement(Float32, poly)
         @test typeof(topo32) == Subzero.TopographyElement{Float32}
         @test typeof(topo32.coords) == Subzero.PolyVec{Float32}
         # Coords Constructor
-        topo2 = Subzero.TopographyElement(coords)
+        topo2 = Subzero.TopographyElement(Float64, coords)
         @test topo2.coords == coords
         @test topo2.centroid == [0.5, 0.5]
         @test topo2.rmax == sqrt(0.5)
         # Basic constructor
-        topo3 = TopographyElement(coords, [0.5, 0.5], sqrt(0.5))
+        topo3 = TopographyElement(
+            coords,
+            [0.5, 0.5],
+            sqrt(0.5),
+        )
         @test topo3.coords == coords
         # check when radius is less than  or equal to 0
-        @test_throws ArgumentError TopographyElement(coords, [0.5, 0.5], -sqrt(0.5))
+        @test_throws ArgumentError TopographyElement(
+            coords,
+            [0.5, 0.5],
+            -sqrt(0.5),
+        )
     end
 
     @testset "Domain" begin
+        FT = Float64
         g = Subzero.RegRectilinearGrid(
-            Float64,
+            FT,
             (0, 4e5),
             (0, 3e5),
             1e4,
             1e4,
         )
-        b1 = Subzero.PeriodicBoundary(g, Subzero.North())
-        b2 = Subzero.OpenBoundary(g, Subzero.East())
-        b3 = Subzero.CollisionBoundary(g, Subzero.West())
-        b4 = Subzero.PeriodicBoundary(g, Subzero.South())
-        topography = StructArray([Subzero.TopographyElement([[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]])])
+        b1 = Subzero.PeriodicBoundary(FT, North, g)
+        b2 = Subzero.OpenBoundary(FT, East, g)
+        b3 = Subzero.CollisionBoundary(FT, West, g)
+        b4 = Subzero.PeriodicBoundary(FT, South, g)
+        topography = StructArray([Subzero.TopographyElement(
+            FT,
+            [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]],
+        )])
         # test basic domain with no topography
         rdomain1 = Subzero.Domain(b1, b4, b2, b3)
         @test rdomain1.north == b1
@@ -271,12 +284,42 @@
         # domain with wrong directions
         @test_throws MethodError Subzero.Domain(b4, b2, b2, b3)
         # domain with non-periodic 
-        @test_throws ArgumentError Subzero.Domain(b1, Subzero.OpenBoundary(g, Subzero.South()), b2, b3)
-        @test_throws ArgumentError Subzero.Domain(b1, b4, b2, Subzero.PeriodicBoundary(g, Subzero.West()))
+        @test_throws ArgumentError Subzero.Domain(
+            b1,
+            Subzero.OpenBoundary(FT, South, g),
+            b2,
+            b3,
+        )
+        @test_throws ArgumentError Subzero.Domain(
+            b1,
+            b4,
+            b2,
+            Subzero.PeriodicBoundary(FT, West, g),
+        )
         # domain with north < south
-        @test_throws ArgumentError Subzero.Domain(b1, Subzero.OpenBoundary(Subzero.PolyVec{Float64}(undef, 0), 6e5, Subzero.South()), b2, b3)
+        @test_throws ArgumentError Subzero.Domain(
+            b1,
+            Subzero.OpenBoundary(
+                FT,
+                South,
+                Subzero.PolyVec{Float64}(undef, 0),
+                6e5,
+            ),
+            b2,
+            b3,
+        )
         # domain with east < west
-        @test_throws ArgumentError Subzero.Domain(b1, b4, b2, Subzero.OpenBoundary(Subzero.PolyVec{Float64}(undef, 0), 6e5, Subzero.West()))
+        @test_throws ArgumentError Subzero.Domain(
+            b1,
+            b4,
+            b2,
+            Subzero.OpenBoundary(
+                FT,
+                West,
+                Subzero.PolyVec{Float64}(undef, 0),
+                6e5,
+            ),
+        )
     end
 
     @testset "Model" begin

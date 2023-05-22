@@ -50,6 +50,7 @@
         ))
         # Test update criteria
         floes = StructArray([Floe(
+            Float64,
             [[[0.0, 0.0], [0, 1], [1 ,1], [1, 0]]],
             0.25,  # Floe has a height of 0.25
             0.0,
@@ -67,6 +68,7 @@
         # Fracture tests depend on these floes and settings
         frac_stress = [-29955.396 -3428.008; -3428.008	-1942.0464]
         frac_deform_floe = Floe(
+            Float64,
             [[
                 [-50548.186, -49995.968],
                 [-50550.745, -37790.078],
@@ -82,6 +84,7 @@
         )
         frac_floe = deepcopy(frac_deform_floe)  # Without interactions, won't deform
         no_frac_floe = Floe(  # This floe is colliding with frac_deform_floe
+            Float64,
             [[
                 [1467.795, -25319.563],
                 [1664.270, -25640.216],
@@ -97,6 +100,7 @@
             0.0,
         )
         no_frac_small = Floe(  # This floe is too small to fracture or deform
+            Float64,
             [[
                 [1e3, 1e3],
                 [1e3, 1.5e3],

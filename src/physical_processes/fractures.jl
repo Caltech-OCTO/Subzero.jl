@@ -296,9 +296,10 @@ function split_floe(
                 mass = floe.mass * (pieces_areas[i]/total_area)
                 height = mass / (consts.ρi * pieces_areas[i])
                 pieces_floes = poly_to_floes(
+                    FT,
                     pieces_polys[i],
-                    FT(height),
-                    FT(0);  # Δh - range of random height difference between floes
+                    height,
+                    0;  # Δh - range of random height difference between floes
                     ρi = consts.ρi,
                     u = floe.u,
                     v = floe.v,
