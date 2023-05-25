@@ -142,16 +142,15 @@
 
     # Test initialize_floe_field from coord list
     grid = RegRectilinearGrid(
-        FT,
         (-8e4, 8e4),
         (-8e4, 8e4),
         1e4,
         1e4,
     )
-    nbound = CollisionBoundary(FT, North, grid)
-    sbound = CollisionBoundary(FT, South, grid)
-    ebound = CollisionBoundary(FT, East, grid)
-    wbound = CollisionBoundary(FT, West, grid)
+    nbound = CollisionBoundary{North}(grid)
+    sbound = CollisionBoundary{South}(grid)
+    ebound = CollisionBoundary{East}(grid)
+    wbound = CollisionBoundary{West}(grid)
     domain_no_topo = Domain(nbound, sbound, ebound, wbound)
     island = [[[6e4, 4e4], [6e4, 4.5e4], [6.5e4, 4.5e4], [6.5e4, 4e4], [6e4, 4e4]]]
     topo1 = [[[-8e4, -8e4], [-8e4, 8e4], [-6e4, 8e4], [-5e4, 4e4], [-6e4, -8e4], [-8e4, -8e4]]]
@@ -160,7 +159,7 @@
         sbound,
         ebound,
         wbound,
-        StructVector([TopographyElement(FT, t) for t in [island, topo1]])
+        StructVector([TopographyElement(t) for t in [island, topo1]])
     )
     topo_polys = LG.MultiPolygon([island, topo1])
 
@@ -179,17 +178,16 @@
 
     # From file with small domain -> floes outside of domain
     small_grid = RegRectilinearGrid(
-        Float64,
         (-5e4, 5e4),
         (-5e4, 5e4),
         1e4,
         1e4,
     )
     small_domain_no_topo = Domain(
-        CollisionBoundary(FT, North, small_grid),
-        CollisionBoundary(FT, South, small_grid),
-        CollisionBoundary(FT, East, small_grid),
-        CollisionBoundary(FT, West, small_grid)
+        CollisionBoundary{North}(small_grid),
+        CollisionBoundary{South}(small_grid),
+        CollisionBoundary{East}(small_grid),
+        CollisionBoundary{West}(small_grid)
     )
     floe_arr = (@test_logs (:warn, "Some floe centroids are out of the domain.") initialize_floe_field(
         FT,

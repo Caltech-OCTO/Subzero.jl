@@ -55,7 +55,6 @@
         
         # Non-square grid using custom constructor
         g1 = Subzero.RegRectilinearGrid(
-            Float64,
             (-10, 10),
             (-8, 8),
             2,
@@ -69,7 +68,6 @@
         @test typeof(g1) == Subzero.RegRectilinearGrid{Float64}
         # Uneven grid size creation (grid cut short) using custom constructor
         g2 = Subzero.RegRectilinearGrid(
-            Float64,
             (0.0, 10.5),
             (0.0, 8.0),
             2.5,
@@ -81,8 +79,7 @@
         @test g2.xc == collect(1.25:2.5:8.75)
         @test g2.yc == collect(1.0:2.0:7.0)
         # Custom constructor Float32
-        @test typeof(Subzero.RegRectilinearGrid(
-            Float32,
+        @test typeof(Subzero.RegRectilinearGrid{Float32}(
             (0, 10),
             (0, 8),
             2,
@@ -90,7 +87,6 @@
         )) == Subzero.RegRectilinearGrid{Float32}
         # Grid constructor with dimensions
         g3 = Subzero.RegRectilinearGrid(
-            Float64,
             (-10, 10),
             (-8, 8),
             (4, 10),
@@ -102,7 +98,6 @@
 
     @testset "Ocean" begin
         g = Subzero.RegRectilinearGrid(
-            Float64,
             (0, 4e5),
             (0, 3e5),
             1e4,
@@ -137,7 +132,7 @@
         @test ocn.temp == tempocn
         @test ocn.si_frac == ocn.hflx_factor == ocn.τx == ocn.τx
         # Custom constructor
-        ocn2 = Subzero.Ocean(Float64, g, 3.0, 4.0, -2.0)
+        ocn2 = Subzero.Ocean(g, 3.0, 4.0, -2.0)
         @test ocn.u == ocn2.u
         @test ocn.v == ocn2.v
         @test ocn.temp == ocn2.temp
@@ -146,13 +141,12 @@
         @test ocn.τx == ocn2.τx
         @test ocn.τy == ocn2.τy
         # Custom constructor Float32
-        @test typeof(Subzero.Ocean(Float32, g, 3.0, 4.0, -2.0)) ==
+        @test typeof(Subzero.Ocean{Float32}(g, 3.0, 4.0, -2.0)) ==
               Subzero.Ocean{Float32}
     end
 
     @testset "Atmos" begin
         g = Subzero.RegRectilinearGrid(
-            Float64,
             (0, 4e5),
             (0, 3e5),
             1e4,
@@ -162,17 +156,17 @@
         uatmos = fill(3.0, g.dims .+ 1)
         vatmos = fill(4.0, g.dims .+ 1)
         tempatmos = fill(-2.0, g.dims .+ 1)
-        atmos = Subzero.Atmos(Float64, uatmos, vatmos, tempatmos)
+        atmos = Subzero.Atmos( uatmos, vatmos, tempatmos)
         @test atmos.u == uatmos
         @test atmos.v == vatmos
         @test atmos.temp == tempatmos
         # Custom constructor
-        atmos2 = Subzero.Atmos(Float64, g, 3.0, 4.0, -2.0)
+        atmos2 = Subzero.Atmos(g, 3.0, 4.0, -2.0)
         @test atmos.u == atmos2.u
         @test atmos.v == atmos2.v
         @test atmos.temp == atmos2.temp
         # Custom constructor Float32
-        @test typeof(Subzero.Atmos(Float32, g, 3.0, 4.0, -2.0)) ==
+        @test typeof(Subzero.Atmos{Float32}(g, 3.0, 4.0, -2.0)) ==
               Subzero.Atmos{Float32}
     end
 
@@ -180,17 +174,16 @@
         # Boundaries using BoundaryCoords
         FT = Float64
         g = Subzero.RegRectilinearGrid(
-            FT,
             (0, 4e5),
             (0, 3e5),
             1e4,
             1e4,
         )
-        b1 = Subzero.PeriodicBoundary(FT, North, g)
-        b2 = Subzero.OpenBoundary(FT, East, g)
-        b3 = Subzero.CollisionBoundary(FT, West, g)
-        b4 = Subzero.PeriodicBoundary(FT, South, g)
-        b5 = Subzero.CompressionBoundary(FT, South, g, 1.0)
+        b1 = Subzero.PeriodicBoundary{North}(g)
+        b2 = Subzero.OpenBoundary{East}(g)
+        b3 = Subzero.CollisionBoundary{West}(g)
+        b4 = Subzero.PeriodicBoundary{South}(g)
+        b5 = Subzero.CompressionBoundary{South}(g, 1.0)
         @test b1.val == 3e5
         @test typeof(b1) == Subzero.PeriodicBoundary{North, Float64}
         @test b1.coords == [[[-2e5, 3e5], [-2e5, 4.5e5], [6e5, 4.5e5], [6e5, 3e5], [-2e5, 3e5]]]
@@ -212,7 +205,7 @@
         @test_throws Exception b4.val = 1.0
 
         # Creation of Float32 Boundary
-        b32 = Subzero.OpenBoundary(Float32, North, g)
+        b32 = Subzero.OpenBoundary{North, Float32}(g)
         @test typeof(b32.val) == Float32
         @test typeof(b32) == Subzero.OpenBoundary{North, Float32}
 
@@ -227,15 +220,15 @@
         coords = [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]]
         poly = LG.Polygon(coords)
         # Polygon Constructor
-        topo1 = Subzero.TopographyElement(Float64, poly)
+        topo1 = Subzero.TopographyElement(poly)
         @test topo1.coords == coords
         @test topo1.centroid == [0.5, 0.5]
         @test topo1.rmax == sqrt(0.5)
-        topo32 = Subzero.TopographyElement(Float32, poly)
+        topo32 = Subzero.TopographyElement{Float32}(poly)
         @test typeof(topo32) == Subzero.TopographyElement{Float32}
         @test typeof(topo32.coords) == Subzero.PolyVec{Float32}
         # Coords Constructor
-        topo2 = Subzero.TopographyElement(Float64, coords)
+        topo2 = Subzero.TopographyElement{Float64}(coords)
         @test topo2.coords == coords
         @test topo2.centroid == [0.5, 0.5]
         @test topo2.rmax == sqrt(0.5)
@@ -257,18 +250,16 @@
     @testset "Domain" begin
         FT = Float64
         g = Subzero.RegRectilinearGrid(
-            FT,
             (0, 4e5),
             (0, 3e5),
             1e4,
             1e4,
         )
-        b1 = Subzero.PeriodicBoundary(FT, North, g)
-        b2 = Subzero.OpenBoundary(FT, East, g)
-        b3 = Subzero.CollisionBoundary(FT, West, g)
-        b4 = Subzero.PeriodicBoundary(FT, South, g)
+        b1 = Subzero.PeriodicBoundary{North}(g)
+        b2 = Subzero.OpenBoundary{East}(g)
+        b3 = Subzero.CollisionBoundary{West}(g)
+        b4 = Subzero.PeriodicBoundary{South}(g)
         topography = StructArray([Subzero.TopographyElement(
-            FT,
             [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]],
         )])
         # test basic domain with no topography
@@ -286,7 +277,7 @@
         # domain with non-periodic 
         @test_throws ArgumentError Subzero.Domain(
             b1,
-            Subzero.OpenBoundary(FT, South, g),
+            Subzero.OpenBoundary{South}(g),
             b2,
             b3,
         )
@@ -294,14 +285,12 @@
             b1,
             b4,
             b2,
-            Subzero.PeriodicBoundary(FT, West, g),
+            Subzero.PeriodicBoundary{West}(g),
         )
         # domain with north < south
         @test_throws ArgumentError Subzero.Domain(
             b1,
-            Subzero.OpenBoundary(
-                FT,
-                South,
+            Subzero.OpenBoundary{South}(
                 Subzero.PolyVec{Float64}(undef, 0),
                 6e5,
             ),
@@ -313,9 +302,7 @@
             b1,
             b4,
             b2,
-            Subzero.OpenBoundary(
-                FT,
-                West,
+            Subzero.OpenBoundary{West}(
                 Subzero.PolyVec{Float64}(undef, 0),
                 6e5,
             ),

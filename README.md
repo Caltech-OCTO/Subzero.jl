@@ -49,14 +49,14 @@ Let’s run a basic simulation with stationary floes pushed into a collision bou
 
 ```julia
 FT = Float64
-grid = RegRectilinearGrid(FT, 0, 1e5, 0, 1e5, 1e4, 1e4) 
-ocean = Ocean(FT, grid, 0.25, 0.0, 0.0) 
-atmos = Atmos(FT, grid, 0.0, 0.0, 0.0) 
+grid = RegRectilinearGrid(0, 1e5, 0, 1e5, 1e4, 1e4) 
+ocean = Ocean(grid, 0.25, 0.0, 0.0) 
+atmos = Atmos(grid, 0.0, 0.0, 0.0) 
 domain = Domain( 
-  CollisionBoundary(FT, North, grid), 
-  CollisionBoundary(FT, South, grid), 
-  CollisionBoundary(FT, East, grid),
-  CollisionBoundary(FT, West, grid),
+  CollisionBoundary{North}(grid), 
+  CollisionBoundary{South}(grid), 
+  CollisionBoundary{East}(grid),
+  CollisionBoundary{West}(grid),
 ) 
 floe_arr = initialize_floe_field(FT, 50, [0.7], domain, 0.5, 0.05) 
 model = Model(grid, ocean, atmos, domain, floe_arr) 

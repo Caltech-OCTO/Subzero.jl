@@ -18,6 +18,16 @@ Structs and functions to create and run a Subzero simulation
     E::FT = 6e6                 # Young's Modulus
 end
 
+# function Constants(::Type{FT}; kwargs...) where {FT <: AbstractFloat}
+#     new_kwargs = NamedTuple()
+#     for i in eachindex(kwargs)
+#         new_kwargs = merge(
+#             new_kwargs,
+#             (Symbol(i) => convert(FT, kwargs[i]),),
+#         )
+#     end
+#     return Constants(new_kwargs...)
+# end
 
 """
     Simulation{FT<:AbstractFloat, DT<:Domain{FT}}

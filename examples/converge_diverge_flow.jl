@@ -12,21 +12,20 @@ const Δt = 20
 
 # Model instantiation
 grid = RegRectilinearGrid(
-    FT,
     (0, Lx),
     (0, Ly),
     Δgrid,
     Δgrid,
 )
 uvels = repeat(hcat(range(0.1 ,0.6, step = 0.1)', range(0.5, 0.1, step = -0.1)'), outer = 11)
-ocean = Ocean(FT, uvels, zeros(grid.dims .+ 1), zeros(grid.dims .+ 1))
-atmos = Atmos(FT, grid, 0.0, 0.0, -1.0)
+ocean = Ocean(uvels, zeros(grid.dims .+ 1), zeros(grid.dims .+ 1))
+atmos = Atmos(grid, 0.0, 0.0, -1.0)
 
 # Domain creation
-nboundary = PeriodicBoundary(FT, North, grid)
-sboundary = PeriodicBoundary(FT, South, grid)
-eboundary = PeriodicBoundary(FT, East, grid)
-wboundary = PeriodicBoundary(FT, West, grid)
+nboundary = PeriodicBoundary{North}(grid)
+sboundary = PeriodicBoundary{South}(grid)
+eboundary = PeriodicBoundary{East}(grid)
+wboundary = PeriodicBoundary{West}(grid)
 
 domain = Domain(nboundary, sboundary, eboundary, wboundary)
 

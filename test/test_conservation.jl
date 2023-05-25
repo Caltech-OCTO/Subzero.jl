@@ -5,8 +5,8 @@ function conservation_simulation(
     smoothing = false,
     plot = false,
 )
-    ocean = Ocean(Float64, grid, 0.0, 0.0, 0.0)
-    atmos = Atmos(Float64, grid, 0.0, 0.0, 0.0)
+    ocean = Ocean(grid, 0.0, 0.0, 0.0)
+    atmos = Atmos(grid, 0.0, 0.0, 0.0)
     model = Model(grid, ocean, atmos, domain, floes)
     dir = "output/conservation"
     initwriter = InitialStateOutputWriter(
@@ -58,33 +58,31 @@ end
 @testset "Conservation of Energy and Momentum" begin
     FT = Float64
     grid = RegRectilinearGrid(
-        FT,
         (-2e4, 1e5),
         (0, 1e5),
         1e4,
         1e4,
     )
     collision_domain = Domain(
-        CollisionBoundary(FT, North, grid),
-        CollisionBoundary(FT, South, grid),
-        CollisionBoundary(FT, East, grid),
-        CollisionBoundary(FT, West, grid),
+        CollisionBoundary{North}(grid),
+        CollisionBoundary{South}(grid),
+        CollisionBoundary{East}(grid),
+        CollisionBoundary{West}(grid),
     )
     open_domain = Domain(
-        OpenBoundary(FT, North, grid),
-        OpenBoundary(FT, South, grid),
-        OpenBoundary(FT, East, grid),
-        OpenBoundary(FT, West, grid),
+        OpenBoundary{North}(grid),
+        OpenBoundary{South}(grid),
+        OpenBoundary{East}(grid),
+        OpenBoundary{West}(grid),
     )
     topo = TopographyElement(
-        FT,
         [[[-1e4, 0.0], [-2e4, 1e4], [-1e4, 1e4], [-1e4, 0.0]]],
     )
     open_domain_w_topography = Domain(
-        OpenBoundary(FT, North, grid),
-        OpenBoundary(FT, South, grid),
-        OpenBoundary(FT, East, grid),
-        OpenBoundary(FT, West, grid),
+        OpenBoundary{North}(grid),
+        OpenBoundary{South}(grid),
+        OpenBoundary{East}(grid),
+        OpenBoundary{West}(grid),
         StructVector([topo])
     )
     rng = Xoshiro(1)

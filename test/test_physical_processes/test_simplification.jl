@@ -2,17 +2,16 @@
     FT = Float64
     @testset "Dissolve Floes" begin
         grid = RegRectilinearGrid(
-            FT,
             (-1e5, 1e5),
             (0.0, 1e5),
             1e4,
             1e4,
         )
         domain = Subzero.Domain(
-            CollisionBoundary(FT, North, grid),
-            CollisionBoundary(FT, South, grid),
-            PeriodicBoundary(FT, East, grid),
-            PeriodicBoundary(FT, West, grid),
+            CollisionBoundary{North}(grid),
+            CollisionBoundary{South}(grid),
+            PeriodicBoundary{East}(grid),
+            PeriodicBoundary{West}(grid),
         )
         height = 0.25
         ρi = 920.0
@@ -222,17 +221,16 @@
 
         # Test overall fuse floe functionality with set of 4 floes
         grid = RegRectilinearGrid(
-            Float64,
             (-2.5e4, 1e5),
             (-2.5e4, 1e5),
             1e4,
             1e4,
         )
         open_domain_no_topo = Subzero.Domain(
-            OpenBoundary(FT, North, grid),
-            OpenBoundary(FT, South, grid),
-            OpenBoundary(FT, East, grid),
-            OpenBoundary(FT, West, grid),
+            OpenBoundary{North}(grid),
+            OpenBoundary{South}(grid),
+            OpenBoundary{East}(grid),
+            OpenBoundary{West}(grid),
         )
         coords1 = [[  # large floe
             [0.0, 0.0],
@@ -301,17 +299,16 @@
     end
     @testset "Smooth Floes" begin
         grid = RegRectilinearGrid(
-            Float64,
             (-2.5e4, 1e5),
             (-2.5e4, 1e5),
             1e4,
             1e4,
         )
         open_domain_no_topo = Subzero.Domain(
-            OpenBoundary(FT, North, grid),
-            OpenBoundary(FT, South, grid),
-            OpenBoundary(FT, East, grid),
-            OpenBoundary(FT, West, grid),
+            OpenBoundary{North}(grid),
+            OpenBoundary{South}(grid),
+            OpenBoundary{East}(grid),
+            OpenBoundary{West}(grid),
         )
         # Create complex floes
         file = jldopen("inputs/floe_shapes.jld2", "r")
@@ -445,13 +442,12 @@
         # Two floes overlap, and one is cut into two pieces by topography
         floe_set2 = floe_arr[1:2]
         open_domain_with_topo = Subzero.Domain(
-            OpenBoundary(FT, North, grid),
-            OpenBoundary(FT, South, grid),
-            OpenBoundary(FT, East, grid),
-            OpenBoundary(FT, West, grid),
+            OpenBoundary{North}(grid),
+            OpenBoundary{South}(grid),
+            OpenBoundary{East}(grid),
+            OpenBoundary{West}(grid),
             StructVector(
                 [TopographyElement(
-                    FT,
                     [[
                         [0.0, 1.05e4],
                         [0.0, 1.15e4],
@@ -494,17 +490,16 @@
     end
     @testset "Remove Floes" begin
         grid = RegRectilinearGrid(
-            Float64,
             (-2.5e4, 1e5),
             (-2.5e4, 1e5),
             1e4,
             1e4,
         )
         open_domain_no_topo = Subzero.Domain(
-            OpenBoundary(FT, North, grid),
-            OpenBoundary(FT, South, grid),
-            OpenBoundary(FT, East, grid),
-            OpenBoundary(FT, West, grid),
+            OpenBoundary{North}(grid),
+            OpenBoundary{South}(grid),
+            OpenBoundary{East}(grid),
+            OpenBoundary{West}(grid),
         )
         coords1 = [[  # large floe
             [0.0, 0.0],

@@ -1,5 +1,26 @@
 using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero, BenchmarkTools, MAT
 import LibGEOS as LG
+import Base.@kwdef
+
+@kwdef struct Foo{FT<:AbstractFloat}
+    a = 0.1
+    b = 0.2
+end
+
+function Foo(::Type{FT}; kwargs...) where {FT <: AbstractFloat}
+    new_kwargs = NamedTuple()
+    for i in eachindex(kwargs)
+      new_kwargs = merge(
+        new_kwargs,
+          (Symbol(i) => convert(FT, kwargs[i]),),
+        )
+    end
+    println(new_kwargs...)
+    return Foo(new_kwargs...)
+end
+
+Foo(Float64, a = 1)
+
 
 # User Inputs
 const FT = Float64
@@ -11,17 +32,16 @@ const Δh = 0.0
 const Δt = 10
 
 grid = RegRectilinearGrid(
-    Float64,
     (-2.5e4, 1e5),
     (-2.5e4, 1e5),
     1e4,
     1e4,
 )
 open_domain_no_topo = Subzero.Domain(
-    OpenBoundary(FT, North, grid),
-    OpenBoundary(FT, South, grid),
-    OpenBoundary(FT, East, grid),
-    OpenBoundary(FT, West, grid),
+    OpenBoundary{North}(grid),
+    OpenBoundary{South}(grid),
+    OpenBoundary{East}(grid),
+    OpenBoundary{West}(grid),
 )
 coords1 = [[  # large floe
     [0.0, 0.0],
@@ -78,29 +98,23 @@ max_floe_id = Subzero.fuse_floes!(
     Constants(),
     Xoshiro(1),
 )
-
-
-
-
-
 # Model instantiation
 grid = RegRectilinearGrid(
-    FT,
     (-Lx, Lx),
     (-Ly, Ly),
     Δgrid,
     Δgrid,
 )
-zonal_ocn = Ocean(FT, grid, 0.5, 0.0, 0.0)
+zonal_ocn = Ocean(grid, 0.5, 0.0, 0.0)
 
-zero_atmos = Atmos(FT, grid, 0.0, 0.0, 0.0)
+zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
 
 
 domain = Subzero.Domain(
-    CollisionBoundary(FT, North, grid),
-    CollisionBoundary(FT, South, grid),
-    CollisionBoundary(FT, East, grid),
-    CollisionBoundary(FT, West, grid),
+    CollisionBoundary{North}(grid),
+    CollisionBoundary{South}(grid),
+    CollisionBoundary{East}(grid),
+    CollisionBoundary{West}(grid),
 )
 
 # Floe instantiation

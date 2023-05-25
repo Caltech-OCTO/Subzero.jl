@@ -12,27 +12,26 @@ const Δt = 20
 
 # Model instantiation
 grid = RegRectilinearGrid(
-    FT,
     (0.0, Lx),
     (0.0, Ly),
     Δgrid,
     Δgrid,
 )
-ocean = Ocean(FT, grid, 0.0, -0.3, 0.0)
-atmos = Atmos(FT, grid, 0.0, 0.0, 0.0)
+ocean = Ocean(grid, 0.0, -0.3, 0.0)
+atmos = Atmos(grid, 0.0, 0.0, 0.0)
 
 # Domain creation
-nboundary = PeriodicBoundary(FT, North, grid)
-sboundary = PeriodicBoundary(FT, South, grid)
-eboundary = CollisionBoundary(FT, East, grid)
-wboundary = CollisionBoundary(FT, West, grid)
+nboundary = PeriodicBoundary{North}(grid)
+sboundary = PeriodicBoundary{South}(grid)
+eboundary = CollisionBoundary{East}(grid)
+wboundary = CollisionBoundary{West}(grid)
 
 island = [[[6e4, 4e4], [6e4, 4.5e4], [6.5e4, 4.5e4], [6.5e4, 4e4], [6e4, 4e4]]]
 topo1 = [[[0, 0.0], [0, 1e5], [2e4, 1e5], [3e4, 5e4], [2e4, 0], [0.0, 0.0]]]
 topo2 = [[[8e4, 0], [7e4, 5e4], [8e4, 1e5], [1e5, 1e5], [1e5, 0], [8e4, 0]]]
 
 topo_arr = StructVector(
-    [TopographyElement(FT, t) for t in [island, topo1, topo2]],
+    [TopographyElement(t) for t in [island, topo1, topo2]],
 )
 domain = Domain(nboundary, sboundary, eboundary, wboundary, topo_arr)
 

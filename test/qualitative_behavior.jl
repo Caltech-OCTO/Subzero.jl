@@ -18,28 +18,26 @@ const coarse_ny = 10
 
 # Setup for Simulations
 grid = RegRectilinearGrid(
-    FT,
     (-2.5e4, Lx),
     (-2.5e4, Ly),
     Δgrid,
     Δgrid,
 )
 
-zero_ocn = Ocean(FT, grid, 0.0, 0.0, 0.0)
-meridional_ocn = Ocean(FT, grid, 0.0, 1.0, 0.0)
+zero_ocn = Ocean(grid, 0.0, 0.0, 0.0)
+meridional_ocn = Ocean(grid, 0.0, 1.0, 0.0)
 
-zero_atmos = Atmos(FT, grid, 0.0, 0.0, 0.0)
-zonal_atmos = Atmos(FT, grid, -15.0, 0.0, 0.0)
+zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
+zonal_atmos = Atmos(grid, -15.0, 0.0, 0.0)
 
 open_domain_no_topo = Subzero.Domain(
-    OpenBoundary(FT, North, grid),
-    OpenBoundary(FT, South, grid),
-    OpenBoundary(FT, East, grid),
-    OpenBoundary(FT, West, grid),
+    OpenBoundary{North}(grid),
+    OpenBoundary{South}(grid),
+    OpenBoundary{East}(grid),
+    OpenBoundary{West}(grid),
 )
 
-topography = TopographyElement(
-    FT, 
+topography = TopographyElement( 
     [[
         [2e4, 0.0],
         [2e4, 2e4],
@@ -48,10 +46,10 @@ topography = TopographyElement(
         [2e4, 0.0],
     ]])
 collision_domain_topo = Subzero.Domain(
-    CollisionBoundary(FT, North, grid),
-    CollisionBoundary(FT, South, grid),
-    CollisionBoundary(FT, East, grid),
-    CollisionBoundary(FT, West, grid),
+    CollisionBoundary{North}(grid),
+    CollisionBoundary{South}(grid),
+    CollisionBoundary{East}(grid),
+    CollisionBoundary{West}(grid),
     StructArray([topography]),
 )
 
@@ -221,12 +219,11 @@ Expected Behavior:
     back through the western wall. 
 """
 periodic_bounds_topo = Subzero.Domain(
-    PeriodicBoundary(FT, North, grid),
-    PeriodicBoundary(FT, South, grid),
-    PeriodicBoundary(FT, East, grid),
-    PeriodicBoundary(FT, West, grid),
+    PeriodicBoundary{North}(grid),
+    PeriodicBoundary{South}(grid),
+    PeriodicBoundary{East}(grid),
+    PeriodicBoundary{West}(grid),
     StructArray([TopographyElement(
-        FT,
         [[
             [-1.5e4, 4.5e4],
             [-1.5e4, 6.5e4],
