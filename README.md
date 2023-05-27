@@ -68,21 +68,25 @@ For detailed instructions on how to create different types of models and simulat
 Let’s run a basic simulation with initially stationary floes pushed into a collision boundary by a uniform, zonally flowing ocean. In this simulation, collisions between floes are on by default and we will enable floe fracturing.  
 
 ```julia
-const FT = Float64
 # Create environment
-grid = RegRectilinearGrid(FT, 0, 1e5, 0, 1e5, 1e4, 1e4) 
-ocean = Ocean(FT, grid, 0.25, 0.0, 0.0) 
-atmos = Atmos(FT, grid, 0.0, 0.0, 0.0) 
+grid = RegRectilinearGrid(
+  (0, 1e5), # xbounds
+  (0, 1e5), # ybounds
+  1e4,      # grid cell width
+  1e4,      # grid cell height
+ ) 
+ocean = Ocean(grid, 0.25, 0.0, 0.0) # 0.25m/s u-velocity, 0m/s v-velocity, 0C temperature in all grid cells
+atmos = Atmos(grid, 0.0, 0.1, -1.0)  # 0m/s u-velocity, 0.1m/s v-velocity, -1C temperature in all grid cells
 # Create domain
 domain = Domain( 
-  CollisionBoundary(FT, North, grid), 
-  CollisionBoundary(FT, South, grid), 
-  CollisionBoundary(FT, East, grid),
-  CollisionBoundary(FT, West, grid),
+  CollisionBoundary{North}(grid), 
+  CollisionBoundary{South}(grid), 
+  CollisionBoundary{East}(grid),
+  CollisionBoundary{West}(grid),
 )
 # Create floes
 floe_arr = initialize_floe_field(
-  FT,
+  Float64,
   50,  # number of floes
   [0.7],  # floe concentration
   domain,
@@ -101,9 +105,20 @@ fracture_settings = FractureSettings(
   npieces = 3,
   nhistory = 1000,
   deform_on = true, 
-) 
-floewriter = FloeOutputWriter(100, dir = "output/sim", filename = "floes.jld2", overwrite = true)
-writers = OutputWriters(floewriters = StructArray([floewriter]))
+)
+
+initwriter = InitialStateOutputWriter(
+    dir = dir,
+    filename = "initial_state.jld2",
+    overwrite = true,
+    )
+floewriter = FloeOutputWriter(
+    100,
+    dir = "output/sim",
+    filename = "floes.jld2",
+    overwrite = true,
+)
+writers = OutputWriters(initwriter, floewriter)
 simulation = Simulation( 
   model = model, 
   consts = consts, 
