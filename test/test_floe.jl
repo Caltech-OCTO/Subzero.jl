@@ -49,7 +49,6 @@
 
     # Test with coords inputs
     floe_from_coords = Floe(
-        FT,
         floe_coords[1],
         0.5,
         0.01,
@@ -65,7 +64,6 @@
     
     # Test with polygon input
     floe_from_poly = Floe(
-        FT, 
         poly1,
         0.5,
         0.01,
@@ -277,7 +275,6 @@
     concentrations = [1 0.3; 0 0.5]
     rng = Xoshiro(2)
     floe_arr = initialize_floe_field(
-        FT,
         25,
         concentrations,
         domain_with_topo,

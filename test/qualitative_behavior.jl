@@ -54,7 +54,6 @@ collision_domain_topo = Subzero.Domain(
 )
 
 stationary_rect_floe = StructArray([Floe(
-    FT,
     [[
         [0.0, 0.0],
         [0.0, 2e4],
@@ -114,15 +113,15 @@ model1 = Model(
     deepcopy(stationary_rect_floe),
 )
 writers1 = OutputWriters(
-    initialwriters = StructArray([InitialStateOutputWriter(
+    InitialStateOutputWriter(
         dir = "test/output/sim1",
         overwrite = true
-    )]),
-    floewriters = StructArray([FloeOutputWriter(
+    ),
+    FloeOutputWriter(
         30,
         dir = "test/output/sim1",
         overwrite = true,
-    )]),
+    ),
 )
 simulation1 = Simulation(
     name = "sim1",
@@ -149,15 +148,15 @@ model2 = Model(
     deepcopy(stationary_rect_floe),
 )
 writers2 = OutputWriters(
-    initialwriters = StructArray([InitialStateOutputWriter(
+    InitialStateOutputWriter(
         dir = "test/output/sim2",
         overwrite = true
-    )]),
-    floewriters = StructArray([FloeOutputWriter(
+    ),
+    FloeOutputWriter(
         30,
         dir = "test/output/sim2",
         overwrite = true,
-    )]),
+    ),
 )
 simulation2 = Simulation(
     name = "sim2",
@@ -186,15 +185,15 @@ model3 = Model(
     deepcopy(zonal_3rect_floes),
 )
 writers3 = OutputWriters(
-    initialwriters = StructArray([InitialStateOutputWriter(
+    InitialStateOutputWriter(
         dir = "test/output/sim3",
         overwrite = true
-    )]),
-    floewriters = StructArray([FloeOutputWriter(
+    ),
+    FloeOutputWriter(
         30,
         dir = "test/output/sim3",
         overwrite = true,
-    )]),
+    ),
 )
 simulation3 = Simulation(
     name = "sim3",
@@ -249,7 +248,7 @@ p2_coords = [[
     [6.5e4, 4.5e4],
 ]]
 p_floe_arr = StructArray(
-    [Floe(FT, c, hmean, Δh) for c in [p1_coords, p2_coords]]
+    [Floe(c, hmean, Δh) for c in [p1_coords, p2_coords]]
 )
 p_floe_arr.u[1] = 1
 p_floe_arr.v[1] = 1
@@ -262,15 +261,15 @@ model4 = Model(
     deepcopy(p_floe_arr),
 )
 writers4 = OutputWriters(
-    initialwriters = StructArray([InitialStateOutputWriter(
+    InitialStateOutputWriter(
         dir = "test/output/sim4",
         overwrite = true
-    )]),
-    floewriters = StructArray([FloeOutputWriter(
+    ),
+    FloeOutputWriter(
         30,
         dir = "test/output/sim4",
         overwrite = true,
-    )]),
+    ),
 )
 simulation4 = Simulation(
     name = "sim4",
@@ -311,15 +310,15 @@ model5 = Model(
     deepcopy(funky_floe_arr),
 )
 writers5 = OutputWriters(
-    initialwriters = StructArray([InitialStateOutputWriter(
+    InitialStateOutputWriter(
         dir = "test/output/sim5",
         overwrite = true
-    )]),
-    floewriters = StructArray([FloeOutputWriter(
+    ),
+    FloeOutputWriter(
         30,
         dir = "test/output/sim5",
         overwrite = true,
-    )]),
+    ),
 )
 simulation5 = Simulation(
     name = "sim5",

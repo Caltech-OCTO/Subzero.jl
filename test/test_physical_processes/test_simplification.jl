@@ -25,25 +25,25 @@
         mass = 9e8 * height * ρi
         dissolved = zeros(Float64, 10, 20)  # 20x20 ocean grid
         # Add 2 floes in the middle of the grid -> masses added to cell
-        floe = Floe(FT, coords, height, 0.0,)
+        floe = Floe(coords, height, 0.0,)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 12] == mass
-        floe = Floe(FT, Subzero.translate(coords, 2.5e3, 2.5e3), height, 0.0)
+        floe = Floe(Subzero.translate(coords, 2.5e3, 2.5e3), height, 0.0)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 12] == 2mass
         # Add floe over periodic bound -> mass added to cell wrapped around grid
-        floe = Floe(FT, Subzero.translate(coords, 9e4, 0.0), height, 0.0)
+        floe = Floe(Subzero.translate(coords, 9e4, 0.0), height, 0.0)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 1] == mass
-        floe = Floe(FT, Subzero.translate(coords, -1.2e5, 0.0), height, 0.0)
+        floe = Floe(Subzero.translate(coords, -1.2e5, 0.0), height, 0.0)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 20] == mass
         total_mass = sum(dissolved)
         # Add floe over non-periodic bound -> mass not added since out of bounds
-        floe = Floe(FT, Subzero.translate(coords, 0.0, 6e4), height, 0.0)
+        floe = Floe(Subzero.translate(coords, 0.0, 6e4), height, 0.0)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test total_mass == sum(dissolved)  # nothing was added
-        floe = Floe(FT, Subzero.translate(coords, 0.0, -7e4), height, 0.0)
+        floe = Floe(Subzero.translate(coords, 0.0, -7e4), height, 0.0)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test total_mass == sum(dissolved)  # nothing was added
     end
@@ -60,8 +60,8 @@
         # Test two floes not intersecting -> will not fuse
         coords2 = deepcopy(coords1)
         Subzero.translate!(coords2, 20.0, 0.0)
-        f1 = Floe(FT, coords1, 0.5, 0.0)
-        f2 = Floe(FT, coords2, 0.5, 0.0)
+        f1 = Floe(coords1, 0.5, 0.0)
+        f2 = Floe(coords2, 0.5, 0.0)
         max_id = Subzero.fuse_two_floes!(
             f1,
             f2,
@@ -78,7 +78,7 @@
 
         # Test two floes intersecting -> will fuse into floe1 since same size
         Subzero.Subzero.translate!(coords2, -13.0, 0.0)
-        f2 = Floe(FT, coords2, 0.75, 0.0)
+        f2 = Floe(coords2, 0.75, 0.0)
         f1.id = 1
         f2.id = 2
         mass_tot = f1.mass + f2.mass
@@ -191,9 +191,8 @@
         @test f1.stress == (stress1_init * (f2.mass - mass_tot) .+ f2.stress * f2.mass) / mass_tot
 
         # Test two floes intersecting -> will fuse into floe2 since bigger
-        f1 = Floe(FT, coords1, 0.5, 0.0)
+        f1 = Floe(coords1, 0.5, 0.0)
         f3 = Floe(
-            FT, 
             [[
                 [0.0, 0.0],
                 [0.0, 20.0],

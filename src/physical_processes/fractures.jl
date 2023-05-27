@@ -51,9 +51,9 @@ mutable struct HiblerYieldCurve{FT<:AbstractFloat}<:AbstractFractureCriteria
     vertices::PolyVec{FT}
 
     function HiblerYieldCurve{FT}(
-        pstar::FT,
-        c::FT,
-        vertices::PolyVec{FT}
+        pstar::Real,
+        c::Real,
+        vertices::PolyVec
     ) where {FT<:AbstractFloat}
         try
             valid_polyvec!(vertices)
@@ -64,12 +64,6 @@ mutable struct HiblerYieldCurve{FT<:AbstractFloat}<:AbstractFractureCriteria
         end
         new{FT}(pstar, c, vertices)
     end
-    HiblerYieldCurve(
-        pstar::FT,
-        c::FT,
-        vertices::PolyVec{FT},
-    ) where{FT<:AbstractFloat} = 
-        HiblerYieldCurve{FT}(pstar, c, vertices)
 end
 
 """
@@ -115,8 +109,25 @@ Outputs:
     HiblerYieldCurve struct with vertices determined using the calculate_hibler
     function.
 """
-HiblerYieldCurve(floes, pstar = 2.25e5, c = 20.0) =
-    HiblerYieldCurve(pstar, c, calculate_hibler(mean(floes.height), pstar, c))
+HiblerYieldCurve{FT}(
+    floes,
+    pstar = 2.25e5,
+    c = 20.0,
+) where {FT <: AbstractFloat}=
+    HiblerYieldCurve{FT}(
+        pstar,
+        c,
+        calculate_hibler(mean(floes.height), pstar, c),
+    )
+
+"""
+    HiblerYieldCurve(args...; kwargs...)
+
+If a float type isn't specified, HiblerYieldCurve will be Float64. Use 
+HiblerYieldCurve{Float32}(args...) for HiblerYieldCurve with type
+Float32.
+"""
+HiblerYieldCurve(args...) = HiblerYieldCurve{Float64}(args...)
 
 """
     update_criteria!(criteria::HiblerYieldCurve, floes)

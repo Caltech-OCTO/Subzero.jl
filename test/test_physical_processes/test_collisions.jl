@@ -6,14 +6,12 @@
         hmean = 0.25
         Δh = 0.0
         tri = Floe(
-            FT,
             [[[0.0, 0.0], [1e4, 3e4], [2e4, 0], [0.0, 0.0]]],
             hmean,
             Δh,
         )
         tri.u = 0.1
         rect = Floe(
-            FT,
             [[
                 [0.0, 2.5e4],
                 [0.0, 2.9e4],
@@ -26,7 +24,6 @@
         )
         rect.v = -0.1
         cfloe = Floe(
-            FT,
             [[
                 [0.5e4, 2.7e4],
                 [0.5e4, 3.5e4],
@@ -83,7 +80,6 @@
         rect.status.tag == Subzero.active
         # Floe 2 (small rectangle) is overlapping with rectangle by more than 55%
         small_rect = Floe(
-            FT,
             [[
                 [1.8e4, 2.7e4],
                 [1.8e4, 2.8e4],
@@ -138,7 +134,6 @@
         domain = Domain(nboundary, sboundary, eboundary, wboundary, StructArray([topo_elem]))
         # Diagonal floe barely overlaping with eastern collision boundary
         efloe_small = Floe(
-            FT,
             [[
                 [9.5e4, 0.0],
                 [9e4, 0.5e4],
@@ -153,7 +148,6 @@
         efloe_small.v = 0.25
         # Floe overlapping with eastern collision boundary by more than 75% to trigger overlap condition
         efloe_large = Floe(
-            FT,
             [[
                 [9e4, -7e4],
                 [9e4, -5e4],
@@ -168,7 +162,6 @@
         efloe_large.v = -0.35
         # Floe overlapping with boundary with more than one region
         cfloe = Floe(
-            FT,
             [[
                 [9.5e4, 7e4],
                 [9.5e4, 9e4],
@@ -186,7 +179,6 @@
         cfloe.v = -0.1
         # Floe overlapping with western open boundary
         wfloe = Floe(
-            FT,
             [[
                 [-9.75e4, 7e4],
                 [-9.75e4, 5e4],
@@ -199,7 +191,6 @@
         )
         # Floe overlapping with northern periodic boundary
         nfloe = Floe(
-            FT,
             [[
                 [5e4, 9.75e4],
                 [5e4, 10.05e4],
@@ -212,7 +203,6 @@
         )
         # Floe overlapping with topography element
         tfloe = Floe(
-            FT,
             [[
                 [-0.5e4, 0.0],
                 [-0.5e4, 0.75e4],
@@ -276,7 +266,6 @@
             CollisionBoundary{West}(grid),
         )
         corner_floe = Floe(
-            FT,
             [[
                 [9.5e4, 7e4],
                 [9e4, 7.5e4],
@@ -323,7 +312,7 @@
         coords4 = [[[0.0, 0.0], [0.0, 2e4], [2e4, 2e4], [2e4, 0.0], [0.0, 0.0]]]
 
         floe_arr = StructArray(
-            [Floe(FT, c, 0.5, 0.0) for c in [coords1, coords2, coords3, coords4]],
+            [Floe(c, 0.5, 0.0) for c in [coords1, coords2, coords3, coords4]],
         )
         for i in eachindex(floe_arr)
             floe_arr.id[i] = Float64(i)
@@ -434,7 +423,7 @@
         r = Ly/4+1000
         coords2 = invert([r * cos.(th) .+ (Lx-1), r * sin.(th) .+ (Ly-1)])
 
-        floe_arr = StructArray(Floe(FT, [c], 0.5, 0.0) for c in [coords1, coords2])
+        floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
         for i in eachindex(floe_arr)
             floe_arr.id[i] = Float64(i)
         end
@@ -475,20 +464,18 @@
         # Ghost-Ghost collision (parents aren't touching, only ghosts touch)
         coords1 = splitdims(vcat([5*Lx/8 5*Lx/8 3*Lx/4 3*Lx/4].+1000, [3*Ly/4 5*Ly/4 5*Ly/4 3*Ly/4]))
         coords2 = splitdims(vcat(-[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000], -[7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8]))
-        floe_arr = StructArray(Floe(FT, [c], 0.5, 0.0) for c in [coords1, coords2])
+        floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
         for i in eachindex(floe_arr)
             floe_arr.id[i] = i
         end
         trans_arr = StructArray([
             Floe(
-                FT,
                 Subzero.translate([coords1],
                 0.0, -2Ly),
                 0.5,
                 0.0,
             ),
             Floe(
-                FT,
                 Subzero.translate([coords2], 2Lx, 0.0),
                 0.5,
                 0.0,
@@ -533,12 +520,12 @@
         # Parent-Ghost Collision
         coords1 = splitdims(vcat([5*Lx/8 5*Lx/8 3*Lx/4 3*Lx/4].+1000, [3*Ly/4 5*Ly/4 5*Ly/4 3*Ly/4]))
         coords2 = splitdims(vcat(-[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000], [7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8]))
-        floe_arr = StructArray(Floe(FT, [c], 0.5, 0.0) for c in [coords1, coords2])
+        floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
         for i in eachindex(floe_arr)
             floe_arr.id[i] = Float64(i)
         end
-        trans_arr = StructArray([Floe(FT, Subzero.translate([coords1], -2Lx, 0.0), 0.5, 0.0),
-                                 Floe(FT, [coords2], 0.5, 0.0)])
+        trans_arr = StructArray([Floe(Subzero.translate([coords1], -2Lx, 0.0), 0.5, 0.0),
+                                 Floe([coords2], 0.5, 0.0)])
         for i in eachindex(trans_arr)
             trans_arr.id[i] = Float64(i)
         end
@@ -576,7 +563,6 @@
         # Parent and ghosts hitting the same floe
         # small rectangle in the corner that has 3 ghosts in all other corners
         small_rect = Floe(
-            FT,
             [[
                 [-1.1e5, -1.1e5],
                 [-1.1e5, -9.5e4],
@@ -589,7 +575,6 @@
         )
         # triangle in the middle of the domain with no ghosts - touches 3/4 corners
         large_tri = Floe(
-            FT,
             [[
                 [-1e5, -1e5],
                 [-1e5, 1e5],
@@ -601,7 +586,6 @@
         )
         # rectangle along south boundary, ghost along north boundary
         bound_rect =  Floe(
-            FT, 
             [[
                 [-9.8e4, -1.1e5],
                 [-9.8e4, -9.5e4],

@@ -816,18 +816,29 @@ Float32.
 """
 TopographyElement(args...) = TopographyElement{Float64}(args...)
 
+"""
+    initialize_topography_field(
+        ::Type{FT},
+        coords,
+    )
+
+Create a field of topography from a list of polygon coordiantes.
+Inputs:
+    Type{FT}        <AbstractFloat> Type for grid's numberical fields -
+                        determines simulation run type
+    coords          <Vector{PolyVec}> list of polygon coords to make into floes
+Outputs:
+    topo_arr <StructArray{TopographyElement}> list of topography elements
+    created from given polygon coordinates
+"""
 function initialize_topography_field(
     ::Type{FT},
     coords,
-    domain,
 ) where {FT <: AbstractFloat}
-    topo_arr = StructArray{TopographyElement{FT}}(undef, 0)
-    for c in coords
-        c = rmholes(c)
-        append!(
-            topo_arr,
-            TopographyElement(c)
-        )
+    topo_arr = StructArray{TopographyElement{FT}}(undef, length(coords))
+    for i in eachindex(coords)
+        c = Subzero.rmholes(coords[i])
+        topo_arr[i] = TopographyElement{FT}(c)
     end
     return topo_arr
 end
@@ -997,7 +1008,7 @@ type. Finally, it also holds the maximum floe id used thus far in the
 simulation. This should be the length of the floes array at the beginning of the
 run. 
 """
-mutable struct Model{
+struct Model{
     FT<:AbstractFloat,
     GT<:AbstractGrid{FT},
     DT<:Domain{
@@ -1013,7 +1024,6 @@ mutable struct Model{
     atmos::Atmos{FT}
     domain::DT
     floes::StructArray{Floe{FT}}  # See floes.jl for floe creation
-    max_floe_id::Int              # Maximum id used by any floe
 
     function Model{FT, GT, DT}(
         grid::GT,
@@ -1021,7 +1031,6 @@ mutable struct Model{
         atmos::Atmos{FT},
         domain::DT,
         floes::StructArray{Floe{FT}},
-        max_floe_id,
     ) where {
         FT<:AbstractFloat,
         GT<:AbstractGrid{FT},
@@ -1048,7 +1057,7 @@ mutable struct Model{
             warmer than the ocean. This is not a situation in which the \
             thermodynamics are setup for right now."
         end
-        new{FT, GT, DT}(grid, ocean, atmos, domain, floes, max_floe_id)
+        new{FT, GT, DT}(grid, ocean, atmos, domain, floes)
     end
 
     Model(
@@ -1057,7 +1066,6 @@ mutable struct Model{
         atmos::Atmos{FT},
         domain::DT,
         floes::StructArray{Floe{FT}},
-        max_floe_id,
     ) where {
         FT<:AbstractFloat,
         GT<:AbstractGrid{FT},
@@ -1069,8 +1077,5 @@ mutable struct Model{
             <:AbstractBoundary,
         },
     } = 
-        Model{FT, GT, DT}(grid, ocean, atmos, domain, floes, max_floe_id)
+        Model{FT, GT, DT}(grid, ocean, atmos, domain, floes)
 end
-
-Model(grid, ocean, atmos, domain, floes) = 
-    Model(grid, ocean, atmos, domain, floes, length(floes))

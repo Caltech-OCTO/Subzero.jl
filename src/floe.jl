@@ -229,56 +229,43 @@ function generate_mc_points(
 end
 
 """
-    Floe(
-        ::Type{FT},
+    Floe{FT}(
         poly::LG.Polygon,
         hmean,
         Δh;
         ρi = 920.0,
-        u = 0.0,
-        v = 0.0,
-        ξ = 0.0,
-        mc_n = 1000.0,
+        mc_n = 1000,
+        nhistory = 1000,
+        rng = Xoshiro(),
+        kwargs...
     )
 
 Constructor for floe with LibGEOS Polygon
 Inputs:
-    Type{FT}    <AbstractFloat> Type for grid's numberical fields - determines
-                    simulation run type
     poly        <LibGEOS.Polygon> 
     hmean       <Real> mean height for floes
     Δh          <Real> variability in height for floes
     grid        <Grid> simulation grid
     ρi          <Real> ice density kg/m3 - default 920
-    u           <Real> x-velocity of the floe - default 0.0
-    v           <Real> y-velcoity of the floe - default 0.0
-    ξ           <Real> angular velocity of the floe - default 0.0
-    mc_n        <Real> number of monte carlo points
+    mc_n        <Int> number of monte carlo points -default 1000
+    n_history   <Int> number of elements in stress history
     rng         <RNG> random number generator to generate random floe attributes
                     default is RNG using Xoshiro256++ algorithm
+    kwargs      Any other floe fields to set as keyword arguments
 Output:
     <Floe> with needed fields defined - all default field values used so all
-        forcings start at 0 and floe's status is "active". Velocities and the
-        density of ice can be optionally set.
-Note:
-    Types are specified at Float64 below as type annotations given that when
-    written LibGEOS could exclusivley use Float64 (as of 09/29/22). When this is
-    fixed, this annotation will need to be updated. We should only run the model
-    with Float64 right now or else we will be converting the Polygon back and
-    forth all of the time. 
+        forcings start at 0 and floe's status is "active" as long as monte carlo
+        points were able to be generated.
 """
-function Floe(
-    ::Type{FT},
+function Floe{FT}(
     poly::LG.Polygon,
     hmean,
     Δh;
     ρi = 920.0,
-    u = 0.0,
-    v = 0.0,
-    ξ = 0.0,
     mc_n::Int = 1000,
-    nhistory = 1000,
+    nhistory::Int = 1000,
     rng = Xoshiro(),
+    kwargs...
 ) where {FT <: AbstractFloat}
     floe = rmholes(poly)
     # Floe physical properties
@@ -306,85 +293,85 @@ function Floe(
     stress_history = StressCircularBuffer{FT}(nhistory)
     fill!(stress_history, zeros(FT, 2, 2))
 
-    return Floe(
-        centroid = convert(Vector{FT}, centroid),
-        coords = convert(PolyVec{FT}, coords),
-        height = convert(FT, height),
-        area = convert(FT, area_tot),
-        mass = convert(FT, mass),
-        rmax = convert(FT, rmax),
-        moment = convert(FT, moment),
+    return Floe{FT}(;
+        centroid = centroid,
+        coords = coords,
+        height = height,
+        area = area_tot,
+        mass = mass,
+        rmax = rmax,
+        moment = moment,
         angles = angles,
-        u = convert(FT, u),
-        v = convert(FT, v),
-        ξ = convert(FT, ξ),
         mc_x = mc_x,
         mc_y = mc_y,
         stress_history = stress_history,
         status = status,
+        kwargs...
     )
 end
 
 """
-    Floe(
-        ::Type{FT},
+    Floe{FT}(
         coords::PolyVec,
         hmean,
         Δh;
         ρi = 920.0,
-        u = 0.0,
-        v = 0.0,
-        ξ = 0.0,
         mc_n = 1000,
+        nhistory = 1000,
+        rng = Xoshiro(),
+        kwargs...,
     )
 
-Floe constructor with PolyVec{AbstractFloat} coordinates
+Floe constructor with PolyVec coordinates
 Inputs:
-    Type{FT}    <AbstractFloat> Type for grid's numberical fields - determines
-                    simulation run type
     coords      <Vector{Vector{Vector{Float64}}}> floe coordinates
     hmean       <Real> mean height for floes
     Δh          <Real> variability in height for floes
-    grid        <Grid> simulationg grid
     ρi          <Real> ice density kg/m3 - default 920
-    u           <Real> x-velocity of the floe - default 0.0
-    v           <Real> y-velcoity of the floe - default 0.0
-    ξ           <Real> angular velocity of the floe - default 0.0
-    mc_n        <Real> number of monte carlo points
+    mc_n        <Int> number of monte carlo points -default 1000
+    n_history   <Int> number of elements in stress history
     rng         <RNG> random number generator to generate random floe attributes
-                    - default is RNG using Xoshiro256++ algorithm
-    t           <Float> datatype to run simulation with - either Float32 or 64
+                    default is RNG using Xoshiro256++ algorithm
+    kwargs      Any other floe fields to set as keyword arguments
 Output:
     <Floe> with needed fields defined - all default field values used so all
-        forcings and velocities start at 0 and floe's status is "active"
+    forcings start at 0 and floe's status is "active" as long as monte carlo
+    points were able to be generated.
 """
-Floe(
-    ::Type{FT},
+Floe{FT}(
     coords::PolyVec,
     hmean,
     Δh;
     ρi = 920.0,
-    u = 0.0,
-    v = 0.0,
-    ξ = 0.0,
     mc_n::Int = 1000,
-    nhistory = 1000,
+    nhistory::Int = 1000,
     rng = Xoshiro(),
+    kwargs...,
 ) where {FT <: AbstractFloat} =
-    Floe( # Polygon convert is needed since LibGEOS only takes Float64
-        FT,
-        LG.Polygon(convert(PolyVec{Float64},
-        valid_polyvec!(rmholes(coords)))),
+    Floe{FT}( # Polygon convert is needed since LibGEOS only takes Float64
+        LG.Polygon(
+            convert(
+                PolyVec{Float64},
+                valid_polyvec!(rmholes(coords)),
+            ),
+        ),
         hmean,
         Δh;
         ρi = ρi,
-        u = u,
-        v = v,
-        ξ = ξ,
         mc_n = mc_n,
         nhistory = nhistory,
         rng = rng,
+        kwargs...,
     ) 
+
+
+"""
+    Floe(args...; kwargs...)
+
+If a float type isn't specified, Floe will be Float64. Use 
+Floe{Float32}(args...; kwargs...) for Floe with type Float32.
+"""
+Floe(args...; kwargs...) = Floe{Float64}(args...; kwargs...)
 
 """
     poly_to_floes(
@@ -447,7 +434,6 @@ function poly_to_floes(
         if a >= min_floe_area && a > 0
             if !hashole(r)
                 floe = Floe(
-                    FT,
                     r::LG.Polygon,
                     hmean,
                     Δh,
@@ -505,7 +491,8 @@ Inputs:
     rng             <RNG> random number generator to generate random floe
                         attributes - default is RNG using Xoshiro256++ algorithm
 Output:
-    floe_arr <StructArray> list of floes created from given polygon coordinates
+    floe_arr <StructArray{Floe}> list of floes created from given polygon
+    coordinates
 """
 function initialize_floe_field(
     ::Type{FT},
@@ -565,6 +552,8 @@ function initialize_floe_field(
     floe_arr.id .= range(1, length(floe_arr))
     return floe_arr
 end
+
+
 
 """
     generate_voronoi_coords(
@@ -802,3 +791,15 @@ function initialize_floe_field(
     floe_arr.id .= range(1, length(floe_arr))
     return floe_arr
 end
+
+"""
+    initialize_floe_field(args...)
+
+If a float type isn't specified, the floes within the floe field will be
+Float64. Use initialize_floe_field(Float32, args...) above for a floe field with
+Float32 floes.
+"""
+initialize_floe_field(args...; kwargs...) =
+    initialize_floe_field(Float64, args...; kwargs...)
+
+

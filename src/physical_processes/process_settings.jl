@@ -92,17 +92,16 @@ will be set to 0 and 1 respectively.
             floe_domain_max_overlap,
         )
     end
-    CollisionSettings(
-        collisions_on,
-        floe_floe_max_overlap::FT,
-        floe_domain_max_overlap::FT,
-    ) where {FT<:AbstractFloat} = 
-        CollisionSettings{FT}(
-            collisions_on,
-            floe_floe_max_overlap,
-            floe_domain_max_overlap,
-        )
 end
+
+"""
+    CollisionSettings(args...)
+
+If a float type isn't specified, CollisionSettings will be Float64. Use 
+CollisionSettings{Float32}(args...) for CollisionSettings with type
+Float32.
+"""
+CollisionSettings(args...) = CollisionSettings{Float64}(args...)
 
 """
     FractureSettings{CT<:AbstractFractureCriteria}
@@ -225,26 +224,16 @@ min_floe_area = 4(grid.xg[end] - grid.xg[1]) * (grid.yg[end] - grid.yg[1]) / 1e4
             Δt_smooth,
         )
     end
-
-    SimplificationSettings(
-        min_floe_area::FT,
-        min_floe_height,
-        max_floe_height,
-        smooth_vertices_on,
-        max_vertices,
-        tol,
-        Δt_smooth
-    ) where {FT<:AbstractFloat} = 
-        SimplificationSettings{FT}(
-            min_floe_area,
-            min_floe_height,
-            max_floe_height,
-            smooth_vertices_on,
-            max_vertices,
-            tol,
-            Δt_smooth
-        )
 end
+
+"""
+    SimplificationSettings(args...)
+
+If a float type isn't specified, SimplificationSettings will be Float64. Use 
+SimplificationSettings{Float32}(args...) for SimplificationSettings with type
+Float32.
+"""
+SimplificationSettings(args...) = SimplificationSettings{Float64}(args...)
 
 # CORNERS::Bool = false           # If true, corners of floes can break
 # PACKING::Bool = false           # If true, floe packing is enabled

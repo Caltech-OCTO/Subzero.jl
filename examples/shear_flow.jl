@@ -47,16 +47,13 @@ for i in 1:1
     local initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
     local floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
 
-    local writers = OutputWriters(
-        initialwriters = StructArray([initwriter]),
-        floewriters = StructArray([floewriter]),
-    )
+    local writers = OutputWriters(initwriter, floewriter)
 
     local simulation = Simulation(
         model = model,
         consts = consts,
         Δt = Δt,
-        nΔt = 4320,
+        nΔt = 2000,
         verbose = false,
         writers = writers,
         rng = Xoshiro(1),

@@ -263,7 +263,6 @@
             Subzero.CollisionBoundary{West}(grid),
         )
         floe = Subzero.Floe(
-            FT,
             [[
                 [-1.75e4, 5e4],
                 [-1.75e4, 7e4],

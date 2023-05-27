@@ -47,6 +47,7 @@ export
     torque,
     overlap, 
     initialize_floe_field,
+    initialize_topography_field,
     AbstractFractureCriteria,
     NoFracture,
     HiblerYieldCurve,

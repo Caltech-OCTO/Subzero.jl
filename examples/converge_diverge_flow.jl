@@ -41,11 +41,7 @@ initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
 floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
 checkpointwriter = CheckpointOutputWriter(1000, dir = dir, overwrite = true)
 
-writers = OutputWriters(
-    initialwriters = StructArray([initwriter]),
-    floewriters = StructArray([floewriter]),
-    checkpointwriters = StructArray([checkpointwriter])
-)
+writers = OutputWriters(initwriter, floewriter, checkpointwriter)
 
 # Simulation setup
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))

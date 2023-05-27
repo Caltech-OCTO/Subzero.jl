@@ -19,8 +19,8 @@ function conservation_simulation(
         overwrite = true,
     )
     writers = OutputWriters(
-        initialwriters = StructArray([initwriter]),
-        floewriters = StructArray([floewriter]),
+        initwriter,
+        floewriter,
     )
     modulus = 1.5e3*(mean(sqrt.(floes.area)) + minimum(sqrt.(floes.area)))
     # No friction

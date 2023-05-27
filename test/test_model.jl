@@ -245,6 +245,25 @@
             [0.5, 0.5],
             -sqrt(0.5),
         )
+
+        # Create field of topography
+        coords_w_hole = [
+            [[0.0, 10.0], [0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]],
+            [[2.0, 8.0], [2.0, 4.0], [8.0, 4.0], [8.0, 8.0], [2.0, 8.0]]
+            ]
+        topo_field_64 = initialize_topography_field(
+            Float64,
+            [coords, coords_w_hole],
+        )
+        @test length(topo_field_64) == 2
+        @test typeof(topo_field_64) <: StructArray{TopographyElement{Float64}}
+        @test !Subzero.hashole(topo_field_64.coords[2])
+
+        topo_field_32 = initialize_topography_field(
+            Float32,
+            [coords, coords_w_hole],
+        )
+        @test typeof(topo_field_32) <: StructArray{TopographyElement{Float32}}
     end
 
     @testset "Domain" begin

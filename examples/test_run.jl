@@ -2,25 +2,44 @@ using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero, Benchm
 import LibGEOS as LG
 import Base.@kwdef
 
-@kwdef struct Foo{FT<:AbstractFloat}
-    a = 0.1
-    b = 0.2
-end
-
-function Foo(::Type{FT}; kwargs...) where {FT <: AbstractFloat}
-    new_kwargs = NamedTuple()
-    for i in eachindex(kwargs)
-      new_kwargs = merge(
-        new_kwargs,
-          (Symbol(i) => convert(FT, kwargs[i]),),
-        )
-    end
-    println(new_kwargs...)
-    return Foo(new_kwargs...)
-end
-
-Foo(Float64, a = 1)
-
+dir = "output/sim"
+grid = RegRectilinearGrid(
+    (-1e5, 1e5),
+    (-1e5, 1e5),
+    1e4,
+    1e4,
+)
+initwriter = InitialStateOutputWriter(
+    dir = dir,
+    filename = "initial_state.jld2",
+    overwrite = true,
+)
+gridwriter = GridOutputWriter(
+    100,
+    grid,
+    (5, 10),
+    dir = dir,
+    filename = "grid.nc",
+    overwrite = true,
+)
+floewriter = FloeOutputWriter(
+    [:status, :coords, :area, :mass, :u, :v],
+    50,
+    dir = dir,
+    filename = "floe.jld2",
+    overwrite = true,
+)
+checkpointwriter = CheckpointOutputWriter(
+    250,
+    dir = dir,
+    overwrite = true,
+)
+writers = OutputWriters(
+           initwriter,
+           gridwriter,
+           floewriter,
+           checkpointwriter,
+)
 
 # User Inputs
 const FT = Float64
@@ -158,15 +177,15 @@ model = Model(
 )
 dir = "output/sim"
 writers = OutputWriters(
-    initialwriters = StructArray([InitialStateOutputWriter(
+    InitialStateOutputWriter(
         dir = dir,
         overwrite = true
-    )]),
-    floewriters = StructArray([FloeOutputWriter(
+    ),
+    FloeOutputWriter(
         250,
         dir = dir,
         overwrite = true,
-    )]),
+    ),
 )
 simulation = Simulation(
     name = "sim",
