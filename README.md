@@ -79,15 +79,14 @@ ocean = Ocean(grid, 0.25, 0.0, 0.0) # 0.25m/s u-velocity, 0m/s v-velocity, 0C te
 atmos = Atmos(grid, 0.0, 0.1, -1.0)  # 0m/s u-velocity, 0.1m/s v-velocity, -1C temperature in all grid cells
 # Create domain
 domain = Domain( 
-  CollisionBoundary{North}(grid), 
-  CollisionBoundary{South}(grid), 
-  CollisionBoundary{East}(grid),
-  CollisionBoundary{West}(grid),
+  CollisionBoundary(North, grid), 
+  CollisionBoundary(South, grid), 
+  CollisionBoundary(East, grid),
+  CollisionBoundary(West, grid),
 )
 # Create floes
 floe_arr = initialize_floe_field(
-  Float64,
-  50,  # number of floes
+  0,  # number of floes
   [0.7],  # floe concentration
   domain,
   0.5,  # average floe height
