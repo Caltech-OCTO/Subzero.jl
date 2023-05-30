@@ -461,7 +461,7 @@ function poly_to_floes(
                 )
                 push!(floes, floe)
             else
-                region_bottom, region_top = split_polygon_hole(r, FT)
+                region_bottom, region_top = split_polygon_hole(r)
                 append!(regions, region_bottom)
                 append!(regions, region_top)
             end
@@ -662,9 +662,16 @@ function generate_voronoi_coords(
                 rng = rng
             ).Cells
             # Scale and translate voronoi coordinates
-            [[valid_ringvec!([
-                Vector(c) .* scale_fac .+ trans_vec for c in tess
-            ])] for tess in tess_cells]
+            [[valid_ringvec!(
+                [
+                    Vector(c) .* scale_fac .+
+                    trans_vec .+
+                    [  # perturb floes to avoid LibGEOs degenerate case
+                        0*(-1)^rand(0:1) * rand(rng, FT)*1e-10,
+                        0*(-1)^rand(0:1) * rand(rng, FT)*1e-10,
+                    ] for c in tess
+                ],
+            )] for tess in tess_cells]
         else
             Vector{Vector{Vector{FT}}}()
         end

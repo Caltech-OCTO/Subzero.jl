@@ -201,11 +201,7 @@
         [6.0, -3.0],
         [2.0, -3.0,],
     ]]
-    poly = LG.Polygon(Subzero.cut_polygon_coords(
-        poly_coords,
-        -1,
-        Float64,
-    )[1])
+    poly = LG.Polygon(Subzero.cut_polygon_coords(poly_coords, -1)[1])
     @test LG.isValid(poly)
     cut_coords = [[
         [2.0, -3.0],
@@ -233,11 +229,7 @@
         [2.0, 0.0],
         [0.0, 0.0],
     ]]
-    poly1_coords, poly2_coords = Subzero.cut_polygon_coords(
-        poly_coords,
-        5,
-        Float64,
-    )
+    poly1_coords, poly2_coords = Subzero.cut_polygon_coords(poly_coords, 5)
     poly1 = LG.Polygon(poly1_coords)
     poly2 = LG.Polygon(poly2_coords)
     @test LG.isValid(poly1)
@@ -259,7 +251,7 @@
 
     # Cut a triangle through the line y = -10 so only tip is left -> No polygon
     poly_coords = [[[0.0, 0.0], [10.0, 0.0], [5.0, -10.0], [0.0, 0.0]]]
-    poly = Subzero.cut_polygon_coords(poly_coords, -10, Float64)
+    poly = Subzero.cut_polygon_coords(poly_coords, -10)
     @test isempty(poly)
 
     # Cut a rectangle through line y = 0 so only bottom edge is left -> No polygon
@@ -270,11 +262,11 @@
         [10.0, 0.0],
         [0.0, 0.0],
     ]]
-    poly = Subzero.cut_polygon_coords(poly_coords, 0, Float64)
+    poly = Subzero.cut_polygon_coords(poly_coords, 0)
     @test isempty(poly)
 
     # Cut a rectangle through the line y = -10 so no polygon is left
-    poly = Subzero.cut_polygon_coords(poly_coords, -10, Float64)
+    poly = Subzero.cut_polygon_coords(poly_coords, -10)
     @test isempty(poly)
 
     # ------------------ Test polygon splitting through hole ------------------
@@ -286,10 +278,7 @@
         [10.0, 0.0],
         [0.0, 0.0],
     ]]
-    poly_bottom, poly_top = Subzero.split_polygon_hole(
-        LG.Polygon(poly_coords),
-        Float64,
-    )
+    poly_bottom, poly_top = Subzero.split_polygon_hole(LG.Polygon(poly_coords))
     @test length(poly_bottom) == 1
     @test length(poly_top) == 0
     @test LG.area(LG.difference(poly_bottom[1], LG.Polygon(poly_coords))) == 0
@@ -310,10 +299,7 @@
             [3.0, 2.0],
         ],
     ]
-    poly_bottom, poly_top = Subzero.split_polygon_hole(
-        LG.Polygon(poly_coords),
-        Float64,
-    )
+    poly_bottom, poly_top = Subzero.split_polygon_hole(LG.Polygon(poly_coords))
     poly_bottom_coords = [[
         [0.0, 0.0],
         [0.0, 3.0],
@@ -363,10 +349,7 @@
             [6.0, 4.0],
         ],
     ]
-    poly_bottom, poly_top = Subzero.split_polygon_hole(
-        LG.Polygon(poly_coords),
-        Float64,
-    )
+    poly_bottom, poly_top = Subzero.split_polygon_hole(LG.Polygon(poly_coords))
     poly_bottom1_coords = [[
         [4.0, 0.0],
         [4.0, 5.0],

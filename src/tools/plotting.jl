@@ -91,14 +91,15 @@ function create_sim_gif(
     floe_data = jldopen(floe_pn, "r")
     status = floe_data["status"]
     coords = floe_data["coords"]
-    # Plot floe data
-    plt = setup_plot(init_pn, plot_size)
     times = keys(coords)
+    # Plot floe data
     anim = @animate for t in times
+        plt = setup_plot(init_pn, plot_size)
         verts = Subzero.separate_xy.(coords[t])
         for i in eachindex(verts)
             if status[t][i].tag != remove
                 plot!(
+                    plt,
                     first(verts[i])./1000,
                     last(verts[i])./1000,
                     seriestype = [:shape,],

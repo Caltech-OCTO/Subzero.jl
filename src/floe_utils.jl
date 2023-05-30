@@ -759,12 +759,11 @@ function intersect_lines(l1, l2)
 end
 
 """
-    cut_polygon_coords(poly_coords::PolyVec, yp, ::Type{FT})
+    cut_polygon_coords(poly_coords::PolyVec, yp)
 
 Cut polygon through the line y = yp and return the polygon(s) coordinates below
 the line
 Inputs:
-    ::Type{FT}  <Type{AbstractFloat}> simulation run type
     poly_coords <PolyVec>   polygon coordinates
     yp          <Float>     value of line to split polygon through using line
                                 y = yp
@@ -776,7 +775,7 @@ Note:
     Brands (2010) and Jasper Menger (2009). Only needed pieces of function are
     translated (horizonal cut).
 """
-function cut_polygon_coords(poly_coords::PolyVec, yp, ::Type{FT}) where FT
+function cut_polygon_coords(poly_coords::PolyVec{<:FT}, yp) where {FT}
     # Loop through each edge
     coord1 = poly_coords[1][1:end-1]
     coord2 = poly_coords[1][2:end]
@@ -858,7 +857,7 @@ Outputs:
     above line. Note that if there is no hole, a list of the original polygon
     and an empty list will be returned
 """
-function split_polygon_hole(poly::LG.Polygon, ::Type{FT}) where FT
+function split_polygon_hole(poly::LG.Polygon)
     bottom_list = Vector{LG.Polygon}()
     top_list = Vector{LG.Polygon}()
     if hashole(poly)  # Polygon has a hole
@@ -867,7 +866,7 @@ function split_polygon_hole(poly::LG.Polygon, ::Type{FT}) where FT
         h1 = LG.Polygon([poly_coords[2]])  # First hole
         h1_center = find_poly_centroid(h1)
         poly_bottom = LG.MultiPolygon(
-            cut_polygon_coords(full_coords, h1_center[2], FT)
+            cut_polygon_coords(full_coords, h1_center[2])
         )
          # Adds in any other holes in poly
         poly_bottom =  LG.intersection(poly_bottom, poly)
