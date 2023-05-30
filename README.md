@@ -41,28 +41,62 @@ Subzero.jl was ported and restructured by Skylar Gering and originally developed
 
 ## Installation Instructions:
 
-Subzero is not yet a registered Julia package. If you have access to this repository, you have ability to use it as a package from our private package registry.  NEED TO SETUP 
+Subzero is not yet a publically registered Julia package. If you have access to this repository, you have ability to use it as a package added directly from GitHub. This will require having a SSH key on your computer and stored in GitHub so that you are able to securely use this code as it is in private repository for now. 
+
+You can create and add a SSH key using the following instructions from GitHub: 
+1. [Checking for existing SSH keys](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/checking-for-existing-ssh-keys)
+2. [Generating a new SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent)
+3. [Adding SSH key to your GitHub account](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
+4. [Checking your SSH connection](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/testing-your-ssh-connection)
+
+Once you have established your SSH connection from within terminal, you now need to update your Julia `startup.jl` file. This is within the `.julia/config` folder. If you don't have a `.config` folder, please make one using `mkdir config` run on terminal within your `.julia` folder. If you don't have a `startup.jl` file you can make this using `touch startup.jl` within the `config` folder. Then, using a text editor (such as vim), add the following line to your `startup.jl` file: 
+
+`ENV["JULIA_PKG_USE_CLI_GIT"]=true`
+
+We need this as Julia's SSH library can't read the types of SSH keys that GitHub now requires. This will have Julia use your local command line interface (CLI) version of Git. This only works with Julia 1.7 and higher. 
+
+At this point, you can start a Julia REPL and enter into the package manager mode. In package manager mode, you can simply give the command
+
+`add "git@github.com:Caltech-OCTO/Subzero.jl.git"`
+
+which will add Subzero as a package. 
 
 ## Running your first model:
 
-Let’s run a basic simulation with stationary floes pushed into a collision boundary by a uniform, zonally flowing ocean. In this simulation, collisions between floes are on by default and we will enable floe fracturing.  
+For detailed instructions on how to create different types of models and simulations, please see the [documentation.md file](https://github.com/Caltech-OCTO/Subzero.jl/blob/documentation/documentation.md). However, we will give a basic example here.
 
-```julia 
-grid = RegRectilinearGrid(Float64, 0, 1e5, 0, 1e5, 1e4, 1e4) 
-ocean = Ocean(Float64, grid, 0.25, 0.0, 0.0) 
-atmos = Atmos(grid, 0.0, 0.0, 0.0) 
+Let’s run a basic simulation with initially stationary floes pushed into a collision boundary by a uniform, zonally flowing ocean. In this simulation, collisions between floes are on by default and we will enable floe fracturing.  
+
+```julia
+# Create environment
+grid = RegRectilinearGrid(
+  (0, 1e5), # xbounds
+  (0, 1e5), # ybounds
+  1e4,      # grid cell width
+  1e4,      # grid cell height
+ ) 
+ocean = Ocean(grid, 0.25, 0.0, 0.0) # 0.25m/s u-velocity, 0m/s v-velocity, 0C temperature in all grid cells
+atmos = Atmos(grid, 0.0, 0.1, -1.0)  # 0m/s u-velocity, 0.1m/s v-velocity, -1C temperature in all grid cells
+# Create domain
 domain = Domain( 
-  CollisionBoundary(grid, North()), 
-  CollisionBoundary(grid, South()), 
-  CollisionBoundary(grid, East()),
-  CollisionBoundary(grid, West()),
+  CollisionBoundary(North, grid), 
+  CollisionBoundary(South, grid), 
+  CollisionBoundary(East, grid),
+  CollisionBoundary(West, grid),
+)
+# Create floes
+floe_arr = initialize_floe_field(
+  0,  # number of floes
+  [0.7],  # floe concentration
+  domain,
+  0.5,  # average floe height
+  0.05,  # floe height variability
 ) 
-floe_arr = initialize_floe_field(50, [0.7], domain, 0.5, 0.05) 
+# Create model
 model = Model(grid, ocean, atmos, domain, floe_arr) 
-
+# Create simulation
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area))) 
 consts = Constants(E = modulus) 
-
 fracture_settings = FractureSettings( 
   fractures_on = true,
   criteria = HiblerYieldCurve(floe_arr),
@@ -70,8 +104,20 @@ fracture_settings = FractureSettings(
   npieces = 3,
   nhistory = 1000,
   deform_on = true, 
-) 
+)
 
+initwriter = InitialStateOutputWriter(
+    dir = dir,
+    filename = "initial_state.jld2",
+    overwrite = true,
+    )
+floewriter = FloeOutputWriter(
+    100,
+    dir = "output/sim",
+    filename = "floes.jld2",
+    overwrite = true,
+)
+writers = OutputWriters(initwriter, floewriter)
 simulation = Simulation( 
   model = model, 
   consts = consts, 
@@ -79,21 +125,34 @@ simulation = Simulation(
   nΔt = 5000, 
   verbose = true, 
   fracture_settings,
+  writers = writers,
 )
-
-floewriter = FloeOutputWriter(100, dir = "output/sim", filename = "floes.jld2", overwrite = true)
-run!(simulation, [floewriter])
+# Run simulation
+run!(simulation)
 ``` 
 
-Check out our documentation for more examples. Below you will find videos from simulations initially described in Manucharyan and Montemuro’s paper, as well as a coupled simulation with Oceananigans.  
+Check out our [documentation](https://github.com/Caltech-OCTO/Subzero.jl/blob/documentation/documentation.md) for more examples and explanations for the code above.
 
 ## Citing:
-TODO
+We still need to figure this out. Please reach out so we can discuss.
 
 ## Contributing:
-If you’re interested in helping develop Subzero, have found a bug, or have a new feature that you want implemented, please open an issue on the repository.  For more information, please see our contributor's guide.  
+If you’re interested in helping develop Subzero, have found a bug, or have a new feature that you want implemented, please open an issue on the repository and we can talk about this.  We will be working on a contributers' guide for this in the future.
 
 ## Movies:
 
+**Shear Flow**
+In this simulation, the ocean flow is 0m/s at the top and bottom of the domain, gradually increasing towards 0.5m/s in the middle of the domain. All four boundaries are periodic. We used a timestep of 20 seconds for 4,320 timesteps, which is one day. 
+
+<img src="https://github.com/Caltech-OCTO/Subzero.jl/assets/60117338/2b13746e-e4db-4ceb-92c5-59f50f2cab32" alt="Shear flow" width="800">
+
+**Simple Strait**
+In this simulation, the ocean floe is uniformly -0.3 m/s from top to bottom of the simulation. The top and bottom boundaries are periodic, with the right and left being collision boundaries. However, the collision boundaries are covered by two pieces of topography forming the strait. This simulation also has 20 second timesteps, run for 4,320 timesteps, which is one day.
+
+<img src="https://github.com/Caltech-OCTO/Subzero.jl/assets/60117338/ec331900-aeb7-4b05-a713-a0d5a2b529b8" alt="Simple strait" width="800">
+
 ## Performance Benchmarks: 
-INSERT RESULTS
+Here we compare Subzero runtimes in Julia and MATLAB for the shear flow simulation. The code was run on Caltech's HPC cluster. The Julia code was run with 12 threads (12 CPUs per 1 node and 1 task). The MATLAB code has parfor loops with 12 workers (12 tasks, 1 CPU per task).
+
+<img src="https://github.com/Caltech-OCTO/Subzero.jl/assets/60117338/9532e883-0f1d-4399-b713-de24803de72f" alt="Performance data" width="800">
+

@@ -21,7 +21,13 @@ ocean.
     mc_n::Int = 1000
     two_way_coupling_on::Bool = false
 
-    function CouplingSettings(coupling_on, Δt, Δd, mc_n, two_way_coupling_on)
+    function CouplingSettings(
+        coupling_on,
+        Δt,
+        Δd,
+        mc_n,
+        two_way_coupling_on,
+    )
         if coupling_on && Δt < 0
             @warn "Coupling can't occur on a multiple of negative timesteps. \
                 Turning coupling off."
@@ -62,8 +68,8 @@ will be set to 0 and 1 respectively.
 
     function CollisionSettings{FT}(
         collisions_on,
-        floe_floe_max_overlap::FT, 
-        floe_domain_max_overlap::FT,
+        floe_floe_max_overlap, 
+        floe_domain_max_overlap,
     ) where {FT<:AbstractFloat}
         if collisions_on
             if floe_floe_max_overlap > 1
@@ -92,17 +98,25 @@ will be set to 0 and 1 respectively.
             floe_domain_max_overlap,
         )
     end
-    CollisionSettings(
-        collisions_on,
-        floe_floe_max_overlap::FT,
-        floe_domain_max_overlap::FT,
-    ) where {FT<:AbstractFloat} = 
-        CollisionSettings{FT}(
-            collisions_on,
-            floe_floe_max_overlap,
-            floe_domain_max_overlap,
-        )
 end
+
+"""
+    CollisionSettings(::Type{FT}, args...)
+
+A float type FT can be provided as the first argument of any CollisionSettings
+constructor. A CollisionSettings of type FT will be created by passing all
+other arguments to the correct constructor. 
+"""
+CollisionSettings(::Type{FT}, args...) where {FT <: AbstractFloat} =
+    CollisionSettings{FT}(args...)
+
+"""
+    CollisionSettings(args...)
+
+If a type isn't specified, CollisionSettings will be of type Float64 and the
+correct constructor will be called with all other arguments.
+"""
+CollisionSettings(args...) = CollisionSettings{Float64}(args...)
 
 """
     FractureSettings{CT<:AbstractFractureCriteria}
@@ -202,12 +216,12 @@ min_floe_area = 4(grid.xg[end] - grid.xg[1]) * (grid.yg[end] - grid.yg[1]) / 1e4
     Δt_smooth::Int = 20
 
     function SimplificationSettings{FT}(
-        min_floe_area::FT,
+        min_floe_area,
         min_floe_height,
         max_floe_height,
         smooth_vertices_on,
         max_vertices,
-        tol::FT,
+        tol,
         Δt_smooth
     ) where {FT<:AbstractFloat}
         if smooth_vertices_on && Δt_smooth < 0
@@ -225,26 +239,25 @@ min_floe_area = 4(grid.xg[end] - grid.xg[1]) * (grid.yg[end] - grid.yg[1]) / 1e4
             Δt_smooth,
         )
     end
-
-    SimplificationSettings(
-        min_floe_area::FT,
-        min_floe_height,
-        max_floe_height,
-        smooth_vertices_on,
-        max_vertices,
-        tol,
-        Δt_smooth
-    ) where {FT<:AbstractFloat} = 
-        SimplificationSettings{FT}(
-            min_floe_area,
-            min_floe_height,
-            max_floe_height,
-            smooth_vertices_on,
-            max_vertices,
-            tol,
-            Δt_smooth
-        )
 end
+
+"""
+    SimplificationSettings(::Type{FT}, args...)
+
+A float type FT can be provided as the first argument of any
+SimplificationSettings constructor. A SimplificationSettings of type FT will be
+created by passing all other arguments to the correct constructor. 
+"""
+SimplificationSettings(::Type{FT}, args...) where {FT <: AbstractFloat} =
+    SimplificationSettings{FT}(args...)
+
+"""
+    SimplificationSettings(args...)
+
+If a type isn't specified, SimplificationSettings will be of type Float64 and
+the correct constructor will be called with all other arguments.
+"""
+SimplificationSettings(args...) = SimplificationSettings{Float64}(args...)
 
 # CORNERS::Bool = false           # If true, corners of floes can break
 # PACKING::Bool = false           # If true, floe packing is enabled

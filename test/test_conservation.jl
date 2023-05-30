@@ -5,7 +5,7 @@ function conservation_simulation(
     smoothing = false,
     plot = false,
 )
-    ocean = Ocean(Float64, grid, 0.0, 0.0, 0.0)
+    ocean = Ocean(grid, 0.0, 0.0, 0.0)
     atmos = Atmos(grid, 0.0, 0.0, 0.0)
     model = Model(grid, ocean, atmos, domain, floes)
     dir = "output/conservation"
@@ -19,8 +19,8 @@ function conservation_simulation(
         overwrite = true,
     )
     writers = OutputWriters(
-        initialwriters = StructArray([initwriter]),
-        floewriters = StructArray([floewriter]),
+        initwriter,
+        floewriter,
     )
     modulus = 1.5e3*(mean(sqrt.(floes.area)) + minimum(sqrt.(floes.area)))
     # No friction
@@ -56,28 +56,33 @@ end
 
 
 @testset "Conservation of Energy and Momentum" begin
+    FT = Float64
     grid = RegRectilinearGrid(
-        Float64,
         (-2e4, 1e5),
         (0, 1e5),
         1e4,
         1e4,
     )
-    collision_domain = Domain(CollisionBoundary(grid, North()),
-        CollisionBoundary(grid, South()),
-        CollisionBoundary(grid, East()),
-        CollisionBoundary(grid, West()),
+    collision_domain = Domain(
+        CollisionBoundary(North, grid),
+        CollisionBoundary(South, grid),
+        CollisionBoundary(East, grid),
+        CollisionBoundary(West, grid),
     )
-    open_domain = Domain(OpenBoundary(grid, North()),
-        OpenBoundary(grid, South()),
-        OpenBoundary(grid, East()),
-        OpenBoundary(grid, West()),
+    open_domain = Domain(
+        OpenBoundary(North, grid),
+        OpenBoundary(South, grid),
+        OpenBoundary(East, grid),
+        OpenBoundary(West, grid),
     )
-    topo = TopographyElement([[[-1e4, 0.0], [-2e4, 1e4], [-1e4, 1e4], [-1e4, 0.0]]])
-    open_domain_w_topography = Domain(OpenBoundary(grid, North()),
-        OpenBoundary(grid, South()),
-        OpenBoundary(grid, East()),
-        OpenBoundary(grid, West()),
+    topo = TopographyElement(
+        [[[-1e4, 0.0], [-2e4, 1e4], [-1e4, 1e4], [-1e4, 0.0]]],
+    )
+    open_domain_w_topography = Domain(
+        OpenBoundary(North, grid),
+        OpenBoundary(South, grid),
+        OpenBoundary(East, grid),
+        OpenBoundary(West, grid),
         StructVector([topo])
     )
     rng = Xoshiro(1)
@@ -88,6 +93,7 @@ end
     # Two blocks crashing head on - no rotation
     rng = Xoshiro(1)
     head_on_floes = initialize_floe_field(
+        FT,
         [floe1, floe2],
         open_domain, # Just affects shape, type doesn't matter
         0.25,
@@ -110,6 +116,7 @@ end
     # Two blocks crashing offset - rotation
     rng = Xoshiro(1)
     offset_floes = initialize_floe_field(
+        FT,
         [floe1, Subzero.translate(floe2, 0.0, 1e4)],
         open_domain, # Just affects shape, type doesn't matter
         0.25,
@@ -131,6 +138,7 @@ end
     # Two rectangular boxes with a triangle inbetween causing rotation
     rng = Xoshiro(1)
     rotating_floes = initialize_floe_field(
+        FT,
         [floe1, floe2, floe3],
         open_domain, # Just affects shape, type doesn't matter
         0.25,
@@ -154,6 +162,7 @@ end
     rng = Xoshiro(1)
     file = jldopen("inputs/floe_shapes.jld2", "r")
     complex_floes = initialize_floe_field(
+        FT,
         [
             Subzero.translate(file["floe_vertices"][3], 0.0, 2e4),
             file["floe_vertices"][4],
@@ -182,6 +191,7 @@ end
     floe_on_wall_topo = file["floe_vertices"][1]
     floe_on_wall_topo = Subzero.translate(floe_on_wall_topo, -1.75e4, -0.9e4)
     floe_arr = initialize_floe_field(
+        FT,
         [floe_on_wall_topo],
         open_domain_w_topography,
         0.25,

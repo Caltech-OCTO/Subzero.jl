@@ -229,6 +229,25 @@ struct GridOutputWriter{FT<:AbstractFloat}<:AbstractOutputWriter
 end
 
 """
+    GridOutputWriter(::Type{FT}, args...; kwargs...)
+
+A float type FT can be provided as the first argument of any GridOutputWriter
+constructor. A GridOutputWriter of type FT will be created by passing all
+other arguments to the correct constructor. 
+"""
+GridOutputWriter(::Type{FT}, args...; kwargs...) where {FT <: AbstractFloat} =
+    GridOutputWriter{FT}(args...; kwargs...)
+
+"""
+    GridOutputWriter(args...; kwargs...)
+
+If a type isn't specified, GridOutputWriter will be of type Float64 and the
+correct constructor will be called with all other arguments.
+"""
+GridOutputWriter(args...; kwargs...) =
+    GridOutputWriter{Float64}(args...; kwargs...)
+
+"""
     get_known_grid_outputs()
 
 Returns list of symbols that represent calculations available in
@@ -258,7 +277,7 @@ function get_known_grid_outputs()
 end
 
 """
-GridOutputWriter(
+GridOutputWriter{FT}(
     outputs::Vector{Symbol},
     Δtout,
     grid::AbstractGrid,
@@ -267,8 +286,6 @@ GridOutputWriter(
     filename = "gridded_data.nc",
     overwrite = false,
     average = false,
-    t::Type{T} = Float64,
-) where T
 
 Create GridOutputWriter for grid of given dimensions to output floe data
 averaged on this re-gridded gird at given frequency of timesteps. Only outputs
@@ -286,12 +303,11 @@ Inputs:
                     an error will be thrown if other file exist
     average     <Bool> if true, average gridded data over timesteps between
                     outputs, else just calculate at output timestep
-    T           <Type> datatype to convert saved data - must be a Float!
 Output:
     GridOutputWriter that re-grids grid to given dimensions, and saves floe
     information averaged on this new grid.
 """
-function GridOutputWriter(
+function GridOutputWriter{FT}(
     outputs::Vector{Symbol},
     Δtout,
     grid::AbstractGrid,
@@ -300,8 +316,7 @@ function GridOutputWriter(
     filename = "gridded_data.nc",
     overwrite = false,
     average = false,
-    t::Type{T} = Float64,
-) where T
+) where {FT <: AbstractFloat}
     # Check for known outputs - need routine to calculate in calc_eulerian_data
     known_grid_outputs = get_known_grid_outputs()
     remove_idx = []
@@ -324,18 +339,18 @@ function GridOutputWriter(
 
     # Create file path
     filepath = initialize_netcdf_file!(
+        FT,
         dir,
         filename,
         overwrite,
         outputs,
         xg,
         yg,
-        T,
     )
 
     # Data output container
-    data = zeros(T, length(yg) - 1, length(xg) - 1, length(outputs))
-    return GridOutputWriter(
+    data = zeros(FT, length(yg) - 1, length(xg) - 1, length(outputs))
+    return GridOutputWriter{FT}(
         outputs,
         Δtout,
         filepath,
@@ -348,7 +363,7 @@ function GridOutputWriter(
 end
 
 """
-    GridOutputWriter(
+    GridOutputWriter{FT}(
         Δtout::Int,
         grid::AbstractGrid,
         dims;
@@ -356,8 +371,7 @@ end
         filename = "gridded_data.nc",
         overwrite = false,
         average = false,
-        t::Type{T} = Float64,
-    ) where T
+    )
 
 Create GridOutputWriter for grid of given dimensions to output floe data
 averaged on this re-gridded gird at given frequency of timesteps. Outputs all
@@ -374,12 +388,11 @@ Inputs:
                     an error will be thrown if other file exist
     average     <Bool> if true, average gridded data over timesteps between
                     outputs, else just calculate at output timestep
-    T           <Type> datatype to convert saved data - must be a Float!
 Output:
     GridOutputWriter that re-grids grid to given dimensions, and saves floe
     information averaged on this new grid.
 """
-GridOutputWriter(
+GridOutputWriter{FT}(
     Δtout::Int,
     grid::AbstractGrid,
     dims;
@@ -387,18 +400,16 @@ GridOutputWriter(
     filename = "gridded_data.nc",
     overwrite = false,
     average = false,
-    t::Type{T} = Float64,
-) where T =
-    GridOutputWriter(
+) where {FT <: AbstractFloat} =
+    GridOutputWriter{FT}(
         collect(get_known_grid_outputs()),
         Δtout,
         grid,
-        dims,
+        dims;
         dir = dir,
         filename = filename,
         overwrite = overwrite,
         average = average,
-        t = T,
     )
 
 """
@@ -410,15 +421,55 @@ so that a default OutputWriter object doesn't create default output writer
 fields, which would create files, but rather empty lists of output writers.
 If any of the fields is not provided, the default is just an empty list. 
 """
-@kwdef struct OutputWriters{FT<:AbstractFloat} 
-    initialwriters::StructVector{InitialStateOutputWriter} =
-        StructVector(Vector{InitialStateOutputWriter}())
-    floewriters::StructVector{FloeOutputWriter} =
-        StructVector(Vector{FloeOutputWriter}())
-    gridwriters::StructVector{GridOutputWriter{FT}} =
-        StructVector(Vector{GridOutputWriter{Float64}}())
-    checkpointwriters::StructVector{CheckpointOutputWriter} =
-        StructVector(Vector{CheckpointOutputWriter}())
+struct OutputWriters{
+    IW<:StructVector{<:InitialStateOutputWriter},
+    FW<:StructVector{<:FloeOutputWriter},
+    GW<:StructVector{<:GridOutputWriter},
+    CW<:StructVector{<:CheckpointOutputWriter},
+} 
+    initialwriters::IW
+    floewriters::FW
+    gridwriters::GW
+    checkpointwriters::CW
+
+    function OutputWriters(
+        iw::IW,
+        fw::FW,
+        gw::GW,
+        cw::CW,
+    ) where {
+        IW<:StructVector{<:InitialStateOutputWriter},
+        FW<:StructVector{<:FloeOutputWriter},
+        GW<:StructVector{<:GridOutputWriter},
+        CW<:StructVector{<:CheckpointOutputWriter},
+    }
+    new{IW, FW, GW, CW}(iw, fw, gw, cw)
+    end
+end
+
+function OutputWriters(args...)
+    initialwriters = Vector{InitialStateOutputWriter}()
+    floewriters = Vector{FloeOutputWriter}()
+    gridwriters = Vector{GridOutputWriter}()
+    checkpointwriters = Vector{CheckpointOutputWriter}()
+    for writer in args
+        wt = typeof(writer)
+        if wt <: InitialStateOutputWriter
+            push!(initialwriters, writer)
+        elseif wt <: FloeOutputWriter
+            push!(floewriters, writer)
+        elseif wt <: GridOutputWriter
+            push!(gridwriters, writer)
+        elseif wt <: CheckpointOutputWriter
+            push!(checkpointwriters, writer)
+        end
+    end
+    return OutputWriters(
+        StructVector(initialwriters),
+        StructVector(floewriters),
+        StructVector(gridwriters),
+        StructVector(checkpointwriters)
+    )
 end
 #----------------------- Write Data -----------------------#
 
@@ -597,18 +648,20 @@ end
 
 """
     function initialize_netcdf_file!(
+        ::Type{FT},
         dir,
         filename,
         overwrite,
         outputs,
         xg,
         yg,
-        ::Type{T} = Float64,
-    ) where T
+    )
 
 Initializes a NetCDF file in the given directory with the given filename. Setup
 file to write given outputs.
 Inputs:
+    Type{FT}    <Type{AbstractFloat}> type of float to run simulation
+                    calculations using
     dir         <String> path to directory
     filename    <String> filename to save file to
     overwrite   <Bool> if true, exit file of the same name will be deleted, else
@@ -617,21 +670,19 @@ Inputs:
                     file
     xg          <Vector{AbstractFloat}> list of x grid lines
     yg          <Vector{AbstractFloat}> list of y grid lines
-    t           <Type{AbstractFloat}> type of float to run simulation
-                    calculations using
 Outputs:
     Create NetCDF file dir/filename with each output added as a variable and
     with the dimensions time, x, and y. 
  """
 function initialize_netcdf_file!(
+    ::Type{FT},
     dir,
     filename,
     overwrite,
     outputs,
     xg,
     yg,
-    ::Type{T} = Float64,
-) where T
+) where {FT}
     mkpath(dir)
     filename = auto_extension(filename, ".nc")
     filepath = joinpath(dir, filename)
@@ -651,7 +702,7 @@ function initialize_netcdf_file!(
         defVar(
             dataset,
             "time",
-            T,
+            FT,
             ("time",),
             attrib = Dict("units" => "10 seconds"),
         )
@@ -660,7 +711,7 @@ function initialize_netcdf_file!(
         x = defVar(
             dataset,
             "x",
-            T,
+            FT,
             ("x",),
             attrib = Dict("units" => "meters"),
         )
@@ -670,7 +721,7 @@ function initialize_netcdf_file!(
         y = defVar(
             dataset,
             "y",
-            T,
+            FT,
             ("y",),
             attrib = Dict("units" => "meters"),
         )
@@ -682,7 +733,7 @@ function initialize_netcdf_file!(
             defVar(
                 dataset,
                 string(o),
-                T,
+                FT,
                 ("time", "y", "x"),
                 attrib = Dict("units" => unit, "comments" => comment),
             )

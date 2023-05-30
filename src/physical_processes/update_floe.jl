@@ -54,6 +54,7 @@ function replace_floe!(
     floe.rmax = sqrt(maximum([sum(c.^2) for c in floe.coords[1]]))
     # Floe monte carlo points
     mc_x, mc_y, status = generate_mc_points(
+        FT,
         mc_n,
         floe.coords,
         floe.rmax,

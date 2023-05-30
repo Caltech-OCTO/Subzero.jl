@@ -18,33 +18,38 @@ const coarse_ny = 10
 
 # Setup for Simulations
 grid = RegRectilinearGrid(
-    FT,
     (-2.5e4, Lx),
     (-2.5e4, Ly),
     Δgrid,
     Δgrid,
 )
 
-zero_ocn = Ocean(FT, grid, 0.0, 0.0, 0.0)
-meridional_ocn = Ocean(FT, grid, 0.0, 1.0, 0.0)
+zero_ocn = Ocean(grid, 0.0, 0.0, 0.0)
+meridional_ocn = Ocean(grid, 0.0, 1.0, 0.0)
 
 zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
 zonal_atmos = Atmos(grid, -15.0, 0.0, 0.0)
 
 open_domain_no_topo = Subzero.Domain(
-    OpenBoundary(grid, North()),
-    OpenBoundary(grid, South()),
-    OpenBoundary(grid, East()),
-    OpenBoundary(grid, West()),
+    OpenBoundary(North, grid),
+    OpenBoundary(South, grid),
+    OpenBoundary(East, grid),
+    OpenBoundary(West, grid),
 )
 
-topography = TopographyElement([[[2e4, 0.0], [2e4, 2e4], [2.5e4, 2e4], 
-                                 [2.5e4, 0.0], [2e4, 0.0]]])
+topography = TopographyElement( 
+    [[
+        [2e4, 0.0],
+        [2e4, 2e4],
+        [2.5e4, 2e4],
+        [2.5e4, 0.0],
+        [2e4, 0.0],
+    ]])
 collision_domain_topo = Subzero.Domain(
-    CollisionBoundary(grid, North()),
-    CollisionBoundary(grid, South()),
-    CollisionBoundary(grid, East()),
-    CollisionBoundary(grid, West()),
+    CollisionBoundary(North, grid),
+    CollisionBoundary(South, grid),
+    CollisionBoundary(East, grid),
+    CollisionBoundary(West, grid),
     StructArray([topography]),
 )
 
@@ -60,6 +65,7 @@ stationary_rect_floe = StructArray([Floe(
     Δh,
 )])
 zonal_3rect_floes = initialize_floe_field(
+    FT,
     [  # List of 3 floe coordinates
         [[
             [0.0, 0.0],
@@ -107,15 +113,15 @@ model1 = Model(
     deepcopy(stationary_rect_floe),
 )
 writers1 = OutputWriters(
-    initialwriters = StructArray([InitialStateOutputWriter(
+    InitialStateOutputWriter(
         dir = "test/output/sim1",
         overwrite = true
-    )]),
-    floewriters = StructArray([FloeOutputWriter(
+    ),
+    FloeOutputWriter(
         30,
         dir = "test/output/sim1",
         overwrite = true,
-    )]),
+    ),
 )
 simulation1 = Simulation(
     name = "sim1",
@@ -142,15 +148,15 @@ model2 = Model(
     deepcopy(stationary_rect_floe),
 )
 writers2 = OutputWriters(
-    initialwriters = StructArray([InitialStateOutputWriter(
+    InitialStateOutputWriter(
         dir = "test/output/sim2",
         overwrite = true
-    )]),
-    floewriters = StructArray([FloeOutputWriter(
+    ),
+    FloeOutputWriter(
         30,
         dir = "test/output/sim2",
         overwrite = true,
-    )]),
+    ),
 )
 simulation2 = Simulation(
     name = "sim2",
@@ -159,7 +165,6 @@ simulation2 = Simulation(
     nΔt = nΔt,
     collision_settings = collisions_off_settings,
     writers = writers2,
-    verbose = true,
 )
 push!(sim_arr, simulation2)
 
@@ -180,15 +185,15 @@ model3 = Model(
     deepcopy(zonal_3rect_floes),
 )
 writers3 = OutputWriters(
-    initialwriters = StructArray([InitialStateOutputWriter(
+    InitialStateOutputWriter(
         dir = "test/output/sim3",
         overwrite = true
-    )]),
-    floewriters = StructArray([FloeOutputWriter(
+    ),
+    FloeOutputWriter(
         30,
         dir = "test/output/sim3",
         overwrite = true,
-    )]),
+    ),
 )
 simulation3 = Simulation(
     name = "sim3",
@@ -213,10 +218,10 @@ Expected Behavior:
     back through the western wall. 
 """
 periodic_bounds_topo = Subzero.Domain(
-    PeriodicBoundary(grid, North()),
-    PeriodicBoundary(grid, South()),
-    PeriodicBoundary(grid, East()),
-    PeriodicBoundary(grid, West()),
+    PeriodicBoundary(North, grid),
+    PeriodicBoundary(South, grid),
+    PeriodicBoundary(East, grid),
+    PeriodicBoundary(West, grid),
     StructArray([TopographyElement(
         [[
             [-1.5e4, 4.5e4],
@@ -256,15 +261,15 @@ model4 = Model(
     deepcopy(p_floe_arr),
 )
 writers4 = OutputWriters(
-    initialwriters = StructArray([InitialStateOutputWriter(
+    InitialStateOutputWriter(
         dir = "test/output/sim4",
         overwrite = true
-    )]),
-    floewriters = StructArray([FloeOutputWriter(
+    ),
+    FloeOutputWriter(
         30,
         dir = "test/output/sim4",
         overwrite = true,
-    )]),
+    ),
 )
 simulation4 = Simulation(
     name = "sim4",
@@ -287,6 +292,7 @@ Expected Behavior:
 file = jldopen("test/inputs/floe_shapes.jld2", "r")
 funky_floe_coords = file["floe_vertices"][1:100]
 funky_floe_arr = initialize_floe_field(
+    FT,
     funky_floe_coords,
     collision_domain_topo,
     hmean,
@@ -304,15 +310,15 @@ model5 = Model(
     deepcopy(funky_floe_arr),
 )
 writers5 = OutputWriters(
-    initialwriters = StructArray([InitialStateOutputWriter(
+    InitialStateOutputWriter(
         dir = "test/output/sim5",
         overwrite = true
-    )]),
-    floewriters = StructArray([FloeOutputWriter(
+    ),
+    FloeOutputWriter(
         30,
         dir = "test/output/sim5",
         overwrite = true,
-    )]),
+    ),
 )
 simulation5 = Simulation(
     name = "sim5",

@@ -51,9 +51,9 @@ mutable struct HiblerYieldCurve{FT<:AbstractFloat}<:AbstractFractureCriteria
     vertices::PolyVec{FT}
 
     function HiblerYieldCurve{FT}(
-        pstar::FT,
-        c::FT,
-        vertices::PolyVec{FT}
+        pstar::Real,
+        c::Real,
+        vertices::PolyVec
     ) where {FT<:AbstractFloat}
         try
             valid_polyvec!(vertices)
@@ -64,13 +64,25 @@ mutable struct HiblerYieldCurve{FT<:AbstractFloat}<:AbstractFractureCriteria
         end
         new{FT}(pstar, c, vertices)
     end
-    HiblerYieldCurve(
-        pstar::FT,
-        c::FT,
-        vertices::PolyVec{FT},
-    ) where{FT<:AbstractFloat} = 
-        HiblerYieldCurve{FT}(pstar, c, vertices)
 end
+
+"""
+    HiblerYieldCurve(::Type{FT}, args...)
+
+A float type FT can be provided as the first argument of any HiblerYieldCurve
+constructor. A HiblerYieldCurve of type FT will be created by passing all
+other arguments to the correct constructor. 
+"""
+HiblerYieldCurve(::Type{FT}, args...) where {FT <: AbstractFloat}=
+    HiblerYieldCurve{FT}(args...)
+
+"""
+    HiblerYieldCurve(args...)
+
+If a type isn't specified, HiblerYieldCurve will be of type Float64 and the
+correct constructor will be called with all other arguments.
+"""
+HiblerYieldCurve(args...) = HiblerYieldCurve{Float64}(args...)
 
 """
     calculate_hibler(floes, pstar, c)
@@ -115,8 +127,16 @@ Outputs:
     HiblerYieldCurve struct with vertices determined using the calculate_hibler
     function.
 """
-HiblerYieldCurve(floes, pstar = 2.25e5, c = 20.0) =
-    HiblerYieldCurve(pstar, c, calculate_hibler(mean(floes.height), pstar, c))
+HiblerYieldCurve{FT}(
+    floes,
+    pstar = 2.25e5,
+    c = 20.0,
+) where {FT <: AbstractFloat}=
+    HiblerYieldCurve{FT}(
+        pstar,
+        c,
+        calculate_hibler(mean(floes.height), pstar, c),
+    )
 
 """
     update_criteria!(criteria::HiblerYieldCurve, floes)
@@ -244,19 +264,21 @@ end
 """
     split_floe(
         floe,
-        npieces,
         rng,
-        ::Type{T} = Float64
+        fracture_settings,
+        coupling_settings,
+        consts,
+        Δt,
     )
 Splits a given floe into pieces using voronoi tesselation.
 User will recieve a warning if floe isn't split.
 Inputs:
-    floe    <Floe> floe in simulation
-    npieces <Int> number of pieces to try to split the floe into - voronoi
-                tesselation has an element of randomness so this number is not
-                guarenteed but user will be warned if floe isn't split at all
-    rng     <RNG> random number generator used for voronoi tesselation
-            <Type{T}> AbstractFloat type that used for simulation calculations
+    floe              <Floe> floe in simulation
+    rng               <RNG> random number generator used for voronoi tesselation
+    fracture_settings <FractureSettings> simulation's fracture settings
+    coupling_settings <CouplingSettings> simulation's coupling settings
+    consts            <Constants> simulation's constants
+    Δt                <Int> length of simulation timesteps in seconds
 Outputs:
     new_floes   <StructArray{Floes}> list of pieces floe is split into, each of
                     which is a new floe
@@ -296,9 +318,10 @@ function split_floe(
                 mass = floe.mass * (pieces_areas[i]/total_area)
                 height = mass / (consts.ρi * pieces_areas[i])
                 pieces_floes = poly_to_floes(
+                    FT,
                     pieces_polys[i],
-                    FT(height),
-                    FT(0);  # Δh - range of random height difference between floes
+                    height,
+                    0;  # Δh - range of random height difference between floes
                     ρi = consts.ρi,
                     u = floe.u,
                     v = floe.v,

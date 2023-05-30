@@ -1,19 +1,18 @@
 
 function test_basic_outputwriters()
     grid = RegRectilinearGrid(
-        Float64,
         (-1e5, 1e5),
         (-1e5, 1e5),
         1e4,
         1e4,
     )
-    ocean = Ocean(Float64, grid, 0.0, 0.0, 0.0)
+    ocean = Ocean(grid, 0.0, 0.0, 0.0)
     atmos = Atmos(grid, 0.0, 0.0, 0.0)
     domain = Domain(
-        OpenBoundary(grid, North()),
-        OpenBoundary(grid, South()),
-        OpenBoundary(grid, East()),
-        OpenBoundary(grid, West()),
+        OpenBoundary(North, grid),
+        OpenBoundary(South, grid),
+        OpenBoundary(East, grid),
+        OpenBoundary(West, grid),
     )
     floe_coords = [[[7.5e4, 7.5e4], [7.5e4, 9.5e4], [9.5e4, 9.5e4], 
                     [9.5e4, 7.5e4], [7.5e4, 7.5e4]]]
@@ -46,12 +45,16 @@ function test_basic_outputwriters()
         filename = "floe.jld2",
         overwrite = true,
     )
-    checkpointwriter = CheckpointOutputWriter(250, dir = dir, overwrite = true)
+    checkpointwriter = CheckpointOutputWriter(
+        250,
+        dir = dir,
+        overwrite = true,
+    )
     writers = OutputWriters(
-        initialwriters = StructArray([initwriter]),
-        gridwriters = StructArray([gridwriter]),
-        floewriters = StructArray([floewriter]),
-        checkpointwriters = StructArray([checkpointwriter]),
+        initwriter,
+        gridwriter,
+        floewriter,
+        checkpointwriter,
     )
     simulation = Simulation(
         model = model,

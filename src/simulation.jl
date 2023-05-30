@@ -20,6 +20,24 @@ end
 
 
 """
+Constants(::Type{FT}, args...)
+
+A float type FT can be provided as the first argument of any Constants
+constructor. A Constants of type FT will be created by passing all other
+arguments to the correct constructor. 
+"""
+Constants(::Type{FT}, args...) where {FT <: AbstractFloat} =
+    Constants{FT}(args...)
+
+"""
+    Constants(args...)
+
+If a type isn't specified, Constants will be of type Float64 and the correct
+constructor will be called with all other arguments.
+"""
+Constants(args...) = Constants{Float64}(args...)
+
+"""
     Simulation{FT<:AbstractFloat, DT<:Domain{FT}}
 
 Simulation which holds a model and parameters needed for running the simulation.
@@ -34,10 +52,15 @@ The user can also define settings for each physical process.
     GT<:AbstractGrid,
     DT<:Domain,
     CT<:AbstractFractureCriteria,
+    RT<:Random.AbstractRNG,
+    IW<:StructVector{<:InitialStateOutputWriter},
+    FW<:StructVector{<:FloeOutputWriter},
+    GW<:StructVector{<:GridOutputWriter},
+    CW<:StructVector{<:CheckpointOutputWriter},
 }
     model::Model{FT, GT, DT}            # Model to simulate
     consts::Constants{FT} = Constants() # Constants used in Simulation
-    rng = Xoshiro()                     # Random number generator 
+    rng::RT = Xoshiro()                     # Random number generator 
     verbose::Bool = false               # String output printed during run
     name::String = "sim"                # Simulation name for printing/saving
     # Timesteps ----------------------------------------------------------------
@@ -49,11 +72,11 @@ The user can also define settings for each physical process.
     fracture_settings::FractureSettings{CT} = FractureSettings()
     simp_settings::SimplificationSettings{FT} = SimplificationSettings()
     # Output Writers -----------------------------------------------------------
-    writers::OutputWriters{FT} = OutputWriters()
+    writers::OutputWriters{IW, FW, GW, CW} = OutputWriters()
 end
 
 """
-timestep_sim!(sim, tstep, writers, ::Type{T} = Float64)
+timestep_sim!(sim, tstep, writers)
 
 Run one step of the simulation and write output. 
 Inputs:
@@ -63,8 +86,9 @@ Inputs:
 Outputs:
     None. Simulation advances by one timestep. 
 """
-function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
+function timestep_sim!(sim, tstep)
     if !isempty(sim.model.floes)
+        max_floe_id = maximum(sim.model.floes.id)
         # Need to lock some operations when multi-threading
         spinlock = Threads.SpinLock()
         # Add ghost floes through periodic boundaries
@@ -88,7 +112,12 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
         end
 
         # Remove the ghost floes - only used for collisions
-        sim.model.floes = sim.model.floes[1:n_init_floes]
+        for i in reverse(n_init_floes+1:length(sim.model.floes))
+            StructArrays.foreachfield(
+                    field -> deleteat!(field, i),
+                    sim.model.floes,
+            )
+        end
         empty!.(sim.model.floes.ghosts) 
 
         # Physical processes without ghost floes
@@ -112,10 +141,10 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
         # TODO: Remove parent ids ?
         # Fracture floes
         if sim.fracture_settings.fractures_on && mod(tstep, sim.fracture_settings.Δt) == 0
-            sim.model.max_floe_id =
+            max_floe_id =
                 fracture_floes!(
                     sim.model.floes,
-                    sim.model.max_floe_id,
+                    max_floe_id,
                     sim.rng,
                     sim.fracture_settings,
                     sim.coupling_settings,
@@ -124,25 +153,26 @@ function timestep_sim!(sim, tstep, ::Type{T} = Float64) where T
                     sim.Δt,
                 )
         end
-        simplify_floes!(
-            sim.model,
-            sim.simp_settings,
-            sim.collision_settings,
-            sim.coupling_settings,
-            sim.Δt,
-            sim.consts,
-            sim.rng,
-        )
+        max_floe_id = 
+            simplify_floes!(
+                sim.model,
+                max_floe_id,
+                sim.simp_settings,
+                sim.collision_settings,
+                sim.coupling_settings,
+                sim.Δt,
+                sim.consts,
+                sim.rng,
+            )
     end
 
     # h0 = real(sqrt.(Complex.((-2Δt * newfloe_Δt) .* hflx)))
     # mean(h0)
-
     return 
 end
 
 """
-    run!(sim, writers, t::Type{T} = Float64)
+    run!(sim, writers)
 
 Run given simulation and generate output for given writers.
 Simulation calculations will be done with Floats of type T (Float64 of Float32).
@@ -155,7 +185,7 @@ Outputs:
     None. The simulation will be run and outputs will be saved in the output
     folder. 
 """
-function run!(sim, ::Type{T} = Float64) where T
+function run!(sim)
     # Start simulation
     sim.verbose && println(string(sim.name, " is running!"))
     tstep = 0
@@ -164,7 +194,7 @@ function run!(sim, ::Type{T} = Float64) where T
             println(tstep, " timesteps")
         end
         # Timestep the simulation forward
-        timestep_sim!(sim, tstep, T)
+        timestep_sim!(sim, tstep)
         tstep+=1
     end
     sim.verbose && println(string(sim.name, " done running!"))

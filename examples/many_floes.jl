@@ -16,7 +16,6 @@ const coarse_ny = 10
 
 # Model instantiation
 grid = RegRectilinearGrid(
-    FT,
     (-Lx, Lx),
     (-Ly, Ly),
     Δgrid,
@@ -28,10 +27,10 @@ ocean = Ocean(grid, -0.2, 0.0, -1.0)
 atmos = Atmos(grid, 0.0, 0.0, -3.0)
 
 # Domain creation - boundaries and topography
-nboundary = OpenBoundary(grid, North())
-sboundary = OpenBoundary(grid, South())
-eboundary = OpenBoundary(grid, East())
-wboundary = OpenBoundary(grid, West())
+nboundary = (North, grid)
+sboundary = OpenBoundary(South, grid)
+eboundary = OpenBoundary(East, grid)
+wboundary = OpenBoundary(West, grid)
 
 domain = Subzero.Domain(nboundary, sboundary, eboundary, wboundary)
 
@@ -40,7 +39,7 @@ nfloes = 100
 file = jldopen("examples/floe_shapes.jld2", "r")
 nfloes = nfloes > size(file["floe_vertices"], 1) ? size(file["floe_vertices"], 1) : nfloes
 floe_coords = file["floe_vertices"][1:1]
-floe_arr = initialize_floe_field(floe_coords, domain, hmean, Δh)
+floe_arr = initialize_floe_field(FT, floe_coords, domain, hmean, Δh)
 close(file)
 
 model = Model(grid, ocean, atmos, domain, floe_arr)

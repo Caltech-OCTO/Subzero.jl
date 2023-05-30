@@ -1,7 +1,7 @@
 @testset "Coupling" begin
+    FT = Float64
     @testset "Coupling Helper Functions" begin
         grid = Subzero.RegRectilinearGrid(
-            Float64,
             (-10, 10),
             (-8, 8),
             2,
@@ -21,8 +21,8 @@
         end
 
         # Test filter_oob_points
-        open_bound = Subzero.OpenBoundary(grid, Subzero.East())
-        periodic_bound = Subzero.PeriodicBoundary(grid, Subzero.East())
+        open_bound = Subzero.OpenBoundary(East, grid)
+        periodic_bound = Subzero.PeriodicBoundary(East, grid)
         x = [-12, -10, -8, -6, 0, 4, 4, 10, 12, 12]
         y = [5, -6, 4, 10, -10, 8, -8, -6, 4, 10]
         open_open_answers = [false, true, true, false, false, true, true, true, false, false]
@@ -139,7 +139,7 @@
             deepcopy(grid),
             open_bound,
             open_bound,
-            Subzero.Ocean(Float64, grid, 0, 0, 0).scells,
+            Subzero.Ocean(grid, 0, 0, 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [CartesianIndex(4, 7), CartesianIndex(3, 6)],
             [0.0, 0.0],
@@ -158,7 +158,7 @@
             deepcopy(grid),
             periodic_bound,
             periodic_bound,
-            Subzero.Ocean(Float64, grid, 0, 0, 0).scells,
+            Subzero.Ocean(grid, 0, 0, 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [
                 CartesianIndex(2, 7),
@@ -182,7 +182,7 @@
             deepcopy(grid),
             periodic_bound,
             open_bound,
-            Subzero.Ocean(Float64, grid, 0, 0, 0).scells,
+            Subzero.Ocean(grid, 0, 0, 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [
                 CartesianIndex(1, 10),
@@ -207,7 +207,7 @@
             deepcopy(grid),
             open_bound,
             periodic_bound,
-            Subzero.Ocean(Float64, grid, 0, 0, 0).scells,
+            Subzero.Ocean(grid, 0, 0, 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [
                 CartesianIndex(4, 1),
@@ -230,7 +230,7 @@
             deepcopy(grid),
             periodic_bound,
             periodic_bound,
-            Subzero.Ocean(Float64, grid, 0, 0, 0).scells,
+            Subzero.Ocean(grid, 0, 0, 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [
                 CartesianIndex(1, 1),
@@ -247,20 +247,20 @@
     end
     @testset "OA Forcings" begin
     #     # set up model and floe
+        FT = Float64
         grid = Subzero.RegRectilinearGrid(
-            Float64,
             (-1e5, 1e5),
             (-1e5, 1e5),
             1e4,
             1e4,
         )
-        zonal_ocean = Subzero.Ocean(Float64, grid, 1.0, 0.0, 0.0)
+        zonal_ocean = Subzero.Ocean(grid, 1.0, 0.0, 0.0)
         zero_atmos = Subzero.Atmos(grid, 0.0, 0.0, -20.0)
         domain = Subzero.Domain(
-            Subzero.CollisionBoundary(grid, Subzero.North()),
-            Subzero.CollisionBoundary(grid, Subzero.South()),
-            Subzero.CollisionBoundary(grid, Subzero.East()),
-            Subzero.CollisionBoundary(grid, Subzero.West()),
+            CollisionBoundary(North, grid),
+            CollisionBoundary(South, grid),
+            CollisionBoundary(East, grid),
+            CollisionBoundary(West, grid),
         )
         floe = Subzero.Floe(
             [[
@@ -302,7 +302,7 @@
         @test isapprox(model1.floes[1].trqOA/area, -523.9212, atol = 1e-3)
 
     # stationary floe, uniform meridional ocean flow
-        meridional_ocean = Subzero.Ocean(Float64, grid, 0.0, 1.0, 0.0)
+        meridional_ocean = Subzero.Ocean(grid, 0.0, 1.0, 0.0)
         model2 = Subzero.Model(
             grid,
             meridional_ocean,
@@ -321,7 +321,7 @@
         @test isapprox(model2.floes[1].trqOA/area, 239.3141, atol = 1e-3)
 
     # moving floe, uniform 0 ocean flow
-        zero_ocean = Subzero.Ocean(Float64, grid, 0.0, 0.0, 0.0)
+        zero_ocean = Subzero.Ocean(grid, 0.0, 0.0, 0.0)
         floe3 = deepcopy(floe)
         floe3.u = 0.25
         floe3.v = 0.1
@@ -369,7 +369,6 @@
         non_unif_vocn = zeros(size(ygrid))
         non_unif_vocn[:, 2:end] = 1e-4*(psi_ocn[:, 2:end] .- psi_ocn[:, 1:end-1])
         non_unif_ocean = Subzero.Ocean(
-            Float64,
             non_unif_uocn,
             non_unif_vocn,
             zeros(size(xgrid)),

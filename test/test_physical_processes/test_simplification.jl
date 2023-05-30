@@ -1,17 +1,17 @@
 @testset "Simplification" begin
+    FT = Float64
     @testset "Dissolve Floes" begin
         grid = RegRectilinearGrid(
-            Float64,
             (-1e5, 1e5),
             (0.0, 1e5),
             1e4,
             1e4,
         )
         domain = Subzero.Domain(
-            CollisionBoundary(grid, North()),
-            CollisionBoundary(grid, South()),
-            PeriodicBoundary(grid, East()),
-            PeriodicBoundary(grid, West()),
+            CollisionBoundary(North, grid),
+            CollisionBoundary(South, grid),
+            PeriodicBoundary(East, grid),
+            PeriodicBoundary(West, grid),
         )
         height = 0.25
         ρi = 920.0
@@ -220,17 +220,16 @@
 
         # Test overall fuse floe functionality with set of 4 floes
         grid = RegRectilinearGrid(
-            Float64,
             (-2.5e4, 1e5),
             (-2.5e4, 1e5),
             1e4,
             1e4,
         )
         open_domain_no_topo = Subzero.Domain(
-            OpenBoundary(grid, North()),
-            OpenBoundary(grid, South()),
-            OpenBoundary(grid, East()),
-            OpenBoundary(grid, West()),
+            OpenBoundary(North, grid),
+            OpenBoundary(South, grid),
+            OpenBoundary(East, grid),
+            OpenBoundary(West, grid),
         )
         coords1 = [[  # large floe
             [0.0, 0.0],
@@ -262,6 +261,7 @@
         ]]
 
         floe_arr = initialize_floe_field(
+            FT,
             [coords1, coords2, coords3, coords4],
             open_domain_no_topo,
             0.5,
@@ -298,23 +298,23 @@
     end
     @testset "Smooth Floes" begin
         grid = RegRectilinearGrid(
-            Float64,
             (-2.5e4, 1e5),
             (-2.5e4, 1e5),
             1e4,
             1e4,
         )
         open_domain_no_topo = Subzero.Domain(
-            OpenBoundary(grid, North()),
-            OpenBoundary(grid, South()),
-            OpenBoundary(grid, East()),
-            OpenBoundary(grid, West()),
+            OpenBoundary(North, grid),
+            OpenBoundary(South, grid),
+            OpenBoundary(East, grid),
+            OpenBoundary(West, grid),
         )
         # Create complex floes
         file = jldopen("inputs/floe_shapes.jld2", "r")
         floe_coords = file["floe_vertices"][1:20]
         Subzero.translate!(floe_coords[2], 0.0, -1e3)
         floe_arr = initialize_floe_field(
+            FT,
             floe_coords,
             open_domain_no_topo,
             0.5,
@@ -441,18 +441,20 @@
         # Two floes overlap, and one is cut into two pieces by topography
         floe_set2 = floe_arr[1:2]
         open_domain_with_topo = Subzero.Domain(
-            OpenBoundary(grid, North()),
-            OpenBoundary(grid, South()),
-            OpenBoundary(grid, East()),
-            OpenBoundary(grid, West()),
+            OpenBoundary(North, grid),
+            OpenBoundary(South, grid),
+            OpenBoundary(East, grid),
+            OpenBoundary(West, grid),
             StructVector(
-                [TopographyElement([[
-                    [0.0, 1.05e4],
-                    [0.0, 1.15e4],
-                    [3e3, 1.15e4],
-                    [3e3, 1.05e4],
-                    [0.0, 1.05e4],
-                ]])],
+                [TopographyElement(
+                    [[
+                        [0.0, 1.05e4],
+                        [0.0, 1.15e4],
+                        [3e3, 1.15e4],
+                        [3e3, 1.05e4],
+                        [0.0, 1.05e4],
+                    ]],
+                )],
             ),
         )
         og_f1_area = floe_set2.area[1]
@@ -487,17 +489,16 @@
     end
     @testset "Remove Floes" begin
         grid = RegRectilinearGrid(
-            Float64,
             (-2.5e4, 1e5),
             (-2.5e4, 1e5),
             1e4,
             1e4,
         )
         open_domain_no_topo = Subzero.Domain(
-            OpenBoundary(grid, North()),
-            OpenBoundary(grid, South()),
-            OpenBoundary(grid, East()),
-            OpenBoundary(grid, West()),
+            OpenBoundary(North, grid),
+            OpenBoundary(South, grid),
+            OpenBoundary(East, grid),
+            OpenBoundary(West, grid),
         )
         coords1 = [[  # large floe
             [0.0, 0.0],
@@ -529,6 +530,7 @@
     ]]
 
         floe_arr = initialize_floe_field(
+            FT,
             [coords1, coords2, coords3, coords4],
             open_domain_no_topo,
             0.5,
