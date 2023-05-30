@@ -47,6 +47,7 @@ export
     torque,
     overlap, 
     initialize_floe_field,
+    initialize_topography_field,
     AbstractFractureCriteria,
     NoFracture,
     HiblerYieldCurve,
@@ -75,7 +76,7 @@ Coordinates are vector of vector of vector of points of the form:
  following sets of coordinates, describe holes within the floe.
  This form is for easy conversion to LibGEOS Polygons.
 """
-const PolyVec{T} = Vector{Vector{Vector{T}}} where T<:AbstractFloat
+const PolyVec{T} = Vector{Vector{Vector{T}}} where T<:Real
 
 """
 Coordinates are vector of vector of points of the form:
@@ -83,7 +84,7 @@ Coordinates are vector of vector of points of the form:
 closed ring. PolyVec objects can be made out RingVec objects.
 This form is for each conversion to LibGEOS LinearRings, which can also be made into Polygons.
 """
-const RingVec{T} = Vector{Vector{T}} where T<:AbstractFloat
+const RingVec{T} = Vector{Vector{T}} where T<:Real
 
 # Model
 include("floe.jl")

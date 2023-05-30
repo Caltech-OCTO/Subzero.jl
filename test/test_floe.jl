@@ -1,4 +1,5 @@
 @testset "Floe" begin
+    FT = Float64
     # test generating monte carlo points
     file = jldopen("inputs/floe_shapes.jld2", "r")
     floe_coords = file["floe_vertices"][1:end]
@@ -14,6 +15,7 @@
     rmax = sqrt(maximum([sum(xo[i]^2 + yo[i]^2) for i in eachindex(xo)]))
     area = LG.area(poly1)
     mc_x, mc_y, status = Subzero.generate_mc_points(
+        Float64,
         1000,
         origin_coords,
         rmax,
@@ -29,6 +31,7 @@
     @test status.tag == Subzero.active
     # Test that random number generator is working
     mc_x2, mc_y2, status2 = Subzero.generate_mc_points(
+        Float64,
         1000,
         origin_coords,
         rmax,
@@ -40,6 +43,18 @@
     @test all(mc_y .== mc_y2)
     @test status2.tag == Subzero.active
 
+    mc_x3, mc_y3, status3 = Subzero.generate_mc_points(
+        Float32,
+        1000,
+        origin_coords,
+        rmax,
+        area,
+        Subzero.Status(),
+        Xoshiro(1)
+    )
+    @test status3.tag == Subzero.active
+    @test eltype(mc_x3) == eltype(mc_y3) == Float32
+
     # Test InteractionFields enum
     interactions = range(1, 7)'
     @test interactions[floeidx] == 1
@@ -47,7 +62,13 @@
     @test interactions[overlap] == 7
 
     # Test with coords inputs
-    floe_from_coords = Floe(floe_coords[1], 0.5, 0.01, u = 0.2, rng = Xoshiro(1))
+    floe_from_coords = Floe(
+        floe_coords[1],
+        0.5,
+        0.01,
+        u = 0.2,
+        rng = Xoshiro(1),
+    )
     @test typeof(floe_from_coords) <: Floe
     @test floe_from_coords.u == 0.2
     @test 0.49 <= floe_from_coords.height <= 0.51
@@ -56,7 +77,13 @@
     @test floe_from_coords.status.tag == Subzero.active
     
     # Test with polygon input
-    floe_from_poly = Floe(poly1, 0.5, 0.01, v = -0.2, rng = Xoshiro(1))
+    floe_from_poly = Floe(
+        poly1,
+        0.5,
+        0.01,
+        v = -0.2,
+        rng = Xoshiro(1),
+    )
     @test typeof(floe_from_poly) <: Floe
     @test floe_from_poly.u == 0.0
     @test floe_from_poly.v == -0.2
@@ -73,13 +100,19 @@
         [[6.0, 4.0], [6.0, 6.0], [7.0, 6.0], [7.0, 4.0], [6.0, 4.0]]]
 
     # Test polygon with no holes
-    floe_arr = Subzero.poly_to_floes(LG.Polygon(rect_poly), 0.25, 0.01)
+    floe_arr = Subzero.poly_to_floes(
+        FT,
+        LG.Polygon(rect_poly),
+        0.25,
+        0.01,
+    )
     @test length(floe_arr) == 1
     @test typeof(floe_arr[1]) <: Floe
     @test !Subzero.hashole(floe_arr.coords[1])
 
     # Test with polygon below minimum floe area
     floe_arr = Subzero.poly_to_floes(
+        FT,
         LG.Polygon(rect_poly),
         0.25,
         0.01,
@@ -88,13 +121,19 @@
     @test isempty(floe_arr)
 
     # Test with polygon with a hole that is split into 3 polyons
-    floe_arr = Subzero.poly_to_floes(LG.Polygon(c_poly_hole), 0.25, 0.01)
+    floe_arr = Subzero.poly_to_floes(
+        FT,
+        LG.Polygon(c_poly_hole),
+        0.25,
+        0.01,
+    )
     @test length(floe_arr) == 3
     @test !any(Subzero.hashole.(floe_arr.coords))
     @test typeof(floe_arr) <: StructArray{<:Floe}
 
     # Test with multipolygon 
     floe_arr = Subzero.poly_to_floes(
+        FT,
         LG.MultiPolygon([c_poly_hole, rect_poly]),
         0.25,
         0.01
@@ -104,6 +143,7 @@
 
     # Test with multipolygon with minimum area
     floe_arr = Subzero.poly_to_floes(
+        FT,
         LG.MultiPolygon([c_poly_hole, rect_poly]),
         0.25,
         0.01,
@@ -114,16 +154,15 @@
 
     # Test initialize_floe_field from coord list
     grid = RegRectilinearGrid(
-        Float64,
         (-8e4, 8e4),
         (-8e4, 8e4),
         1e4,
         1e4,
     )
-    nbound = CollisionBoundary(grid, North())
-    sbound = CollisionBoundary(grid, South())
-    ebound = CollisionBoundary(grid, East())
-    wbound = CollisionBoundary(grid, West())
+    nbound = CollisionBoundary(North, grid)
+    sbound = CollisionBoundary(South, grid)
+    ebound = CollisionBoundary(East, grid)
+    wbound = CollisionBoundary(West, grid)
     domain_no_topo = Domain(nbound, sbound, ebound, wbound)
     island = [[[6e4, 4e4], [6e4, 4.5e4], [6.5e4, 4.5e4], [6.5e4, 4e4], [6e4, 4e4]]]
     topo1 = [[[-8e4, -8e4], [-8e4, 8e4], [-6e4, 8e4], [-5e4, 4e4], [-6e4, -8e4], [-8e4, -8e4]]]
@@ -137,7 +176,13 @@
     topo_polys = LG.MultiPolygon([island, topo1])
 
     # From file without topography -> floes below recommended area
-    floe_arr = (@test_logs (:warn, "Some user input floe areas are less than the suggested minimum floe area.") initialize_floe_field(floe_coords, domain_no_topo, 0.5, 0.1))
+    floe_arr = (@test_logs (:warn, "Some user input floe areas are less than the suggested minimum floe area.") initialize_floe_field(
+        FT,
+        floe_coords,
+        domain_no_topo,
+        0.5,
+        0.1,
+    ))
     nfloes = length(floe_coords)
     @test typeof(floe_arr) <: StructArray{<:Floe}
     @test length(floe_arr) == nfloes
@@ -145,24 +190,31 @@
 
     # From file with small domain -> floes outside of domain
     small_grid = RegRectilinearGrid(
-        Float64,
         (-5e4, 5e4),
         (-5e4, 5e4),
         1e4,
         1e4,
     )
     small_domain_no_topo = Domain(
-        CollisionBoundary(small_grid, North()),
-        CollisionBoundary(small_grid, South()),
-        CollisionBoundary(small_grid, East()),
-        CollisionBoundary(small_grid, West())
+        CollisionBoundary(North, small_grid),
+        CollisionBoundary(South, small_grid),
+        CollisionBoundary(East, small_grid),
+        CollisionBoundary(West, small_grid),
     )
-    floe_arr = (@test_logs (:warn, "Some floe centroids are out of the domain.") initialize_floe_field(floe_coords, small_domain_no_topo, 0.5, 0.1, min_floe_area = 1e5))
+    floe_arr = (@test_logs (:warn, "Some floe centroids are out of the domain.") initialize_floe_field(
+        FT,
+        floe_coords,
+        small_domain_no_topo,
+        0.5,
+        0.1,
+        min_floe_area = 1e5,
+    ))
     @test typeof(floe_arr) <: StructArray{<:Floe}
     @test all(floe_arr.area .> 1e5)
 
     # From file with topography -> no intersection between topo and floes
     floe_arr = initialize_floe_field(
+        FT,
         floe_coords,
         domain_with_topo,
         0.5,
@@ -213,6 +265,7 @@
     
     # Test initialize_floe_field with voronoi
     floe_arr = initialize_floe_field(
+        FT,
         25,
         [0.5],
         domain_with_topo,
@@ -263,4 +316,13 @@
     ) for p in floe_polys] .< 1e-3)
     @test all([LG.isValid(p) for p in floe_polys])
     @test all(floe_arr.id .== range(1, nfloes))
+
+    @test typeof(initialize_floe_field(
+        Float32,
+        25,
+        concentrations,
+        domain_with_topo,
+        0.5,
+        0.1,
+    )) <: StructArray{<:Floe{Float32}}
 end

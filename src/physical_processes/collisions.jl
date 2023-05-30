@@ -460,7 +460,7 @@ end
     normal_direction_correct!(
         forces,
         fpoints,
-        boundary::AbstractBoundary{West, <:AbstractFloat},
+        boundary::AbstractBoundary{<:AbstractFloat, West},
     )
 
 Zero-out forces that point in direction not perpendicular to West boundary wall.
@@ -861,33 +861,45 @@ function ghosts_on_bounds(element, ghosts, boundary, trans_vec)
 end
 
 """
-    find_ghosts(elem, current_ghosts, ebound::PeriodicBoundary{East, <:AbstractFloat},
-                wbound::PeriodicBoundary{West, <:AbstractFloat}, ::Type{T} = Float64)
+    find_ghosts(
+        elem,
+        current_ghosts,
+        ebound::PeriodicBoundary,
+        wbound::PeriodicBoundary,
+    )
 
-Find ghosts of given element and its known ghosts through an eastern or western periodic boundary.
-If element's centroid isn't within the domain in the east/west direction, swap it with its ghost since
-the ghost's centroid must then be within the domain. 
+Find ghosts of given element and its known ghosts through an eastern or western
+periodic boundary. If element's centroid isn't within the domain in the
+east/west direction, swap it with its ghost since the ghost's centroid must then
+be within the domain. 
 Inputs:
-        elem            <StructArray{Floe} or StructArray{TopographyElement}> given element
-        current_ghosts  <StructArray{Floe} or StructArray{TopographyElement}> current ghosts of element
-        eboundary        <PeriodicBoundary{East, Float}> domain's eastern boundary
-        wboundary        <PeriodicBoundary{West, Float}> domain's western boundary
+    elem            <StructArray{Floe}> given element
+    current_ghosts  <StructArray{Floe}> current ghosts of element
+    eboundary       <PeriodicBoundary{East, Float}> domain's eastern boundary
+    wboundary       <PeriodicBoundary{West, Float}> domain's western boundary
 Outputs:
-        Return "primary" element, which has its centroid within the domain in the east/west direction,
-        and all of its ghosts in the east/west direction, including ghosts of previously existing ghosts.
+    Return "primary" element, which has its centroid within the domain in the
+    east/west direction, and all of its ghosts in the east/west direction,
+    including ghosts of previously existing ghosts.
 """
-function find_ghosts(elem, current_ghosts, ebound::PeriodicBoundary{East, <:AbstractFloat}, wbound::PeriodicBoundary{West, <:AbstractFloat},
-::Type{T} = Float64) where T
+function find_ghosts(
+    elem,
+    current_ghosts,
+    ebound::PeriodicBoundary{East, FT},
+    wbound::PeriodicBoundary{West, FT},
+) where {FT <: AbstractFloat}
     Lx = ebound.val - wbound.val
     new_ghosts =
-        if (elem.centroid[1] - elem.rmax < wbound.val)  # passing through western boundary
-            ghosts_on_bounds(elem, current_ghosts, wbound, [Lx, T(0)])
-        elseif (elem.centroid[1] + elem.rmax > ebound.val) # passing through eastern boundary
-            ghosts_on_bounds(elem, current_ghosts, ebound, [-Lx, T(0)])
+        # passing through western boundary
+        if (elem.centroid[1] - elem.rmax < wbound.val)
+            ghosts_on_bounds(elem, current_ghosts, wbound, [Lx, FT(0)])
+        # passing through eastern boundary
+        elseif (elem.centroid[1] + elem.rmax > ebound.val)
+            ghosts_on_bounds(elem, current_ghosts, ebound, [-Lx, FT(0)])
         else
             StructArray(Vector{typeof(elem)}())
         end
-    # if element centroid isn't in domain in east/west direction, swap with its ghost
+    # if element centroid isn't in domain's east/west direction, swap with ghost
     if !isempty(new_ghosts) && ((elem.centroid[1] < wbound.val) || (ebound.val < elem.centroid[1]))
         elem, new_ghosts[end] = new_ghosts[end], elem
     end
@@ -895,33 +907,45 @@ function find_ghosts(elem, current_ghosts, ebound::PeriodicBoundary{East, <:Abst
 end
 
 """
-    find_ghosts(elem, current_ghosts, nbound::PeriodicBoundary{North, <:AbstractFloat},
-                sbound::PeriodicBoundary{South, <:AbstractFloat}, ::Type{T} = Float64)
+    find_ghosts(
+        elem,
+        current_ghosts,
+        nbound::PeriodicBoundary{North, <:AbstractFloat},
+        sbound::PeriodicBoundary{South, <:AbstractFloat},
+    )
 
-Find ghosts of given element and its known ghosts through an northern or southern periodic boundary.
-If element's centroid isn't within the domain in the north/south direction, swap it with its ghost since
-the ghost's centroid must then be within the domain. 
+Find ghosts of given element and its known ghosts through an northern or
+southern periodic boundary. If element's centroid isn't within the domain in the
+north/south direction, swap it with its ghost since the ghost's centroid must
+then be within the domain. 
 Inputs:
-        elem            <StructArray{Floe} or StructArray{TopographyElement}> given element
-        current_ghosts  <StructArray{Floe} or StructArray{TopographyElement}> current ghosts of element
-        nboundary        <PeriodicBoundary{North, Float}> domain's northern boundary
-        sboundary        <PeriodicBoundary{South, Float}> domain's southern boundary
+    elem            <StructArray{Floe}> given element
+    current_ghosts  <StructArray{Floe}> current ghosts of element
+    nboundary        <PeriodicBoundary{North, Float}> domain's northern boundary
+    sboundary        <PeriodicBoundary{South, Float}> domain's southern boundary
 Outputs:
-        Return "primary" element, which has its centroid within the domain in the north/south direction,
-        and all of its ghosts in the north/south direction, including ghosts of previously existing ghosts.
+    Return "primary" element, which has its centroid within the domain in the
+    north/south direction, and all of its ghosts in the north/south direction,
+    including ghosts of previously existing ghosts.
 """
-function find_ghosts(elem, current_ghosts, nbound::PeriodicBoundary{North, <:AbstractFloat}, sbound::PeriodicBoundary{South, <:AbstractFloat},
-::Type{T} = Float64) where T
+function find_ghosts(
+    elem,
+    current_ghosts,
+    nbound::PeriodicBoundary{North, FT},
+    sbound::PeriodicBoundary{South, FT},
+) where {FT <: AbstractFloat}
     Ly =  nbound.val - sbound.val
     new_ghosts = 
-        if (elem.centroid[2] - elem.rmax < sbound.val)  # passing through southern boundary
-            ghosts_on_bounds(elem, current_ghosts, sbound, [T(0), Ly])
-        elseif (elem.centroid[2] + elem.rmax > nbound.val)  # passing through northern boundary
-            ghosts_on_bounds(elem, current_ghosts, nbound, [T(0), -Ly])
+        # passing through southern boundary
+        if (elem.centroid[2] - elem.rmax < sbound.val)
+            ghosts_on_bounds(elem, current_ghosts, sbound, [FT(0), Ly])
+        # passing through northern boundary
+        elseif (elem.centroid[2] + elem.rmax > nbound.val) 
+            ghosts_on_bounds(elem, current_ghosts, nbound, [FT(0), -Ly])
         else
             StructArray(Vector{typeof(elem)}())
         end
-    # if element centroid isn't in domain in north/south direction, swap with its ghost
+    # if element centroid isn't in domain's north/south direction, swap with ghost
     if !isempty(new_ghosts) && ((elem.centroid[2] < sbound.val) || (nbound.val < elem.centroid[2]))
         elem, new_ghosts[end] = new_ghosts[end], elem
     end
@@ -931,13 +955,14 @@ end
 """
     add_floe_ghosts!(floes, max_boundary, min_boundary)
 
-Add ghosts of all of the given floes passing through the two given boundaries to the list of floes.
+Add ghosts of all of the given floes passing through the two given boundaries to
+the list of floes.
 Inputs:
-        floes           <StructArray{Floe{FT}}> list of floes to find ghosts for
-        max_boundary    <PeriodicBoundary> either northern or eastern boundary  of domain
-        min_boundary    <PeriodicBoundary> either southern or western boundary of domain
+    floes           <StructArray{Floe{FT}}> list of floes to find ghosts for
+    max_boundary    <PeriodicBoundary> northern or eastern boundary of domain
+    min_boundary    <PeriodicBoundary> southern or western boundary of domain
 Outputs:
-        None. Ghosts of floes are added to floe list. 
+    None. Ghosts of floes are added to floe list. 
 """
 function add_floe_ghosts!(
     floes::StructArray{Floe{FT}},
@@ -945,7 +970,8 @@ function add_floe_ghosts!(
     min_boundary,
 ) where {FT <: AbstractFloat}
     nfloes = length(floes)
-    for i in eachindex(floes)  # uses initial length of floes so we can append to list
+    # uses initial length of floes so we can append to list
+    for i in eachindex(floes)
         f = floes[i]
         # the floe is active in the simulation and a parent floe
         if f.status.tag == active && f.ghost_id == 0
@@ -954,14 +980,16 @@ function add_floe_ghosts!(
                 floes[f.ghosts],
                 max_boundary,
                 min_boundary,
-                FT,
             )
             if !isempty(new_ghosts)
                 nghosts = length(new_ghosts)
                 new_ghosts.ghost_id .= range(1, nghosts) .+ length(f.ghosts)
-                empty!.(new_ghosts.ghosts)  # remove ghost floes ghosts as these were added to parent
-                append!(floes, new_ghosts)  # add ghosts to floe list
-                append!(f.ghosts, (nfloes + 1):(nfloes + nghosts))  # index of ghosts floes saved in parent
+                # remove ghost floes ghosts as these were added to parent
+                empty!.(new_ghosts.ghosts)
+                # add ghosts to floe list
+                append!(floes, new_ghosts)
+                # index of ghosts floes saved in parent
+                append!(f.ghosts, (nfloes + 1):(nfloes + nghosts))
                 nfloes += nghosts
                 floes[i] = f
             end

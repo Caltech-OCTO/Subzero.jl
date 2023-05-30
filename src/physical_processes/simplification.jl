@@ -347,6 +347,7 @@ Simplify the floe list be smoothing vertices, fusing floes, dissolving floes,
 and removing floes as needed. 
 Inputs:
     model               <Model> model
+    max_floe_id         <Int> maximum floe id in simulation
     simp_settings       <SimplificationSettings> simulation's simplification
                             settings
     collision_settings  <CollisionSettings> simulation's collision settings
@@ -359,6 +360,7 @@ Outputs:
 """
 function simplify_floes!(
     model,
+    max_floe_id,
     simp_settings,
     collision_settings,
     coupling_settings,
@@ -382,13 +384,12 @@ function simplify_floes!(
     # Fuse floes that have been marked for fusion
     max_floe_id = fuse_floes!(
         model.floes,
-        model.max_floe_id,
+        max_floe_id,
         coupling_settings,
         Δt,
         consts,
         rng,
     )
-    model.max_floe_id = max_floe_id
 
     # Remove floes marked for removal and dissolving
     remove_floes!(
@@ -398,4 +399,5 @@ function simplify_floes!(
         model.ocean.dissolved,
         simp_settings
     )
+    return max_floe_id
 end

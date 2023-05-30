@@ -1,7 +1,7 @@
 """
 Structs and functions used to define a Subzero model
 """
-
+### ---------------- Grid Fields, Structs, and Constructors ---------------- ### 
 """
     CellFloes{FT<:AbstractFloat}
 
@@ -71,11 +71,11 @@ struct RegRectilinearGrid{FT}<:AbstractGrid{FT}
 
     function RegRectilinearGrid{FT}(
         dims,
-        xg::Vector{FT},
-        yg::Vector{FT},
-        xc::Vector{FT},
-        yc::Vector{FT},
-        floe_locations::Matrix{CellFloes{FT}},
+        xg,
+        yg,
+        xc,
+        yc,
+        floe_locations,
     ) where {FT <: AbstractFloat}
         if (length(xg) != dims[2]+1) || (length(yg) != dims[1]+1)
             throw(ArgumentError("Grid line dimensions vector doesn't match \
@@ -88,32 +88,37 @@ struct RegRectilinearGrid{FT}<:AbstractGrid{FT}
 
         new{FT}(dims, xg, yg, xc, yc, floe_locations)
     end
-
-    RegRectilinearGrid(
-        dims,
-        xg::Vector{FT},
-        yg::Vector{FT},
-        xc::Vector{FT},
-        yc::Vector{FT},
-        floe_locations::Matrix{CellFloes{FT}},
-    ) where {FT <: AbstractFloat} = 
-        RegRectilinearGrid{FT}(dims, xg, yg, xc, yc, floe_locations)
 end
 
 """
-    RegRectilinearGrid(
-        ::Type{FT};
+    RegRectilinearGrid(::Type{FT}, args...)
+
+A float type FT can be provided as the first argument of any RegRectilinearGrid
+constructor. A RegRectilinearGrid of type FT will be created by passing all
+other arguments to the correct constructor. 
+"""
+RegRectilinearGrid(::Type{FT}, args...) where {FT <: AbstractFloat} =
+    RegRectilinearGrid{FT}(args...)
+
+"""
+    RegRectilinearGrid(args...)
+
+If a type isn't specified, RegRectilinearGrid will be of type Float64 and the
+correct constructor will be called with all other arguments.
+"""
+RegRectilinearGrid(args...) = RegRectilinearGrid{Float64}(args...)
+
+"""
+    RegRectilinearGrid{FT}(
         xbounds::Tuple,
         ybounds::Tuple,
         Δx,
         Δy,
-    )
+    )  where {FT <: AbstractFloat}
 
 Construct a RegRectilinearGrid for model given bounds for grid x and y and grid
-cell dimensions.
+cell dimensions in meters.
 Inputs:
-    Type{FT} <AbstractFloat> Type for grid's numberical fields - determines
-                simulation run type
     xbounds  <Tuple{Real, Real}> bound of grid x-direction in form (left, right)
     ybounds  <Tuple{Real, Real}> bound of grid y-direction in form (bottom, top)
     Δx       <Real> length/height of grid cells in x-direction
@@ -126,8 +131,7 @@ Warning:
     length (uy-ly) you won't get full size grid. The grid will be "trimmed" to
     the nearest full grid square in both directions.
 """
-function RegRectilinearGrid(
-    ::Type{FT},
+function RegRectilinearGrid{FT}(
     xbounds::Tuple,
     ybounds::Tuple,
     Δx,
@@ -140,22 +144,19 @@ function RegRectilinearGrid(
     xc = collect(FT, xg[1]+Δx/2:Δx:xg[end]-Δx/2)
     yc = collect(FT, yg[1]+Δy/2:Δy:yg[end]-Δy/2)
     locations = [CellFloes{FT}() for i in 1:(ny + 1), j in 1:(nx + 1)]
-    return RegRectilinearGrid((ny, nx), xg, yg, xc, yc, locations)
+    return RegRectilinearGrid{FT}((ny, nx), xg, yg, xc, yc, locations)
 end
 
 """
-    RegRectilinearGrid(
-        ::Type{FT};
+    RegRectilinearGrid{FT}(
         xbounds::Tuple{Real, Real},
         ybounds::Tuple{Real, Real},
         dims::Tuple{Int, Int}
-    )
+    ) where {FT <: AbstractFloat}
 
 Construct a RegRectilinearGrid for model given bounds for grid x and y and the
 number of grid cells in both the x and y direction.
-Inputs: 
-    Type{FT} <AbstractFloat> Type for grid's numberical fields - determines
-                simulation run type
+Inputs:
     xbounds  <Tuple{Real, Real}> bound of grid x-direction in form (left, right)
     ybounds  <Tuple{Real, Real}> bound of grid y-direction in form (bottom, top)
     dims     <(Int, Int)> grid dimensions given as (rows, columns) where rows is
@@ -165,16 +166,14 @@ Output:
     and the number of grid cells in the x-direction and y-direction determined
     by dims.
 """
-function RegRectilinearGrid(
-    ::Type{FT},
+function RegRectilinearGrid{FT}(
     xbounds::Tuple,
     ybounds::Tuple,
     dims::Tuple{Int, Int},
 ) where {FT <: AbstractFloat}
     Δx = (xbounds[2] - xbounds[1])/dims[2]
     Δy = (ybounds[2] - ybounds[1])/dims[1]
-    return RegRectilinearGrid(
-        FT,
+    return RegRectilinearGrid{FT}(
         xbounds,
         ybounds,
         Δx,
@@ -182,6 +181,7 @@ function RegRectilinearGrid(
     )
 end
 
+### --------------- Ocean Fields, Structs, and Constructors --------------- ### 
 """
     IceStressCell{FT<:AbstractFloat}
 
@@ -251,15 +251,15 @@ struct Ocean{FT<:AbstractFloat}
     dissolved::Matrix{FT}
 
     function Ocean{FT}(
-        u::Matrix{FT},
-        v::Matrix{FT},
-        temp::Matrix{FT},
-        hflx::Matrix{FT},
-        scells::Matrix{IceStressCell{FT}},
-        τx::Matrix{FT},
-        τy::Matrix{FT},
-        si_frac::Matrix{FT},
-        dissolved::Matrix{FT},
+        u,
+        v,
+        temp,
+        hflx,
+        scells,
+        τx,
+        τy,
+        si_frac,
+        dissolved,
     ) where {FT <: AbstractFloat}
         if !all(-3 .<= temp .<= 0)
             @warn "Ocean temperatures are above the range for freezing. The \
@@ -267,55 +267,48 @@ struct Ocean{FT<:AbstractFloat}
         end
         new{FT}(u, v, temp, hflx, scells, τx, τy, si_frac, dissolved)
     end
-
-    Ocean(
-        u::Matrix{FT},
-        v::Matrix{FT},
-        temp::Matrix{FT},
-        hflx::Matrix{FT},
-        scells::Matrix{IceStressCell{FT}},
-        τx::Matrix{FT},
-        τy::Matrix{FT},
-        si_frac::Matrix{FT},
-        dissolved::Matrix{FT},
-    ) where {FT<:AbstractFloat} =
-        Ocean{FT}(
-            u,
-            v,
-            temp,
-            hflx,
-            scells,
-            τx,
-            τy,
-            si_frac,
-            dissolved,
-        )
 end
 
 """
-    Ocean(::Type{T}, u, v, temp)
+    Ocean(::Type{FT}, args...)
+
+A float type FT can be provided as the first argument of any Ocean constructor.
+An Ocean of type FT will be created by passing all other arguments to the
+correct constructor. 
+"""
+Ocean(::Type{FT}, args...) where {FT <: AbstractFloat} =
+    Ocean{FT}(args...)
+
+"""
+    Ocean(args...)
+
+If a type isn't specified, Ocean will be of type Float64 and the correct
+constructor will be called with all other arguments.
+"""
+Ocean(args...) = Ocean{Float64}(args...)
+
+"""
+    Ocean{FT}(u, v, temp)
 
 Construct model ocean.
 Inputs:
-    Type{FT} <AbstractFloat> Type for grid's numberical fields - determines
-            simulation run type
     u       <Matrix> ocean x-velocity matrix with u for each grid line
     v       <Matrix> ocean y-velocity matrix with u for each grid line
-    temp    <Matrix> temperature matrix with ocean/ice interface temperature for each grid line
+    temp    <Matrix> temperature matrix with ocean/ice interface temperature for
+                each grid line
 Output: 
-    Ocean with given velocity and temperature fields on each grid line.
+    Model ocean with given velocity and temperature fields on each grid line.
 """
-function Ocean(
-    ::Type{FT},
+function Ocean{FT}(
     u,
     v,
     temp,
 ) where {FT <: AbstractFloat}
     nvals = size(u)
-    return Ocean(
-        convert(Matrix{FT}, u),
-        convert(Matrix{FT}, v),
-        convert(Matrix{FT}, temp),
+    return Ocean{FT}(
+        u,
+        v,
+        temp,
         zeros(FT, nvals),
         [IceStressCell{FT}() for i in 1:nvals[1], j in 1:nvals[2]],
         zeros(FT, nvals),
@@ -326,12 +319,10 @@ function Ocean(
 end
 
 """
-    Ocean(::Type{FT}, grid::AbstractGrid, u, v, temp, ::Type{T} = Float64)
+    Ocean{FT}(grid, u, v, temp)
 
-Construct model ocean.
-Inputs: 
-    Type{FT} <AbstractFloat> Type for grid's numberical fields - determines
-        simulation run type
+Construct model's ocean.
+Inputs:
     grid    <AbstractGrid> model grid
     u       <Real> ocean x-velocity for each grid line
     v       <Real> ocean y-velocity for each grid line
@@ -339,17 +330,21 @@ Inputs:
 Output: 
         Ocean with constant velocity and temperature on each grid line.
 """
-function Ocean(
-    ::Type{FT},
+function Ocean{FT}(
     grid::AbstractGrid,
     u,
     v,
     temp,
 ) where {FT <: AbstractFloat}
     nvals = grid.dims .+ 1  # one value per grid line - not grid cell 
-    return Ocean(FT, fill(u, nvals), fill(v, nvals), fill(temp, nvals))
+    return Ocean{FT}(
+        fill(FT(u), nvals),
+        fill(FT(v), nvals),
+        fill(FT(temp), nvals),
+    )
 end
 
+### ------------- Atmosphere Fields, Structs, and Constructors ------------- ### 
 """
 Atmos velocities in the x-direction (u) and y-direction (v). u and v should
 match the size of the corresponding model grid so that there is one x and y
@@ -364,25 +359,50 @@ struct Atmos{FT<:AbstractFloat}
 end
 
 """
-    Atmos(grid, u, v, FT)
+    Atmos(::Type{FT}, args...)
 
-Construct model atmosphere.
-Inputs: 
-        grid    <AbstractGrid> model grid cell
-        u       <Real> Atmos x-velocity for each grid cell
-        v       <Real> Atmos y-velocity for each grid cell
-        temp    <Real> temperature at atmopshere/ice interface per grid cell
-                <Type> datatype to convert ocean fields - must be a Float!
-Output: 
-        Ocean with constant velocity and temperature in each grid cell.
+A float type FT can be provided as the first argument of any Atmos constructor.
+An Atmos of type FT will be created by passing all other arguments to the
+correct constructor. 
 """
-function Atmos(grid::AbstractGrid, u, v, temp, ::Type{T} = Float64) where T
+Atmos(::Type{FT}, args...) where {FT <: AbstractFloat} =
+    Atmos{FT}(args...)
+
+"""
+    Atmos(args...)
+
+If a type isn't specified, Atmos will be of type Float64 and the correct
+constructor will be called with all other arguments.
+"""
+Atmos(args...) = Atmos{Float64}(args...)
+
+"""
+    Atmos{FT}(grid, u, v)
+
+Construct model atmosphere of type FT.
+Inputs:
+    grid        <AbstractGrid> model's grid 
+    u           <Real> Atmos x-velocity for each grid cell
+    v           <Real> Atmos y-velocity for each grid cell
+    temp        <Real> temperature at atmopshere/ice interface per grid cell
+Output: 
+    Atmosphere of type FT with constant velocity and temperature over domain.
+"""
+function Atmos{FT}(
+    grid::AbstractGrid,
+    u,
+    v,
+    temp,
+) where {FT <: AbstractFloat}
     nvals = grid.dims .+ 1  # one value per grid line - not grid cell 
-    return Atmos(fill(convert(T, u), nvals),
-                fill(convert(T, v), nvals),
-                fill(convert(T, temp), nvals))
+    return Atmos{FT}(
+        fill(FT(u), nvals),
+        fill(FT(v), nvals),
+        fill(FT(temp), nvals),
+    )
 end
 
+### --------------- Domain Fields, Structs, and Constructors --------------- ### 
 """
     AbstractDirection
 
@@ -394,46 +414,53 @@ abstract type AbstractDirection end
 """
     North<:AbstractDirection
 
-A simple direction type representing if a boundary is the northern boundary in a rectangular domain.
+A simple direction type representing if a boundary is the northern boundary in a
+rectangular domain.
 """
 struct North<:AbstractDirection end
 
 """
     South<:AbstractDirection
 
-A simple direction type representing if a boundary is the souther boundary in a rectangular domain.
+A simple direction type representing if a boundary is the southern boundary in a
+rectangular domain.
 """
 struct South<:AbstractDirection end
 
 """
     East<:AbstractDirection
 
-A simple direction type representing if a boundary is the eastern boundary in a rectangular domain.
+A simple direction type representing if a boundary is the eastern boundary in a
+rectangular domain.
 """
 struct East<:AbstractDirection end
 
 """
     West<:AbstractDirection
 
-A simple direction type representing if a boundary is the western boundary in a rectangular domain.
+A simple direction type representing if a boundary is the western boundary in a
+rectangular domain.
 """
 struct West<:AbstractDirection end
 
 """
-    boundary_coords(grid::AbstractGrid, ::North)
+    boundary_coords(grid::AbstractGrid, ::Type{North})
 
-Determine coordinates of northen-most boundary of domain if around the edge of the grid.
+Determine coordinates of northen-most boundary of domain if around the edge of
+the grid.
 Inputs:
-        grid    <AbstractGrid> model grid
-                <North> boundary direction
+    grid    <AbstractGrid> model grid
+            <Type{North}> boundary direction type
 Output:
-        PolyVec of boundary coordinates. These coordinates describe a rectangle that has a length 2-times
-        the length of the grid in the x-direction, centered on the grid so that there is a buffer of half 
-        of the grid on either side. The height is half of the grid in the y-direction. This buffer prevents
-        pieces of floes from passing outside the boundary before the next timestep - possibly too cautious.
-        If boundary_coords methods are used for each direction, corners will be shared between adjacent boundaries. 
+    PolyVec of boundary coordinates. These coordinates describe a rectangle that
+    has a length 2-times the length of the grid in the x-direction, centered on
+    the grid so that there is a buffer of half of the grid on either side. The
+    height is half of the grid in the y-direction. This buffer prevents pieces
+    of floes from passing outside the boundary before the next timestep -
+    possibly too cautious. If boundary_coords methods are used for each
+    direction, corners will be shared between adjacent boundaries. 
 """
-function boundary_coords(grid::AbstractGrid, ::North)
+function boundary_coords(grid::AbstractGrid, ::Type{North})
     Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
     Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
     return grid.yg[end],  # val
@@ -445,16 +472,18 @@ function boundary_coords(grid::AbstractGrid, ::North)
 end
 
 """
-    boundary_coords(grid::AbstractGrid, ::South)
+    boundary_coords(grid::AbstractGrid, ::Type{South})
 
-Determine coordinates of southern-most boundary of domain if around the edge of the grid.
+Determine coordinates of southern-most boundary of domain if around the edge of
+the grid.
 Inputs:
-        grid    <AbstractGrid> model grid
-                <South> boundary direction
+    grid    <AbstractGrid> model grid
+            <Type{South}> boundary direction type
 Output:
-        PolyVec of boundary coordinates. See documentation of North method of this function for more details. 
+    PolyVec of boundary coordinates. See documentation of North method of this
+    function for more details. 
 """
-function boundary_coords(grid::AbstractGrid, ::South)
+function boundary_coords(grid::AbstractGrid, ::Type{South})
     Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
     Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
     return grid.yg[1],  # val
@@ -466,16 +495,18 @@ function boundary_coords(grid::AbstractGrid, ::South)
 end
 
 """
-    boundary_coords(grid::AbstractGrid, ::East)
+    boundary_coords(grid::AbstractGrid, ::Type{East})
 
-Determine coordinates of eastern-most boundary of domain if around the edge of the grid.
+Determine coordinates of eastern-most boundary of domain if around the edge of
+the grid.
 Inputs:
-        grid    <AbstractGrid> model grid
-                <East> boundary direction
+    grid    <AbstractGrid> model grid
+            <Type{East}> boundary direction type
 Output:
-        PolyVec of boundary coordinates. See documentation of North method of this function for more details. 
+    PolyVec of boundary coordinates. See documentation of North method of this
+    function for more details. 
 """
-function boundary_coords(grid::AbstractGrid, ::East)
+function boundary_coords(grid::AbstractGrid, ::Type{East})
     Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
     Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
     return grid.xg[end],  # val
@@ -487,16 +518,18 @@ function boundary_coords(grid::AbstractGrid, ::East)
 end
 
 """
-    boundary_coords(grid::AbstractGrid, ::West)
+    boundary_coords(grid::AbstractGrid, ::Type{West})
 
-Determine coordinates of western-most boundary of domain if around the edge of the grid.
+Determine coordinates of western-most boundary of domain if around the edge of
+the grid.
 Inputs:
-        grid    <AbstractGrid> model grid
-                <West> boundary direction
+    grid    <AbstractGrid> model grid
+            <Type{West}> boundary direction
 Output:
-        PolyVec of boundary coordinates. See documentation of North method of this function for more details. 
+    PolyVec of boundary coordinates. See documentation of North method of this
+    function for more details. 
 """
-function boundary_coords(grid::AbstractGrid, ::West)
+function boundary_coords(grid::AbstractGrid, ::Type{West})
     Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
     Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
     return grid.xg[1],  # val
@@ -522,7 +555,8 @@ abstract type AbstractDomainElement{FT<:AbstractFloat} end
 
 An abstract type for the types of boundaries at the edges of the model domain.
 Boundary types will control behavior of sea ice floes at edges of domain.
-The direction given by type D denotes which edge of a domain this boundary could be.
+The direction given by type D denotes which edge of a domain this boundary could
+be and type FT is the simulation float type (e.g. Float64 or Float32).
 
 Each boundary type has the coordinates of the boudnary as a field. These should
 be shapes that completely seal the domain, and should overlap on the corners as
@@ -536,12 +570,16 @@ Each bounday type also has a field called "val" that holds value that defines
 the line y = val or x = val (depending on boundary direction), such that if the
 floe crosses that line it would be partially within the boundary. 
 """
-abstract type AbstractBoundary{D<:AbstractDirection, FT}<:AbstractDomainElement{FT} end
+abstract type AbstractBoundary{
+    D<:AbstractDirection,
+    FT,
+}<:AbstractDomainElement{FT} end
 
 """
     OpenBoundary <: AbstractBoundary
 
-A sub-type of AbstractBoundary that allows a floe to pass out of the domain edge without any effects on the floe.
+A sub-type of AbstractBoundary that allows a floe to pass out of the domain edge
+without any effects on the floe.
 """
 struct OpenBoundary{D, FT}<:AbstractBoundary{D, FT}
     coords::PolyVec{FT}
@@ -549,43 +587,53 @@ struct OpenBoundary{D, FT}<:AbstractBoundary{D, FT}
 end
 
 """
-    OpenBoundary(coords, val, direction::AbstractDirection)
+    OpenBoundary(::Type{FT}, ::Type{D}, args...)
 
-Creates open boundary with given coords and val, and with the direction as a type.
-Inputs:
-        coords      <PolyVec{AbstractFloat}> coordinates of boundary
-        val         <AbstractFloat> value defining line that marks edge of domain
-        direction   <AbstractDirection> direction of boundary wall
-                    <Float> datatype simulation is run in - either Float64 of Float32
-Output:
-        Open Boundary of type given by direction and defined by given coordinates and edge value
+A float type FT can be provided as the first argument of any OpenBoundary
+constructor. The second argument D is the directional type of the boundary.
+An OpenBoundary of type FT and D will be created by passing all other arguments
+to the correct constructor. 
 """
-OpenBoundary(coords, val, direction::AbstractDirection, ::Type{T} = Float64) where T =
-    OpenBoundary{typeof(direction), T}(convert(PolyVec{T}, coords), convert(T, val))
-
+OpenBoundary(::Type{FT}, ::Type{D}, args...) where {
+    FT <: AbstractFloat,
+    D <: AbstractDirection,
+} = OpenBoundary{D, FT}(args...)
 
 """
-    OpenBoundary(grid::AbstractGrid, direction)
+    OpenBoundary(::Type{D}, args...)
+
+If a float type isn't specified, OpenBoundary will be of type Float64 and the
+correct constructor will be called with all other arguments.
+"""
+OpenBoundary(::Type{D}, args...) where {D <: AbstractDirection} =
+    OpenBoundary{D, Float64}(args...)
+
+"""
+    OpenBoundary{D, FT}(grid::AbstractGrid)
 
 Creates open boundary on the edge of the grid, and with the direction as a type.
 Edge is determined by direction.
 Inputs:
-        grid        <AbstractGrid> model grid
-        direction   <AbstractDirection> direction of boundary wall
-        <Float> datatype simulation is run in - either Float64 of Float32
+    grid        <AbstractGrid> model grid
 Outputs:
-        Open Boundary on edge of grid given by direction. 
+    Open Boundary on edge of grid given by direction and type. 
 """
-function OpenBoundary(grid::AbstractGrid, direction, ::Type{T} = Float64) where T
-    val, coords = boundary_coords(grid, direction)
-    OpenBoundary(coords, val, direction, T)
+function OpenBoundary{D, FT}(
+    grid::AbstractGrid,
+) where {D <: AbstractDirection, FT <: AbstractFloat}
+    val, coords = boundary_coords(grid, D)
+    OpenBoundary{D, FT}(
+        coords,
+        val,
+    )
 end
 
 """
     PeriodicBoundary <: AbstractBoundary
 
-A sub-type of AbstractBoundary that moves a floe from one side of the domain to the opposite
-side of the domain when it crosses the boundary, bringing the floe back into the domain.
+A sub-type of AbstractBoundary that moves a floe from one side of the domain to
+the opposite side of the domain when it crosses the boundary, bringing the floe
+back into the domain.
 """
 struct PeriodicBoundary{D, FT}<:AbstractBoundary{D, FT}
     coords::PolyVec{FT}
@@ -593,42 +641,53 @@ struct PeriodicBoundary{D, FT}<:AbstractBoundary{D, FT}
 end
 
 """
-    PeriodicBoundary(coords, val, direction::AbstractDirection)
+    PeriodicBoundary(::Type{FT}, ::Type{D}, args...)
 
-Creates periodic boundary with given coords and val, and with the direction as a type.
-Inputs:
-        coords      <PolyVec{AbstractFloat}> coordinates of boundary
-        val         <AbstractFloat> value defining line that marks edge of domain
-        direction   <AbstractDirection> direction of boundary wall
-                    <Float> datatype simulation is run in - either Float64 of Float32
-Output:
-        Periodic Boundary of type given by direction and defined by given coordinates and edge value
+A float type FT can be provided as the first argument of any PeriodicBoundary
+constructor. The second argument D is the directional type of the boundary.
+A PeriodicBoundary of type FT and D will be created by passing all other
+arguments to the correct constructor. 
 """
-PeriodicBoundary(coords, val, direction::AbstractDirection, ::Type{T} = Float64) where T =
-    PeriodicBoundary{typeof(direction), T}(convert(PolyVec{T}, coords), convert(T, val))
+PeriodicBoundary(::Type{FT}, ::Type{D}, args...) where {
+    FT <: AbstractFloat,
+    D <: AbstractDirection,
+} = PeriodicBoundary{D, FT}(args...)
 
 """
-    PeriodicBoundary(grid::AbstractGrid, direction)
+    PeriodicBoundary(::Type{D}, args...)
 
-Creates periodic boundary on the edge of the grid, and with the direction as a type.
-Edge is determined by direction.
+If a float type isn't specified, PeriodicBoundary will be of type Float64 and
+the correct constructor will be called with all other arguments.
+"""
+PeriodicBoundary(::Type{D}, args...) where {D <: AbstractDirection} =
+    PeriodicBoundary{D, Float64}(args...)
+
+"""
+    PeriodicBoundary{D, FT}(grid::AbstractGrid)
+
+Creates periodic boundary on the edge of the grid, and with the direction as a
+type. Edge is determined by direction.
 Inputs:
-        grid        <AbstractGrid> model grid
-        direction   <AbstractDirection> direction of boundary wall
-        <Float> datatype simulation is run in - either Float64 of Float32
+    grid        <AbstractGrid> model grid
 Outputs:
-        Periodic Boundary on edge of grid given by direction. 
+    Periodic Boundary on edge of grid given by direction and type. 
 """
-function PeriodicBoundary(grid::AbstractGrid, direction, ::Type{T} = Float64) where T
-    val, coords = boundary_coords(grid, direction)
-    PeriodicBoundary(coords, val, direction, T)
+function PeriodicBoundary{D, FT}(
+    grid::AbstractGrid,
+) where {D <: AbstractDirection, FT <: AbstractFloat}
+    val, coords = boundary_coords(grid, D)
+    PeriodicBoundary{D, FT}(
+        coords,
+        val,
+    )
 end
 
 """
     CollisionBoundary <: AbstractBoundary
 
-A sub-type of AbstractBoundary that stops a floe from exiting the domain by having the floe collide with the boundary.
-The boundary acts as an immovable, unbreakable ice floe in the collision. 
+A sub-type of AbstractBoundary that stops a floe from exiting the domain by
+having the floe collide with the boundary. The boundary acts as an immovable,
+unbreakable ice floe in the collision. 
 """
 struct CollisionBoundary{D, FT}<:AbstractBoundary{D, FT}
     coords::PolyVec{FT}
@@ -636,43 +695,56 @@ struct CollisionBoundary{D, FT}<:AbstractBoundary{D, FT}
 end
 
 """
-    CollisionBoundary(coords, val, direction::AbstractDirection)
+    CollisionBoundary(::Type{FT}, ::Type{D}, args...)
 
-Creates collision boundary with given coords and val, and with the direction as a type.
-Inputs:
-        coords      <PolyVec{AbstractFloat}> coordinates of boundary
-        val         <AbstractFloat> value defining line that marks edge of domain
-        direction   <AbstractDirection> direction of boundary wall
-                    <Float> datatype simulation is run in - either Float64 of Float32
-Output:
-        Collision Boundary of type given by direction and defined by given coordinates and edge value
+A float type FT can be provided as the first argument of any CollisionBoundary
+constructor. The second argument D is the directional type of the boundary.
+A CollisionBoundary of type FT and D will be created by passing all other
+arguments to the correct constructor. 
 """
-CollisionBoundary(coords, val, direction::AbstractDirection, ::Type{T} = Float64) where T =
-    CollisionBoundary{typeof(direction), T}(convert(PolyVec{T}, coords), convert(T, val))
+CollisionBoundary(::Type{FT}, ::Type{D}, args...) where {
+    FT <: AbstractFloat,
+    D <: AbstractDirection,
+} = CollisionBoundary{D, FT}(args...)
 
 """
-    CollisionBoundary(grid::AbstractGrid, direction)
+    CollisionBoundary(::Type{D}, args...)
 
-Creates collision boundary on the edge of the grid, and with the direction as a type.
-Edge is determined by direction.
+If a float type isn't specified, CollisionBoundary will be of type Float64 and
+the correct constructor will be called with all other arguments.
+"""
+CollisionBoundary(::Type{D}, args...) where {D <: AbstractDirection} =
+    CollisionBoundary{D, Float64}(args...)
+
+
+"""
+    CollisionBoundary{D, FT}(grid)
+
+Creates collision boundary on the edge of the grid, and with the direction as a
+type. Edge is determined by direction.
 Inputs:
-        grid        <AbstractGrid> model grid
-        direction   <AbstractDirection> direction of boundary wall
-                    <Float> datatype simulation is run in - either Float64 of Float32
+    grid        <AbstractGrid> model grid
+    direction   <AbstractDirection> direction of boundary wall
 Outputs:
-        Collision Boundary on edge of grid given by direction. 
+    Collision Boundary on edge of grid given by direction. 
 """
-function CollisionBoundary(grid::AbstractGrid, direction, ::Type{T} = Float64) where T
-    val, coords = boundary_coords(grid, direction)
-    CollisionBoundary(coords, val, direction, T)
+function CollisionBoundary{D, FT}(
+    grid::AbstractGrid,
+) where {D <: AbstractDirection, FT <: AbstractFloat}
+    val, coords = boundary_coords(grid, D)
+    CollisionBoundary{D, FT}(
+        coords,
+        val,
+    )
 end
+
 """
     CompressionBC <: AbstractBC
 
-A sub-type of AbstractBoundary that creates a floe along the boundary that moves towards
-the center of the domain at the given velocity, compressing the ice within the domain. This subtype is
-a mutable struct so that the coordinates and val can be changed as the boundary moves.
-The velocity is in [m/s].
+A sub-type of AbstractBoundary that creates a floe along the boundary that moves
+towards the center of the domain at the given velocity, compressing the ice
+within the domain. This subtype is a mutable struct so that the coordinates and
+val can be changed as the boundary moves. The velocity is in [m/s].
 
 NOTE: Not implemented yet!
 """
@@ -683,35 +755,50 @@ mutable struct CompressionBoundary{D, FT}<:AbstractBoundary{D, FT}
 end
 
 """
-    CompressionBoundary(coords, val, direction::AbstractDirection)
+    CompressionBoundary(::Type{FT}, ::Type{D}, args...)
 
-Creates compression boundary with given coords and val, and with the direction as a type.
-Inputs:
-        coords      <PolyVec{AbstractFloat}> coordinates of boundary
-        val         <AbstractFloat> value defining line that marks edge of domain
-        direction   <AbstractDirection> direction of boundary wall
-                    <Float> datatype simulation is run in - either Float64 of Float32
-Output:
-        Compression Boundary of type given by direction and defined by given coordinates and edge value
+A float type FT can be provided as the first argument of any CompressionBoundary
+constructor. The second argument D is the directional type of the boundary.
+A CompressionBoundary of type FT and D will be created by passing all other
+arguments to the correct constructor. 
 """
-CompressionBoundary(coords, val, velocity, direction::AbstractDirection, ::Type{T} = Float64) where T =
-    CompressionBoundary{typeof(direction), T}(convert(PolyVec{T}, coords), convert(T, val), convert(T, velocity))
+CompressionBoundary(::Type{FT}, ::Type{D}, args...) where {
+    FT <: AbstractFloat,
+    D <: AbstractDirection,
+} = CompressionBoundary{D, FT}(args...)
 
 """
-    CompressionBoundary(grid::AbstractGrid, direction)
+    CompressionBoundary(::Type{D}, args...)
 
-Creates compression boundary on the edge of the grid, and with the direction as a type.
+If a float type isn't specified, CompressionBoundary will be of type Float64 and
+the correct constructor will be called with all other arguments.
+"""
+CompressionBoundary(::Type{D}, args...) where {D <: AbstractDirection} =
+    CompressionBoundary{D, Float64}(args...)
+
+
+"""
+    CompressionBoundary{D, FT}(grid, velocity)
+
+Creates compression boundary on the edge of the grid, and with the direction as
+a type.
 Edge is determined by direction.
 Inputs:
         grid        <AbstractGrid> model grid
         direction   <AbstractDirection> direction of boundary wall
-        <Float> datatype simulation is run in - either Float64 of Float32
 Outputs:
-        Open Boundary on edge of grid given by direction. 
+    CompressionBoundary on edge of grid given by direction. 
 """
-function CompressionBoundary(grid::AbstractGrid, direction, velocity, ::Type{T} = Float64) where T
-    val, coords = boundary_coords(grid, direction)
-    CompressionBoundary(coords, val, velocity, direction, T)
+function CompressionBoundary{D, FT}(
+    grid::AbstractGrid,
+    velocity,
+) where {D <: AbstractDirection, FT <: AbstractFloat}
+    val, coords = boundary_coords(grid, D)
+    CompressionBoundary{D, FT}(
+        coords,
+        val,
+        velocity,
+    )
 end
 
 """
@@ -719,7 +806,11 @@ end
 
 Union of all non-peridic boundary types to use as shorthand for dispatch.
 """
-const NonPeriodicBoundary = Union{OpenBoundary, CollisionBoundary, CompressionBoundary}
+const NonPeriodicBoundary = Union{
+    OpenBoundary,
+    CollisionBoundary,
+    CompressionBoundary,
+}
 
 """
     TopographyE{FT}<:AbstractDomainElement{FT}
@@ -727,41 +818,58 @@ const NonPeriodicBoundary = Union{OpenBoundary, CollisionBoundary, CompressionBo
 Singular topographic element with coordinates field storing where the element is
 within the grid. These are used to create the desired topography within the
 simulation and will be treated as islands or coastline within the model
-in that they will not move or break due to floe interactions, but they will affect floes.
+in that they will not move or break due to floe interactions, but they will
+affect floes.
 """
 struct TopographyElement{FT}<:AbstractDomainElement{FT}
     coords::PolyVec{FT}
     centroid::Vector{FT}
     rmax::FT
 
-    function TopographyElement{FT}(coords::PolyVec{FT}, centroid::Vector{FT}, rmax::FT) where {FT <: AbstractFloat}
+    function TopographyElement{FT}(
+        coords,
+        centroid,
+        rmax,
+    ) where {FT <: AbstractFloat}
         if rmax <= 0
-            throw(ArgumentError("Topography element maximum radius must be positive and non-zero."))
+            throw(ArgumentError("Topography element maximum radius must be \
+                positive and non-zero."))
         end
         new{FT}(valid_polyvec!(rmholes(coords)), centroid, rmax)
     end
-
-    TopographyElement(coords::PolyVec{FT}, centroid::Vector{FT}, rmax::FT) where {FT <: AbstractFloat} =
-        TopographyElement{FT}(coords, centroid, rmax)
 end
 
 """
-    Topography(poly::LG.Polygon, t::Type{T} = Float64)
+    TopographyElement(::Type{FT}, args...)
+
+A float type FT can be provided as the first argument of any TopographyElement
+constructor. A TopographyElement of type FT will be created by passing all other
+arguments to the correct constructor. 
+"""
+TopographyElement(::Type{FT}, args...) where {FT <: AbstractFloat} =
+    TopographyElement{FT}(args...)
+
+"""
+    TopographyElement(args...)
+
+If a type isn't specified, TopographyElement will be of type Float64 and the
+correct constructor will be called with all other arguments.
+"""
+TopographyElement(args...) = TopographyElement{Float64}(args...)
+
+"""
+    TopographyElement{FT}(poly)
 
 Constructor for topographic element with LibGEOS Polygon
-    Inputs:
-            poly    <LibGEOS.Polygon> 
-            _       <Type> datatype used to run model (Float32 or Float64)
-    Output:
-            Topographic element coordinates of type PolyVec{T} with any holes removed
-    Note:
-            Types are specified at Float64 below as type annotations given that when written LibGEOS could exclusivley use Float64 (as of 09/29/22). When this is fixed, this annotation will need to be updated.
-            We should only run the model with Float64 right now or else we will be converting the Polygon back and forth all of the time. 
+Inputs:
+    poly    <LibGEOS.Polygon>
+Output:
+    Topographic element of abstract float type FT
 """
-function TopographyElement(poly::LG.Polygon, ::Type{T} = Float64) where T
+function TopographyElement{FT}(poly::LG.Polygon) where {FT <: AbstractFloat}
     topo = rmholes(poly)
-    centroid = convert(Vector{T}, find_poly_centroid(topo))
-    coords = convert(PolyVec{T}, find_poly_coords(topo))
+    centroid = find_poly_centroid(topo)
+    coords = find_poly_coords(topo)
     # Move coordinates to be centered at origin to calculate maximum radius
     translate!(
         coords,
@@ -774,28 +882,73 @@ function TopographyElement(poly::LG.Polygon, ::Type{T} = Float64) where T
         centroid[1],
         centroid[2],
     )
-    return TopographyElement(coords, centroid, rmax)
+    return TopographyElement{FT}(
+        coords,
+        centroid,
+        rmax,
+    )
 end
 
 """
-    Topography(coords::PolyVec{T}, ::Type{T} = Float64)
+    TopographyElement{FT}(coords)
 
 Constructor for topographic element with PolyVec coordinates
-    Inputs:
-            poly    <LibGEOS.Polygon> 
-            _       <Type> datatype used to run model (Float32 or Float64)
-    Output:
-            Topographic element coordinates of type PolyVec{T} with any holes removed
+Inputs:
+    coords      <PolyVec>
+Output:
+    Topographic element of abstract float type FT
 """
-function TopographyElement(coords::PolyVec{T}, ::Type{T} = Float64) where {T} 
-    return TopographyElement(LG.Polygon(coords), T)
+function TopographyElement{FT}(
+    coords::PolyVec,
+) where {FT <: AbstractFloat} 
+    return TopographyElement{FT}(
+        LG.Polygon(
+            convert(PolyVec{Float64}, coords),
+        ),
+    )
+end
+
+"""
+    initialize_topography_field(args...)
+
+If a type isn't specified, the list of TopographyElements will each be of type
+Float64 and the correct constructor will be called with all other arguments.
+"""
+initialize_topography_field(args...) =
+    initialize_topography_field(Float64, args...)
+
+"""
+    initialize_topography_field(
+        ::Type{FT},
+        coords,
+    )
+
+Create a field of topography from a list of polygon coordiantes.
+Inputs:
+    Type{FT}        <AbstractFloat> Type for grid's numberical fields -
+                        determines simulation run type
+    coords          <Vector{PolyVec}> list of polygon coords to make into floes
+Outputs:
+    topo_arr <StructArray{TopographyElement}> list of topography elements
+    created from given polygon coordinates
+"""
+function initialize_topography_field(
+    ::Type{FT},
+    coords,
+) where {FT <: AbstractFloat}
+    topo_arr = StructArray{TopographyElement{FT}}(undef, length(coords))
+    for i in eachindex(coords)
+        c = Subzero.rmholes(coords[i])
+        topo_arr[i] = TopographyElement{FT}(c)
+    end
+    return topo_arr
 end
 
 """
     periodic_compat(b1, b2)
 
-Checks if two boundaries are compatible as a periodic pair. This is true if they are both periodic,
-or if neither are periodic. Otherwise, it is false. 
+Checks if two boundaries are compatible as a periodic pair. This is true if they
+are both periodic, or if neither are periodic. Otherwise, it is false. 
 """
 function periodic_compat(::PeriodicBoundary, ::PeriodicBoundary)
     return true
@@ -814,57 +967,117 @@ function periodic_compat(_, _)
 end
 
 """
-Domain that holds 4 Boundary elements, forming a rectangle bounding the model during the simulation. 
+Domain that holds 4 Boundary elements, forming a rectangle bounding the model
+during the simulation, and a list of topography elements.
 
-In order to create a Domain, three conditions need to be met. First, if needs to be periodically compatible.
-This means that pairs of opposite boundaries both need to be periodic if one of them is periodic.
-Next, the value in the north boundary must be greater than the south boundary and the value in the east boundary
-must be greater than the west in order to form a valid rectangle.
+In order to create a Domain, three conditions need to be met. First, if needs to
+be periodically compatible. This means that pairs of opposite boundaries both
+need to be periodic if one of them is periodic. Next, the value in the north
+boundary must be greater than the south boundary and the value in the east
+boundary must be greater than the west in order to form a valid rectangle.
 
 Note: The code depends on the boundaries forming a rectangle oriented along the
 cartesian grid. Other shapes/orientations are not supported at this time. 
 """
-struct Domain{FT<:AbstractFloat, NB<:AbstractBoundary{North, FT}, SB<:AbstractBoundary{South, FT},
-EB<:AbstractBoundary{East, FT}, WB<:AbstractBoundary{West, FT}}
+struct Domain{
+    FT<:AbstractFloat,
+    NB<:AbstractBoundary{North, FT},
+    SB<:AbstractBoundary{South, FT},
+    EB<:AbstractBoundary{East, FT},
+    WB<:AbstractBoundary{West, FT},
+}
     north::NB
     south::SB
     east::EB
     west::WB
     topography::StructArray{TopographyElement{FT}}
 
-    function Domain{FT, NB, SB, EB, WB}(north::NB, south::SB, east::EB, west::WB, topography::StructArray{TopographyElement{FT}}) where {FT<:AbstractFloat,
-    NB<:AbstractBoundary{North, FT}, SB<:AbstractBoundary{South, FT}, EB<:AbstractBoundary{East, FT}, WB<:AbstractBoundary{West, FT}}
+    function Domain{FT, NB, SB, EB, WB}(
+        north::NB,
+        south::SB,
+        east::EB,
+        west::WB,
+        topography::StructArray{TopographyElement{FT}},
+    ) where {
+        FT<:AbstractFloat,
+        NB<:AbstractBoundary{North, FT},
+        SB<:AbstractBoundary{South, FT},
+        EB<:AbstractBoundary{East, FT},
+        WB<:AbstractBoundary{West, FT},
+    }
         if !periodic_compat(north, south)
-            throw(ArgumentError("North and south boundary walls are not periodically compatable as only one of them is periodic."))
+            throw(ArgumentError("North and south boundary walls are not \
+                periodically compatable as only one of them is periodic."))
         elseif !periodic_compat(east, west)
-            throw(ArgumentError("East and west boundary walls are not periodically compatable as only one of them is periodic."))
+            throw(ArgumentError("East and west boundary walls are not \
+                periodically compatable as only one of them is periodic."))
         elseif north.val < south.val
-            throw(ArgumentError("North boundary value is less than south boundary value."))
+            throw(ArgumentError("North boundary value is less than south \
+                boundary value."))
         elseif east.val < west.val
-            throw(ArgumentError("East boundary value is less than west boundary value."))
+            throw(ArgumentError("East boundary value is less than west \
+                boundary value."))
         end
         new{FT, NB, SB, EB, WB}(north, south, east, west, topography)
     end
 
-    Domain(north::NB, south::SB, east::EB, west::WB, topography::StructArray{TopographyElement{FT}}) where {FT<:AbstractFloat, NB<:AbstractBoundary{North, FT},
-    SB<:AbstractBoundary{South, FT}, EB<:AbstractBoundary{East, FT}, WB<:AbstractBoundary{West, FT}} =
+    Domain(
+        north::NB,
+        south::SB,
+        east::EB,
+        west::WB,
+        topography::StructArray{TopographyElement{FT}},
+    ) where {
+        FT<:AbstractFloat,
+        NB<:AbstractBoundary{North, FT},
+        SB<:AbstractBoundary{South, FT},
+        EB<:AbstractBoundary{East, FT},
+        WB<:AbstractBoundary{West, FT},
+    } =
         Domain{FT, NB, SB, EB, WB}(north, south, east, west, topography)
 end
 
-Domain(north, south, east, west, ::Type{T} = Float64) where T =
-    Domain(north, south, east, west, StructArray{TopographyElement{T}}(undef, 0))
-
-
 """
-    domain_in_grid(domain::Domain, grid::AbstractGrid)
+    Domain(north, south, east, west)
 
-Checks if given rectangular domain is within given grid and gives user a warning if domain is not of maximum possible size given grid dimensions.
-
+Creates domain with empty list of topography and given boundaries.
 Inputs:
-        domain      <RectangularDomain>
-        grid        <AbstractGrid>
+    north   <AbstractBoundary> north boundary
+    south   <AbstractBoundary> south boundary
+    east    <AbstractBoundary> east boundary
+    west    <AbstractBoundary> west boundary
+"""
+Domain(
+    north::NB,
+    south::SB,
+    east::EB,
+    west::WB,
+) where {
+    FT<:AbstractFloat,
+    NB<:AbstractBoundary{North, FT},
+    SB<:AbstractBoundary{South, FT},
+    EB<:AbstractBoundary{East, FT},
+    WB<:AbstractBoundary{West, FT},
+} =
+    Domain{FT, NB, SB, EB, WB}(
+        north,
+        south,
+        east,
+        west,
+        StructArray{TopographyElement{FT}}(undef, 0),
+    )
+
+### --------------- Model Fields, Structs, and Constructors --------------- ### 
+"""
+    domain_in_grid(domain, grid)
+
+Checks if given rectangular domain is within given grid and gives user a warning
+if domain is not of maximum possible size given grid dimensions.
+Inputs:
+    domain      <RectangularDomain>
+    grid        <AbstractGrid>
 Outputs:
-        <Boolean> true if domain is within grid bounds, else false
+    <Boolean> true if domain is within grid bounds, else false
 """
 function domain_in_grid(domain::Domain, grid::AbstractGrid)
     northval = domain.north.val
@@ -879,7 +1092,9 @@ function domain_in_grid(domain::Domain, grid::AbstractGrid)
             southval != grid.yg[1] ||
             eastval != grid.xg[end] ||
             westval != grid.xg[1])
-            @warn "At least one wall of domain is smaller than grid. This could lead to unneeded computation. Consider making grid smaller or domain larger."
+            @warn "At least one wall of domain is smaller than grid. This \
+                could lead to unneeded computation. Consider making grid \
+                smaller or domain larger."
         end 
         return true
     end
@@ -887,38 +1102,82 @@ function domain_in_grid(domain::Domain, grid::AbstractGrid)
 end
 
 """
-Model which holds grid, ocean, atmos structs, each with the same underlying float type (either Float32 of Float64) and size.
-It also holds the domain information, which includes the topography and the boundaries.
-It holds an StructArray of floe structs, again each relying on the same
-underlying float type.
-Finally, it also holds the maximum floe id used thus far in the simulation. This
-should be the length of the floes array at the beginning of the run. 
+Model which holds grid, ocean, atmos structs, each with the same underlying
+float type (either Float32 of Float64) and size. It also holds the domain
+information, which includes the topography and the boundaries. It holds a 
+StructArray of floe structs, again each relying on the same underlying float
+type. Finally, it also holds the maximum floe id used thus far in the
+simulation. This should be the length of the floes array at the beginning of the
+run. 
 """
-mutable struct Model{FT<:AbstractFloat, GT<:AbstractGrid{FT}, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}}
+struct Model{
+    FT<:AbstractFloat,
+    GT<:AbstractGrid{FT},
+    DT<:Domain{
+        FT,
+        <:AbstractBoundary,
+        <:AbstractBoundary,
+        <:AbstractBoundary,
+        <:AbstractBoundary,
+    },
+}
     grid::GT
     ocean::Ocean{FT}
     atmos::Atmos{FT}
     domain::DT
     floes::StructArray{Floe{FT}}  # See floes.jl for floe creation
-    max_floe_id::Int              # Maximum id used by any floe
 
-    function Model{FT, GT, DT}(grid::GT, ocean::Ocean{FT}, atmos::Atmos{FT}, domain::DT, floes::StructArray{Floe{FT}}, max_floe_id) where {FT<:AbstractFloat,
-    GT<:AbstractGrid{FT}, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}}
+    function Model{FT, GT, DT}(
+        grid::GT,
+        ocean::Ocean{FT},
+        atmos::Atmos{FT},
+        domain::DT,
+        floes::StructArray{Floe{FT}},
+    ) where {
+        FT<:AbstractFloat,
+        GT<:AbstractGrid{FT},
+        DT<:Domain{
+            FT,
+            <:AbstractBoundary,
+            <:AbstractBoundary,
+            <:AbstractBoundary,
+            <:AbstractBoundary,
+        },
+    }
         if !domain_in_grid(domain, grid)
             throw(ArgumentError("Domain does not fit within grid."))
-        elseif size(ocean.u) != size(atmos.u) || size(ocean.v) != size(atmos.v) || size(ocean.temp) != size(atmos.temp)
-            throw(ArgumentError("Ocean and atmosphere are not on the same grid. This is not supported yet."))
+        elseif (
+            size(ocean.u) != size(atmos.u) ||
+            size(ocean.v) != size(atmos.v) ||
+            size(ocean.temp) != size(atmos.temp)
+        )
+            throw(ArgumentError("Ocean and atmosphere are not on the same grid.\
+                This is not supported yet."))
         end
         if any(ocean.temp .< atmos.temp)
-            @warn "In at least one grid cell the atmosphere temperature is warmer than the ocean. This is not a situation in which the thermodynamics are setup for right now."
+            @warn "In at least one grid cell the atmosphere temperature is \
+            warmer than the ocean. This is not a situation in which the \
+            thermodynamics are setup for right now."
         end
-        new{FT, GT, DT}(grid, ocean, atmos, domain, floes, max_floe_id)
+        new{FT, GT, DT}(grid, ocean, atmos, domain, floes)
     end
 
-    Model(grid::GT, ocean::Ocean{FT}, atmos::Atmos{FT}, domain::DT, floes::StructArray{Floe{FT}}, max_floe_id) where {FT<:AbstractFloat,
-    GT<:AbstractGrid{FT}, DT<:Domain{FT, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary, <:AbstractBoundary}} = 
-        Model{FT, GT, DT}(grid, ocean, atmos, domain, floes, max_floe_id)
+    Model(
+        grid::GT,
+        ocean::Ocean{FT},
+        atmos::Atmos{FT},
+        domain::DT,
+        floes::StructArray{Floe{FT}},
+    ) where {
+        FT<:AbstractFloat,
+        GT<:AbstractGrid{FT},
+        DT<:Domain{
+            FT,
+            <:AbstractBoundary,
+            <:AbstractBoundary,
+            <:AbstractBoundary,
+            <:AbstractBoundary,
+        },
+    } = 
+        Model{FT, GT, DT}(grid, ocean, atmos, domain, floes)
 end
-
-Model(grid, ocean, atmos, domain, floes) = 
-    Model(grid, ocean, atmos, domain, floes, length(floes))

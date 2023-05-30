@@ -1,5 +1,15 @@
-using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero, BenchmarkTools, MAT, ProfileView, Profile, PProf
+using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero, BenchmarkTools, MAT
 import LibGEOS as LG
+
+Lx = 1e5
+Ly = 1e5
+Δgrid = 10000
+grid = RegRectilinearGrid(
+    (-2.5e4, Lx),
+    (-2.5e4, Ly),
+    Δgrid,
+    Δgrid,
+)
 
 # User Inputs
 const FT = Float64
@@ -11,17 +21,16 @@ const Δh = 0.0
 const Δt = 10
 
 grid = RegRectilinearGrid(
-    Float64,
     (-2.5e4, 1e5),
     (-2.5e4, 1e5),
     1e4,
     1e4,
 )
 open_domain_no_topo = Subzero.Domain(
-    OpenBoundary(grid, North()),
-    OpenBoundary(grid, South()),
-    OpenBoundary(grid, East()),
-    OpenBoundary(grid, West()),
+    OpenBoundary(North, grid),
+    OpenBoundary(South, grid),
+    OpenBoundary(East, grid),
+    OpenBoundary(West, grid),
 )
 coords1 = [[  # large floe
     [0.0, 0.0],
@@ -53,6 +62,7 @@ coords4 = [[  # small floe
 ]]
 
 floe_arr = initialize_floe_field(
+    FT,
     [coords1, coords2, coords3, coords4],
     open_domain_no_topo,
     0.5,
@@ -77,34 +87,29 @@ max_floe_id = Subzero.fuse_floes!(
     Constants(),
     Xoshiro(1),
 )
-
-
-
-
-
 # Model instantiation
 grid = RegRectilinearGrid(
-    FT,
     (-Lx, Lx),
     (-Ly, Ly),
     Δgrid,
     Δgrid,
 )
-zonal_ocn = Ocean(FT, grid, 0.5, 0.0, 0.0)
+zonal_ocn = Ocean(grid, 0.5, 0.0, 0.0)
 
 zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
 
 
 domain = Subzero.Domain(
-    CollisionBoundary(grid, North()),
-    CollisionBoundary(grid, South()),
-    CollisionBoundary(grid, East()),
-    CollisionBoundary(grid, West()),
+    CollisionBoundary(North, grid),
+    CollisionBoundary(South, grid),
+    CollisionBoundary(East, grid),
+    CollisionBoundary(West, grid),
 )
 
 # Floe instantiation
 f = jldopen("examples/floe_shapes.jld2", "r") 
 funky_floe_arr = initialize_floe_field(
+    FT,
     vec(f["floe_vertices"]),
     domain,
     0.25,
@@ -122,6 +127,7 @@ Subzero.simplify_floes!(
     Xoshiro(5),
 )
 # funky_floe_arr = initialize_floe_field(
+#     FT,
 #     100,
 #     [0.5],
 #     domain,
@@ -141,15 +147,15 @@ model = Model(
 )
 dir = "output/sim"
 writers = OutputWriters(
-    initialwriters = StructArray([InitialStateOutputWriter(
+    InitialStateOutputWriter(
         dir = dir,
         overwrite = true
-    )]),
-    floewriters = StructArray([FloeOutputWriter(
+    ),
+    FloeOutputWriter(
         250,
         dir = dir,
         overwrite = true,
-    )]),
+    ),
 )
 simulation = Simulation(
     name = "sim",

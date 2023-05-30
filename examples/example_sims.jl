@@ -1,5 +1,5 @@
 """Floes for comparing collision simulations to MATLAB - see matching floes in example_sims.m"""
-
+FT = Float64
 # (1) Two floes hitting straight on at close range - Gain ~ 1% energy --> matches sim (1) in matlab file
 floe1_poly = LG.Polygon([[[1.25e4, 8e4], [1.25e4, 6e4], [1.75e4, 6e4], 
                     [1.75e4, 8e4], [1.25e4, 8e4]]])

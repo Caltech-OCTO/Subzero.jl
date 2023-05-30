@@ -403,20 +403,19 @@ calc_moment_inertia(poly::LG.Polygon, h; ρi = 920.0) =
     )
 
 """
-    polyedge(p1, p2, t::Type{T} = Float64)
+    polyedge(p1, p2)
 
 Outputs the coefficients of the line passing through p1 and p2.
 The line is of the form w1x + w2y + w3 = 0. 
 Inputs:
     p1 <Vector{Float}> [x, y] point
     p2 <Vector{Float}> [x, y] point
-    t  <AbstractFloat> datatype to run model with - must be a Float!
 Outputs:
     Three-element vector for coefficents of line passing through p1 and p2
 Note:
     See note on calc_poly_angles for credit for this function.
 """
-function polyedge(p1, p2, t::Type{T} = Float64) where T 
+function polyedge(p1::Vector{<:FT}, p2) where FT 
     x1 = p1[1]
     y1 = p1[2]
     x2 = p2[1]
@@ -428,7 +427,7 @@ function polyedge(p1, p2, t::Type{T} = Float64) where T
         elseif x1 == y1 && x2 == y2
             [1, 1, 0]
         else
-            v = (y1 - y2)/(x1*(y2 - y1) - y1*(x2 - x1) + eps(T))
+            v = (y1 - y2)/(x1*(y2 - y1) - y1*(x2 - x1) + eps(FT))
             [v, -v*(x2 - x1)/(y2 - y1), 1]
         end
     return w
@@ -760,21 +759,24 @@ function intersect_lines(l1, l2)
 end
 
 """
-    cut_polygon_coords(poly_coords::PolyVec, yp, ::Type{T} = Float64)
+    cut_polygon_coords(poly_coords::PolyVec, yp, ::Type{FT})
 
 Cut polygon through the line y = yp and return the polygon(s) coordinates below
 the line
 Inputs:
+    ::Type{FT}  <Type{AbstractFloat}> simulation run type
     poly_coords <PolyVec>   polygon coordinates
-    yp          <Float>     value of line to split polygon through using line y = yp
-                <Type>      Type of abstract float to run simulation with
+    yp          <Float>     value of line to split polygon through using line
+                                y = yp
 Outputs:
-    new_polygons <Vector{PolyVec}> List of coordinates of polygons below line y = yp. 
-Note: Code translated from MATLAB to Julia. Credit for initial code to Dominik
+    new_polygons <Vector{PolyVec}> List of coordinates of polygons below line
+                    y = yp. 
+Note:
+    Code translated from MATLAB to Julia. Credit for initial code to Dominik
     Brands (2010) and Jasper Menger (2009). Only needed pieces of function are
     translated (horizonal cut).
 """
-function cut_polygon_coords(poly_coords::PolyVec, yp, ::Type{T} = Float64) where T
+function cut_polygon_coords(poly_coords::PolyVec, yp, ::Type{FT}) where FT
     # Loop through each edge
     coord1 = poly_coords[1][1:end-1]
     coord2 = poly_coords[1][2:end]
@@ -804,7 +806,7 @@ function cut_polygon_coords(poly_coords::PolyVec, yp, ::Type{T} = Float64) where
         end
     end
 
-    new_polygons = Vector{PolyVec{T}}()
+    new_polygons = Vector{PolyVec{FT}}()
     # Multiple NaN's indicate new polygon if they seperate coordinates
     nanidx_all = findall(c -> isnan(sum(c)), new_poly_coords)
     # If no NaNs, just add coordiantes to list
@@ -843,7 +845,7 @@ function cut_polygon_coords(poly_coords::PolyVec, yp, ::Type{T} = Float64) where
 end
 
 """
-    split_polygon_hole(poly::LG.Polygon, ::Type{T} = Float64)
+    split_polygon_hole(poly::LG.Polygon, ::Type{FT} = Float64)
 
 Splits polygon horizontally through first hole and return lists of polygons
 created by split.
@@ -856,7 +858,7 @@ Outputs:
     above line. Note that if there is no hole, a list of the original polygon
     and an empty list will be returned
 """
-function split_polygon_hole(poly::LG.Polygon, ::Type{T} = Float64) where T
+function split_polygon_hole(poly::LG.Polygon, ::Type{FT}) where FT
     bottom_list = Vector{LG.Polygon}()
     top_list = Vector{LG.Polygon}()
     if hashole(poly)  # Polygon has a hole
@@ -865,7 +867,7 @@ function split_polygon_hole(poly::LG.Polygon, ::Type{T} = Float64) where T
         h1 = LG.Polygon([poly_coords[2]])  # First hole
         h1_center = find_poly_centroid(h1)
         poly_bottom = LG.MultiPolygon(
-            cut_polygon_coords(full_coords, h1_center[2], T)
+            cut_polygon_coords(full_coords, h1_center[2], FT)
         )
          # Adds in any other holes in poly
         poly_bottom =  LG.intersection(poly_bottom, poly)
