@@ -22,13 +22,14 @@ You have a lot of flexibility in designing a simulation within Subzero. First, y
 ## Building a Model
 ### Model Calculations Type: 
 
-Simulations are designed to run with either Float64 or Float32 calculations. However, as of now, only Float64 is tested and supported. When you are creating a model and a simulation, you need to create all elements in the same type that you are trying to run the model in. At the beginning of each example file, you will see the line: 
+Simulations are designed to run with either Float64 or Float32 calculations. However, as of now, only Float64 is tested and supported. When you are creating a model and a simulation, you need to create all elements in the same type that you are trying to run the model in. To acomplish this, there is an optional first argument specifying either Float64 or Float32 for all functions that create model/simulation objects. However, Float64 is the default and the type argument can be dropped and all elements will be made with Float64.
+
+To explcitly set this optional argumentAt the beginning of each example file, you will see the line: 
 
 ```julia 
 const FT = Float64 
 ``` 
-
-And then FT is used as an argument in the creation of the model and simulation elements. If all elements of the model and simulation are Float64, the simulation will run all calculations with Float64. Eventually, if all elements are created with Float32, the simulation will run all calculations with Float32. 
+It is then used in each of the constructors, as can be seen below. Note again that this argument can be dropped and it will default to Float64.
 
 ### Grid: 
 The first thing that you need to create in your grid. For now, the ocean and atmosphere must be on the same grid and the only grid is a RegularRectilinearGrid, where every grid cell is a rectangle of the same size. You can create a regular rectilinear grid one of two ways. Both methods require specifying the minimum and maximum x and y points in meters. 
@@ -104,10 +105,10 @@ With an open wall, if a floe overlaps with the boundary wall at all, the floe is
 Here is an example of creating a set of boundary walls using the grid from above: 
 
 ```julia 
-nboundary = PeriodicBoundary(grid, North()) 
-sboundary = PeriodicBoundary(grid, South()) 
-eboundary = CollisionBoundary(grid, East()) 
-wboundary = OpenBoundary(grid, West()) 
+nboundary = PeriodicBoundary(North, grid) 
+sboundary = PeriodicBoundary(South, grid) 
+eboundary = CollisionBoundary(East, grid) 
+wboundary = OpenBoundary(West, grid) 
 ``` 
 
 Once we have defined our walls, we can create a domain as follows: 
@@ -116,17 +117,18 @@ Once we have defined our walls, we can create a domain as follows:
 domain = Domain(nboundary, sboundary, eboundary, wboundary) 
 ``` 
 
-However, if we want topography, we can also add it to the domain. To do that, we would create one, or more, TopographyElements. Let us consider a simple one, a square island: 
+However, if we want topography, we can also add it to the domain. To do that, we would create one, or more, TopographyElements. Let us consider two simple square islands: 
 
 ```julia 
-island = [[[6e4, 4e4], [6e4, 4.5e4], [6.5e4, 4.5e4], [6.5e4, 4e4], [6e4, 4e4]]] 
-topo_arr = StructVector([island]) 
+island1 = [[[6e4, 4e4], [6e4, 4.5e4], [6.5e4, 4.5e4], [6.5e4, 4e4], [6e4, 4e4]]]
+island2 = [[[8e4, 4e4], [8e4, 4.5e4], [8.5e4, 4.5e4], [8.5e4, 4e4], [8e4, 4e4]]] 
+topo_arr = initialize_topography_field(FT, [island1, island2]) 
 ``` 
 
 We can then add an additional argument to the domain when it is created:  
 
 ```julia 
-domain = Domain(nboundary, sboundary, eboundary, topo_arr) 
+domain = Domain(nboundary, sboundary, eboundary, wboundary, topo_arr) 
 ``` 
 
 These are the two ways to define a domain in Subzero.  
@@ -231,6 +233,7 @@ Here is an example of using the PolyVec coordinates constructor, assume we have 
 hmean = 0.25
 Δh = 0.1
 floe = Floe(
+    FT,
     coords,
     hmean,  # Floe height will be between 0.15 - 0.35
     Δh,  # Δh is the maximum difference between hmean and actual floe height
@@ -267,6 +270,7 @@ Here is an example of creating a small floe field using the version of `initiali
 floe1 = [[[6e4, 2e4], [6e4, 5e4], [9e4, 5e4], [9e4, 2e4], [6e4, 2e4]]]
 floe2 = [[[5.5e4, 2e4], [5.25e4, 4e4], [5.75e4, 4e4], [5.5e4, 2e4]]]
 floe_field = initialize_floe_field(
+  FT,
   [floe1, floe2],
   domain,
   0.25,  # mean height of 0.25
@@ -279,6 +283,7 @@ floe_field = initialize_floe_field(
 Now here is an an example of creating a large floe field using the version of `initialize_floe_field` that uses Voronoi tesselation. Again assume we have already created a `domain`.
 ```julia
 floe_arr = initialize_floe_field(
+    FT,
     100,  # attempt to initialize 100 floes
     [1.0; 0.0],  # the top half of the domain is fully packed and the bottom has no floes
     domain,
@@ -359,6 +364,7 @@ Note that you only need to provide values to the fields that you wish to change 
 Here is an example of creating your own collision settings, using the default values:
 ```julia
 collision_settings = CollisionSettings(
+  FT,
   collisions_on = true,
   floe_floe_max_overlap = 0.55,
   floe_domain_max_overlap = 0.75,
@@ -391,7 +397,7 @@ If you do want to turn fractures on, you will need to create a criteria that is 
 ```julia
 pstar = 2.25e5
 c = 20.0
-criteria = HiblerYieldCurve(floe_arr, pstar, c)
+criteria = HiblerYieldCurve(FT, floe_arr, pstar, c)
 ```
 #### Simplification Settings
 `SimplificationSettings` changes Subzero's floe simplification. The availible settings are:
@@ -405,6 +411,7 @@ criteria = HiblerYieldCurve(floe_arr, pstar, c)
 Here is an example of creating your own simplification settings, using the default values:
 ```julia
 simp_settings = SimplificationSettings(
+    FT,
     min_floe_area = 1e6,
     smooth_vertices_on = true,
     max_vertices = 30,
@@ -486,6 +493,7 @@ The grid output writer allows you to floe values averaged onto a course grid to 
 You can create an `GridOutputWriter` directly as a struct or with the following function call:
 ```julia
 gridwriter = GridOutputWriter(
+    FT,
     outputs,
     Δtout,
     grid,
@@ -507,16 +515,14 @@ The `OutputWriters` struct has four fields: `initialwriters`, `floewriters`, `gr
 ```julia
 using StructArrays, Subzero
 
-outputwriters1 = OutputWriters(
-    initialwriters = StructArray([initwriter1]),
-    floewriters = StructArray([floewriter1]),
-)
+outputwriters1 = OutputWriters(initwriter1, floewriter1)
 
 outputwriters2 = OutputWriters(
-    initialwriters = StructArray([initwriter1]),
-    checkpointwriters = StructArray([checkpointer1]),
-    floewriters = StructArray([floewriter1, floewriter2]),
-    gridwriters = StructArray([gridwriter1]),
+   initwriter1,
+   checkpointer1,
+   floewriter1,
+   floewriter2,
+   gridwriter1,
 )
 ```
 Here you can see that you can choose which values to supply and that you can supply more than one of each type if desired. You might want to do this is you want different outputs at different timeframes. 
