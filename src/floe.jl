@@ -815,14 +815,6 @@ function initialize_floe_field(
     return floe_arr
 end
 
-"""
-    initialize_floe_field(args...)
 
-If a float type isn't specified, the floes within the floe field will be
-Float64. Use initialize_floe_field(Float32, args...) above for a floe field with
-Float32 floes.
-"""
-initialize_floe_field(args...; kwargs...) =
-    initialize_floe_field(Float64, args...; kwargs...)
 
 

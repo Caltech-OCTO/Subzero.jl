@@ -1,8 +1,15 @@
 using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero, BenchmarkTools, MAT
 import LibGEOS as LG
 
-
-CollisionSettings(Float32)
+Lx = 1e5
+Ly = 1e5
+Δgrid = 10000
+grid = RegRectilinearGrid(
+    (-2.5e4, Lx),
+    (-2.5e4, Ly),
+    Δgrid,
+    Δgrid,
+)
 
 # User Inputs
 const FT = Float64
