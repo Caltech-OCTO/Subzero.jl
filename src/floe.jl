@@ -149,6 +149,24 @@ Singular sea ice floe with fields describing current state.
 end
 
 """
+    Floe(::Type{FT}, args...; kwargs...)
+
+A float type FT can be provided as the first argument of any Floe constructor. A
+Floe of type FT will be created by passing all other arguments to the correct
+constructor. 
+"""
+Floe(::Type{FT}, args...; kwargs...) where {FT <: AbstractFloat} =
+    Floe{FT}(args...; kwargs...)
+
+"""
+    Floe(args...)
+
+If a type isn't specified, Floe will be of type Float64 and the correct
+constructor will be called with all other arguments.
+"""
+Floe(args...; kwargs...) = Floe{Float64}(args...; kwargs...)
+
+"""
 Enum to index into floe interactions field with more intuituve names
 """
 @enum InteractionFields begin
@@ -171,6 +189,7 @@ Base.:(:)(a::InteractionFields, b::InteractionFields) = Int(a):Int(b)
 
 """
     generate_mc_points(
+        ::Type{FT},
         npoints,
         xfloe,
         yfloe,
@@ -183,6 +202,7 @@ Base.:(:)(a::InteractionFields, b::InteractionFields) = Int(a):Int(b)
 Generate monte carlo points, determine which are within the given floe, and the
 error associated with the points
 Inputs:
+    Type{FT}<AbstractFloat> simulation run type
     npoints <Int> number of points to generate
     coords  <PolyVec{AbstractFloat}> PolyVec of floe coords centered on origin
     yfloe   <Vector{Float}> vector of floe y-coordinates centered on the origin
@@ -200,10 +220,11 @@ Note:
     less points. 
 """
 function generate_mc_points(
+    ::Type{FT},
     npoints::Int,
-    coords::PolyVec{FT},
-    rmax::FT,
-    area::FT,
+    coords,
+    rmax,
+    area,
     status,
     rng,
 ) where {FT<:AbstractFloat}
@@ -281,6 +302,7 @@ function Floe{FT}(
     status = Status()
     # Generate Monte Carlo Points
     mc_x, mc_y, status = generate_mc_points(
+        FT,
         mc_n,
         coords,
         rmax,
@@ -364,15 +386,6 @@ Floe{FT}(
         kwargs...,
     ) 
 
-
-"""
-    Floe(args...; kwargs...)
-
-If a float type isn't specified, Floe will be Float64. Use 
-Floe{Float32}(args...; kwargs...) for Floe with type Float32.
-"""
-Floe(args...; kwargs...) = Floe{Float64}(args...; kwargs...)
-
 """
     poly_to_floes(
         ::Type{FT},
@@ -434,6 +447,7 @@ function poly_to_floes(
         if a >= min_floe_area && a > 0
             if !hashole(r)
                 floe = Floe(
+                    FT,
                     r::LG.Polygon,
                     hmean,
                     Δh,
@@ -455,6 +469,15 @@ function poly_to_floes(
     end
     return floes
 end
+
+"""
+    initialize_floe_field(args...)
+
+If a type isn't specified, the list of Floes will each be of type Float64 and
+the correct constructor will be called with all other arguments.
+"""
+initialize_floe_field(args...; kwargs...) =
+    initialize_floe_field(Float64, args...; kwargs...)
 
 """
     initialize_floe_field(

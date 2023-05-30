@@ -15,6 +15,7 @@
     rmax = sqrt(maximum([sum(xo[i]^2 + yo[i]^2) for i in eachindex(xo)]))
     area = LG.area(poly1)
     mc_x, mc_y, status = Subzero.generate_mc_points(
+        Float64,
         1000,
         origin_coords,
         rmax,
@@ -30,6 +31,7 @@
     @test status.tag == Subzero.active
     # Test that random number generator is working
     mc_x2, mc_y2, status2 = Subzero.generate_mc_points(
+        Float64,
         1000,
         origin_coords,
         rmax,
@@ -40,6 +42,18 @@
     @test all(mc_x .== mc_x2)
     @test all(mc_y .== mc_y2)
     @test status2.tag == Subzero.active
+
+    mc_x3, mc_y3, status3 = Subzero.generate_mc_points(
+        Float32,
+        1000,
+        origin_coords,
+        rmax,
+        area,
+        Subzero.Status(),
+        Xoshiro(1)
+    )
+    @test status3.tag == Subzero.active
+    @test eltype(mc_x3) == eltype(mc_y3) == Float32
 
     # Test InteractionFields enum
     interactions = range(1, 7)'
@@ -145,10 +159,10 @@
         1e4,
         1e4,
     )
-    nbound = CollisionBoundary{North}(grid)
-    sbound = CollisionBoundary{South}(grid)
-    ebound = CollisionBoundary{East}(grid)
-    wbound = CollisionBoundary{West}(grid)
+    nbound = CollisionBoundary(North, grid)
+    sbound = CollisionBoundary(South, grid)
+    ebound = CollisionBoundary(East, grid)
+    wbound = CollisionBoundary(West, grid)
     domain_no_topo = Domain(nbound, sbound, ebound, wbound)
     island = [[[6e4, 4e4], [6e4, 4.5e4], [6.5e4, 4.5e4], [6.5e4, 4e4], [6e4, 4e4]]]
     topo1 = [[[-8e4, -8e4], [-8e4, 8e4], [-6e4, 8e4], [-5e4, 4e4], [-6e4, -8e4], [-8e4, -8e4]]]
@@ -182,10 +196,10 @@
         1e4,
     )
     small_domain_no_topo = Domain(
-        CollisionBoundary{North}(small_grid),
-        CollisionBoundary{South}(small_grid),
-        CollisionBoundary{East}(small_grid),
-        CollisionBoundary{West}(small_grid)
+        CollisionBoundary(North, small_grid),
+        CollisionBoundary(South, small_grid),
+        CollisionBoundary(East, small_grid),
+        CollisionBoundary(West, small_grid),
     )
     floe_arr = (@test_logs (:warn, "Some floe centroids are out of the domain.") initialize_floe_field(
         FT,
@@ -302,4 +316,13 @@
     ) for p in floe_polys] .< 1e-3)
     @test all([LG.isValid(p) for p in floe_polys])
     @test all(floe_arr.id .== range(1, nfloes))
+
+    @test typeof(initialize_floe_field(
+        Float32,
+        25,
+        concentrations,
+        domain_with_topo,
+        0.5,
+        0.1,
+    )) <: StructArray{<:Floe{Float32}}
 end

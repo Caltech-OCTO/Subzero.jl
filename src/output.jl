@@ -229,6 +229,25 @@ struct GridOutputWriter{FT<:AbstractFloat}<:AbstractOutputWriter
 end
 
 """
+    GridOutputWriter(::Type{FT}, args...; kwargs...)
+
+A float type FT can be provided as the first argument of any GridOutputWriter
+constructor. A GridOutputWriter of type FT will be created by passing all
+other arguments to the correct constructor. 
+"""
+GridOutputWriter(::Type{FT}, args...; kwargs...) where {FT <: AbstractFloat} =
+    GridOutputWriter{FT}(args...; kwargs...)
+
+"""
+    GridOutputWriter(args...; kwargs...)
+
+If a type isn't specified, GridOutputWriter will be of type Float64 and the
+correct constructor will be called with all other arguments.
+"""
+GridOutputWriter(args...; kwargs...) =
+    GridOutputWriter{Float64}(args...; kwargs...)
+
+"""
     get_known_grid_outputs()
 
 Returns list of symbols that represent calculations available in
@@ -320,13 +339,13 @@ function GridOutputWriter{FT}(
 
     # Create file path
     filepath = initialize_netcdf_file!(
+        FT,
         dir,
         filename,
         overwrite,
         outputs,
         xg,
         yg,
-        FT,
     )
 
     # Data output container
@@ -392,16 +411,6 @@ GridOutputWriter{FT}(
         overwrite = overwrite,
         average = average,
     )
-
-"""
-    GridOutputWriter(args...; kwargs...)
-
-If a float type isn't specified, GridOutputWriter will be Float64. Use 
-GridOutputWriter{Float32}(args...; kwargs...) for GridOutputWriter with type
-Float32.
-"""
-GridOutputWriter(args...; kwargs...) =
-    GridOutputWriter{Float64}(args...; kwargs...)
 
 """
     OutputWriters{FT<:AbstractFloat}
@@ -639,18 +648,20 @@ end
 
 """
     function initialize_netcdf_file!(
+        ::Type{FT},
         dir,
         filename,
         overwrite,
         outputs,
         xg,
         yg,
-        ::Type{T} = Float64,
-    ) where T
+    )
 
 Initializes a NetCDF file in the given directory with the given filename. Setup
 file to write given outputs.
 Inputs:
+    Type{FT}    <Type{AbstractFloat}> type of float to run simulation
+                    calculations using
     dir         <String> path to directory
     filename    <String> filename to save file to
     overwrite   <Bool> if true, exit file of the same name will be deleted, else
@@ -659,21 +670,19 @@ Inputs:
                     file
     xg          <Vector{AbstractFloat}> list of x grid lines
     yg          <Vector{AbstractFloat}> list of y grid lines
-    t           <Type{AbstractFloat}> type of float to run simulation
-                    calculations using
 Outputs:
     Create NetCDF file dir/filename with each output added as a variable and
     with the dimensions time, x, and y. 
  """
 function initialize_netcdf_file!(
+    ::Type{FT},
     dir,
     filename,
     overwrite,
     outputs,
     xg,
     yg,
-    ::Type{T} = Float64,
-) where T
+) where {FT}
     mkpath(dir)
     filename = auto_extension(filename, ".nc")
     filepath = joinpath(dir, filename)
@@ -693,7 +702,7 @@ function initialize_netcdf_file!(
         defVar(
             dataset,
             "time",
-            T,
+            FT,
             ("time",),
             attrib = Dict("units" => "10 seconds"),
         )
@@ -702,7 +711,7 @@ function initialize_netcdf_file!(
         x = defVar(
             dataset,
             "x",
-            T,
+            FT,
             ("x",),
             attrib = Dict("units" => "meters"),
         )
@@ -712,7 +721,7 @@ function initialize_netcdf_file!(
         y = defVar(
             dataset,
             "y",
-            T,
+            FT,
             ("y",),
             attrib = Dict("units" => "meters"),
         )
@@ -724,7 +733,7 @@ function initialize_netcdf_file!(
             defVar(
                 dataset,
                 string(o),
-                T,
+                FT,
                 ("time", "y", "x"),
                 attrib = Dict("units" => unit, "comments" => comment),
             )

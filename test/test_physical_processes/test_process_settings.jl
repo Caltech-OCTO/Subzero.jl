@@ -65,6 +65,8 @@
             out_of_bounds.floe_floe_max_overlap == 0.0 &&
             out_of_bounds.floe_domain_max_overlap == 1.0
 
+        @test typeof(CollisionSettings(Float32)) <: CollisionSettings{Float32}
+
     end
     @testset "FractureSettings" begin
         # Test default

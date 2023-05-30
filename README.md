@@ -53,10 +53,10 @@ grid = RegRectilinearGrid(0, 1e5, 0, 1e5, 1e4, 1e4)
 ocean = Ocean(grid, 0.25, 0.0, 0.0) 
 atmos = Atmos(grid, 0.0, 0.0, 0.0) 
 domain = Domain( 
-  CollisionBoundary{North}(grid), 
-  CollisionBoundary{South}(grid), 
-  CollisionBoundary{East}(grid),
-  CollisionBoundary{West}(grid),
+  CollisionBoundary(North, grid), 
+  CollisionBoundary(South, grid), 
+  CollisionBoundary(East, grid),
+  CollisionBoundary(West, grid),
 ) 
 floe_arr = initialize_floe_field(FT, 50, [0.7], domain, 0.5, 0.05) 
 model = Model(grid, ocean, atmos, domain, floe_arr) 

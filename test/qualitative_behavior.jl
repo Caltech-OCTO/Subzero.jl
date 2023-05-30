@@ -31,10 +31,10 @@ zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
 zonal_atmos = Atmos(grid, -15.0, 0.0, 0.0)
 
 open_domain_no_topo = Subzero.Domain(
-    OpenBoundary{North}(grid),
-    OpenBoundary{South}(grid),
-    OpenBoundary{East}(grid),
-    OpenBoundary{West}(grid),
+    OpenBoundary(North, grid),
+    OpenBoundary(South, grid),
+    OpenBoundary(East, grid),
+    OpenBoundary(West, grid),
 )
 
 topography = TopographyElement( 
@@ -46,10 +46,10 @@ topography = TopographyElement(
         [2e4, 0.0],
     ]])
 collision_domain_topo = Subzero.Domain(
-    CollisionBoundary{North}(grid),
-    CollisionBoundary{South}(grid),
-    CollisionBoundary{East}(grid),
-    CollisionBoundary{West}(grid),
+    CollisionBoundary(North, grid),
+    CollisionBoundary(South, grid),
+    CollisionBoundary(East, grid),
+    CollisionBoundary(West, grid),
     StructArray([topography]),
 )
 
@@ -218,10 +218,10 @@ Expected Behavior:
     back through the western wall. 
 """
 periodic_bounds_topo = Subzero.Domain(
-    PeriodicBoundary{North}(grid),
-    PeriodicBoundary{South}(grid),
-    PeriodicBoundary{East}(grid),
-    PeriodicBoundary{West}(grid),
+    PeriodicBoundary(North, grid),
+    PeriodicBoundary(South, grid),
+    PeriodicBoundary(East, grid),
+    PeriodicBoundary(West, grid),
     StructArray([TopographyElement(
         [[
             [-1.5e4, 4.5e4],

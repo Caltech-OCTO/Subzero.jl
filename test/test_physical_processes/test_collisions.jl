@@ -124,10 +124,10 @@
             1e4,
             1e4,
         )
-        nboundary = PeriodicBoundary{North}(grid)
-        sboundary = PeriodicBoundary{South}(grid)
-        eboundary = CollisionBoundary{East}(grid)
-        wboundary = OpenBoundary{West}(grid)
+        nboundary = PeriodicBoundary(North, grid)
+        sboundary = PeriodicBoundary(South, grid)
+        eboundary = CollisionBoundary(East, grid)
+        wboundary = OpenBoundary(West, grid)
         topo_elem = TopographyElement(
             [[[1e4, 0.0], [0.0, 1e4], [1e4, 2e4], [2e4, 1e4], [1e4, 0.0]]],
         )
@@ -260,10 +260,10 @@
 
         # Test floe hitting more than one wall at once -> different from Subzero
         collision_domain = Domain(
-            CollisionBoundary{North}(grid),
-            CollisionBoundary{South}(grid),
-            CollisionBoundary{East}(grid),
-            CollisionBoundary{West}(grid),
+            CollisionBoundary(North, grid),
+            CollisionBoundary(South, grid),
+            CollisionBoundary(East, grid),
+            CollisionBoundary(West, grid),
         )
         corner_floe = Floe(
             [[
@@ -297,10 +297,10 @@
             1e4,
             1e4,
         )
-        nboundary = PeriodicBoundary{North}(grid)
-        sboundary = PeriodicBoundary{South}(grid)
-        eboundary = PeriodicBoundary{East}(grid)
-        wboundary = PeriodicBoundary{West}(grid)
+        nboundary = PeriodicBoundary(North, grid)
+        sboundary = PeriodicBoundary(South, grid)
+        eboundary = PeriodicBoundary(East, grid)
+        wboundary = PeriodicBoundary(West, grid)
 
         # corner floe - overlaps with north and east boundary
         coords1 = [[[9.9e4, 9.9e4], [9.9e4, 1.02e5], [1.02e5, 1.02e5], [1.02e5, 9.9e4], [9.9e4, 9.9e4]]]
@@ -319,28 +319,28 @@
         end
 
         nonperiodic_domain = Domain(
-            OpenBoundary{North}(grid),
-            OpenBoundary{South}(grid),
-            OpenBoundary{East}(grid),
-            OpenBoundary{West}(grid),
+            OpenBoundary(North, grid),
+            OpenBoundary(South, grid),
+            OpenBoundary(East, grid),
+            OpenBoundary(West, grid),
         )
         ew_periodic_domain = Domain(
-            OpenBoundary{North}(grid),
-            OpenBoundary{South}(grid),
-            PeriodicBoundary{East}(grid),
-            PeriodicBoundary{West}(grid),
+            OpenBoundary(North, grid),
+            OpenBoundary(South, grid),
+            PeriodicBoundary(East, grid),
+            PeriodicBoundary(West, grid),
         )
         ns_periodic_domain = Domain(
-            PeriodicBoundary{North}(grid),
-            PeriodicBoundary{South}(grid),
-            OpenBoundary{East}(grid),
-            OpenBoundary{West}(grid),
+            PeriodicBoundary(North, grid),
+            PeriodicBoundary(South, grid),
+            OpenBoundary(East, grid),
+            OpenBoundary(West, grid),
         )
         double_periodic_domain = Domain(
-            PeriodicBoundary{North}(grid),
-            PeriodicBoundary{South}(grid),
-            PeriodicBoundary{East}(grid),
-            PeriodicBoundary{West}(grid),
+            PeriodicBoundary(North, grid),
+            PeriodicBoundary(South, grid),
+            PeriodicBoundary(East, grid),
+            PeriodicBoundary(West, grid),
         )
 
         # Make sure nothing is added with non-periodic domain
@@ -412,10 +412,10 @@
             1e4,
         )
         double_periodic_domain = Domain(
-            PeriodicBoundary{North}(grid),
-            PeriodicBoundary{South}(grid),
-            PeriodicBoundary{East}(grid),
-            PeriodicBoundary{West}(grid),
+            PeriodicBoundary(North, grid),
+            PeriodicBoundary(South, grid),
+            PeriodicBoundary(East, grid),
+            PeriodicBoundary(West, grid),
         )
         # Parent-parent collison (parents are touching)
         coords1 = splitdims([Lx/2 Lx/2 3*Lx/4 3*Lx/4 Lx+10000 Lx+10000; Ly/2 Ly+10000 Ly+10000 3*Ly/4 3*Ly/4 Ly/2])

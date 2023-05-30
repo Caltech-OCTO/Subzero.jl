@@ -1,7 +1,7 @@
 """
 Structs and functions used to define a Subzero model
 """
-
+### ---------------- Grid Fields, Structs, and Constructors ---------------- ### 
 """
     CellFloes{FT<:AbstractFloat}
 
@@ -91,6 +91,24 @@ struct RegRectilinearGrid{FT}<:AbstractGrid{FT}
 end
 
 """
+    RegRectilinearGrid(::Type{FT}, args...)
+
+A float type FT can be provided as the first argument of any RegRectilinearGrid
+constructor. A RegRectilinearGrid of type FT will be created by passing all
+other arguments to the correct constructor. 
+"""
+RegRectilinearGrid(::Type{FT}, args...) where {FT <: AbstractFloat} =
+    RegRectilinearGrid{FT}(args...)
+
+"""
+    RegRectilinearGrid(args...)
+
+If a type isn't specified, RegRectilinearGrid will be of type Float64 and the
+correct constructor will be called with all other arguments.
+"""
+RegRectilinearGrid(args...) = RegRectilinearGrid{Float64}(args...)
+
+"""
     RegRectilinearGrid{FT}(
         xbounds::Tuple,
         ybounds::Tuple,
@@ -99,7 +117,7 @@ end
     )  where {FT <: AbstractFloat}
 
 Construct a RegRectilinearGrid for model given bounds for grid x and y and grid
-cell dimensions.
+cell dimensions in meters.
 Inputs:
     xbounds  <Tuple{Real, Real}> bound of grid x-direction in form (left, right)
     ybounds  <Tuple{Real, Real}> bound of grid y-direction in form (bottom, top)
@@ -163,14 +181,7 @@ function RegRectilinearGrid{FT}(
     )
 end
 
-"""
-    RegRectilinearGrid(args...)
-
-If a type isn't specified, RegRectilinearGrid will be Float64. Use
-RegRectilinearGrid{Float32}(args...) for RegRectilinearGrid with type Float32.
-"""
-RegRectilinearGrid(args...) = RegRectilinearGrid{Float64}(args...)
-
+### --------------- Ocean Fields, Structs, and Constructors --------------- ### 
 """
     IceStressCell{FT<:AbstractFloat}
 
@@ -259,6 +270,24 @@ struct Ocean{FT<:AbstractFloat}
 end
 
 """
+    Ocean(::Type{FT}, args...)
+
+A float type FT can be provided as the first argument of any Ocean constructor.
+An Ocean of type FT will be created by passing all other arguments to the
+correct constructor. 
+"""
+Ocean(::Type{FT}, args...) where {FT <: AbstractFloat} =
+    Ocean{FT}(args...)
+
+"""
+    Ocean(args...)
+
+If a type isn't specified, Ocean will be of type Float64 and the correct
+constructor will be called with all other arguments.
+"""
+Ocean(args...) = Ocean{Float64}(args...)
+
+"""
     Ocean{FT}(u, v, temp)
 
 Construct model ocean.
@@ -315,14 +344,7 @@ function Ocean{FT}(
     )
 end
 
-"""
-    Ocean(args...)
-
-If a type isn't specified, Ocean will be Float64. Use Ocean{Float32}(args...)
-for Ocean with type Float32.
-"""
-Ocean(args...) = Ocean{Float64}(args...)
-
+### ------------- Atmosphere Fields, Structs, and Constructors ------------- ### 
 """
 Atmos velocities in the x-direction (u) and y-direction (v). u and v should
 match the size of the corresponding model grid so that there is one x and y
@@ -335,6 +357,24 @@ struct Atmos{FT<:AbstractFloat}
     v::Matrix{FT}
     temp::Matrix{FT}
 end
+
+"""
+    Atmos(::Type{FT}, args...)
+
+A float type FT can be provided as the first argument of any Atmos constructor.
+An Atmos of type FT will be created by passing all other arguments to the
+correct constructor. 
+"""
+Atmos(::Type{FT}, args...) where {FT <: AbstractFloat} =
+    Atmos{FT}(args...)
+
+"""
+    Atmos(args...)
+
+If a type isn't specified, Atmos will be of type Float64 and the correct
+constructor will be called with all other arguments.
+"""
+Atmos(args...) = Atmos{Float64}(args...)
 
 """
     Atmos{FT}(grid, u, v)
@@ -362,14 +402,7 @@ function Atmos{FT}(
     )
 end
 
-"""
-    Atmos(args...)
-
-If a type isn't specified, Atmos will be Float64. Use Atmos{Float32}(args...)
-for Atmos with type Float32.
-"""
-Atmos(args...) = Atmos{Float64}(args...)
-
+### --------------- Domain Fields, Structs, and Constructors --------------- ### 
 """
     AbstractDirection
 
@@ -554,6 +587,28 @@ struct OpenBoundary{D, FT}<:AbstractBoundary{D, FT}
 end
 
 """
+    OpenBoundary(::Type{FT}, ::Type{D}, args...)
+
+A float type FT can be provided as the first argument of any OpenBoundary
+constructor. The second argument D is the directional type of the boundary.
+An OpenBoundary of type FT and D will be created by passing all other arguments
+to the correct constructor. 
+"""
+OpenBoundary(::Type{FT}, ::Type{D}, args...) where {
+    FT <: AbstractFloat,
+    D <: AbstractDirection,
+} = OpenBoundary{D, FT}(args...)
+
+"""
+    OpenBoundary(::Type{D}, args...)
+
+If a float type isn't specified, OpenBoundary will be of type Float64 and the
+correct constructor will be called with all other arguments.
+"""
+OpenBoundary(::Type{D}, args...) where {D <: AbstractDirection} =
+    OpenBoundary{D, Float64}(args...)
+
+"""
     OpenBoundary{D, FT}(grid::AbstractGrid)
 
 Creates open boundary on the edge of the grid, and with the direction as a type.
@@ -574,15 +629,6 @@ function OpenBoundary{D, FT}(
 end
 
 """
-    OpenBoundary{D}(args...)
-
-If a float type isn't specified, OpenBoundary will be Float64. Use
-OpenBoundary{D, Float32}(args...) for OpenBoundary with type Float32.
-"""
-OpenBoundary{D}(args...) where {D <: AbstractDirection} =
-    OpenBoundary{D, Float64}(args...)
-
-"""
     PeriodicBoundary <: AbstractBoundary
 
 A sub-type of AbstractBoundary that moves a floe from one side of the domain to
@@ -593,6 +639,28 @@ struct PeriodicBoundary{D, FT}<:AbstractBoundary{D, FT}
     coords::PolyVec{FT}
     val::FT
 end
+
+"""
+    PeriodicBoundary(::Type{FT}, ::Type{D}, args...)
+
+A float type FT can be provided as the first argument of any PeriodicBoundary
+constructor. The second argument D is the directional type of the boundary.
+A PeriodicBoundary of type FT and D will be created by passing all other
+arguments to the correct constructor. 
+"""
+PeriodicBoundary(::Type{FT}, ::Type{D}, args...) where {
+    FT <: AbstractFloat,
+    D <: AbstractDirection,
+} = PeriodicBoundary{D, FT}(args...)
+
+"""
+    PeriodicBoundary(::Type{D}, args...)
+
+If a float type isn't specified, PeriodicBoundary will be of type Float64 and
+the correct constructor will be called with all other arguments.
+"""
+PeriodicBoundary(::Type{D}, args...) where {D <: AbstractDirection} =
+    PeriodicBoundary{D, Float64}(args...)
 
 """
     PeriodicBoundary{D, FT}(grid::AbstractGrid)
@@ -615,15 +683,6 @@ function PeriodicBoundary{D, FT}(
 end
 
 """
-PeriodicBoundary{D}(args...)
-
-If a float type isn't specified, PeriodicBoundary will be Float64. Use
-PeriodicBoundary{D, Float32}(args...) for PeriodicBoundary with type Float32.
-"""
-PeriodicBoundary{D}(args...) where {D <: AbstractDirection} =
-    PeriodicBoundary{D, Float64}(args...)
-
-"""
     CollisionBoundary <: AbstractBoundary
 
 A sub-type of AbstractBoundary that stops a floe from exiting the domain by
@@ -634,6 +693,29 @@ struct CollisionBoundary{D, FT}<:AbstractBoundary{D, FT}
     coords::PolyVec{FT}
     val::FT
 end
+
+"""
+    CollisionBoundary(::Type{FT}, ::Type{D}, args...)
+
+A float type FT can be provided as the first argument of any CollisionBoundary
+constructor. The second argument D is the directional type of the boundary.
+A CollisionBoundary of type FT and D will be created by passing all other
+arguments to the correct constructor. 
+"""
+CollisionBoundary(::Type{FT}, ::Type{D}, args...) where {
+    FT <: AbstractFloat,
+    D <: AbstractDirection,
+} = CollisionBoundary{D, FT}(args...)
+
+"""
+    CollisionBoundary(::Type{D}, args...)
+
+If a float type isn't specified, CollisionBoundary will be of type Float64 and
+the correct constructor will be called with all other arguments.
+"""
+CollisionBoundary(::Type{D}, args...) where {D <: AbstractDirection} =
+    CollisionBoundary{D, Float64}(args...)
+
 
 """
     CollisionBoundary{D, FT}(grid)
@@ -657,16 +739,6 @@ function CollisionBoundary{D, FT}(
 end
 
 """
-CollisionBoundary{D}(args...)
-
-If a float type isn't specified, CollisionBoundary will be Float64. Use
-CollisionBoundary{D, Float32}(args...) for CollisionBoundary with type Float32.
-"""
-CollisionBoundary{D}(args...) where {D <: AbstractDirection} =
-    CollisionBoundary{D, Float64}(args...)
-
-
-"""
     CompressionBC <: AbstractBC
 
 A sub-type of AbstractBoundary that creates a floe along the boundary that moves
@@ -681,6 +753,29 @@ mutable struct CompressionBoundary{D, FT}<:AbstractBoundary{D, FT}
     val::FT
     velocity::FT
 end
+
+"""
+    CompressionBoundary(::Type{FT}, ::Type{D}, args...)
+
+A float type FT can be provided as the first argument of any CompressionBoundary
+constructor. The second argument D is the directional type of the boundary.
+A CompressionBoundary of type FT and D will be created by passing all other
+arguments to the correct constructor. 
+"""
+CompressionBoundary(::Type{FT}, ::Type{D}, args...) where {
+    FT <: AbstractFloat,
+    D <: AbstractDirection,
+} = CompressionBoundary{D, FT}(args...)
+
+"""
+    CompressionBoundary(::Type{D}, args...)
+
+If a float type isn't specified, CompressionBoundary will be of type Float64 and
+the correct constructor will be called with all other arguments.
+"""
+CompressionBoundary(::Type{D}, args...) where {D <: AbstractDirection} =
+    CompressionBoundary{D, Float64}(args...)
+
 
 """
     CompressionBoundary{D, FT}(grid, velocity)
@@ -705,16 +800,6 @@ function CompressionBoundary{D, FT}(
         velocity,
     )
 end
-
-"""
-    CompressionBoundary{D}(args...)
-
-If a float type isn't specified, CompressionBoundary will be Float64. Use
-CompressionBoundary{D, Float32}(args...) for CompressionBoundary with type
-Float32.
-"""
-CompressionBoundary{D}(args...) where {D <: AbstractDirection} =
-    CompressionBoundary{D, Float64}(args...)
 
 """
     NonPeriodicBoundary
@@ -755,17 +840,33 @@ struct TopographyElement{FT}<:AbstractDomainElement{FT}
 end
 
 """
-    Topography{FT}(poly)
+    TopographyElement(::Type{FT}, args...)
+
+A float type FT can be provided as the first argument of any TopographyElement
+constructor. A TopographyElement of type FT will be created by passing all other
+arguments to the correct constructor. 
+"""
+TopographyElement(::Type{FT}, args...) where {FT <: AbstractFloat} =
+    TopographyElement{FT}(args...)
+
+"""
+    TopographyElement(args...)
+
+If a type isn't specified, TopographyElement will be of type Float64 and the
+correct constructor will be called with all other arguments.
+"""
+TopographyElement(args...) = TopographyElement{Float64}(args...)
+
+"""
+    TopographyElement{FT}(poly)
 
 Constructor for topographic element with LibGEOS Polygon
 Inputs:
-    poly        <LibGEOS.Polygon>
+    poly    <LibGEOS.Polygon>
 Output:
     Topographic element of abstract float type FT
 """
-function TopographyElement{FT}(
-    poly::LG.Polygon,
-) where {FT <: AbstractFloat}
+function TopographyElement{FT}(poly::LG.Polygon) where {FT <: AbstractFloat}
     topo = rmholes(poly)
     centroid = find_poly_centroid(topo)
     coords = find_poly_coords(topo)
@@ -789,7 +890,7 @@ function TopographyElement{FT}(
 end
 
 """
-    Topography{FT}(coords)
+    TopographyElement{FT}(coords)
 
 Constructor for topographic element with PolyVec coordinates
 Inputs:
@@ -808,13 +909,13 @@ function TopographyElement{FT}(
 end
 
 """
-    TopographyElement(args...)
+    initialize_topography_field(args...)
 
-If a float type isn't specified, TopographyElement will be Float64. Use
-TopographyElement{Float32}(args...) for TopographyElement with type
-Float32.
+If a type isn't specified, the list of TopographyElements will each be of type
+Float64 and the correct constructor will be called with all other arguments.
 """
-TopographyElement(args...) = TopographyElement{Float64}(args...)
+initialize_topography_field(args...) =
+    initialize_topography_field(Float64, args...)
 
 """
     initialize_topography_field(
@@ -966,6 +1067,7 @@ Domain(
         StructArray{TopographyElement{FT}}(undef, 0),
     )
 
+### --------------- Model Fields, Structs, and Constructors --------------- ### 
 """
     domain_in_grid(domain, grid)
 

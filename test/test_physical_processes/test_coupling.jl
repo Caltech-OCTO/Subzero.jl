@@ -21,8 +21,8 @@
         end
 
         # Test filter_oob_points
-        open_bound = Subzero.OpenBoundary{East}(grid)
-        periodic_bound = Subzero.PeriodicBoundary{East}(grid)
+        open_bound = Subzero.OpenBoundary(East, grid)
+        periodic_bound = Subzero.PeriodicBoundary(East, grid)
         x = [-12, -10, -8, -6, 0, 4, 4, 10, 12, 12]
         y = [5, -6, 4, 10, -10, 8, -8, -6, 4, 10]
         open_open_answers = [false, true, true, false, false, true, true, true, false, false]
@@ -257,10 +257,10 @@
         zonal_ocean = Subzero.Ocean(grid, 1.0, 0.0, 0.0)
         zero_atmos = Subzero.Atmos(grid, 0.0, 0.0, -20.0)
         domain = Subzero.Domain(
-            Subzero.CollisionBoundary{North}(grid),
-            Subzero.CollisionBoundary{South}(grid),
-            Subzero.CollisionBoundary{East}(grid),
-            Subzero.CollisionBoundary{West}(grid),
+            CollisionBoundary(North, grid),
+            CollisionBoundary(South, grid),
+            CollisionBoundary(East, grid),
+            CollisionBoundary(West, grid),
         )
         floe = Subzero.Floe(
             [[

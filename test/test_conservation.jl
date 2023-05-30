@@ -64,25 +64,25 @@ end
         1e4,
     )
     collision_domain = Domain(
-        CollisionBoundary{North}(grid),
-        CollisionBoundary{South}(grid),
-        CollisionBoundary{East}(grid),
-        CollisionBoundary{West}(grid),
+        CollisionBoundary(North, grid),
+        CollisionBoundary(South, grid),
+        CollisionBoundary(East, grid),
+        CollisionBoundary(West, grid),
     )
     open_domain = Domain(
-        OpenBoundary{North}(grid),
-        OpenBoundary{South}(grid),
-        OpenBoundary{East}(grid),
-        OpenBoundary{West}(grid),
+        OpenBoundary(North, grid),
+        OpenBoundary(South, grid),
+        OpenBoundary(East, grid),
+        OpenBoundary(West, grid),
     )
     topo = TopographyElement(
         [[[-1e4, 0.0], [-2e4, 1e4], [-1e4, 1e4], [-1e4, 0.0]]],
     )
     open_domain_w_topography = Domain(
-        OpenBoundary{North}(grid),
-        OpenBoundary{South}(grid),
-        OpenBoundary{East}(grid),
-        OpenBoundary{West}(grid),
+        OpenBoundary(North, grid),
+        OpenBoundary(South, grid),
+        OpenBoundary(East, grid),
+        OpenBoundary(West, grid),
         StructVector([topo])
     )
     rng = Xoshiro(1)

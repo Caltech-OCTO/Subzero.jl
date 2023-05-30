@@ -67,6 +67,24 @@ mutable struct HiblerYieldCurve{FT<:AbstractFloat}<:AbstractFractureCriteria
 end
 
 """
+    HiblerYieldCurve(::Type{FT}, args...)
+
+A float type FT can be provided as the first argument of any HiblerYieldCurve
+constructor. A HiblerYieldCurve of type FT will be created by passing all
+other arguments to the correct constructor. 
+"""
+HiblerYieldCurve(::Type{FT}, args...) where {FT <: AbstractFloat}=
+    HiblerYieldCurve{FT}(args...)
+
+"""
+    HiblerYieldCurve(args...)
+
+If a type isn't specified, HiblerYieldCurve will be of type Float64 and the
+correct constructor will be called with all other arguments.
+"""
+HiblerYieldCurve(args...) = HiblerYieldCurve{Float64}(args...)
+
+"""
     calculate_hibler(floes, pstar, c)
 
 Calculate Hibler's Elliptical Yield Curve as described in his 1979 paper
@@ -119,15 +137,6 @@ HiblerYieldCurve{FT}(
         c,
         calculate_hibler(mean(floes.height), pstar, c),
     )
-
-"""
-    HiblerYieldCurve(args...; kwargs...)
-
-If a float type isn't specified, HiblerYieldCurve will be Float64. Use 
-HiblerYieldCurve{Float32}(args...) for HiblerYieldCurve with type
-Float32.
-"""
-HiblerYieldCurve(args...) = HiblerYieldCurve{Float64}(args...)
 
 """
     update_criteria!(criteria::HiblerYieldCurve, floes)
@@ -255,19 +264,21 @@ end
 """
     split_floe(
         floe,
-        npieces,
         rng,
-        ::Type{T} = Float64
+        fracture_settings,
+        coupling_settings,
+        consts,
+        Δt,
     )
 Splits a given floe into pieces using voronoi tesselation.
 User will recieve a warning if floe isn't split.
 Inputs:
-    floe    <Floe> floe in simulation
-    npieces <Int> number of pieces to try to split the floe into - voronoi
-                tesselation has an element of randomness so this number is not
-                guarenteed but user will be warned if floe isn't split at all
-    rng     <RNG> random number generator used for voronoi tesselation
-            <Type{T}> AbstractFloat type that used for simulation calculations
+    floe              <Floe> floe in simulation
+    rng               <RNG> random number generator used for voronoi tesselation
+    fracture_settings <FractureSettings> simulation's fracture settings
+    coupling_settings <CouplingSettings> simulation's coupling settings
+    consts            <Constants> simulation's constants
+    Δt                <Int> length of simulation timesteps in seconds
 Outputs:
     new_floes   <StructArray{Floes}> list of pieces floe is split into, each of
                     which is a new floe

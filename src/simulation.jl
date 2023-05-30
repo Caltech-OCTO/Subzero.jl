@@ -18,11 +18,22 @@ Structs and functions to create and run a Subzero simulation
     E::FT = 6e6                 # Young's Modulus
 end
 
-"""
-    Constants(args...; kwargs...)
 
-If a float type isn't specified, Constants will be Float64. Use 
-Constants{Float32}(; kwargs...) for Constants with type Float32.
+"""
+Constants(::Type{FT}, args...)
+
+A float type FT can be provided as the first argument of any Constants
+constructor. A Constants of type FT will be created by passing all other
+arguments to the correct constructor. 
+"""
+Constants(::Type{FT}, args...) where {FT <: AbstractFloat} =
+    Constants{FT}(args...)
+
+"""
+    Constants(args...)
+
+If a type isn't specified, Constants will be of type Float64 and the correct
+constructor will be called with all other arguments.
 """
 Constants(args...) = Constants{Float64}(args...)
 
@@ -65,7 +76,7 @@ The user can also define settings for each physical process.
 end
 
 """
-timestep_sim!(sim, tstep, writers, ::Type{T} = Float64)
+timestep_sim!(sim, tstep, writers)
 
 Run one step of the simulation and write output. 
 Inputs:

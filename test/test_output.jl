@@ -9,10 +9,10 @@ function test_basic_outputwriters()
     ocean = Ocean(grid, 0.0, 0.0, 0.0)
     atmos = Atmos(grid, 0.0, 0.0, 0.0)
     domain = Domain(
-        OpenBoundary{North}(grid),
-        OpenBoundary{South}(grid),
-        OpenBoundary{East}(grid),
-        OpenBoundary{West}(grid),
+        OpenBoundary(North, grid),
+        OpenBoundary(South, grid),
+        OpenBoundary(East, grid),
+        OpenBoundary(West, grid),
     )
     floe_coords = [[[7.5e4, 7.5e4], [7.5e4, 9.5e4], [9.5e4, 9.5e4], 
                     [9.5e4, 7.5e4], [7.5e4, 7.5e4]]]

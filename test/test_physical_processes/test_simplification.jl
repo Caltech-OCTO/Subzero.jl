@@ -8,10 +8,10 @@
             1e4,
         )
         domain = Subzero.Domain(
-            CollisionBoundary{North}(grid),
-            CollisionBoundary{South}(grid),
-            PeriodicBoundary{East}(grid),
-            PeriodicBoundary{West}(grid),
+            CollisionBoundary(North, grid),
+            CollisionBoundary(South, grid),
+            PeriodicBoundary(East, grid),
+            PeriodicBoundary(West, grid),
         )
         height = 0.25
         ρi = 920.0
@@ -226,10 +226,10 @@
             1e4,
         )
         open_domain_no_topo = Subzero.Domain(
-            OpenBoundary{North}(grid),
-            OpenBoundary{South}(grid),
-            OpenBoundary{East}(grid),
-            OpenBoundary{West}(grid),
+            OpenBoundary(North, grid),
+            OpenBoundary(South, grid),
+            OpenBoundary(East, grid),
+            OpenBoundary(West, grid),
         )
         coords1 = [[  # large floe
             [0.0, 0.0],
@@ -304,10 +304,10 @@
             1e4,
         )
         open_domain_no_topo = Subzero.Domain(
-            OpenBoundary{North}(grid),
-            OpenBoundary{South}(grid),
-            OpenBoundary{East}(grid),
-            OpenBoundary{West}(grid),
+            OpenBoundary(North, grid),
+            OpenBoundary(South, grid),
+            OpenBoundary(East, grid),
+            OpenBoundary(West, grid),
         )
         # Create complex floes
         file = jldopen("inputs/floe_shapes.jld2", "r")
@@ -441,10 +441,10 @@
         # Two floes overlap, and one is cut into two pieces by topography
         floe_set2 = floe_arr[1:2]
         open_domain_with_topo = Subzero.Domain(
-            OpenBoundary{North}(grid),
-            OpenBoundary{South}(grid),
-            OpenBoundary{East}(grid),
-            OpenBoundary{West}(grid),
+            OpenBoundary(North, grid),
+            OpenBoundary(South, grid),
+            OpenBoundary(East, grid),
+            OpenBoundary(West, grid),
             StructVector(
                 [TopographyElement(
                     [[
@@ -495,10 +495,10 @@
             1e4,
         )
         open_domain_no_topo = Subzero.Domain(
-            OpenBoundary{North}(grid),
-            OpenBoundary{South}(grid),
-            OpenBoundary{East}(grid),
-            OpenBoundary{West}(grid),
+            OpenBoundary(North, grid),
+            OpenBoundary(South, grid),
+            OpenBoundary(East, grid),
+            OpenBoundary(West, grid),
         )
         coords1 = [[  # large floe
             [0.0, 0.0],
