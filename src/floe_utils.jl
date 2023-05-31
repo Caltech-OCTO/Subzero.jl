@@ -434,7 +434,7 @@ function polyedge(p1::Vector{<:FT}, p2) where FT
 end
 
 """
-    orient_coords(coords::RingVec{T}) where T
+    orient_coords!(coords::RingVec)
 
 Take given coordinates and make it so that the first point has the smallest
 x-coordiante and so that the coordinates are ordered in a clockwise sequence.
@@ -446,7 +446,7 @@ Input:
 Output:
     coords  <RingVec> oriented clockwise with smallest x-coordinate first
 """
-function orient_coords(coords::RingVec{T}) where T
+function orient_coords!(coords::RingVec)
     # extreem_idx is point with smallest x-value - if tie, choose lowest y-value
     extreem_idx = 1
     for i in eachindex(coords)
@@ -459,18 +459,18 @@ function orient_coords(coords::RingVec{T}) where T
         end
     end
     # extreem point must be first point in list
-    coords = circshift(coords, -extreem_idx + 1)
+    circshift!(coords, -extreem_idx + 1)
     valid_ringvec!(coords)
 
     # if coords are counterclockwise, switch to clockwise
     orient_matrix = hcat(
-        ones(T, 3),
+        ones(3),
         vcat(coords[1]', coords[2]', coords[end-1]') # extreem and adjacent points
     )
     if det(orient_matrix) > 0
         reverse!(coords)
     end
-    return coords
+    return
 end
 
 """
@@ -553,11 +553,12 @@ Note - Translated into Julia from the following program (including helper
     Copyright 2002-2004 R. C. Gonzalez, R. E. Woods, & S. L. Eddins
     Digital Image Processing Using MATLAB, Prentice-Hall, 2004
     Revision: 1.6 Date: 2003/11/21 14:44:06
+Warning - Assumes polygon has clockwise winding order. Use orient_coords! to
+    update coordinates prior to use
 """
 function calc_poly_angles(coords::PolyVec{FT}) where {FT<:AbstractFloat}
-    ext = orient_coords(coords[1]) # ignore any holes in the polygon
     # Calculate needed vectors
-    pdiff = diff(ext)
+    pdiff = diff(coords[1])
     npoints = length(pdiff)
     v1 = -pdiff
     v2 = vcat(pdiff[2:end], pdiff[1:1])
@@ -578,7 +579,7 @@ function calc_poly_angles(coords::PolyVec{FT}) where {FT<:AbstractFloat}
     first. =#
     sangles = circshift(angles, 1)
     # Now determine if any vertices are concave and adjust angles accordingly.
-    sgn = convex_angle_test(ext)
+    sgn = convex_angle_test(coords[1])
     for i in eachindex(sangles)
         sangles[i] = (sgn[i] == -1) ? (-sangles[i] + 360) : sangles[i]
     end

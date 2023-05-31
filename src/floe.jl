@@ -295,6 +295,7 @@ function Floe{FT}(
     area_tot = LG.area(floe)
     mass = area_tot * height * ρi
     coords = find_poly_coords(floe)
+    orient_coords!(coords)
     moment = calc_moment_inertia(coords, centroid, height, ρi = ρi)
     angles = calc_poly_angles(coords)
     translate!(coords, -centroid[1], -centroid[2])

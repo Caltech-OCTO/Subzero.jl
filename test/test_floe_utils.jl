@@ -96,30 +96,30 @@
     @test isapprox(tri_moment, 50581.145, atol = 0.001)
 
     # Test orient_coords
-    coords = Subzero.orient_coords(
-        [
-            [9.75e4, 7e4],
-            [9.75e4, 5e4],
-            [9.75e4, 5e4],
-            [10.05e4, 5e4],
-            [10.05e4, 7e4],
-        ],
-    )
-    @test coords == [
+    c1 = [
+        [9.75e4, 7e4],
+        [9.75e4, 5e4],
+        [9.75e4, 5e4],
+        [10.05e4, 5e4],
+        [10.05e4, 7e4],
+    ]
+    Subzero.orient_coords!(c1)
+    @test c1 == [
         [97500.0, 50000.0],
         [97500.0, 70000.0],
         [100500.0, 70000.0],
         [100500.0, 50000.0],
         [97500.0, 50000.0],
     ]
-    coords = Subzero.orient_coords([
+    c2 = [
         [6.5e4, 6.5e4],
         [8.5e4, 6.5e4],
         [8.5e4, 4.5e4],
         [8.5e4, 4.5e4],
         [6.5e4, 4.5e4],
-    ])
-    @test coords == [
+    ]
+    Subzero.orient_coords!(c2)
+    @test c2 == [
         [6.5e4, 4.5e4],
         [6.5e4, 6.5e4],
         [8.5e4, 6.5e4],
