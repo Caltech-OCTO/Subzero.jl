@@ -35,8 +35,8 @@ function replace_floe!(
 ) where {FT}
     # Floe shape
     floe.centroid = find_poly_centroid(new_poly)
-    floe.coords = rmholes(find_poly_coords(new_poly)::PolyVec{FT})
-    orient_coords!(floe.coords)
+    floe.coords = find_poly_coords(new_poly)::PolyVec{FT}
+    floe.coords = [orient_coords(floe.coords[1])]
     if floe.coords[1][1] != floe.coords[1][end]
         push!(floe.coords, floe.coords[1][1])
     end

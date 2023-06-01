@@ -434,7 +434,7 @@ function polyedge(p1::Vector{<:FT}, p2) where FT
 end
 
 """
-    orient_coords!(coords::RingVec)
+    orient_coords(coords)
 
 Take given coordinates and make it so that the first point has the smallest
 x-coordiante and so that the coordinates are ordered in a clockwise sequence.
@@ -446,7 +446,7 @@ Input:
 Output:
     coords  <RingVec> oriented clockwise with smallest x-coordinate first
 """
-function orient_coords!(coords::RingVec)
+function orient_coords(coords::RingVec)
     # extreem_idx is point with smallest x-value - if tie, choose lowest y-value
     extreem_idx = 1
     for i in eachindex(coords)
@@ -459,18 +459,19 @@ function orient_coords!(coords::RingVec)
         end
     end
     # extreem point must be first point in list
-    circshift!(coords, -extreem_idx + 1)
-    valid_ringvec!(coords)
+    new_coords = similar(coords)
+    circshift!(new_coords, coords, -extreem_idx + 1)
+    valid_ringvec!(new_coords)
 
     # if coords are counterclockwise, switch to clockwise
     orient_matrix = hcat(
         ones(3),
-        vcat(coords[1]', coords[2]', coords[end-1]') # extreem and adjacent points
+        vcat(new_coords[1]', new_coords[2]', new_coords[end-1]') # extreem/adjacent points
     )
     if det(orient_matrix) > 0
-        reverse!(coords)
+        reverse!(new_coords)
     end
-    return
+    return new_coords
 end
 
 """

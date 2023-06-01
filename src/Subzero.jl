@@ -84,7 +84,11 @@ Coordinates are vector of vector of points of the form:
 closed ring. PolyVec objects can be made out RingVec objects.
 This form is for each conversion to LibGEOS LinearRings, which can also be made into Polygons.
 """
-const RingVec{T} = Vector{Vector{T}} where T<:Real
+const RingVec{T} = R where {
+    T<:Real,
+    V<:AbstractArray{T},
+    R <: AbstractArray{V},
+}
 
 # Model
 include("floe.jl")
