@@ -57,13 +57,24 @@ find_poly_coords(poly::LG.Polygon) =
 # [LG.GeoInterface.coordinates(LG.exteriorRing(poly))]::PolyVec{Float64}
 
 """
+    get_polygons(geom)
+
+Returns an empty polygon list as non-polygon element was provided
+Inputs:
+    geom    <LG.AbstractGeometry>
+Outputs:
+    <Vector{LG.Polygon}>
+"""
+get_polygons(geom) = Vector{LG.Polygon}()
+
+"""
     get_polygons(poly::LG.Polygon) = [poly]
 
 Return a polygon list with polygon element provided.
 Inputs:
     poly    <LG.Polygon>
 Outputs:
-            <Vector{LG.Polygon}>
+    <Vector{LG.Polygon}>
 """
 get_polygons(poly::LG.Polygon) = [poly]
 
@@ -423,7 +434,7 @@ function polyedge(p1::Vector{<:FT}, p2) where FT
 end
 
 """
-    orient_coords(coords::RingVec{T}) where T
+    orient_coords(coords)
 
 Take given coordinates and make it so that the first point has the smallest
 x-coordiante and so that the coordinates are ordered in a clockwise sequence.
@@ -435,7 +446,7 @@ Input:
 Output:
     coords  <RingVec> oriented clockwise with smallest x-coordinate first
 """
-function orient_coords(coords::RingVec{T}) where T
+function orient_coords(coords::RingVec)
     # extreem_idx is point with smallest x-value - if tie, choose lowest y-value
     extreem_idx = 1
     for i in eachindex(coords)
@@ -448,18 +459,19 @@ function orient_coords(coords::RingVec{T}) where T
         end
     end
     # extreem point must be first point in list
-    coords = circshift(coords, -extreem_idx + 1)
-    valid_ringvec!(coords)
+    new_coords = similar(coords)
+    circshift!(new_coords, coords, -extreem_idx + 1)
+    valid_ringvec!(new_coords)
 
     # if coords are counterclockwise, switch to clockwise
     orient_matrix = hcat(
-        ones(T, 3),
-        vcat(coords[1]', coords[2]', coords[end-1]') # extreem and adjacent points
+        ones(3),
+        vcat(new_coords[1]', new_coords[2]', new_coords[end-1]') # extreem/adjacent points
     )
     if det(orient_matrix) > 0
-        reverse!(coords)
+        reverse!(new_coords)
     end
-    return coords
+    return new_coords
 end
 
 """
@@ -542,11 +554,12 @@ Note - Translated into Julia from the following program (including helper
     Copyright 2002-2004 R. C. Gonzalez, R. E. Woods, & S. L. Eddins
     Digital Image Processing Using MATLAB, Prentice-Hall, 2004
     Revision: 1.6 Date: 2003/11/21 14:44:06
+Warning - Assumes polygon has clockwise winding order. Use orient_coords! to
+    update coordinates prior to use
 """
 function calc_poly_angles(coords::PolyVec{FT}) where {FT<:AbstractFloat}
-    ext = orient_coords(coords[1]) # ignore any holes in the polygon
     # Calculate needed vectors
-    pdiff = diff(ext)
+    pdiff = diff(coords[1])
     npoints = length(pdiff)
     v1 = -pdiff
     v2 = vcat(pdiff[2:end], pdiff[1:1])
@@ -567,7 +580,7 @@ function calc_poly_angles(coords::PolyVec{FT}) where {FT<:AbstractFloat}
     first. =#
     sangles = circshift(angles, 1)
     # Now determine if any vertices are concave and adjust angles accordingly.
-    sgn = convex_angle_test(ext)
+    sgn = convex_angle_test(coords[1])
     for i in eachindex(sangles)
         sangles[i] = (sgn[i] == -1) ? (-sangles[i] + 360) : sangles[i]
     end
@@ -748,12 +761,11 @@ function intersect_lines(l1, l2)
 end
 
 """
-    cut_polygon_coords(poly_coords::PolyVec, yp, ::Type{FT})
+    cut_polygon_coords(poly_coords::PolyVec, yp)
 
 Cut polygon through the line y = yp and return the polygon(s) coordinates below
 the line
 Inputs:
-    ::Type{FT}  <Type{AbstractFloat}> simulation run type
     poly_coords <PolyVec>   polygon coordinates
     yp          <Float>     value of line to split polygon through using line
                                 y = yp
@@ -765,7 +777,7 @@ Note:
     Brands (2010) and Jasper Menger (2009). Only needed pieces of function are
     translated (horizonal cut).
 """
-function cut_polygon_coords(poly_coords::PolyVec, yp, ::Type{FT}) where FT
+function cut_polygon_coords(poly_coords::PolyVec{<:FT}, yp) where {FT}
     # Loop through each edge
     coord1 = poly_coords[1][1:end-1]
     coord2 = poly_coords[1][2:end]
@@ -847,7 +859,7 @@ Outputs:
     above line. Note that if there is no hole, a list of the original polygon
     and an empty list will be returned
 """
-function split_polygon_hole(poly::LG.Polygon, ::Type{FT}) where FT
+function split_polygon_hole(poly::LG.Polygon)
     bottom_list = Vector{LG.Polygon}()
     top_list = Vector{LG.Polygon}()
     if hashole(poly)  # Polygon has a hole
@@ -856,7 +868,7 @@ function split_polygon_hole(poly::LG.Polygon, ::Type{FT}) where FT
         h1 = LG.Polygon([poly_coords[2]])  # First hole
         h1_center = find_poly_centroid(h1)
         poly_bottom = LG.MultiPolygon(
-            cut_polygon_coords(full_coords, h1_center[2], FT)
+            cut_polygon_coords(full_coords, h1_center[2])
         )
          # Adds in any other holes in poly
         poly_bottom =  LG.intersection(poly_bottom, poly)

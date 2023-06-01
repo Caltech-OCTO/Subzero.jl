@@ -305,10 +305,16 @@ function split_floe(
     )
     if !isempty(pieces)
         # Intersect voronoi tesselation pieces with floe
-        floe_poly = LG.Polygon(floe.coords)
-        pieces_polys = [rmholes(
-            LG.intersection(LG.Polygon(p), floe_poly)
-        ) for p in pieces]
+        floe_poly = LG.Polygon(rmholes(floe.coords))
+        pieces_polys = Vector{LG.Polygon}()
+        for p in pieces
+            append!(
+                pieces_polys,
+                get_polygons(
+                    LG.intersection(LG.Polygon(p), floe_poly)
+                ),
+            )
+        end
         # Conserve mass within pieces
         pieces_areas = [LG.area(p) for p in pieces_polys]
         total_area = sum(pieces_areas)
