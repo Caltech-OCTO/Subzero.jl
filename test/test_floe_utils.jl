@@ -96,30 +96,30 @@
     @test isapprox(tri_moment, 50581.145, atol = 0.001)
 
     # Test orient_coords
-    coords = Subzero.orient_coords(
-        [
-            [9.75e4, 7e4],
-            [9.75e4, 5e4],
-            [9.75e4, 5e4],
-            [10.05e4, 5e4],
-            [10.05e4, 7e4],
-        ],
-    )
-    @test coords == [
+    c1 = [
+        [9.75e4, 7e4],
+        [9.75e4, 5e4],
+        [9.75e4, 5e4],
+        [10.05e4, 5e4],
+        [10.05e4, 7e4],
+    ]
+    c1_new = Subzero.orient_coords(c1)
+    @test c1_new == [
         [97500.0, 50000.0],
         [97500.0, 70000.0],
         [100500.0, 70000.0],
         [100500.0, 50000.0],
         [97500.0, 50000.0],
     ]
-    coords = Subzero.orient_coords([
+    c2 = [
         [6.5e4, 6.5e4],
         [8.5e4, 6.5e4],
         [8.5e4, 4.5e4],
         [8.5e4, 4.5e4],
         [6.5e4, 4.5e4],
-    ])
-    @test coords == [
+    ]
+    c2_new = Subzero.orient_coords(c2)
+    @test c2_new == [
         [6.5e4, 4.5e4],
         [6.5e4, 6.5e4],
         [8.5e4, 6.5e4],
@@ -129,16 +129,18 @@
 
     # Test polygon angles - some basic shapes and then compared to MATLAB
     rect_coords = [[[1.0, 1.0], [1.0, 2.0], [2.0, 2.0], [2.0, 1.0]]]
-    @test Subzero.calc_poly_angles(rect_coords) == [90.0, 90.0, 90.0, 90.0]
+    @test Subzero.calc_poly_angles(
+        [Subzero.orient_coords(rect_coords[1])]
+    ) == [90.0, 90.0, 90.0, 90.0]
     tri_coords = [[[0.0, 0.0], [0.0, 4.0], [3.0, 0.0]]]
     @test prod(isapprox.(
-        Subzero.calc_poly_angles(tri_coords),
+        Subzero.calc_poly_angles([Subzero.orient_coords(tri_coords[1])]),
         [90.0, 36.8699, 53.1301],
         atol = 0.001,
     ))
     concave_tri_coords = [[[-3.0, -2.0], [0.0,0.0], [5.0, 0.0]]]
     @test prod(isapprox.(
-        Subzero.calc_poly_angles(concave_tri_coords),
+        Subzero.calc_poly_angles([Subzero.orient_coords(concave_tri_coords[1])]),
         [19.6538, 146.3099, 14.0362],
         atol = 0.001,
     ))
@@ -150,7 +152,9 @@
     ).Cells
     for poly in polygon_lst
         @test isapprox(
-            sum(Subzero.calc_poly_angles([Vector{Vector{Float64}}(poly)])),
+            sum(Subzero.calc_poly_angles(
+                [Subzero.orient_coords(Vector{Vector{Float64}}(poly))]
+            )),
             180 * (length(poly) - 2),
             atol = 1e-3,
         )
@@ -201,11 +205,7 @@
         [6.0, -3.0],
         [2.0, -3.0,],
     ]]
-    poly = LG.Polygon(Subzero.cut_polygon_coords(
-        poly_coords,
-        -1,
-        Float64,
-    )[1])
+    poly = LG.Polygon(Subzero.cut_polygon_coords(poly_coords, -1)[1])
     @test LG.isValid(poly)
     cut_coords = [[
         [2.0, -3.0],
@@ -233,11 +233,7 @@
         [2.0, 0.0],
         [0.0, 0.0],
     ]]
-    poly1_coords, poly2_coords = Subzero.cut_polygon_coords(
-        poly_coords,
-        5,
-        Float64,
-    )
+    poly1_coords, poly2_coords = Subzero.cut_polygon_coords(poly_coords, 5)
     poly1 = LG.Polygon(poly1_coords)
     poly2 = LG.Polygon(poly2_coords)
     @test LG.isValid(poly1)
@@ -259,7 +255,7 @@
 
     # Cut a triangle through the line y = -10 so only tip is left -> No polygon
     poly_coords = [[[0.0, 0.0], [10.0, 0.0], [5.0, -10.0], [0.0, 0.0]]]
-    poly = Subzero.cut_polygon_coords(poly_coords, -10, Float64)
+    poly = Subzero.cut_polygon_coords(poly_coords, -10)
     @test isempty(poly)
 
     # Cut a rectangle through line y = 0 so only bottom edge is left -> No polygon
@@ -270,11 +266,11 @@
         [10.0, 0.0],
         [0.0, 0.0],
     ]]
-    poly = Subzero.cut_polygon_coords(poly_coords, 0, Float64)
+    poly = Subzero.cut_polygon_coords(poly_coords, 0)
     @test isempty(poly)
 
     # Cut a rectangle through the line y = -10 so no polygon is left
-    poly = Subzero.cut_polygon_coords(poly_coords, -10, Float64)
+    poly = Subzero.cut_polygon_coords(poly_coords, -10)
     @test isempty(poly)
 
     # ------------------ Test polygon splitting through hole ------------------
@@ -286,10 +282,7 @@
         [10.0, 0.0],
         [0.0, 0.0],
     ]]
-    poly_bottom, poly_top = Subzero.split_polygon_hole(
-        LG.Polygon(poly_coords),
-        Float64,
-    )
+    poly_bottom, poly_top = Subzero.split_polygon_hole(LG.Polygon(poly_coords))
     @test length(poly_bottom) == 1
     @test length(poly_top) == 0
     @test LG.area(LG.difference(poly_bottom[1], LG.Polygon(poly_coords))) == 0
@@ -310,10 +303,7 @@
             [3.0, 2.0],
         ],
     ]
-    poly_bottom, poly_top = Subzero.split_polygon_hole(
-        LG.Polygon(poly_coords),
-        Float64,
-    )
+    poly_bottom, poly_top = Subzero.split_polygon_hole(LG.Polygon(poly_coords))
     poly_bottom_coords = [[
         [0.0, 0.0],
         [0.0, 3.0],
@@ -363,10 +353,7 @@
             [6.0, 4.0],
         ],
     ]
-    poly_bottom, poly_top = Subzero.split_polygon_hole(
-        LG.Polygon(poly_coords),
-        Float64,
-    )
+    poly_bottom, poly_top = Subzero.split_polygon_hole(LG.Polygon(poly_coords))
     poly_bottom1_coords = [[
         [4.0, 0.0],
         [4.0, 5.0],

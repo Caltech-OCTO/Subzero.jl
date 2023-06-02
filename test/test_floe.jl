@@ -308,7 +308,7 @@
             open_cell_area = LG.area(LG.difference(cell, topo_polys))
             c = concentrations[i, j]
             floes_in_cell = [LG.intersection(p, cell) for p in floe_polys]
-            @test c - 1e-3 <= sum(LG.area.(floes_in_cell))/open_cell_area < c + 2e-1
+            @test c - 100eps() <= sum(LG.area.(floes_in_cell))/open_cell_area < 1 + eps()
         end
     end
     @test all([LG.area(

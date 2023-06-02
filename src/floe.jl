@@ -295,6 +295,7 @@ function Floe{FT}(
     area_tot = LG.area(floe)
     mass = area_tot * height * ρi
     coords = find_poly_coords(floe)
+    coords = [orient_coords(coords[1])]
     moment = calc_moment_inertia(coords, centroid, height, ρi = ρi)
     angles = calc_poly_angles(coords)
     translate!(coords, -centroid[1], -centroid[2])
@@ -461,7 +462,7 @@ function poly_to_floes(
                 )
                 push!(floes, floe)
             else
-                region_bottom, region_top = split_polygon_hole(r, FT)
+                region_bottom, region_top = split_polygon_hole(r)
                 append!(regions, region_bottom)
                 append!(regions, region_top)
             end
@@ -653,22 +654,30 @@ function generate_voronoi_coords(
             $max_tries tries during voronoi tesselation."
     end
     # Make voronoi cells into floes
-    coords =
-        if current_points > 1
-            tess_cells = voronoicells(
-                xpoints,
-                ypoints,
-                Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0)),
-                rng = rng
-            ).Cells
-            # Scale and translate voronoi coordinates
-            [[valid_ringvec!([
-                Vector(c) .* scale_fac .+ trans_vec for c in tess
-            ])] for tess in tess_cells]
-        else
-            Vector{Vector{Vector{FT}}}()
+    if current_points > 1
+        tess_cells = voronoicells(
+            xpoints,
+            ypoints,
+            Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0)),
+            rng = rng
+        ).Cells
+        # Scale and translate voronoi coordinates
+        tcoords = Vector{PolyVec{FT}}(undef, length(tess_cells))
+        for i in eachindex(tess_cells)
+            perturb_vec = [
+                (-1)^rand(rng, 0:1) * rand(rng, FT)*1e-10,
+                (-1)^rand(rng, 0:1) * rand(rng, FT)*1e-10,
+            ]
+            tcoords[i] = [valid_ringvec!([
+                Vector(c) .* scale_fac .+
+                trans_vec .+ perturb_vec
+                for c in tess_cells[i]
+            ])]
         end
-    return coords
+        return tcoords
+    else
+        return Vector{PolyVec{FT}}()
+    end
 end
 
 """

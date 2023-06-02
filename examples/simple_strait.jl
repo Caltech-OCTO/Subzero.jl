@@ -5,7 +5,7 @@ import LibGEOS as LG
 const FT = Float64
 const Lx = 1e5
 const Ly = 1e5
-const Δgrid = 10000
+const Δgrid = 1e4
 const hmean = 0.25
 const Δh = 0.0
 const Δt = 20
@@ -30,9 +30,11 @@ island = [[[6e4, 4e4], [6e4, 4.5e4], [6.5e4, 4.5e4], [6.5e4, 4e4], [6e4, 4e4]]]
 topo1 = [[[0, 0.0], [0, 1e5], [2e4, 1e5], [3e4, 5e4], [2e4, 0], [0.0, 0.0]]]
 topo2 = [[[8e4, 0], [7e4, 5e4], [8e4, 1e5], [1e5, 1e5], [1e5, 0], [8e4, 0]]]
 
-topo_arr = StructVector(
-    [TopographyElement(t) for t in [island, topo1, topo2]],
+topo_arr = initialize_topography_field(
+    FT,
+    [island, topo1, topo2]
 )
+
 domain = Domain(nboundary, sboundary, eboundary, wboundary, topo_arr)
 
 # Floe creation
@@ -70,12 +72,12 @@ for i in 1:1
         fracture_settings = fracture_settings,
         writers = writers,
     )
-
+    
     # Run simulation
     run_time!(simulation)
 end
  
 
-# Subzero.create_sim_gif("output/simple_strait/floes.jld2", 
-#                        "output/simple_strait/initial_state.jld2",
-#                        "output/simple_strait/simple_strait.gif")
+Subzero.create_sim_gif("output/simple_strait/floes.jld2", 
+                       "output/simple_strait/initial_state.jld2",
+                       "output/simple_strait/simple_strait.gif")
