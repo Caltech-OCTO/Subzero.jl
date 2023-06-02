@@ -4,6 +4,17 @@ Functions needed for coupling the ice, ocean, and atmosphere.
 
 #-------------- Monte Carlo Point Calculations --------------#
 
+
+function grid_line_index(p, Δg, g0)
+    return floor(Int, (p - g0)/Δg) + 1
+end
+
+function grid_center_index(p, Δg, g0)
+    return floor(Int, (p - g0)/Δg + 0.5) + 1
+end
+
+
+
 """
     find_grid_cell_index(xp, yp, grid::RegRectilinearGrid)
 Find index of the grid cell of the given RegRectilinearGrid that the given
