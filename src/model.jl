@@ -62,32 +62,13 @@ and grid-center values:
 The dimensions of each of the fields must match according to above definitions.
 """
 struct RegRectilinearGrid{FT}<:AbstractGrid{FT}
-    dims::Tuple{Int, Int}
-    xg::Vector{FT}
-    yg::Vector{FT}
-    xc::Vector{FT}
-    yc::Vector{FT}
+    Nx::Int
+    Ny::Int
+    Lx::FT
+    Ly::FT
+    Δx::FT
+    Δy::FT
     floe_locations::Matrix{CellFloes{FT}}
-
-    function RegRectilinearGrid{FT}(
-        dims,
-        xg,
-        yg,
-        xc,
-        yc,
-        floe_locations,
-    ) where {FT <: AbstractFloat}
-        if (length(xg) != dims[2]+1) || (length(yg) != dims[1]+1)
-            throw(ArgumentError("Grid line dimensions vector doesn't match \
-                dimensions field."))
-        end
-        if (length(xc) != dims[2]) || (length(yc) != dims[1])
-            throw(ArgumentError("Grid center dimensions vector doesn't match \
-                dimensions field."))
-        end
-
-        new{FT}(dims, xg, yg, xc, yc, floe_locations)
-    end
 end
 
 """
