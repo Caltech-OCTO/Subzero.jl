@@ -53,22 +53,53 @@ abstract type AbstractGrid{FT<:AbstractFloat} end
     RegRectilinearGrid{FT<:AbstractFloat}<:AbstractGrid
 
 Tessellation of 2-dimensional Euclidean space into n-by-m congruent rectangles.
-The dimension of grid is n rows by m columns, and the struct hold the grid-line
-and grid-center values:
- - xg are the grid lines in the x-direction (m+1 length vector)
- - yg are the grid lines in the y-direction (n+1 length vector)
- - xc are the mid-lines on grid cells (m length vector) in the x-direction
- - yc are the mid-lines on grid cells (n length vector) in the y-direction
-The dimensions of each of the fields must match according to above definitions.
+- Nx: number of grid cells in the x-direction
+- Ny: number of grid cells in the y-direction
+- x0: value of first x grid line
+- xf: value of final x grid line
+- y0: value of first y grid line
+- yf: value of final y grid line
+- Δx: grid cell width
+- Δy: grid cell height
+- floe_locations: matrix of CellFloes, which keep track of which floes are in
+    each cell
 """
 struct RegRectilinearGrid{FT}<:AbstractGrid{FT}
     Nx::Int
     Ny::Int
-    Lx::FT
-    Ly::FT
+    x0::FT
+    xf::FT
+    y0::FT
+    yf::FT
     Δx::FT
     Δy::FT
     floe_locations::Matrix{CellFloes{FT}}
+
+    function RegRectilinearGrid{FT}(
+        Nx,
+        Ny,
+        x0,
+        xf,
+        y0,
+        yf,
+        Δx,
+        Δy,
+        floe_locations,
+    ) where {FT}
+        if size(floe_locations) != (Ny + 1, Ny + 1)
+            throw(ArgumentError("Floe location matrix needs to be the same \
+                dimensions as grid lines."))
+        end
+        if (xf - x0) / Δx != Nx
+            throw(ArgumentError("X-grid extent and grid cell width don't match \
+                with number of grid cells in x-direction."))
+        end
+        if (yf - y0) / Δy != Ny
+            throw(ArgumentError("Y-grid extent and grid cell height don't match \
+                with number of grid cells in y-direction."))
+        end
+        return new{FT}(Nx, Ny, x0, xf, y0, yf, Δx, Δy, floe_locations)
+    end
 end
 
 """
@@ -95,7 +126,7 @@ RegRectilinearGrid(args...) = RegRectilinearGrid{Float64}(args...)
         ybounds::Tuple,
         Δx,
         Δy,
-    )  where {FT <: AbstractFloat}
+    )
 
 Construct a RegRectilinearGrid for model given bounds for grid x and y and grid
 cell dimensions in meters.
@@ -112,55 +143,64 @@ Warning:
     length (uy-ly) you won't get full size grid. The grid will be "trimmed" to
     the nearest full grid square in both directions.
 """
-function RegRectilinearGrid{FT}(
+RegRectilinearGrid{FT}(
     xbounds::Tuple,
     ybounds::Tuple,
     Δx,
     Δy,
-) where {FT <: AbstractFloat}
-    xg = collect(FT, xbounds[1]:Δx:xbounds[2]) 
-    yg = collect(FT, ybounds[1]:Δy:ybounds[2])
-    nx = length(xg) - 1
-    ny = length(yg) - 1
-    xc = collect(FT, xg[1]+Δx/2:Δx:xg[end]-Δx/2)
-    yc = collect(FT, yg[1]+Δy/2:Δy:yg[end]-Δy/2)
-    locations = [CellFloes{FT}() for i in 1:(ny + 1), j in 1:(nx + 1)]
-    return RegRectilinearGrid{FT}((ny, nx), xg, yg, xc, yc, locations)
-end
+) where {FT <: AbstractFloat} = 
+    RegRectilinearGrid{FT}(
+        ((xbounds[2] - xbounds[1]) / Δx) - 1,
+        ((ybounds[2] - ybounds[1]) / Δy) - 1,
+        xbounds[1],
+        xbounds[2],
+        ybounds[1],
+        ybounds[2],
+        Δx,
+        Δy,
+        [CellFloes{FT}() for i in 1:(ny + 1), j in 1:(nx + 1)],
+    )
+
+get_grid_lines(g0, gf, Δg) = g0:Δg:gf
+get_grid_centers(g0, gf, Δg) = (g0 + Δg/2):Δg:(gf - Δg/2) 
 
 """
     RegRectilinearGrid{FT}(
+        Nx,
+        Ny,
         xbounds::Tuple{Real, Real},
         ybounds::Tuple{Real, Real},
-        dims::Tuple{Int, Int}
     ) where {FT <: AbstractFloat}
 
 Construct a RegRectilinearGrid for model given bounds for grid x and y and the
 number of grid cells in both the x and y direction.
 Inputs:
+    Nx       <Int> number of grid cells in the x-direction
+    Ny       <Int> number of grid cells in the y-direction
     xbounds  <Tuple{Real, Real}> bound of grid x-direction in form (left, right)
     ybounds  <Tuple{Real, Real}> bound of grid y-direction in form (bottom, top)
-    dims     <(Int, Int)> grid dimensions given as (rows, columns) where rows is
-                the number of y cells and columns is the number of x cells
 Output: 
     RegRectilinearGrid with width and height determined by xbound and ybounds
     and the number of grid cells in the x-direction and y-direction determined
     by dims.
 """
-function RegRectilinearGrid{FT}(
+RegRectilinearGrid{FT}(
+    Nx::Int,
+    Ny::Int,
     xbounds::Tuple,
     ybounds::Tuple,
-    dims::Tuple{Int, Int},
-) where {FT <: AbstractFloat}
-    Δx = (xbounds[2] - xbounds[1])/dims[2]
-    Δy = (ybounds[2] - ybounds[1])/dims[1]
-    return RegRectilinearGrid{FT}(
-        xbounds,
-        ybounds,
-        Δx,
-        Δy,
+) where {FT <: AbstractFloat} = 
+    RegRectilinearGrid{FT}(
+        Nx,
+        Ny,
+        xbounds[1],
+        xbounds[2],
+        ybounds[1],
+        ybounds[2],
+        (xbounds[2] - xbounds[1])/dims[2],
+        (ybounds[2] - ybounds[1])/dims[1],
+        [CellFloes{FT}() for i in 1:(ny + 1), j in 1:(nx + 1)],
     )
-end
 
 ### --------------- Ocean Fields, Structs, and Constructors --------------- ### 
 """
@@ -246,6 +286,14 @@ struct Ocean{FT<:AbstractFloat}
             @warn "Ocean temperatures are above the range for freezing. The \
                 thermodynamics aren't currently setup for these conditions."
         end
+        if !(size(u) == size(v) == size(τx) == size(τy))
+            throw(ArgumentError("One or more of the ocean vector fields aren't \
+                the same dimension."))
+        end
+        if !(size(temp) == size(hflx) == size(si_frac) == size(dissolved))
+            throw(ArgumentError("One or more of the ocean tracer fields aren't \
+                the same dimension."))
+        end
         new{FT}(u, v, temp, hflx, scells, τx, τy, si_frac, dissolved)
     end
 end
@@ -285,17 +333,17 @@ function Ocean{FT}(
     v,
     temp,
 ) where {FT <: AbstractFloat}
-    nvals = size(u)
+    Nx, Ny = size(temp)
     return Ocean{FT}(
         u,
         v,
         temp,
-        zeros(FT, nvals),
-        [IceStressCell{FT}() for i in 1:nvals[1], j in 1:nvals[2]],
-        zeros(FT, nvals),
-        zeros(FT, nvals),
-        zeros(FT, nvals),
-        zeros(FT, nvals),
+        zeros(FT, Nx, Ny), # heat flux
+        [IceStressCell{FT}() for i in 1:(Nx + 1), j in 1:(Ny + 1)],
+        zeros(FT, Nx + 1, Ny + 1),  # x-stress
+        zeros(FT, Nx + 1, Ny + 1),  # y-stress
+        zeros(FT, Nx, Ny),  # sea ice fraction
+        zeros(FT, Nx, Ny),  # dissolved
     )
 end
 
@@ -311,19 +359,17 @@ Inputs:
 Output: 
         Ocean with constant velocity and temperature on each grid line.
 """
-function Ocean{FT}(
+Ocean{FT}(
     grid::AbstractGrid,
     u,
     v,
     temp,
-) where {FT <: AbstractFloat}
-    nvals = grid.dims .+ 1  # one value per grid line - not grid cell 
-    return Ocean{FT}(
-        fill(FT(u), nvals),
-        fill(FT(v), nvals),
-        fill(FT(temp), nvals),
+) where {FT <: AbstractFloat} =
+    Ocean{FT}(
+        fill(FT(u), grid.Nx + 1, grid.Ny + 1),
+        fill(FT(v), grid.Nx + 1, grid.Ny + 1),
+        fill(FT(temp), grid.Nx, grid.Ny),
     )
-end
 
 ### ------------- Atmosphere Fields, Structs, and Constructors ------------- ### 
 """
@@ -337,6 +383,13 @@ struct Atmos{FT<:AbstractFloat}
     u::Matrix{FT}
     v::Matrix{FT}
     temp::Matrix{FT}
+    function Atmos{FT}(u, v, temp) where {FT <: AbstractFloat}
+        if !(size(u) == size(v))
+            throw(ArgumentError("One or more of the atmosphere vector fields \
+             aren't the same dimension."))
+        end
+        new{FT}(u, v, temp)
+    end
 end
 
 """
@@ -369,19 +422,17 @@ Inputs:
 Output: 
     Atmosphere of type FT with constant velocity and temperature over domain.
 """
-function Atmos{FT}(
+Atmos{FT}(
     grid::AbstractGrid,
     u,
     v,
     temp,
-) where {FT <: AbstractFloat}
-    nvals = grid.dims .+ 1  # one value per grid line - not grid cell 
+) where {FT <: AbstractFloat} = 
     return Atmos{FT}(
-        fill(FT(u), nvals),
-        fill(FT(v), nvals),
-        fill(FT(temp), nvals),
+        fill(FT(u), grid.Nx + 1, grid.Ny + 1),
+        fill(FT(v),  grid.Nx + 1, grid.Ny + 1),
+        fill(FT(temp),  grid.Nx, grid.Ny),
     )
-end
 
 ### --------------- Domain Fields, Structs, and Constructors --------------- ### 
 """
@@ -442,14 +493,14 @@ Output:
     direction, corners will be shared between adjacent boundaries. 
 """
 function boundary_coords(grid::AbstractGrid, ::Type{North})
-    Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
-    Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
-    return grid.yg[end],  # val
-        [[[grid.xg[1] - Δx, grid.yg[end]],  # coords
-          [grid.xg[1] - Δx, grid.yg[end] + Δy],
-          [grid.xg[end] + Δx, grid.yg[end] + Δy], 
-          [grid.xg[end] + Δx, grid.yg[end]], 
-          [grid.xg[1] - Δx, grid.yg[end]]]]
+    Δx = (grid.xf - grid.x0)/2 # Half of the grid in x
+    Δy = (grid.yf - grid.y0)/2 # Half of the grid in y
+    return grid.yf,  # val
+        [[[grid.x0 - Δx, grid.yf],  # coords
+          [grid.x0 - Δx, grid.yf + Δy],
+          [grid.x0 + Δx, grid.yf + Δy], 
+          [grid.xf + Δx, grid.yf], 
+          [grid.x0 - Δx, grid.yf]]]
 end
 
 """
@@ -465,14 +516,14 @@ Output:
     function for more details. 
 """
 function boundary_coords(grid::AbstractGrid, ::Type{South})
-    Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
-    Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
-    return grid.yg[1],  # val
-        [[[grid.xg[1] - Δx, grid.yg[1] - Δy],  # coords
-          [grid.xg[1] - Δx, grid.yg[1]],
-          [grid.xg[end] + Δx, grid.yg[1]], 
-          [grid.xg[end] + Δx, grid.yg[1] - Δy], 
-          [grid.xg[1] - Δx, grid.yg[1] - Δy]]]
+    Δx = (grid.xf - grid.x0)/2 # Half of the grid in x
+    Δy = (grid.yf - grid.yg0)/2 # Half of the grid in y
+    return grid.yg0,  # val
+        [[[grid.xg0 - Δx, grid.yg0 - Δy],  # coords
+          [grid.xg0 - Δx, grid.yg0],
+          [grid.xf + Δx, grid.yg0], 
+          [grid.xf + Δx, grid.yg0 - Δy], 
+          [grid.xg0 - Δx, grid.yg0 - Δy]]]
 end
 
 """
@@ -488,14 +539,14 @@ Output:
     function for more details. 
 """
 function boundary_coords(grid::AbstractGrid, ::Type{East})
-    Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
-    Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
-    return grid.xg[end],  # val
-        [[[grid.xg[end], grid.yg[1] - Δy],  # coords
-          [grid.xg[end], grid.yg[end] + Δy],
-          [grid.xg[end] + Δx, grid.yg[end] + Δy], 
-          [grid.xg[end] + Δx, grid.yg[1] - Δy], 
-          [grid.xg[end], grid.yg[1] - Δy]]]
+    Δx = (grid.xf - grid.x0)/2 # Half of the grid in x
+    Δy = (grid.yf - grid.y0)/2 # Half of the grid in y
+    return grid.xf,  # val
+        [[[grid.xf, grid.y0 - Δy],  # coords
+          [grid.xf, grid.yf + Δy],
+          [grid.xf + Δx, grid.yf + Δy], 
+          [grid.xf + Δx, grid.y0 - Δy], 
+          [grid.xf, grid.y0 - Δy]]]
 end
 
 """
@@ -511,14 +562,14 @@ Output:
     function for more details. 
 """
 function boundary_coords(grid::AbstractGrid, ::Type{West})
-    Δx = (grid.xg[end] - grid.xg[1])/2 # Half of the grid in x
-    Δy = (grid.yg[end] - grid.yg[1])/2 # Half of the grid in y
-    return grid.xg[1],  # val
-        [[[grid.xg[1] - Δx, grid.yg[1] - Δy],  # coords
-          [grid.xg[1] - Δx, grid.yg[end] + Δy],
-          [grid.xg[1], grid.yg[end] + Δy], 
-          [grid.xg[1], grid.yg[1] - Δy], 
-          [grid.xg[1] - Δx, grid.yg[1] - Δy]]]
+    Δx = (grid.xf - grid.x0)/2 # Half of the grid in x
+    Δy = (grid.yf - grid.y0)/2 # Half of the grid in y
+    return grid.x0,  # val
+        [[[grid.x0 - Δx, grid.y0 - Δy],  # coords
+          [grid.x0 - Δx, grid.yf + Δy],
+          [grid.x0, grid.yf + Δy], 
+          [grid.x0, grid.y0 - Δy], 
+          [grid.x0 - Δx, grid.y0 - Δy]]]
 end
 
 """

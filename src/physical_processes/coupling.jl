@@ -1010,8 +1010,8 @@ function floe_to_grid_info!(
     coupling_settings,
 ) where {FT}
     # Determine grid cell point is in and if floe is shifted by periodic bounds
-    shifted_row = shift_cell_idx(row, grid.dims[1] + 1, ns_bound)
-    shifted_col = shift_cell_idx(col, grid.dims[2] + 1, ew_bound)
+    shifted_row = shift_cell_idx(row, grid.Nx + 1, ns_bound)
+    shifted_col = shift_cell_idx(col, grid.Ny + 1, ew_bound)
     Δx = (shifted_col - col) * (grid.xg[2] - grid.xg[1])
     Δy = (shifted_row - row) * (grid.yg[2] - grid.yg[1])
     if coupling_settings.two_way_coupling_on 

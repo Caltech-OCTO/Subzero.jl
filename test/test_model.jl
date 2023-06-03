@@ -1,83 +1,73 @@
 @testset "Model Creation" begin
     # Grid Creation
     @testset "Grid" begin
-        # Large grid default constructor
-        xg = collect(-4e5:1e4:4e5)
-        yg = collect(-3e5:1e4:3e5)
-        xc = collect(-3.95e5:1e4:3.95e5)
-        yc = collect(-2.95e5:1e4:2.95e5)
-        gbig = Subzero.RegRectilinearGrid(
-            (length(yc), length(xc)),
-            xg,
-            yg,
-            xc,
-            yc,
-            [CellFloes{Float64}() for i in 1:61, j in 1:81]
-        )
-        @test gbig.dims == (60, 80)
-        @test gbig.xg == xg
-        @test gbig.yg == yg
-        @test gbig.xc == xc
-        @test gbig.yc == yc
         # Default constructor fails for non-matching dimensions
         @test_throws ArgumentError Subzero.RegRectilinearGrid(
-            (60, 80),
-            xg,
-            yg,
-            Float64[0.0],
-            yc,
-            [CellFloes{Float64}() for i in 1:61, j in 1:81],
+            80,
+            50,
+            0,
+            1e5,
+            0,
+            1e5,
+            1e3,  # 1e5/80 = 1.25e3 ≂̸ 1e3
+            2e3,
+            [CellFloes{Float64}() for i in 1:81, j in 1:51],
         )
         @test_throws ArgumentError Subzero.RegRectilinearGrid(
-            (60, 80),
-            xg,
-            yg,
-            xc,
-            Float64[0.0],
-            [CellFloes{Float64}() for i in 1:61, j in 1:81],
+            80,
+            50,
+            0,
+            1e5,
+            0,
+            1e5,
+            1.25e3,
+            1e3,  # 1e5/50 = 2e3 ≂̸ 1e3
+            [CellFloes{Float64}() for i in 1:81, j in 1:51],
         )
         @test_throws ArgumentError Subzero.RegRectilinearGrid(
-            (60, 80),
-            Float64[0.0],
-            yg,
-            xc,
-            yc,
-            [CellFloes{Float64}() for i in 1:61, j in 1:81],
-        )
-        @test_throws ArgumentError Subzero.RegRectilinearGrid(
-            (60, 80),
-            xg,
-            Float64[0.0],
-            xc,
-            yc,
-            [CellFloes{Float64}() for i in 1:61, j in 1:81],
+            80,
+            50,
+            0,
+            1e5,
+            0,
+            1e5,
+            1.25e3,
+            2e3,
+            [CellFloes{Float64}() for i in 1:71, j in 1:51],  # wrong dims
         )
         
-        # Non-square grid using custom constructor
+        # Non-square grid using constructor with Δx and Δy
         g1 = Subzero.RegRectilinearGrid(
             (-10, 10),
             (-8, 8),
             2,
             4,
         )
-        @test g1.dims == (4, 10)
-        @test g1.xg == collect(-10.0:2:10.0)
-        @test g1.yg == collect(-8:4:8)
-        @test g1.xc == collect(-9.0:2:9.0)
-        @test g1.yc == collect(-6.0:4:6.0)
+        @test g1.Nx == 10
+        @test g1.Ny == 4
+        @test g1.x0 == -10
+        @test g1.xf == 10
+        @test g1.y0 == -8
+        @test g1.yf == 8
+        @test size(g1.floe_locations) == (11, 5)
         @test typeof(g1) == Subzero.RegRectilinearGrid{Float64}
-        # Uneven grid size creation (grid cut short) using custom constructor
+
+        # Non-square grid using constructor with Nx and Ny
         g2 = Subzero.RegRectilinearGrid(
-            (0.0, 10.5),
-            (0.0, 8.0),
-            2.5,
-            2,
+            10,
+            4,
+            (-10, 10),
+            (-8, 8),
         )
-        @test g2.dims == (4, 4)
-        @test g2.xg == collect(0.0:2.5:10.5)
-        @test g2.yg == collect(0.0:2.0:8.0)
-        @test g2.xc == collect(1.25:2.5:8.75)
-        @test g2.yc == collect(1.0:2.0:7.0)
+        @test g2.x0 == -10
+        @test g2.xf == 10
+        @test g2.y0 == -8
+        @test g2.yf == 8
+        @test g2.Δx == 2
+        @test g2.Δy == 4
+        @test size(g2.floe_locations) == (11, 5)
+        @test typeof(g2) == Subzero.RegRectilinearGrid{Float64}
+        
         # Custom constructor Float32 and Float64
         @test typeof(Subzero.RegRectilinearGrid(
             Float32,
@@ -93,15 +83,6 @@
             2,
             2,
         )) == Subzero.RegRectilinearGrid{Float64}
-        # Grid constructor with dimensions
-        g3 = Subzero.RegRectilinearGrid(
-            (-10, 10),
-            (-8, 8),
-            (4, 10),
-        )
-        @test g3.dims == (4,10)
-        @test g3.xg == g1.xg
-        @test g3.yc == g1.yc
     end
 
     @testset "Ocean" begin
@@ -112,10 +93,10 @@
             1e4,
         )
         # Large ocean default constructor
-        uocn = fill(3.0, g.dims .+ 1)
-        vocn = fill(4.0, g.dims .+ 1)
-        tempocn = fill(-2.0, g.dims .+ 1)
-        τx = fill(0.0, g.dims .+ 1)
+        uocn = fill(3.0, g.Nx + 1, g.Ny + 1)
+        vocn = fill(4.0, g.Nx + 1, g.Ny + 1)
+        tempocn = fill(-2.0, g.Nx + 1, g.Ny + 1)
+        τx = fill(0.0, g.Nx + 1, g.Ny + 1)
         τy = τx
         si_frac = τx
         hflx_factor = τx
@@ -163,10 +144,10 @@
             1e4,
         )
         # Large Atmos default constructor
-        uatmos = fill(3.0, g.dims .+ 1)
-        vatmos = fill(4.0, g.dims .+ 1)
-        tempatmos = fill(-2.0, g.dims .+ 1)
-        atmos = Subzero.Atmos( uatmos, vatmos, tempatmos)
+        uatmos = fill(3.0, g.Nx + 1, g.Ny + 1)
+        vatmos = fill(4.0, g.Nx + 1, g.Ny + 1)
+        tempatmos = fill(-2.0, g.Nx, g.Ny)
+        atmos = Subzero.Atmos(uatmos, vatmos, tempatmos)
         @test atmos.u == uatmos
         @test atmos.v == vatmos
         @test atmos.temp == tempatmos
