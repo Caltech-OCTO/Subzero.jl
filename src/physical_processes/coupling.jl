@@ -4,16 +4,102 @@ Functions needed for coupling the ice, ocean, and atmosphere.
 
 #-------------- Monte Carlo Point Calculations --------------#
 
+"""
+    grid_cell_index(p, Δg, g0)
 
-function grid_line_index(p, Δg, g0)
-    return floor(Int, (p - g0)/Δg) + 1
-end
+Find the index of given point's cartesian value (in either the x or y direction)
+within the simulation grid. 
+Inputs:
+    p       <Real> point's cartesian value in either x or y direction
+    Δg      <Real> simulation grid's cell width or height
+    g0      <Real> simulation grid's first grid line value in either x or y
+                        direction
+Output:
+    Point's grid cell index within the simulation grid, as specified by the grid
+    cell dimension and grid line starting value, in either the x or y direction
+"""
+grid_cell_index(p, Δg, g0) = floor(Int, (p - g0)/Δg) + 1
 
-function grid_center_index(p, Δg, g0)
-    return floor(Int, (p - g0)/Δg + 0.5) + 1
-end
+"""
+    grid_line_index(p, Δg, g0)
 
+Find the index of given point's cartesian value (in either the x or y direction)
+within grid with cells centered on simulation grid's grid lines. Thus these
+cells are shifted from simulation's grid cells by half of a grid cell to the
+left.  
+Inputs:
+    p       <Real> point's cartesian value in either x or y direction
+    Δg      <Real> grid's cell width or height
+    g0      <Real> grid's first grid line value in either x or y direction
+Output:
+    Point's grid cell index within the shifted simulation grid, as specified by
+    the grid cell dimension and grid line starting value, in either the x or y
+    direction
+"""
+grid_line_index(p, Δg, g0) = floor(Int, (p - g0)/Δg + 0.5) + 1
 
+"""
+    grid_xg_index(xp, yp, grid::RegRectilinearGrid)
+
+Find indices of given cartesian point within simulation's xg-grid.
+Inputs:
+    xp      <Real> point's x-cartesian value
+    yp      <Real> point's y-cartesian value
+    grid    <RegRectilinearGrid> simulation's grid
+Outputs:
+    x index and y indices within xg-grid
+"""
+grid_xg_index(xp, yp, grid::RegRectilinearGrid) = 
+    grid_line_index(xp, grid.Δx, grid.x0),
+    grid_cell_index(yp, grid.Δy, grid.y0)
+
+"""
+    grid_yg_index(xp, yp, grid::RegRectilinearGrid)
+
+Find indices of given cartesian point within simulation's yg-grid.
+Inputs:
+    xp      <Real> point's x-cartesian value
+    yp      <Real> point's y-cartesian value
+    grid    <RegRectilinearGrid> simulation's grid
+Outputs:
+    x index and y indices within yg-grid
+"""
+grid_yg_index(xp, yp, grid::RegRectilinearGrid) = 
+    grid_cell_index(xp, grid.Δx, grid.x0),
+    grid_line_index(yp, grid.Δy, grid.y0)
+
+"""
+    grid_xc_index(xp, yp, grid::RegRectilinearGrid)
+
+Find indices of given cartesian point within simulation's xc-grid.
+Inputs:
+    xp      <Real> point's x-cartesian value
+    yp      <Real> point's y-cartesian value
+    grid    <RegRectilinearGrid> simulation's grid
+Outputs:
+    x index and y indices within xc-grid
+Note: 
+    This is equivalent fo the yc-grid
+"""   
+grid_xc_index(xp, yp, grid::RegRectilinearGrid) =
+    grid_cell_index(xp, grid.Δx, grid.x0),
+    grid_cell_index(yp, grid.Δy, grid.y0)
+
+"""
+    grid_yc_index(xp, yp, grid::RegRectilinearGrid)
+
+Find indices of given cartesian point within simulation's yc-grid.
+Inputs:
+    xp      <Real> point's x-cartesian value
+    yp      <Real> point's y-cartesian value
+    grid    <RegRectilinearGrid> simulation's grid
+Outputs:
+    x index and y indices within yc-grid
+Note: 
+    This is equivalent fo the xc-grid
+"""   
+grid_yc_index(xp, yp, grid::RegRectilinearGrid) =
+    grid_xc_index(xp, yp, grid)
 
 """
     find_grid_cell_index(xp, yp, grid::RegRectilinearGrid)
@@ -34,8 +120,8 @@ Note:
     than the number of grid cells
 """
 function find_grid_cell_index(xp, yp, grid::RegRectilinearGrid)
-    xidx = floor(Int, (xp - grid.xg[1])/(grid.xg[2] - grid.xg[1])) + 1
-    yidx = floor(Int, (yp - grid.yg[1])/(grid.yg[2] - grid.yg[1])) + 1
+    xidx = floor(Int, (xp - grid.x0) / grid.Δx) + 1
+    yidx = floor(Int, (yp - grid.y0) / grid.Δy) + 1
     return xidx, yidx
 end
 
@@ -60,8 +146,8 @@ Note:
     than the number of grid lines in a given direction.
 """
 function find_center_cell_index(xp, yp, grid::RegRectilinearGrid)
-    xidx = floor(Int, (xp - grid.xg[1])/(grid.xg[2] - grid.xg[1]) + 0.5) + 1
-    yidx = floor(Int, (yp - grid.yg[1])/(grid.yg[2] - grid.yg[1]) + 0.5) + 1
+    xidx = floor(Int, (xp - grid.x0)/(grid.Δx) + 0.5) + 1
+    yidx = floor(Int, (yp - grid.y0)/(grid.Δy) + 0.5) + 1
     return xidx, yidx
 end
 """
@@ -94,8 +180,8 @@ function in_bounds(
     ::NonPeriodicBoundary,
     ::NonPeriodicBoundary,
 )
-    return (grid.xg[1] <= xr <= grid.xg[end]) && 
-        (grid.yg[1] <= yr <= grid.yg[end])
+    return (grid.x0 <= xr <= grid.xf) && 
+        (grid.y0 <= yr <= grid.yf)
 end
 
 """
@@ -127,7 +213,7 @@ function in_bounds(
     ::NonPeriodicBoundary,
     ::PeriodicBoundary,
 )
-    return grid.yg[1] <= yr <= grid.yg[end]
+    return grid.y0 <= yr <= grid.yf
 end
 
 """
@@ -159,7 +245,7 @@ function in_bounds(
     ::PeriodicBoundary,
     ::NonPeriodicBoundary,
 )
-    return grid.xg[1] <= xr <= grid.xg[end]
+    return grid.x0 <= xr <= grid.xf
 end
 
 """
@@ -308,9 +394,9 @@ function find_interp_knots(
 
     # Find out-of-bounds (oob) indices and the in-bounds (within grid) indices
     # Out of bounds on south or west side of domain 
-    low_oob_idx = Vector{Int}(undef, 0)
+    low_oob_idx = 1:0  # empty range
     # Out of bounds on north or east side of domain 
-    high_oob_idx = Vector{Int}(undef, 0)
+    high_oob_idx = 1:0  # empty range
     in_bounds_idx = 
         # Last gird line is equal to first grid line
         if min_line < 1 && max_line > ncells
@@ -452,30 +538,30 @@ function mc_interpolation(
         coupling_settings.Δd,
         domain.north,
     )
-    knots = (yknots, xknots)
+    knots = (xknots, yknots)
 
     # Atmos Interpolation objects for Monte Carlo Points
     uatm_interp = linear_interpolation(
         knots,
-        @view(atmos.u[yknot_idx, xknot_idx]),
+        @view(atmos.u[xknot_idx, yknot_idx]),
     )
     vatm_interp = linear_interpolation(
         knots,
-        @view(atmos.v[yknot_idx, xknot_idx]),
+        @view(atmos.v[xknot_idx, yknot_idx]),
     )
     
     # Ocean Interpolation objects for Monte Carlo Points
     uocn_interp = linear_interpolation(
         knots,
-        @view(ocean.u[yknot_idx, xknot_idx]),
+        @view(ocean.u[xknot_idx, yknot_idx]),
     )
     vocn_interp = linear_interpolation(
         knots,
-        @view(ocean.v[yknot_idx, xknot_idx]),
+        @view(ocean.v[xknot_idx, yknot_idx]),
     )
     hflx_interp = linear_interpolation(
         knots,
-        @view(ocean.hflx_factor[yknot_idx, xknot_idx]),
+        @view(ocean.hflx_factor[xknot_idx, yknot_idx]),
     )
 
     return uatm_interp, vatm_interp, uocn_interp, vocn_interp, hflx_interp
@@ -802,8 +888,8 @@ function calc_atmosphere_forcing(
     c,  # constants
 )
     # Atmosphere velocities at monte carlo point
-    uatm = uatm_interp(mc_yr, mc_xr) 
-    vatm = vatm_interp(mc_yr, mc_xr)
+    uatm = uatm_interp(mc_xr, mc_yr) 
+    vatm = vatm_interp(mc_xr, mc_yr) 
 
     # Stress on ice from atmopshere
     Δu_AI = uatm - upoint
@@ -868,9 +954,9 @@ function calc_ocean_forcing!(
     ma_ratio,
     c,  # constants
 )
-    uocn = uocn_interp(mc_yr, mc_xr)
-    vocn = vocn_interp(mc_yr, mc_xr)
-    hflx_factor = hflx_interp(mc_yr, mc_xr)
+    uocn = uocn_interp(mc_xr, mc_yr)
+    vocn = vocn_interp(mc_xr, mc_yr)
+    hflx_factor = hflx_interp(mc_xr, mc_yr)
     Δu_OI = uocn - upoint
     Δv_OI = vocn - vpoint
     norm = sqrt(Δu_OI^2 + Δv_OI^2)
@@ -983,9 +1069,9 @@ cell and update ocean sea ice area fraction (si_area), representing total area
 of sea ice in a given cell. Function is called for each monte carlo point.
 Inputs:
     floeidx             <Int> index of floe within model's floe array
-    row                 <Int> grid row that floe's point is within for grid
+    xidx                <Int> grid x index that floe's point is within for grid
                             centered on grid lines
-    col                 <Int> grid column that floe's point is within for grid
+    yidx                <Int> grid column that floe's point is within for grid
                             centered on grid lines
     τx_ocn              <AbstractFloat> x-stress caused by ocean on point
     τy_ocn              <AbstractFloat> y-stress caused by ocean on point
@@ -999,8 +1085,8 @@ Inputs:
 """
 function floe_to_grid_info!(
     floeidx,
-    row,
-    col,
+    xidx,
+    yidx,
     τx_ocn::FT,
     τy_ocn::FT,
     grid,
@@ -1010,15 +1096,15 @@ function floe_to_grid_info!(
     coupling_settings,
 ) where {FT}
     # Determine grid cell point is in and if floe is shifted by periodic bounds
-    shifted_row = shift_cell_idx(row, grid.Nx + 1, ns_bound)
-    shifted_col = shift_cell_idx(col, grid.Ny + 1, ew_bound)
-    Δx = (shifted_col - col) * (grid.xg[2] - grid.xg[1])
-    Δy = (shifted_row - row) * (grid.yg[2] - grid.yg[1])
+    shifted_xidx = shift_cell_idx(xidx, grid.Nx + 1, ns_bound)
+    shifted_yidx = shift_cell_idx(yidx, grid.Ny + 1, ew_bound)
+    Δx = (shifted_xidx - xidx) * (grid.Δx)
+    Δy = (shifted_yidx - yidx) * (grid.Δy)
     if coupling_settings.two_way_coupling_on 
         # If two-way coupling, save stress on ocean per cell
         add_point!(
-            grid.floe_locations[shifted_row, shifted_col],
-            scells[shifted_row, shifted_col],
+            grid.floe_locations[shifted_xidx, shifted_yidx],
+            scells[shifted_xidx, shifted_yidx],
             floeidx,
             -τx_ocn,
             -τy_ocn,
@@ -1027,7 +1113,7 @@ function floe_to_grid_info!(
         )
     else
         add_point!(
-            grid.floe_locations[shifted_row, shifted_col],
+            grid.floe_locations[shifted_xidx, shifted_yidx],
             floeidx,
             Δx,
             Δy,
@@ -1148,8 +1234,8 @@ function calc_one_way_coupling!(
             # Save floe info onto the grid
             floe_to_grid_info!(
                 i,
-                mc_grid_idx[j, 2],  # row
-                mc_grid_idx[j, 1],  # column
+                mc_grid_idx[j, 1],
+                mc_grid_idx[j, 2],
                 τx_ocn,
                 τy_ocn,
                 grid,
@@ -1200,7 +1286,7 @@ function calc_two_way_coupling!(
     Δt,
 ) where {FT}
     # Determine force from floe on each grid cell it is in
-    cell_area = (grid.xg[2] - grid.xg[1]) * (grid.yg[2] - grid.yg[1])
+    cell_area = grid.Δx * grid.Δy
     Threads.@threads for cartidx in CartesianIndices(ocean.scells)
         ocean.τx[cartidx] = FT(0)
         ocean.τy[cartidx] = FT(0)
@@ -1210,8 +1296,8 @@ function calc_two_way_coupling!(
         if !isempty(floe_locations.floeidx)
             # Coordinates of grid cell
             cell_coords = center_cell_coords(
-                cartidx[2],
                 cartidx[1],
+                cartidx[2],
                 grid,
                 domain.north,
                 domain.east
