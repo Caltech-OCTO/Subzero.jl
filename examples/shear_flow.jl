@@ -21,7 +21,11 @@ uvels = repeat(
     [range(0, 0.5, length = 26); range(0.5, 0, length = 25)],
     outer = (1, 51),
 )
-ocean = Ocean(uvels, zeros(grid.Nx + 1, grid.Ny + 1), zeros(grid.Nx, grid.Ny))
+ocean = Ocean(
+    uvels',
+    zeros(grid.Nx + 1, grid.Ny + 1),
+    zeros(grid.Nx + 1, grid.Ny + 1),
+)
 atmos = Atmos(grid, 0.0, 0.0, -1.0)
 
 # Domain creation
@@ -45,24 +49,21 @@ consts = Constants(E = modulus)
 # Run simulation
 run_time!(simulation) = @time run!(simulation)
 dir = "output/shear_flow"
-for i in 1:1
+
     # Output setup
-    local initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
-    local floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
-
-    local writers = OutputWriters(initwriter, floewriter)
-
-    local simulation = Simulation(
-        model = model,
-        consts = consts,
-        Δt = Δt,
-        nΔt = 2000,
-        verbose = false,
-        writers = writers,
-        rng = Xoshiro(1),
-    )
-    run_time!(simulation)
-end
+initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
+floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
+writers = OutputWriters(initwriter, floewriter)
+simulation = Simulation(
+    model = model,
+    consts = consts,
+    Δt = Δt,
+    nΔt = 2000,
+    verbose = false,
+    writers = writers,
+    rng = Xoshiro(1),
+)
+run_time!(simulation)
  
 Subzero.create_sim_gif("output/shear_flow/floes.jld2", 
                        "output/shear_flow/initial_state.jld2",

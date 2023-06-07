@@ -98,15 +98,15 @@
         tempocn = fill(-2.0, g.Nx + 1, g.Ny + 1)
         τx = fill(0.0, g.Nx + 1, g.Ny + 1)
         τy = τx
-        si_frac = τx
-        hflx_factor = τx
-        dissolved = τx
+        si_frac = fill(0.0, g.Nx + 1, g.Ny + 1)
+        hflx_factor = si_frac
+        dissolved = si_frac
         ocn = Subzero.Ocean(
             uocn,
             vocn,
             tempocn,
             hflx_factor,
-            [IceStressCell{Float64}() for i in 1:g.dims[1] + 1, j in 1:g.dims[2] + 1],
+            [IceStressCell{Float64}() for i in 1:(g.Nx + 1), j in 1:(g.Ny + 1)],
             τx,
             τy,
             si_frac,
@@ -115,11 +115,11 @@
         @test ocn.u == uocn
         @test ocn.v == vocn
         @test ocn.temp == tempocn
-        @test τx == ocn.si_frac == ocn.hflx_factor == ocn.τx == ocn.τy == ocn.dissolved
+        @test τx == ocn.τx == ocn.τy
+        @test si_frac == ocn.si_frac == ocn.hflx_factor == ocn.dissolved
         @test ocn.u == uocn
         @test ocn.v == vocn
         @test ocn.temp == tempocn
-        @test ocn.si_frac == ocn.hflx_factor == ocn.τx == ocn.τx
         # Custom constructor
         ocn2 = Subzero.Ocean(g, 3.0, 4.0, -2.0)
         @test ocn.u == ocn2.u
@@ -146,7 +146,7 @@
         # Large Atmos default constructor
         uatmos = fill(3.0, g.Nx + 1, g.Ny + 1)
         vatmos = fill(4.0, g.Nx + 1, g.Ny + 1)
-        tempatmos = fill(-2.0, g.Nx, g.Ny)
+        tempatmos = fill(-2.0, g.Nx + 1, g.Ny + 1)
         atmos = Subzero.Atmos(uatmos, vatmos, tempatmos)
         @test atmos.u == uatmos
         @test atmos.v == vatmos

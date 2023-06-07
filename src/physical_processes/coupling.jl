@@ -341,7 +341,8 @@ end
 """
     find_interp_knots(
         point_idx,
-        glines,
+        ncells,
+        L,
         Δd::Int,
         ::PeriodicBoundary,
     )
@@ -354,7 +355,9 @@ extend the grid lines to cover the points and buffer.
 Inputs:
     point_idx   <Vector{Int}> vector of point indices representing the grid line
                     they are nearest
-    glines      <Vector{Float}> vector of all grid line values 
+    ncells      <Int> number of grid cells in given dimension
+    glines      <Vector or Range> grid line values
+    L           <AbstractFloat> length of grid in given dimension
     Δd          <Int> number of buffer grid cells to include on either side of
                     the provided indicies 
                 <PeriodicBoundary> dispatching on periodic boundary
@@ -378,14 +381,13 @@ Note:
 """
 function find_interp_knots(
     point_idx,
+    ncells,
     glines,
+    L,
     Δd::Int,
     ::PeriodicBoundary,
 )
     min_line, max_line = extrema(point_idx)
-    nlines = length(glines)
-    ncells = nlines - 1
-
     # Grid lines surrounding points with buffers
     # Point close to ith grid line could be between the i and i-1 grid line
     min_line -= (Δd + 1)
@@ -412,20 +414,23 @@ function find_interp_knots(
         else
             min_line:max_line
         end
-    # Combine above indices for knot indicies
     knot_idx = [low_oob_idx; in_bounds_idx; high_oob_idx]
     #= Adjust out-of-bound values by grid length so there isn't a jump in
     interpolation spacing =#
-    Δg = glines[end] - glines[1]
-    knots = [glines[low_oob_idx] .- Δg;
-        glines[in_bounds_idx]; glines[high_oob_idx] .+ Δg]
+    knots = [
+        glines[low_oob_idx] .- L;
+        glines[in_bounds_idx];
+        glines[high_oob_idx] .+ L
+    ]
+
     return knots, knot_idx
 end
 
 """
     find_interp_knots(
         point_idx,
-        glines,
+        ncells,
+        L,
         Δd::Int,
         ::NonPeriodicBoundary,
     )
@@ -437,7 +442,9 @@ off the possible indices past the edge of the grid.
 Inputs:
     point_idx   <Vector{Int}> vector of indices representing the grid line they
                     are nearest
-    glines      <Vector{Float}> vector of grid line values 
+    ncells      <Int> number of grid cells in given dimension
+    glines      <Vector or Range> grid line values
+    L           <AbstractFloat> length of grid in given dimension
     Δd          <Int> number of buffer grid cells to include on either side of
                     the provided indicies 
                 <PeriodicBoundary> dispatching on periodic boundary
@@ -451,11 +458,13 @@ Note:
 """
 function find_interp_knots(
     point_idx,
+    ncells,
     glines,
+    L,
     Δd::Int,
     ::NonPeriodicBoundary,
 )
-    nlines = length(glines)
+    nlines = ncells + 1
     min_line, max_line = extrema(point_idx)
     # point close to ith grid line could be between the i and i-1 grid line
     min_line -= (Δd + 1)
@@ -522,22 +531,27 @@ function mc_interpolation(
     ocean,
     coupling_settings,
 )
-    mc_cols = @view mc_grid_idx[1:npoints, 1]
-    mc_rows = @view mc_grid_idx[1:npoints, 2]
+    mc_xidx = @view mc_grid_idx[1:npoints, 1]
+    mc_yidx = @view mc_grid_idx[1:npoints, 2]
 
     # Find knots and indices of knots for monte carlo interpolation
     xknots, xknot_idx = find_interp_knots(
-        mc_cols,
-        grid.xg,
+        mc_xidx,
+        grid.Nx,
+        grid.x0:grid.Δx:grid.xf,
+        grid.xf - grid.x0,
         coupling_settings.Δd,
         domain.east,
     )
     yknots, yknot_idx = find_interp_knots(
-        mc_rows,
-        grid.yg,
+        mc_yidx,
+        grid.Ny,
+        grid.y0:grid.Δy:grid.yf,
+        grid.yf - grid.y0,
         coupling_settings.Δd,
         domain.north,
     )
+
     knots = (xknots, yknots)
 
     # Atmos Interpolation objects for Monte Carlo Points
@@ -642,13 +656,13 @@ function check_cell_bounds(
     ::NonPeriodicBoundary,
     ::PeriodicBoundary,
 )
-    ymin = ymin < grid.yg[1] ?
-        grid.yg[1] :
-        (ymin > grid.yg[end] ? grid.yg[end] : ymin)
+    ymin = ymin < grid.y0 ?
+        grid.y0 :
+        (ymin > grid.yf ? grid.yf : ymin)
 
-    ymax = ymax > grid.yg[end] ?
-        grid.yg[end] :
-        (ymax < grid.yg[1] ? grid.yg[1] : ymax)
+    ymax = ymax > grid.yf ?
+        grid.yf :
+        (ymax < grid.y0 ? grid.y0 : ymax)
     return xmin, xmax, ymin, ymax
 end
 
@@ -688,13 +702,13 @@ function check_cell_bounds(
     ::PeriodicBoundary,
     ::NonPeriodicBoundary,
 )
-    xmin = xmin < grid.xg[1] ?
-        grid.xg[1] :
-        (xmin > grid.xg[end] ? grid.xg[end] : xmin)
+    xmin = xmin < grid.x0 ?
+        grid.x0 :
+        (xmin > grid.xf ? grid.xf : xmin)
 
-    xmax = xmax > grid.xg[end] ?
-        grid.xg[end] :
-        (xmax < grid.xg[1] ? grid.xg[1] : xmax) 
+    xmax = xmax > grid.xf ?
+        grid.xf :
+        (xmax < grid.x0 ? grid.x0 : xmax) 
     return xmin, xmax, ymin, ymax
 end
 
@@ -734,21 +748,21 @@ function check_cell_bounds(
     ::NonPeriodicBoundary,
     ::NonPeriodicBoundary,
 )
-    xmin = xmin < grid.xg[1] ?
-        grid.xg[1] :
-        (xmin > grid.xg[end] ? grid.xg[end] : xmin)
+    xmin = xmin < grid.x0 ?
+        grid.x0 :
+        (xmin > grid.xf ? grid.xf : xmin)
 
-    xmax = xmax > grid.xg[end] ?
-        grid.xg[end] :
-        (xmax < grid.xg[1] ? grid.xg[1] : xmax)
+    xmax = xmax > grid.xf ?
+        grid.xf :
+        (xmax < grid.x0 ? grid.x0 : xmax)
 
-    ymin = ymin < grid.yg[1] ?
-        grid.yg[1] :
-        (ymin > grid.yg[end] ? grid.yg[end] : ymin)
+    ymin = ymin < grid.y0 ?
+        grid.y0 :
+        (ymin > grid.yf ? grid.yf : ymin)
 
-    ymax = ymax > grid.yg[end] ?
-        grid.yg[end] :
-        (ymax < grid.yg[1] ? grid.yg[1] : ymax)
+    ymax = ymax > grid.yf ?
+        grid.yf :
+        (ymax < grid.y0 ? grid.y0 : ymax)
     return xmin, xmax, ymin, ymax
 end
 
@@ -786,12 +800,10 @@ function center_cell_coords(
     ns_bound,
     ew_bound,
 )
-    Δx = grid.xg[2] .- grid.xg[1]
-    Δy = grid.yg[2] .- grid.yg[1]
-    xmin = (xidx - 1.5)*Δx + grid.xg[1]
-    xmax = xmin + Δx
-    ymin = (yidx - 1.5)*Δy + grid.yg[1]
-    ymax = ymin + Δy
+    xmin = (xidx - 1.5) * grid.Δx + grid.x0
+    xmax = xmin + grid.Δx
+    ymin = (yidx - 1.5) * grid.Δy + grid.y0
+    ymax = ymin + grid.Δy
     #= Check if cell extends beyond boundaries and if non-periodic, trim cell to
     fit within grid. =#
     xmin, xmax, ymin, ymax = check_cell_bounds(
@@ -1055,8 +1067,8 @@ end
 """
     floe_to_grid_info!(
         floeidx,
-        row,
-        col,
+        xidx,
+        yidx,
         τx_ocn::FT,
         τy_ocn::FT,
         grid,
@@ -1096,8 +1108,8 @@ function floe_to_grid_info!(
     coupling_settings,
 ) where {FT}
     # Determine grid cell point is in and if floe is shifted by periodic bounds
-    shifted_xidx = shift_cell_idx(xidx, grid.Nx + 1, ns_bound)
-    shifted_yidx = shift_cell_idx(yidx, grid.Ny + 1, ew_bound)
+    shifted_xidx = shift_cell_idx(xidx, grid.Nx + 1, ew_bound)
+    shifted_yidx = shift_cell_idx(yidx, grid.Ny + 1, ns_bound)
     Δx = (shifted_xidx - xidx) * (grid.Δx)
     Δy = (shifted_yidx - yidx) * (grid.Δy)
     if coupling_settings.two_way_coupling_on 

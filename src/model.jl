@@ -86,7 +86,7 @@ struct RegRectilinearGrid{FT}<:AbstractGrid{FT}
         Δy,
         floe_locations,
     ) where {FT}
-        if size(floe_locations) != (Ny + 1, Ny + 1)
+        if size(floe_locations) != (Nx + 1, Ny + 1)
             throw(ArgumentError("Floe location matrix needs to be the same \
                 dimensions as grid lines."))
         end
@@ -143,23 +143,26 @@ Warning:
     length (uy-ly) you won't get full size grid. The grid will be "trimmed" to
     the nearest full grid square in both directions.
 """
-RegRectilinearGrid{FT}(
+function RegRectilinearGrid{FT}(
     xbounds::Tuple,
     ybounds::Tuple,
     Δx,
     Δy,
-) where {FT <: AbstractFloat} = 
-    RegRectilinearGrid{FT}(
-        ((xbounds[2] - xbounds[1]) / Δx) - 1,
-        ((ybounds[2] - ybounds[1]) / Δy) - 1,
+) where {FT <: AbstractFloat}
+    Nx = floor(Int, (xbounds[2] - xbounds[1]) / Δx)
+    Ny = floor(Int, (ybounds[2] - ybounds[1]) / Δy)
+    return RegRectilinearGrid{FT}(
+        Nx,
+        Ny,
         xbounds[1],
-        xbounds[2],
+        xbounds[1] + Nx * Δx,
         ybounds[1],
-        ybounds[2],
+        ybounds[1] + Ny * Δy,
         Δx,
         Δy,
-        [CellFloes{FT}() for i in 1:(ny + 1), j in 1:(nx + 1)],
+        [CellFloes{FT}() for i in 1:(Nx + 1), j in 1:(Ny + 1)],
     )
+end
 
 get_grid_lines(g0, gf, Δg) = g0:Δg:gf
 get_grid_centers(g0, gf, Δg) = (g0 + Δg/2):Δg:(gf - Δg/2) 
@@ -197,9 +200,9 @@ RegRectilinearGrid{FT}(
         xbounds[2],
         ybounds[1],
         ybounds[2],
-        (xbounds[2] - xbounds[1])/dims[2],
-        (ybounds[2] - ybounds[1])/dims[1],
-        [CellFloes{FT}() for i in 1:(ny + 1), j in 1:(nx + 1)],
+        (xbounds[2] - xbounds[1]) / Nx,
+        (ybounds[2] - ybounds[1]) / Ny,
+        [CellFloes{FT}() for i in 1:(Nx + 1), j in 1:(Ny + 1)],
     )
 
 ### --------------- Ocean Fields, Structs, and Constructors --------------- ### 
@@ -333,17 +336,17 @@ function Ocean{FT}(
     v,
     temp,
 ) where {FT <: AbstractFloat}
-    Nx, Ny = size(temp)
+    Nx, Ny = size(temp) .- 1
     return Ocean{FT}(
         u,
         v,
         temp,
-        zeros(FT, Nx, Ny), # heat flux
+        zeros(FT, Nx + 1, Ny + 1), # heat flux
         [IceStressCell{FT}() for i in 1:(Nx + 1), j in 1:(Ny + 1)],
         zeros(FT, Nx + 1, Ny + 1),  # x-stress
         zeros(FT, Nx + 1, Ny + 1),  # y-stress
-        zeros(FT, Nx, Ny),  # sea ice fraction
-        zeros(FT, Nx, Ny),  # dissolved
+        zeros(FT, Nx + 1, Ny + 1),  # sea ice fraction
+        zeros(FT, Nx + 1, Ny + 1),  # dissolved
     )
 end
 
@@ -368,7 +371,7 @@ Ocean{FT}(
     Ocean{FT}(
         fill(FT(u), grid.Nx + 1, grid.Ny + 1),
         fill(FT(v), grid.Nx + 1, grid.Ny + 1),
-        fill(FT(temp), grid.Nx, grid.Ny),
+        fill(FT(temp), grid.Nx + 1, grid.Ny + 1),
     )
 
 ### ------------- Atmosphere Fields, Structs, and Constructors ------------- ### 
@@ -431,7 +434,7 @@ Atmos{FT}(
     return Atmos{FT}(
         fill(FT(u), grid.Nx + 1, grid.Ny + 1),
         fill(FT(v),  grid.Nx + 1, grid.Ny + 1),
-        fill(FT(temp),  grid.Nx, grid.Ny),
+        fill(FT(temp),  grid.Nx + 1, grid.Ny + 1),
     )
 
 ### --------------- Domain Fields, Structs, and Constructors --------------- ### 
@@ -498,7 +501,7 @@ function boundary_coords(grid::AbstractGrid, ::Type{North})
     return grid.yf,  # val
         [[[grid.x0 - Δx, grid.yf],  # coords
           [grid.x0 - Δx, grid.yf + Δy],
-          [grid.x0 + Δx, grid.yf + Δy], 
+          [grid.xf + Δx, grid.yf + Δy], 
           [grid.xf + Δx, grid.yf], 
           [grid.x0 - Δx, grid.yf]]]
 end
@@ -517,13 +520,13 @@ Output:
 """
 function boundary_coords(grid::AbstractGrid, ::Type{South})
     Δx = (grid.xf - grid.x0)/2 # Half of the grid in x
-    Δy = (grid.yf - grid.yg0)/2 # Half of the grid in y
-    return grid.yg0,  # val
-        [[[grid.xg0 - Δx, grid.yg0 - Δy],  # coords
-          [grid.xg0 - Δx, grid.yg0],
-          [grid.xf + Δx, grid.yg0], 
-          [grid.xf + Δx, grid.yg0 - Δy], 
-          [grid.xg0 - Δx, grid.yg0 - Δy]]]
+    Δy = (grid.yf - grid.y0)/2 # Half of the grid in y
+    return grid.y0,  # val
+        [[[grid.x0 - Δx, grid.y0 - Δy],  # coords
+          [grid.x0 - Δx, grid.y0],
+          [grid.xf + Δx, grid.y0], 
+          [grid.xf + Δx, grid.y0 - Δy], 
+          [grid.x0 - Δx, grid.y0 - Δy]]]
 end
 
 """
@@ -1116,14 +1119,14 @@ function domain_in_grid(domain::Domain, grid::AbstractGrid)
     southval = domain.south.val
     eastval = domain.east.val
     westval = domain.west.val
-    if (northval <= grid.yg[end] &&
-        southval >= grid.yg[1] &&
-        eastval <= grid.xg[end] &&
-        westval >= grid.xg[1])
-        if (northval != grid.yg[end] ||
-            southval != grid.yg[1] ||
-            eastval != grid.xg[end] ||
-            westval != grid.xg[1])
+    if (northval <= grid.yf &&
+        southval >= grid.y0 &&
+        eastval <= grid.xf &&
+        westval >= grid.x0)
+        if (northval != grid.yf ||
+            southval != grid.y0 ||
+            eastval != grid.xf ||
+            westval != grid.x0)
             @warn "At least one wall of domain is smaller than grid. This \
                 could lead to unneeded computation. Consider making grid \
                 smaller or domain larger."

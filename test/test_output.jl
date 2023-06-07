@@ -33,7 +33,7 @@ function test_basic_outputwriters()
     gridwriter = GridOutputWriter(
         100,
         grid,
-        (5, 10),
+        (10, 5),
         dir = dir,
         filename = "grid.nc",
         overwrite = true,

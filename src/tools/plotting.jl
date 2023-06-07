@@ -5,7 +5,10 @@ Plotting functions for Subzero Simulation
 """
 grids_from_lines(xlines, ylines)
 
-Creates x-grid and y-grid. Assume xlines has length n and ylines has length m. xgrid is the grid's xline vector repeated m times as rows in a mxn array and ygrid is the yline vector repeated n times as columns in a mxn vector. xlines and ylines are typically either xg and yg of xc and yc.
+Creates x-grid and y-grid. Assume xlines has length n and ylines has length m.
+xgrid is the grid's xline vector repeated m times as rows in a mxn array and
+ygrid is the yline vector repeated n times as columns in a mxn vector. xlines
+and ylines are typically either xg and yg or xc and yc.
 """
 function grids_from_lines(xlines, ylines)
     xgrid = repeat(reshape(xlines, 1, :), inner=(length(ylines),1))
@@ -26,7 +29,7 @@ Inputs:
 Outputs:
     Plot with x and y xlim determed by domain and including all topography. 
 """
-function setup_plot(init_pn::String, plot_size = (1500, 1500))
+function setup_plot(init_pn::String, plot_size = (1500, 1500), plot_ocn = false)
     # Open file to get needed values
     file = jldopen(init_pn, "r")
     d = file["sim"].model.domain
@@ -60,6 +63,13 @@ function setup_plot(init_pn::String, plot_size = (1500, 1500))
             fill = :grey,
             legend=false,
         )
+    end
+    if plot_ocn
+        xgrid, ygrid = Subzero.grids_from_lines(model.grid.xc, model.grid.xc)
+        plt_new = quiver(plt, vec(xgrid ./ 1000), vec(ygrid ./ 1000),
+            quiver=(vec(model.ocean.u), vec(model.ocean.v)), color = :lightgrey,
+            title = string("Time: ", round(time/6, digits = 2), " minutes"))
+
     end
     JLD2.close(file)
     return plt
