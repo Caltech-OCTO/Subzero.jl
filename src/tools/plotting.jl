@@ -26,13 +26,16 @@ and topograhy plotted in grey.
 Inputs:
     domain_fn  <String> file path to JLD2 file holding domain struct information
     plot_size  <Tuple{Int, Int}> size of output plot - default is (1500, 1200)
+    plot_ocn   <Boolean> boolean flag to plot the ocean arrows if true
 Outputs:
     Plot with x and y xlim determed by domain and including all topography. 
 """
 function setup_plot(init_pn::String, plot_size = (1500, 1500), plot_ocn = false)
     # Open file to get needed values
     file = jldopen(init_pn, "r")
+    g = file["sim"].model.grid
     d = file["sim"].model.domain
+    o = file["sim"].model.ocean
     
     xmin = d.west.val/1000
     xmax = d.east.val/1000
@@ -65,11 +68,19 @@ function setup_plot(init_pn::String, plot_size = (1500, 1500), plot_ocn = false)
         )
     end
     if plot_ocn
-        xgrid, ygrid = Subzero.grids_from_lines(model.grid.xc, model.grid.xc)
-        plt_new = quiver(plt, vec(xgrid ./ 1000), vec(ygrid ./ 1000),
-            quiver=(vec(model.ocean.u), vec(model.ocean.v)), color = :lightgrey,
-            title = string("Time: ", round(time/6, digits = 2), " minutes"))
-
+        xg = g.x0:g.Δx:g.xf
+        yg = g.y0:g.Δy:g.yf
+        xgrid, ygrid = Subzero.grids_from_lines(xg, yg)
+        quiver!(
+            plt,
+            vec(xgrid ./ 1000),
+            vec(ygrid ./ 1000),
+            quiver=(
+                vec(o.u'),
+                vec(o.v'),
+            ),
+            color = :lightgrey,
+        )
     end
     JLD2.close(file)
     return plt
@@ -87,6 +98,8 @@ Inputs:
     output_fn  <String> file path to save gif
     plot_size  <Tuple(Int, Int)> size of output gif in pixels - default
                     (1500, 1500)
+    fps        <Int> frames per second
+    plot_ocn   <Boolean> boolean flag to plot the ocean arrows if true
 Outputs:
     Saves simulation gif with floes and topography plotted.
 """
@@ -96,6 +109,7 @@ function create_sim_gif(
     output_fn;
     plot_size = (1500, 1500),
     fps = 15,
+    plot_ocn = false,
 )
     # Get floe data
     floe_data = jldopen(floe_pn, "r")
@@ -104,7 +118,7 @@ function create_sim_gif(
     times = keys(coords)
     # Plot floe data
     anim = @animate for t in times
-        plt = setup_plot(init_pn, plot_size)
+        plt = setup_plot(init_pn, plot_size, plot_ocn)
         verts = Subzero.separate_xy.(coords[t])
         for i in eachindex(verts)
             if status[t][i].tag != remove
