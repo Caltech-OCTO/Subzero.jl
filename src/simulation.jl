@@ -87,6 +87,7 @@ Outputs:
     None. Simulation advances by one timestep. 
 """
 function timestep_sim!(sim, tstep)
+    sim.verbose && mod(tstep, 50) == 0 && println(tstep, " timesteps")
     if !isempty(sim.model.floes)
         max_floe_id = maximum(sim.model.floes.id)
         # Need to lock some operations when multi-threading
@@ -171,6 +172,24 @@ function timestep_sim!(sim, tstep)
     return 
 end
 
+function startup_sim(sim)
+    # Set up logger
+    logfolder = "./log"
+    mkpath(logfolder)
+    logfile = joinpath(logfolder, "$(sim.name).log")
+    isfile(logfile) && rm(logfile, force=true)
+    logger = SimpleLogger(open(logfile, "w"))
+    global_logger(logger)
+    # Start sim notice
+    sim.verbose && println(string(sim.name, " is running!"))
+    return
+end
+
+function teardown_sim(sim)
+    sim.verbose && println(string(sim.name, " done running!"))
+    return
+end
+
 """
     run!(sim, writers)
 
@@ -186,17 +205,13 @@ Outputs:
     folder. 
 """
 function run!(sim)
-    # Start simulation
-    sim.verbose && println(string(sim.name, " is running!"))
+    startup_sim(sim)
     tstep = 0
     while tstep <= sim.nΔt
-        if sim.verbose && mod(tstep, 50) == 0
-            println(tstep, " timesteps")
-        end
         # Timestep the simulation forward
         timestep_sim!(sim, tstep)
         tstep+=1
     end
-    sim.verbose && println(string(sim.name, " done running!"))
+    teardown_sim(sim)
     return
 end

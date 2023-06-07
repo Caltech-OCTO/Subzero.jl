@@ -13,41 +13,62 @@ const BOLD      = Crayon(bold=true)
 const UNDERLINE = Crayon(underline=true)
 
 struct SubzeroLogger <: Logging.AbstractLogger
-    file_logger::Base.SimpleLogger = SimpleLogger(open(log_file, "w"))
-    console_logger::Base.SimpleLogger = SimpleLogger(stdout)
-    seen_message::Dict{Any,Bool}
+    stream :: IO
+    min_level :: Logging.LogLevel
+    message_limits :: Dict{Any,Int}
+    message_per_timestep::Int
+    timestep:: Int
+    show_info_source :: Bool
 end
 
-SubzeroLogger(log_file::String) =
+SubzeroLogger(sim, show_info_source=false) =
     SubzeroLogger(
-        SimpleLogger(open(log_file, "w")),
-        SimpleLogger(stdout),
-        Dict{Any,Bool}(),
+        "./log/$(sim.name).log",
+        Logging.Info,
+        Dict{Any,Int}(),
+        1,  # number of messages per timestep (per message)
+        0,  # starting timestep,
+        show_info_source,
     )
 
-# what should I make the default? Should everything go to terminal? Not go to file? Make default file?
-
-"""
-Based on: https://juliacheat.codes/how-to/get-started-with-logging/
-"""
-shouldlog(logger::SubzeroLogger, level, _module, group, id) = true
+shouldlog(logger::OceananigansLogger, level, _module, group, id) =
+    get(logger.message_limits, id, 1) > 0
 
 min_enabled_level(logger::SubzeroLogger) = Logging.Info
 
 catch_exceptions(logger::SubzeroLogger) = false
 
-function handle_message(logger::SubzeroLogger, args...; kwargs...)
-    # Write to logger message to file
-    Logging.handle_message(logger.file_logger, args...; kwargs...)
-    flush(logger.file_logger.stream)
-    # If message hasn't been seen before, write to terminal as well
-    seen_message = get!(logger.seen_message, id, false)
-    # Do we need a lock for this if statement??
-    if !seen_message  # if message hasn't been seen before
-        println(iob, formatted_message)
-        logger.seen_message[id] = true
-        Logging.handle_message(logger.console_logger, args...; kwargs...)
-        flush(logger.console_logger.stream)
+function handle_message(
+    logger::SubzeroLogger,
+    args...;
+    tstep = nothing,
+    kwargs...,
+)
+    # I only want it to log max_log times *per timestep*
+    if !isnothing(tstep) # gotta add something here
+        remaining = get!(logger.message_limits, id, maxlog)
+        logger.message_limits[id] = remaining - 1
+        remaining > 0 || return nothing
     end
+
+    buf = IOBuffer()
+    iob = IOContext(buf, logger.stream)
+
+    level_name = level_to_string(level)
+    crayon = level_to_crayon(level)
+
+    file_name   = something(filepath, "nothing")
+    line_number = something(line, "nothing")
+    msg_timestamp = Dates.format(Dates.now(), "[yyyy/mm/dd HH:MM:SS.sss]")
+
+    formatted_message = "$(crayon(msg_timestamp)) $(BOLD(crayon(level_name))) $message"
+
+    if logger.show_info_source || level != Logging.Info
+        formatted_message *= " $(BOLD(crayon("-@->"))) $(UNDERLINE("$file_name:$line_number"))"
+    end
+    # If timestep exists, should add timestep to message
+    println(iob, formatted_message)
+    write(logger.stream, take!(buf))
+
     return
 end

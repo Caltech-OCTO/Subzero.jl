@@ -330,12 +330,12 @@ function timestep_floe_properties!(
         end
         # Ensure no extreem values due to model instability
         if floes.height[i] > max_height
-            #@warn "Reducing height to 10 m"
+            @warn "Reducing height to 10 m"
             floes.height[i] = max_height
         end
 
         while maximum(abs.(cforce)) > floes.mass[i]/(5Δt)
-            #@warn "Decreasing collision forces by a factor of 10"
+            @warn "Decreasing collision forces by a factor of 10"
             cforce = cforce ./ 10
             ctrq = ctrq ./ 10
         end
@@ -386,7 +386,7 @@ function timestep_floe_properties!(
             1
         end
         if frac != 1
-            #@warn "Adjusting u and v velocities to prevent too high"
+            @warn "Adjusting u and v velocities to prevent too high"
         end
         dudt = frac*dudt
         dvdt = frac*dvdt
@@ -399,7 +399,7 @@ function timestep_floe_properties!(
         dξdt = frac*dξdt
         ξ = floes.ξ[i] + 1.5Δt*dξdt-0.5Δt*floes.p_dξdt[i]
         if abs(ξ) > 1e-5
-            #@warn "Shrinking ξ"
+            @warn "Shrinking ξ"
             ξ = sign(ξ) * 1e-5
         end
         floes.ξ[i] = ξ

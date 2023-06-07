@@ -54,13 +54,13 @@ for i in 1:1
         consts = consts,
         Δt = Δt,
         nΔt = 2000,
-        verbose = false,
+        verbose = true,
         writers = writers,
         rng = Xoshiro(1),
     )
     run_time!(simulation)
 end
  
-Subzero.create_sim_gif("output/shear_flow/floes.jld2", 
-                       "output/shear_flow/initial_state.jld2",
-                       "output/shear_flow/shear_flow.gif")
+# Subzero.create_sim_gif("output/shear_flow/floes.jld2", 
+#                        "output/shear_flow/initial_state.jld2",
+#                        "output/shear_flow/shear_flow.gif")

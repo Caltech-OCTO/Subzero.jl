@@ -63,9 +63,9 @@ export
 
 import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG
-using DataStructures, GeometryBasics, Interpolations, JLD2, LinearAlgebra,  
-    Measures, NamedArrays, NCDatasets, NetCDF, Plots, PolygonInbounds, Printf,
-    Random, SplitApplyCombine, StaticArrays, Statistics, StructArrays,
+using DataStructures, GeometryBasics, Interpolations, JLD2, LinearAlgebra,
+    Logging, Measures, NamedArrays, NCDatasets, NetCDF, Plots, PolygonInbounds,
+    Printf, Random, SplitApplyCombine, StaticArrays, Statistics, StructArrays,
     VoronoiCells
 
 """
