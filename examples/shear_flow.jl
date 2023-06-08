@@ -53,7 +53,7 @@ for i in 1:1
         model = model,
         consts = consts,
         Δt = Δt,
-        nΔt = 2000,
+        nΔt = 250,
         verbose = true,
         writers = writers,
         rng = Xoshiro(1),

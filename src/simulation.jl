@@ -135,6 +135,7 @@ function timestep_sim!(sim, tstep)
         # Move and update floes based on collisions and ocean/atmosphere forcing
         timestep_floe_properties!(
             sim.model.floes,
+            tstep,
             sim.Δt,
             sim.simp_settings.max_floe_height,
         )
@@ -178,15 +179,20 @@ function startup_sim(sim)
     mkpath(logfolder)
     logfile = joinpath(logfolder, "$(sim.name).log")
     isfile(logfile) && rm(logfile, force=true)
-    logger = SimpleLogger(open(logfile, "w"))
+    logger = SubzeroLogger(sim)
     global_logger(logger)
     # Start sim notice
-    sim.verbose && println(string(sim.name, " is running!"))
+    sim.verbose && println(sim.name * " is running!")
     return
 end
 
 function teardown_sim(sim)
-    sim.verbose && println(string(sim.name, " done running!"))
+    # Finish logging
+    io = current_logger().stream
+    flush(io)
+    close(io)
+    # End sim notice
+    sim.verbose && println(sim.name * " done running!")
     return
 end
 

@@ -318,9 +318,10 @@ Output:
 """
 function timestep_floe_properties!(
     floes,
+    tstep,
     Δt,
     max_height,
-    )
+)
     Threads.@threads for i in eachindex(floes)
         cforce = floes.collision_force[i]
         ctrq = floes.collision_trq[i]
@@ -399,7 +400,7 @@ function timestep_floe_properties!(
         dξdt = frac*dξdt
         ξ = floes.ξ[i] + 1.5Δt*dξdt-0.5Δt*floes.p_dξdt[i]
         if abs(ξ) > 1e-5
-            @warn "Shrinking ξ"
+            @warn "Shrinking ξ" tstep = tstep
             ξ = sign(ξ) * 1e-5
         end
         floes.ξ[i] = ξ
