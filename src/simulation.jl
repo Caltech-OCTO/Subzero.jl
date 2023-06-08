@@ -173,19 +173,41 @@ function timestep_sim!(sim, tstep)
     return 
 end
 
-function startup_sim(sim)
+"""
+    startup_sim(sim)
+
+Required actions to setup simulation. For example, setting up the simulation
+logger.
+Inputs:
+    sim                 <Simulation>
+    logger              <AbstractLogger> logger for simulation - default is
+                            Subzero logger
+    messages_per_tstep  <Int> number of messages to print per timestep if using
+                            default SubzeroLogger, else not needed
+Outputs:
+    None.
+"""
+function startup_sim(sim, logger = nothing, messages_per_tstep = 1)
     # Set up logger
-    logfolder = "./log"
-    mkpath(logfolder)
-    logfile = joinpath(logfolder, "$(sim.name).log")
-    isfile(logfile) && rm(logfile, force=true)
-    logger = SubzeroLogger(sim)
+    if isnothing(logger)
+        logger = SubzeroLogger(sim, messages_per_tstep)
+    end
     global_logger(logger)
     # Start sim notice
     sim.verbose && println(sim.name * " is running!")
     return
 end
 
+"""
+    teardown_sim(sim)
+
+Required actions to tear down simulation. For example, flushing the simulation's
+logger and closing the stream.
+Inputs:
+    sim <Simulation>
+Outputs:
+    None.
+"""
 function teardown_sim(sim)
     # Finish logging
     io = current_logger().stream
@@ -197,21 +219,23 @@ function teardown_sim(sim)
 end
 
 """
-    run!(sim, writers)
+    run!(sim)
 
 Run given simulation and generate output for given writers.
 Simulation calculations will be done with Floats of type T (Float64 of Float32).
 
 Inputs:
-    sim     <Simulation> simulation to run
-    writers <Vector{:<OutputWriters}> list of output writers
-    t       <Type> Float type model is running on (Float64 or Float32)
+    sim                 <Simulation> simulation to Run
+    logger              <AbstractLogger> logger for simulation - default is
+                            Subzero logger
+    messages_per_tstep  <Int> number of messages to print per timestep if using
+                            default SubzeroLogger, else not needed
 Outputs:
     None. The simulation will be run and outputs will be saved in the output
     folder. 
 """
-function run!(sim)
-    startup_sim(sim)
+function run!(sim; logger = nothing, messages_per_tstep = 1)
+    startup_sim(sim, logger, messages_per_tstep)
     tstep = 0
     while tstep <= sim.nΔt
         # Timestep the simulation forward
