@@ -40,7 +40,7 @@ struct SubzeroLogger <: Logging.AbstractLogger
 end
 
 """
-    SubzeroLogger(sim; show_info_source=false, messages_per_tstep = 1)
+    SubzeroLogger(sim, messages_per_tstep = 1)
 
 Constructor from Subzero logger.
 Inputs:
@@ -51,7 +51,7 @@ Outputs:
     Subzero logger that saves log to file with the same name as the simulation's
     name field and optional keyword arguments set. 
 """
-function SubzeroLogger(filename; messages_per_tstep = 1)
+function SubzeroLogger(filename::String, messages_per_tstep = 1)
     # Create folder and file
     logfolder = dirname(filename)
     mkpath(logfolder)
@@ -62,7 +62,6 @@ function SubzeroLogger(filename; messages_per_tstep = 1)
         Logging.Info,
         Dict{Any,Int}(),
         messages_per_tstep,  # number of messages per timestep (per message)
-        show_info_source,
     )
 end
 
@@ -79,11 +78,10 @@ Outputs:
     Subzero logger that saves log to file with the same name as the simulation's
     name field and optional keyword arguments set. 
 """
-SubzeroLogger(sim; messages_per_tstep = 1) =
+SubzeroLogger(sim, messages_per_tstep = 1) =
     SubzeroLogger(
         "./log/$(sim.name).log",
         messages_per_tstep,
-        show_info_source,
     )
 
 # Required logging functions

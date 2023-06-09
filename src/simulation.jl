@@ -210,9 +210,12 @@ Outputs:
 """
 function teardown_sim(sim)
     # Finish logging
-    io = current_logger().stream
-    flush(io)
-    close(io)
+    logger = current_logger()
+    if hasfield(typeof(logger), :stream)
+        io = logger.stream
+        flush(io)
+        close(io)
+    end
     # End sim notice
     sim.verbose && println(sim.name * " done running!")
     return
