@@ -121,7 +121,10 @@ many times that event has been written to file in current timestep.
 
 Note:
     This is called when a log macro is called (e.g. @warn), not explicitly by
-    the user.
+    the user. Additionally, it is not threadsafe so a message may be written
+    more times than `messages_per_tstep`, but it should be in the ballpark.
+    Putting a lock would slow down logging and isn't worth it given that this
+    problem only records a few extra log events. 
 """
 function handle_message(
     logger::SubzeroLogger,
