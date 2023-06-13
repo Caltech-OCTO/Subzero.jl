@@ -47,7 +47,7 @@ modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 consts = Constants(E = modulus)
 
 # Run simulation
-run_time!(simulation) = @time run!(simulation)
+run_time!(simulation) =  @time run!(simulation)
 dir = "output/shear_flow"
 
     # Output setup
@@ -65,6 +65,6 @@ simulation = Simulation(
 )
 run_time!(simulation)
  
-Subzero.create_sim_gif("output/shear_flow/floes.jld2", 
-                       "output/shear_flow/initial_state.jld2",
-                       "output/shear_flow/shear_flow.gif")
+# Subzero.create_sim_gif("output/shear_flow/floes.jld2", 
+#                        "output/shear_flow/initial_state.jld2",
+#                        "output/shear_flow/shear_flow.gif")

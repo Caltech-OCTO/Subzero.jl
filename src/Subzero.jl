@@ -63,10 +63,10 @@ export
 
 import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG
-using DataStructures, GeometryBasics, Interpolations, JLD2, LinearAlgebra,  
-    Measures, NamedArrays, NCDatasets, NetCDF, Plots, PolygonInbounds, Printf,
-    Random, SplitApplyCombine, StaticArrays, Statistics, StructArrays,
-    VoronoiCells
+using DataStructures, Dates, GeometryBasics, Interpolations, JLD2,
+    LinearAlgebra, Logging, Measures, NCDatasets, NetCDF, Plots,
+    PolygonInbounds, Printf, Random, SplitApplyCombine, StaticArrays,
+    Statistics, StructArrays, VoronoiCells
 
 """
 Coordinates are vector of vector of vector of points of the form:
@@ -105,6 +105,7 @@ include("physical_processes/simplification.jl")
 include("tools/plotting.jl")
 include("tools/conservation_em.jl")
 include("tools/compare_files.jl")
+include("logger.jl")
 # Simulation
 include("output.jl")
 include("simulation.jl")

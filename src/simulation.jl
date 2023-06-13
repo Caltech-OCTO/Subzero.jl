@@ -87,6 +87,7 @@ Outputs:
     None. Simulation advances by one timestep. 
 """
 function timestep_sim!(sim, tstep)
+    sim.verbose && mod(tstep, 50) == 0 && println(tstep, " timesteps")
     if !isempty(sim.model.floes)
         max_floe_id = maximum(sim.model.floes.id)
         # Need to lock some operations when multi-threading
@@ -134,6 +135,7 @@ function timestep_sim!(sim, tstep)
         # Move and update floes based on collisions and ocean/atmosphere forcing
         timestep_floe_properties!(
             sim.model.floes,
+            tstep,
             sim.Δt,
             sim.simp_settings.max_floe_height,
         )
@@ -172,31 +174,77 @@ function timestep_sim!(sim, tstep)
 end
 
 """
-    run!(sim, writers)
+    startup_sim(sim)
+
+Required actions to setup simulation. For example, setting up the simulation
+logger.
+Inputs:
+    sim                 <Simulation>
+    logger              <AbstractLogger> logger for simulation - default is
+                            Subzero logger
+    messages_per_tstep  <Int> number of messages to print per timestep if using
+                            default SubzeroLogger, else not needed
+Outputs:
+    None.
+"""
+function startup_sim(sim, logger = nothing, messages_per_tstep = 1)
+    # Set up logger
+    if isnothing(logger)
+        logger = SubzeroLogger(sim, messages_per_tstep)
+    end
+    global_logger(logger)
+    # Start sim notice
+    sim.verbose && println(sim.name * " is running!")
+    return
+end
+
+"""
+    teardown_sim(sim)
+
+Required actions to tear down simulation. For example, flushing the simulation's
+logger and closing the stream.
+Inputs:
+    sim <Simulation>
+Outputs:
+    None.
+"""
+function teardown_sim(sim)
+    # Finish logging
+    logger = current_logger()
+    if hasfield(typeof(logger), :stream)
+        io = logger.stream
+        flush(io)
+        close(io)
+    end
+    # End sim notice
+    sim.verbose && println(sim.name * " done running!")
+    return
+end
+
+"""
+    run!(sim)
 
 Run given simulation and generate output for given writers.
 Simulation calculations will be done with Floats of type T (Float64 of Float32).
 
 Inputs:
-    sim     <Simulation> simulation to run
-    writers <Vector{:<OutputWriters}> list of output writers
-    t       <Type> Float type model is running on (Float64 or Float32)
+    sim                 <Simulation> simulation to Run
+    logger              <AbstractLogger> logger for simulation - default is
+                            Subzero logger
+    messages_per_tstep  <Int> number of messages to print per timestep if using
+                            default SubzeroLogger, else not needed
 Outputs:
     None. The simulation will be run and outputs will be saved in the output
     folder. 
 """
-function run!(sim)
-    # Start simulation
-    sim.verbose && println(string(sim.name, " is running!"))
+function run!(sim; logger = nothing, messages_per_tstep = 1)
+    startup_sim(sim, logger, messages_per_tstep)
     tstep = 0
     while tstep <= sim.nΔt
-        if sim.verbose && mod(tstep, 50) == 0
-            println(tstep, " timesteps")
-        end
         # Timestep the simulation forward
         timestep_sim!(sim, tstep)
         tstep+=1
     end
-    sim.verbose && println(string(sim.name, " done running!"))
+    teardown_sim(sim)
     return
 end
