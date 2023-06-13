@@ -38,44 +38,137 @@
         end
 
         # Test find_interp_knots
-        xg = 0:10:80
         # in bounds
-        @test Subzero.find_interp_knots([4], xg, 2, open_bound) == (0:10:60, 1:7)
-        @test Subzero.find_interp_knots([4], xg, 2, periodic_bound) == (0:10:60, 1:7)
+        @test Subzero.find_interp_knots(
+            [4],
+            8,  # 8 grid cells
+            0:10:80,  # grid lines
+            80, # grid dimension is 80m
+            2,
+            open_bound,
+        ) == (0:10:60, 1:7)
+        @test Subzero.find_interp_knots(
+            [4],
+            8,  # 8 grid cells
+            0:10:80,  # grid lines
+            80, # grid dimension is 80m
+            2,
+            periodic_bound,
+        ) == (0:10:60, 1:7)
         # out of bounds to left
-        @test Subzero.find_interp_knots([0, 1], xg, 2, open_bound) == (0:10:30, 1:4)
-        @test Subzero.find_interp_knots([0, 1], xg, 2, periodic_bound) == (-40:10:30, [5:8; 1:4])
+        @test Subzero.find_interp_knots(
+            [0, 1],
+            8,  # 8 grid cells
+            0:10:80,  # grid lines
+            80, # grid dimension is 80m
+            2,
+            open_bound,
+        ) == (0:10:30, 1:4)
+        @test Subzero.find_interp_knots(
+            [0, 1],
+            8,  # 8 grid cells
+            0:10:80,  # grid lines
+            80, # grid dimension is 80m
+            2,
+            periodic_bound,
+        ) == (-40:10:30, [5:8; 1:4])
         # out of bounds to right
-        @test Subzero.find_interp_knots([8, 9], xg, 1, open_bound) == (50:10:80, 6:9)
-        @test Subzero.find_interp_knots([8, 9], xg, 1, periodic_bound) == (50:10:100, [6:8; 1:3])
+        @test Subzero.find_interp_knots(
+            [8, 9],
+            8,  # 8 grid cells
+            0:10:80,  # grid lines
+            80, # grid dimension is 80m
+            1,
+            open_bound,
+        ) == (50:10:80, 6:9)
+        @test Subzero.find_interp_knots(
+            [8, 9],
+            8,  # 8 grid cells
+            0:10:80,  # grid lines
+            80, # grid dimension is 80m
+            1,
+            periodic_bound,
+        ) == (50:10:100, [6:8; 1:3])
         # buffer out of bounds on both sides
-        @test Subzero.find_interp_knots(1:8, xg, 2, open_bound) == (0:10:80, 1:9)
-        @test Subzero.find_interp_knots(1:8, xg, 2, periodic_bound) == (-30:10:100, [6:8; 1:8; 1:3])
+        @test Subzero.find_interp_knots(
+            1:8,
+            8,  # 8 grid cells
+            0:10:80,  # grid lines
+            80, # grid dimension is 80m
+            2,
+            open_bound,
+        ) == (0:10:80, 1:9)
+        @test Subzero.find_interp_knots(
+            1:8,
+            8,  # 8 grid cells
+            0:10:80,  # grid lines
+            80, # grid dimension is 80m
+            2,
+            periodic_bound,
+        ) == (-30:10:100, [6:8; 1:8; 1:3])
         # floe out of bounds on both sides - would be filtered out for periodic in advance
-        @test Subzero.find_interp_knots(0:9, xg, 2, open_bound) == (0:10:80, 1:9)
+        @test Subzero.find_interp_knots(
+            0:9,
+            8,  # 8 grid cells
+            0:10:80,  # grid lines
+            80, # grid dimension is 80m
+            2,
+            open_bound,
+        ) == (0:10:80, 1:9)
 
         #Test cell_coords
-        cell = Subzero.center_cell_coords(2, 3, grid, periodic_bound, periodic_bound)
+        cell = Subzero.center_cell_coords(
+            2,
+            3,
+            grid,
+            periodic_bound,
+            periodic_bound,
+        )
         cell_poly = LG.Polygon(cell)
         @test LG.area(cell_poly)::Float64 == 8
         @test LG.GeoInterface.coordinates(cell_poly) == 
             [[[-9, -2], [-9, 2], [-7, 2], [-7, -2], [-9, -2]]]
-        @test Subzero.center_cell_coords(1, 1, grid, open_bound, open_bound) ==
-            [[[-10, -8], [-10, -6], [-9, -6], [-9, -8], [-10, -8]]]
-        @test Subzero.center_cell_coords(11, 6, grid,  periodic_bound, periodic_bound) ==
-            [[[9, 10], [9, 14], [11, 14], [11, 10], [9, 10]]]
-        @test Subzero.center_cell_coords(11, 6, grid,  open_bound, open_bound) == 
-            [[[9, 8], [9, 8], [10, 8], [10, 8], [9, 8]]]
-        @test Subzero.center_cell_coords(11, 6, grid,  open_bound, periodic_bound) ==
-            [[[9, 8], [9, 8], [11, 8], [11, 8], [9, 8]]]
-        @test Subzero.center_cell_coords(11, 6, grid,  periodic_bound, open_bound) ==
-            [[[9, 10], [9, 14], [10, 14], [10, 10], [9, 10]]]
+        @test Subzero.center_cell_coords(
+            1,
+            1,
+            grid,
+            open_bound,
+            open_bound,
+        ) == [[[-10, -8], [-10, -6], [-9, -6], [-9, -8], [-10, -8]]]
+        @test Subzero.center_cell_coords(
+            11,
+            6,
+            grid,
+            periodic_bound,
+            periodic_bound,
+        ) == [[[9, 10], [9, 14], [11, 14], [11, 10], [9, 10]]]
+        @test Subzero.center_cell_coords(
+            11,
+            6,
+            grid,
+            open_bound,
+            open_bound,
+        ) == [[[9, 8], [9, 8], [10, 8], [10, 8], [9, 8]]]
+        @test Subzero.center_cell_coords(
+            11,
+            6,
+            grid,
+            open_bound,
+            periodic_bound,
+        ) == [[[9, 8], [9, 8], [11, 8], [11, 8], [9, 8]]]
+        @test Subzero.center_cell_coords(
+            11,
+            6,
+            grid,
+            periodic_bound,
+            open_bound,
+        ) == [[[9, 10], [9, 14], [10, 14], [10, 10], [9, 10]]]
 
         # Test aggregate_grid_stress!
         function test_floe_to_grid(
             floeidx,
-            rows,
-            cols,
+            xidx,
+            yidx,
             τxs,
             τys,
             grid,
@@ -90,11 +183,11 @@
             sum_τy,
             npoints,
         )
-            for i in eachindex(rows)
+            for i in eachindex(xidx)
                 Subzero.floe_to_grid_info!(
                     floeidx,
-                    rows[i],
-                    cols[i],
+                    xidx[i],
+                    yidx[i],
                     τxs[i],
                     τys[i],
                     grid,
@@ -132,8 +225,8 @@
         # Open bounds, everything within bounds
         test_floe_to_grid(
             1,
-            [4, 4, 3, 3, 4, 4],
             [7, 7, 6, 6, 7, 7],
+            [4, 4, 3, 3, 4, 4],
             ones(Float64, 6),
             2ones(Float64, 6),
             deepcopy(grid),
@@ -141,7 +234,7 @@
             open_bound,
             Subzero.Ocean(grid, 0, 0, 0).scells,
             CouplingSettings(two_way_coupling_on = true),
-            [CartesianIndex(4, 7), CartesianIndex(3, 6)],
+            [CartesianIndex(7, 4), CartesianIndex(6, 3)],
             [0.0, 0.0],
             [0.0, 0.0],
             [-4, -2],
@@ -151,8 +244,8 @@
         # Periodic bounds, everything within bounds
         test_floe_to_grid(
             2,
-            [2, 3, 3, 3, 2, 2],
             [7, 7, 8, 8, 9, 9],
+            [2, 3, 3, 3, 2, 2],
             ones(Float64, 6),
             2ones(Float64, 6),
             deepcopy(grid),
@@ -161,10 +254,10 @@
             Subzero.Ocean(grid, 0, 0, 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [
-                CartesianIndex(2, 7),
-                CartesianIndex(3, 7),
-                CartesianIndex(2, 9),
-                CartesianIndex(3, 8),
+                CartesianIndex(7, 2),
+                CartesianIndex(7, 3),
+                CartesianIndex(9, 2),
+                CartesianIndex(8, 3),
             ],
             [0.0, 0.0, 0.0, 0.0],
             [0.0, 0.0, 0.0, 0.0],
@@ -175,8 +268,8 @@
         # Periodic bounds in NS, floe out of bounds - moved to other side of grid
         test_floe_to_grid(
             3,
-            [4, 5, 6, 5, 6, 5, 6],
             [10, 10, 10, 11, 11, 11, 11],
+            [4, 5, 6, 5, 6, 5, 6],
             ones(Float64, 7),
             2ones(Float64, 7),
             deepcopy(grid),
@@ -185,11 +278,11 @@
             Subzero.Ocean(grid, 0, 0, 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [
-                CartesianIndex(1, 10),
-                CartesianIndex(1, 11),
-                CartesianIndex(2, 10),
-                CartesianIndex(2, 11),
-                CartesianIndex(4, 10),
+                CartesianIndex(10, 1),
+                CartesianIndex(11, 1),
+                CartesianIndex(10, 2),
+                CartesianIndex(11, 2),
+                CartesianIndex(10, 4),
             ],
             [0.0, 0.0, 0.0, 0.0, 0.0],
             [-16.0, -16.0, -16.0, -16.0, 0.0],
@@ -200,8 +293,8 @@
         # Periodic bounds in EW, floe out of bounds - moved to other side of grid
         test_floe_to_grid(
             4,
-            [4, 5, 5, 5, 4],
             [11, 11, 12, 12, 11],
+            [4, 5, 5, 5, 4],
             ones(Float64, 5),
             2ones(Float64, 5),
             deepcopy(grid),
@@ -210,9 +303,9 @@
             Subzero.Ocean(grid, 0, 0, 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [
-                CartesianIndex(4, 1),
-                CartesianIndex(5, 1),
-                CartesianIndex(5, 2),
+                CartesianIndex(1, 4),
+                CartesianIndex(1, 5),
+                CartesianIndex(2, 5),
             ],
             [-20.0, -20.0, -20.0],
             [0.0, 0.0, 0.0],
@@ -223,8 +316,8 @@
         # Periodic bounds in both direction, floe out of bounds
         test_floe_to_grid(
             2,
-            [0, -1, -2, 1, -1],
             [0, -1, -1, 1, -1],
+            [0, -1, -2, 1, -1],
             -ones(Float64, 5),
             -2ones(Float64, 5),
             deepcopy(grid),
@@ -234,9 +327,9 @@
             CouplingSettings(two_way_coupling_on = true),
             [
                 CartesianIndex(1, 1),
-                CartesianIndex(4, 10),
-                CartesianIndex(3, 9),
-                CartesianIndex(2, 9),
+                CartesianIndex(10, 4),
+                CartesianIndex(9, 3),
+                CartesianIndex(9, 2),
             ],
             [0.0, 20.0, 20.0, 20.0],
             [0.0, 16.0, 16.0, 16.0],
@@ -274,7 +367,7 @@
             0.0,
         )
         area = floe.area
-    #     # Standard Monte Carlo points for below floe - used to compare with MATLAB
+    # Standard Monte Carlo points for below floe - used to compare with MATLAB
         jldopen("inputs/test_mc_points.jld2", "r") do f
             floe.mc_x = f["X"]
             floe.mc_y = f["Y"]
@@ -362,15 +455,18 @@
         @test isapprox(model4.floes[1].trqOA/area, 0.2276, atol = 1e-3)
 
         # non-uniform ocean flow, zero atmos, stationary floe
-        xgrid, ygrid = Subzero.grids_from_lines(grid.xg, grid.yg)
+        xgrid, ygrid = Subzero.grids_from_lines(
+            grid.x0:grid.Δx:grid.xf,
+            grid.y0:grid.Δy:grid.yf,
+        )
         psi_ocn = 0.5e4*(sin.(4*(π/4e5).*xgrid) .* sin.(4*(π/4e5).*ygrid))
         non_unif_uocn = zeros(size(xgrid))
         non_unif_uocn[2:end, :] = -1e-4*(psi_ocn[2:end, :] .- psi_ocn[1:end-1, :])
         non_unif_vocn = zeros(size(ygrid))
         non_unif_vocn[:, 2:end] = 1e-4*(psi_ocn[:, 2:end] .- psi_ocn[:, 1:end-1])
         non_unif_ocean = Subzero.Ocean(
-            non_unif_uocn,
-            non_unif_vocn,
+            non_unif_uocn',
+            non_unif_vocn',
             zeros(size(xgrid)),
         )
         model5 = Subzero.Model(
@@ -393,8 +489,8 @@
 
         # moving floe, non-uniform ocean, non-uniform atmos
         non_unif_atmos = Subzero.Atmos(
-            non_unif_uocn,
-            non_unif_vocn,
+            non_unif_uocn',
+            non_unif_vocn',
             zeros(size(xgrid)),
         )
         floe6 = deepcopy(floe)

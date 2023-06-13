@@ -22,10 +22,10 @@ function dissolve_floe!(floe, grid::RegRectilinearGrid, domain, dissolved)
         grid,
     )
     # Wrap indexes around grid if bounds are periodic 
-    xidx = shift_cell_idx(xidx, grid.dims[2] + 1, domain.east)
-    yidx = shift_cell_idx(yidx, grid.dims[1] + 1, domain.north)
+    xidx = shift_cell_idx(xidx, grid.Nx + 1, domain.east)
+    yidx = shift_cell_idx(yidx, grid.Ny + 1, domain.north)
     # If centroid is within bounds after wrapping, add mass to dissolved
-    if 0 < xidx <= grid.dims[2] && 0 < yidx <= grid.dims[1]
+    if 0 < xidx <= grid.Nx && 0 < yidx <= grid.Ny
         dissolved[yidx, xidx] += floe.mass
     end
     return

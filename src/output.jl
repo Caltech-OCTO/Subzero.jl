@@ -330,12 +330,8 @@ function GridOutputWriter{FT}(
     deleteat!(outputs, remove_idx)
 
     # Define output grid
-    lx = grid.xg[1]
-    ux = grid.xg[end]
-    ly = grid.yg[1]
-    uy = grid.yg[end]
-    xg = collect(lx:(ux-lx)/dims[2]:ux)
-    yg = collect(ly:(uy-ly)/dims[1]:uy)
+    xg = collect(grid.x0:(grid.xf-grid.x0)/dims[1]:grid.xf)
+    yg = collect(grid.y0:(grid.yf-grid.y0)/dims[2]:grid.yf)
 
     # Create file path
     filepath = initialize_netcdf_file!(
@@ -349,7 +345,7 @@ function GridOutputWriter{FT}(
     )
 
     # Data output container
-    data = zeros(FT, length(yg) - 1, length(xg) - 1, length(outputs))
+    data = zeros(FT, length(xg) - 1, length(yg) - 1, length(outputs))
     return GridOutputWriter{FT}(
         outputs,
         Δtout,
@@ -734,7 +730,7 @@ function initialize_netcdf_file!(
                 dataset,
                 string(o),
                 FT,
-                ("time", "y", "x"),
+                ("time", "x", "y"),
                 attrib = Dict("units" => unit, "comments" => comment),
             )
         end
@@ -838,7 +834,8 @@ function calc_eulerian_data!(floes, topography, writer)
                 #=  fic -> floes in cell - entirety of floe that is partially
                         within grid cell
                     pic -> partially in cell - only includes pieces of floes
-                        that are within grid bounds =#
+                        that are within grid bounds
+                =#
                 pic_polys = [
                     LG.intersection(
                         cell_poly,
@@ -905,13 +902,13 @@ function calc_eulerian_data!(floes, topography, writer)
                         elseif outputs[k] == :strain_vy_grid
                             sum([s[2, 2] for s in fic.strain] .* ma_ratios)
                         end
-                        writer.data[i, j, k] = data
+                        writer.data[j, i, k] = data
                     end
                 else
-                    writer.data[i, j, :] .= 0.0
+                    writer.data[j, i, :] .= 0.0
                 end
             else
-                writer.data[i, j, :] .= 0.0
+                writer.data[j, i, :] .= 0.0
             end
         end
     end
