@@ -301,45 +301,45 @@ function create_coupled_ro_sim_gif(
     return
 end
 
-using Makie, CairoMakie
-Makie.@recipe(FloeScene) do scene
-    Attributes(
-        floecolor = :lightblue,
-        oceancolor = :gray,
-    )
-end
+# using Makie, CairoMakie
+# Makie.@recipe(FloeScene) do scene
+#     Attributes(
+#         floecolor = :lightblue,
+#         oceancolor = :gray,
+#     )
+# end
 
-function Makie.plot!(
-    fs::FloeScene{
-        <:Tuple{
-            <:Real # timestep
-            <:AbstractMatrix{<:Real},  # floe coordinates 2xn
-            <:AbstractMatrix{<:Real},  # ocean x
-            <:AbstractMatrix{<:Real},  # ocean y
-            <:AbstractMatrix{<:Real},  # ocean x tracer/vector
-            <:AbstractMatrix{<:Real},  # ocean y tracer/vector
-        },
-    },
-)
-    timestep = fs[1]
-    floecoords = fs[2]
+# function Makie.plot!(
+#     fs::FloeScene{
+#         <:Tuple{
+#             <:Real # timestep
+#             <:AbstractMatrix{<:Real},  # floe coordinates 2xn
+#             <:AbstractMatrix{<:Real},  # ocean x
+#             <:AbstractMatrix{<:Real},  # ocean y
+#             <:AbstractMatrix{<:Real},  # ocean x tracer/vector
+#             <:AbstractMatrix{<:Real},  # ocean y tracer/vector
+#         },
+#     },
+# )
+#     timestep = fs[1]
+#     floecoords = fs[2]
 
-    points = Observable(Point2f[])
-    function update_plot(timestep, floecoords)
-        empty!(points[])
-        for i in eachrow(floecoords)
-            push!(points, Point2f(floecoords[i, 1], floecoords[i, 2]))
-        end
-    end
-    Makie.Observables.onany(update_plot, timestep, floecoords)
-    update_plot(timestep[], floecoords[])
+#     points = Observable(Point2f[])
+#     function update_plot(timestep, floecoords)
+#         empty!(points[])
+#         for i in eachrow(floecoords)
+#             push!(points, Point2f(floecoords[i, 1], floecoords[i, 2]))
+#         end
+#     end
+#     Makie.Observables.onany(update_plot, timestep, floecoords)
+#     update_plot(timestep[], floecoords[])
 
-    title!(fs, string(timestep))
+#     title!(fs, string(timestep))
 
-    poly!(fs, points, color = fs.floecolor)
+#     poly!(fs, points, color = fs.floecolor)
 
-    return fs
-end
+#     return fs
+# end
 
 #------------ Plotting for Debugging During Simulation Run --------------#
 
