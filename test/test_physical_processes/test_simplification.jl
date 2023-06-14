@@ -546,7 +546,7 @@
         floe_arr.id .= [1, 2, 3, 4]
         dissolve_mass = floe_arr.mass[2] + floe_arr.mass[4]
 
-        dissolved = zeros(Float64, grid.dims)
+        dissolved = zeros(Float64, grid.Nx, grid.Ny)
         Subzero.remove_floes!(
             floe_arr,
             grid,

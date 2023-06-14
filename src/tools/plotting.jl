@@ -5,7 +5,10 @@ Plotting functions for Subzero Simulation
 """
 grids_from_lines(xlines, ylines)
 
-Creates x-grid and y-grid. Assume xlines has length n and ylines has length m. xgrid is the grid's xline vector repeated m times as rows in a mxn array and ygrid is the yline vector repeated n times as columns in a mxn vector. xlines and ylines are typically either xg and yg of xc and yc.
+Creates x-grid and y-grid. Assume xlines has length n and ylines has length m.
+xgrid is the grid's xline vector repeated m times as rows in a mxn array and
+ygrid is the yline vector repeated n times as columns in a mxn vector. xlines
+and ylines are typically either xg and yg or xc and yc.
 """
 function grids_from_lines(xlines, ylines)
     xgrid = repeat(reshape(xlines, 1, :), inner=(length(ylines),1))
@@ -23,13 +26,16 @@ and topograhy plotted in grey.
 Inputs:
     domain_fn  <String> file path to JLD2 file holding domain struct information
     plot_size  <Tuple{Int, Int}> size of output plot - default is (1500, 1200)
+    plot_ocn   <Boolean> boolean flag to plot the ocean arrows if true
 Outputs:
     Plot with x and y xlim determed by domain and including all topography. 
 """
-function setup_plot(init_pn::String, plot_size = (1500, 1500))
+function setup_plot(init_pn::String, plot_size = (1500, 1500), plot_ocn = false)
     # Open file to get needed values
     file = jldopen(init_pn, "r")
+    g = file["sim"].model.grid
     d = file["sim"].model.domain
+    o = file["sim"].model.ocean
     
     xmin = d.west.val/1000
     xmax = d.east.val/1000
@@ -61,6 +67,21 @@ function setup_plot(init_pn::String, plot_size = (1500, 1500))
             legend=false,
         )
     end
+    if plot_ocn
+        xg = g.x0:g.Δx:g.xf
+        yg = g.y0:g.Δy:g.yf
+        xgrid, ygrid = Subzero.grids_from_lines(xg, yg)
+        quiver!(
+            plt,
+            vec(xgrid ./ 1000),
+            vec(ygrid ./ 1000),
+            quiver=(
+                vec(o.u'),
+                vec(o.v'),
+            ),
+            color = :lightgrey,
+        )
+    end
     JLD2.close(file)
     return plt
 end
@@ -77,6 +98,8 @@ Inputs:
     output_fn  <String> file path to save gif
     plot_size  <Tuple(Int, Int)> size of output gif in pixels - default
                     (1500, 1500)
+    fps        <Int> frames per second
+    plot_ocn   <Boolean> boolean flag to plot the ocean arrows if true
 Outputs:
     Saves simulation gif with floes and topography plotted.
 """
@@ -86,6 +109,7 @@ function create_sim_gif(
     output_fn;
     plot_size = (1500, 1500),
     fps = 15,
+    plot_ocn = false,
 )
     # Get floe data
     floe_data = jldopen(floe_pn, "r")
@@ -94,7 +118,7 @@ function create_sim_gif(
     times = keys(coords)
     # Plot floe data
     anim = @animate for t in times
-        plt = setup_plot(init_pn, plot_size)
+        plt = setup_plot(init_pn, plot_size, plot_ocn)
         verts = Subzero.separate_xy.(coords[t])
         for i in eachindex(verts)
             if status[t][i].tag != remove
@@ -276,6 +300,46 @@ function create_coupled_ro_sim_gif(
     gif(anim, output_fn, fps = fps)
     return
 end
+
+# using Makie, CairoMakie
+# Makie.@recipe(FloeScene) do scene
+#     Attributes(
+#         floecolor = :lightblue,
+#         oceancolor = :gray,
+#     )
+# end
+
+# function Makie.plot!(
+#     fs::FloeScene{
+#         <:Tuple{
+#             <:Real # timestep
+#             <:AbstractMatrix{<:Real},  # floe coordinates 2xn
+#             <:AbstractMatrix{<:Real},  # ocean x
+#             <:AbstractMatrix{<:Real},  # ocean y
+#             <:AbstractMatrix{<:Real},  # ocean x tracer/vector
+#             <:AbstractMatrix{<:Real},  # ocean y tracer/vector
+#         },
+#     },
+# )
+#     timestep = fs[1]
+#     floecoords = fs[2]
+
+#     points = Observable(Point2f[])
+#     function update_plot(timestep, floecoords)
+#         empty!(points[])
+#         for i in eachrow(floecoords)
+#             push!(points, Point2f(floecoords[i, 1], floecoords[i, 2]))
+#         end
+#     end
+#     Makie.Observables.onany(update_plot, timestep, floecoords)
+#     update_plot(timestep[], floecoords[])
+
+#     title!(fs, string(timestep))
+
+#     poly!(fs, points, color = fs.floecolor)
+
+#     return fs
+# end
 
 #------------ Plotting for Debugging During Simulation Run --------------#
 
