@@ -259,6 +259,38 @@ the correct constructor will be called with all other arguments.
 """
 SimplificationSettings(args...) = SimplificationSettings{Float64}(args...)
 
+"""
+    RidgeRaftSettings
+
+Settings needed for ridging and rafting within the model.
+"""
+@kwdef struct RidgeRaftSettings{FT<:AbstractFloat}
+    ridge_raft_on::Bool = false
+    Δt::Int = 0
+    ridge_probability::FT = 0.95
+    raft_probability::FT = 0.95
+    min_overlap::FT = 500
+    hc::FT = 0.2
+end
+
+"""
+    RidgeRaftSettings(::Type{FT}, args...)
+
+A float type FT can be provided as the first argument of any RidgeRaftSettings
+constructor. A RidgeRaftSettings of type FT will be created by passing all other
+arguments to the correct constructor. 
+"""
+RidgeRaftSettings(::Type{FT}, args...) where {FT <: AbstractFloat} =
+    RidgeRaftSettings{FT}(args...)
+
+"""
+    RidgeRaftSettings(args...)
+
+If a type isn't specified, RidgeRaftSettings will be of type Float64 and the
+correct constructor will be called with all other arguments.
+"""
+RidgeRaftSettings(args...) = RidgeRaftSettings{Float64}(args...)
+
 # CORNERS::Bool = false           # If true, corners of floes can break
 # PACKING::Bool = false           # If true, floe packing is enabled
 # RAFTING::Bool = false           # If true, floe rafting is enabled
