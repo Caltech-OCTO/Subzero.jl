@@ -240,13 +240,47 @@ function generate_mc_points(
         else
             mc_x .= rmax * (2rand(rng, FT, Int(npoints)) .- 1)
             mc_y .= rmax * (2rand(rng, FT, Int(npoints)) .- 1)
-            mc_in = points_in_poly(hcat(mc_x, mc_y), coords)
+            mc_in .= points_in_poly(hcat(mc_x, mc_y), coords)
             err = abs(sum(mc_in)/npoints * 4 * rmax^2 - area)/area
             count += 1
         end
     end
 
     return mc_x[mc_in], mc_y[mc_in], status
+end
+
+function generate_floe_points(
+    ::Type{FT},
+    points_per_cell_dim::Int,
+    Δg,
+    coords,
+) where {FT}
+    xmax = FT(-Inf)
+    ymax = FT(-Inf)
+    xmin = FT(Inf)
+    ymin = FT(Inf)
+    @views for point in coords[1]
+        if point[1] > xmax
+            xmax = point[1]
+        end
+        if point[1] < xmin
+            xmin = point[1]
+        end
+        if point[2] > ymax
+            ymax = point[2]
+        end
+        if point[2] < ymin
+            ymin = point[2]
+        end
+    end
+    subgrid_dim = FT(Δg/points_per_cell_dim)
+    xc = xmin:subgrid_dim:xmax
+    yc = ymin:subgrid_dim:ymax
+    mc_x = repeat(xc, length(yc))
+    mc_y = repeat(yc, inner = length(xc))
+    mc_in = points_in_poly(hcat(mc_x, mc_y), coords)
+
+    return mc_x[mc_in], mc_y[mc_in]
 end
 
 """
@@ -302,15 +336,16 @@ function Floe{FT}(
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
     status = Status()
     # Generate Monte Carlo Points
-    mc_x, mc_y, status = generate_mc_points(
-        FT,
-        mc_n,
-        coords,
-        rmax,
-        area_tot,
-        status,
-        rng,
-    )
+    # mc_x, mc_y, status = generate_mc_points(
+    #     FT,
+    #     mc_n,
+    #     coords,
+    #     rmax,
+    #     area_tot,
+    #     status,
+    #     rng,
+    # )
+    mc_x, mc_y = generate_floe_points(FT, 1, 2e3, coords)
     translate!(coords, centroid[1], centroid[2])
     # Generate Stress History
     stress_history = StressCircularBuffer{FT}(nhistory)

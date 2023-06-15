@@ -52,19 +52,20 @@ dir = "output/shear_flow"
 
     # Output setup
 initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
-floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
+floewriter = FloeOutputWriter(10, dir = dir, overwrite = true)
 writers = OutputWriters(initwriter, floewriter)
 simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 2000,
+    nΔt = 20,
     verbose = false,
     writers = writers,
     rng = Xoshiro(1),
+    coupling_settings = CouplingSettings(two_way_coupling_on = true)
 )
 run_time!(simulation)
  
-# Subzero.create_sim_gif("output/shear_flow/floes.jld2", 
-#                        "output/shear_flow/initial_state.jld2",
-#                        "output/shear_flow/shear_flow.gif")
+Subzero.create_sim_gif("output/shear_flow/floes.jld2", 
+                       "output/shear_flow/initial_state.jld2",
+                       "output/shear_flow/shear_flow.gif")
