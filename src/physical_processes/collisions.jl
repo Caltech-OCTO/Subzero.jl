@@ -526,7 +526,11 @@ Outputs:
 """
 function floe_domain_element_interaction!(
     floe,
-    element::Union{CollisionBoundary, TopographyElement},
+    element::Union{
+        CollisionBoundary,
+        CompressionBoundary,
+        TopographyElement,
+    },
     consts,
     Δt,
     max_overlap::FT,
@@ -587,6 +591,70 @@ function floe_domain_element_interaction!(
         end
     end
     return
+end
+"""
+    update_boundary!(args...)
+
+No updates to boundaries that aren't compression boundaries.
+"""
+function update_boundary!(
+    boundary::Union{OpenBoundary, CollisionBoundary, PeriodicBoundary},
+    Δt,
+)
+    return
+end
+"""
+    update_boundary!(boundary, Δt)
+
+Move North/South compression boundaries by given velocity. Update coords and val
+fields to reflect new position.
+Inputs:
+    boundary    <CompressionBoundary{Union{North, South}, AbstractFloat}> 
+                    domain compression boundary
+    Δt          <Int> number of seconds in a timestep
+Outputs:
+    None. Move boundary North or South depending on velocity.
+"""
+function update_boundary!(
+    boundary::CompressionBoundary{D, FT},
+    Δt,
+) where {D <: Union{North, South}, FT <: AbstractFloat}
+    Δd = boundary.velocity * Δt
+    boundary.val += Δd
+    translate!(boundary.coords, FT(0), Δd)
+end
+"""
+    update_boundary!(boundary, Δt)
+
+Move East/West compression boundaries by given velocity. Update coords and val
+fields to reflect new position.
+Inputs:
+    boundary    <CompressionBoundary{Union{East, West}, AbstractFloat}> 
+                    domain compression boundary
+    Δt          <Int> number of seconds in a timestep
+Outputs:
+    None. Move boundary East/West depending on velocity.
+"""
+function update_boundary!(
+    boundary::CompressionBoundary{D, FT},
+    Δt,
+) where {D <: Union{East, West}, FT <: AbstractFloat}
+    Δd = boundary.velocity * Δt
+    boundary.val += Δd
+    translate!(boundary.coords, Δd, FT(0))
+end
+
+"""
+    update_boundaries!(domain)
+    
+Update each boundary in the domain. For now, this simply means moving
+compression boundaries by their velocities. 
+"""
+function update_boundaries!(domain, Δt)
+    update_boundary!(domain.north, Δt)
+    update_boundary!(domain.south, Δt)
+    update_boundary!(domain.east, Δt)
+    update_boundary!(domain.west, Δt)
 end
 
 """
@@ -793,6 +861,8 @@ function timestep_collisions!(
             collision_settings.floe_domain_max_overlap,
         )
     end
+    # Move compression boundaries if they exist
+    update_boundaries!(domain, Δt)
     # Update floes not directly calculated above where i>j - can't be parallelized
     for i in eachindex(floes)
         # Update fuse information
