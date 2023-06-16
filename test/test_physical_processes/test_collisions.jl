@@ -131,7 +131,13 @@
         topo_elem = TopographyElement(
             [[[1e4, 0.0], [0.0, 1e4], [1e4, 2e4], [2e4, 1e4], [1e4, 0.0]]],
         )
-        domain = Domain(nboundary, sboundary, eboundary, wboundary, StructArray([topo_elem]))
+        domain = Domain(
+            nboundary,
+            sboundary,
+            eboundary,
+            wboundary,
+            StructArray([topo_elem]),
+        )
         # Diagonal floe barely overlaping with eastern collision boundary
         efloe_small = Floe(
             [[
@@ -285,7 +291,29 @@
         )
         @test all(corner_floe.interactions[:, xforce] .<= 0)
         @test all(corner_floe.interactions[:, yforce] .<= 0)
-
+        # Test compression boundaries movement
+        nc_boundary = CompressionBoundary(North, grid, -0.1)
+        nc_coords = deepcopy(nc_boundary.coords)
+        sc_boundary = CompressionBoundary(South, grid, 0.1)
+        sc_coords = deepcopy(sc_boundary.coords)
+        ec_boundary = CompressionBoundary(East, grid, 0.1)
+        ec_coords = deepcopy(ec_boundary.coords)
+        wc_boundary = CompressionBoundary(West, grid, 0.1)
+        wc_coords = deepcopy(wc_boundary.coords)
+        cdomain = Domain(nc_boundary, sc_boundary, ec_boundary, wc_boundary)
+        Subzero.update_boundaries!(cdomain, 10)
+        Subzero.translate!(nc_coords, 0, -1)
+        @test nc_coords == nc_boundary.coords
+        @test nc_boundary.val == 1e5 - 1
+        Subzero.translate!(sc_coords, 0, 1)
+        @test sc_coords == sc_boundary.coords
+        @test sc_boundary.val == -1e5 + 1
+        Subzero.translate!(ec_coords, 1, 0)
+        @test ec_coords == ec_boundary.coords
+        @test ec_boundary.val == 1e5 + 1
+        Subzero.translate!(wc_coords, 1, 0)
+        @test wc_coords == wc_boundary.coords
+        @test wc_boundary.val == -1e5 + 1
     end
     
     @testset "Add Ghosts" begin

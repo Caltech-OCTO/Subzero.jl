@@ -774,14 +774,12 @@ function CollisionBoundary{D, FT}(
 end
 
 """
-    CompressionBC <: AbstractBC
+    CompressionBoundary <: AbstractBoundary
 
 A sub-type of AbstractBoundary that creates a floe along the boundary that moves
 towards the center of the domain at the given velocity, compressing the ice
 within the domain. This subtype is a mutable struct so that the coordinates and
 val can be changed as the boundary moves. The velocity is in [m/s].
-
-NOTE: Not implemented yet!
 """
 mutable struct CompressionBoundary{D, FT}<:AbstractBoundary{D, FT}
     coords::PolyVec{FT}
@@ -820,9 +818,12 @@ a type.
 Edge is determined by direction.
 Inputs:
         grid        <AbstractGrid> model grid
-        direction   <AbstractDirection> direction of boundary wall
+        velocity    <AbstractFloat> velocity of boundary
 Outputs:
     CompressionBoundary on edge of grid given by direction. 
+Note:
+    If a boundary should move from north to south or east to west, the velocity
+    should be negative. Else the velocity should be positive.
 """
 function CompressionBoundary{D, FT}(
     grid::AbstractGrid,

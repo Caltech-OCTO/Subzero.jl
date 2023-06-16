@@ -1,4 +1,4 @@
-using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero, BenchmarkTools, MAT
+using JLD2, Random, Statistics, Subzero, BenchmarkTools
 import LibGEOS as LG
 
 # User Inputs
@@ -10,81 +10,14 @@ const hmean = 0.25
 const Δh = 0.0
 const Δt = 10
 
-grid = RegRectilinearGrid(
-    (-2.5e4, 1e5),
-    (-2.5e4, 1e5),
-    1e4,
-    1e4,
-)
-open_domain_no_topo = Subzero.Domain(
-    OpenBoundary(North, grid),
-    OpenBoundary(South, grid),
-    OpenBoundary(East, grid),
-    OpenBoundary(West, grid),
-)
-coords1 = [[  # large floe
-    [0.0, 0.0],
-    [0.0, 1e4],
-    [1e4, 1e4],
-    [1e4, 0.0],
-    [0.0, 0.0],
-]]
-coords2 = [[  # small floe
-    [8e3, 5e3],
-    [8e3, 8e3],
-    [1.2e4, 8e3],
-    [1.2e4, 5e3],
-    [8e3, 5e3],
-]]
-coords3 = [[  # large floe
-    [1.1e4, 0.0],
-    [1.1e4, 1e4],
-    [2.1e4, 1e4],
-    [2.1e4, 0.0],
-    [1.1e4, 0.0]
-]]
-coords4 = [[  # small floe
-    [5e3, -2e3],
-    [5e3, 3e3],
-    [8e3, 3e3],
-    [8e3, -2e3],
-    [5e3, -2e3],
-]]
-
-floe_arr = initialize_floe_field(
-    FT,
-    [coords1, coords2, coords3, coords4],
-    open_domain_no_topo,
-    0.5,
-    0.0,
-    min_floe_area = 1e6,
-    rng = Xoshiro(1),
-)
-floe_arr.status[1].tag = Subzero.fuse
-floe_arr.status[1].fuse_idx = [2, 4]
-floe_arr.status[2].tag = Subzero.fuse
-floe_arr.status[2].fuse_idx = [1, 3]
-floe_arr.status[3].tag = Subzero.fuse
-floe_arr.status[3].fuse_idx = [2]
-floe_arr.status[4].tag = Subzero.fuse
-floe_arr.status[4].fuse_idx = [4]
-
-max_floe_id = Subzero.fuse_floes!(
-    floe_arr,
-    4,
-    CouplingSettings(),
-    10,
-    Constants(),
-    Xoshiro(1),
-)
 # Model instantiation
 grid = RegRectilinearGrid(
-    (-Lx, Lx),
-    (-Ly, Ly),
+    (0, Lx),
+    (0, Ly),
     Δgrid,
     Δgrid,
 )
-zonal_ocn = Ocean(grid, 0.5, 0.0, 0.0)
+zero_ocn = Ocean(grid, 0.0, 0.0, 0.0)
 
 zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
 
@@ -92,48 +25,29 @@ zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
 domain = Subzero.Domain(
     CollisionBoundary(North, grid),
     CollisionBoundary(South, grid),
-    CollisionBoundary(East, grid),
-    CollisionBoundary(West, grid),
+    CompressionBoundary(East, grid, -0.1),
+    CompressionBoundary(West, grid, 0.1),
 )
 
 # Floe instantiation
-f = jldopen("examples/floe_shapes.jld2", "r") 
-funky_floe_arr = initialize_floe_field(
-    FT,
-    vec(f["floe_vertices"]),
-    domain,
-    0.25,
-    0.0
-)
-close(f)
+coords = [[[0.0, 0.0], [0.0, 1e5], [1e5, 1e5], [1e5, 0.0], [0.0, 0.0]]]
 
-Subzero.simplify_floes!(
-    funky_floe_arr,
-    domain.topography,
-    SimplificationSettings(tol = 100.0),
-    CollisionSettings(),
-    CouplingSettings(),
-    Constants(),
-    Xoshiro(5),
+floe_arr = initialize_floe_field(
+    FT,
+    50,
+    [1.0],
+    domain,
+    0.5,
+    0.0,
+    min_floe_area = 1e6,
 )
-# funky_floe_arr = initialize_floe_field(
-#     FT,
-#     100,
-#     [0.5],
-#     domain,
-#     hmean,
-#     Δh,
-#     rng = Xoshiro(5),
-# )
-#funky_floe_arr.u .= (-1)^rand(0:1) * (0.1 * rand(length(funky_floe_arr)))
-#funky_floe_arr.v .= (-1)^rand(0:1) * (0.1 * rand(length(funky_floe_arr)))
 
 model = Model(
     grid,
-    zonal_ocn,
+    zero_ocn,
     zero_atmos,
     domain,
-    funky_floe_arr,
+    floe_arr,
 )
 dir = "output/sim"
 writers = OutputWriters(
@@ -151,9 +65,10 @@ simulation = Simulation(
     name = "sim",
     model = model,
     Δt = 10,
-    nΔt = 2000,
+    nΔt = 4000,
     writers = writers,
     verbose = true,
+    consts = Constants(Cd_io = 0, Cd_ia = 0, Cd_ao = 0),
     fracture_settings = FractureSettings(
         fractures_on = true,
         criteria = HiblerYieldCurve(model.floes),
@@ -163,18 +78,13 @@ simulation = Simulation(
 
 #@benchmark timestep_sim!(simulation, 10) setup=(sim=deepcopy(simulation))
 
-# @benchmark Subzero.timestep_collisions!(
-#     sim.model.floes,
-#     sim.model.max_floe_id,
-#     sim.model.domain,
-#     sim.consts,
-#     sim.Δt,
-#     sim.collision_settings,
-#     Threads.SpinLock(),
-# ) setup=(sim=deepcopy(simulation))
 
 time_run(simulation) = @time run!(simulation)
 time_run(simulation)
+
+Subzero.create_sim_gif("output/sim/floes.jld2", 
+                       "output/sim/initial_state.jld2",
+                       "output/sim/sim.gif")
 # # Run simulation
 #time_run(simulation)
 #Profile.Allocs.clear()
