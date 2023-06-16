@@ -592,6 +592,7 @@ function floe_domain_element_interaction!(
     end
     return
 end
+
 """
     update_boundary!(args...)
 
