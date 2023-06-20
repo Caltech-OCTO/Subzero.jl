@@ -7,7 +7,7 @@ element as last element and that other than these two elements there are no
 duplicate, adjacent vertices. Also asserts that the ring as at least three
 elements or else it cannot be made into a valid ring as it is a line segment. 
 """
-function valid_ringvec!(ring::RingVec{FT}) where {FT<:AbstractFloat}
+function valid_ringvec!(ring)
     deleteat!(ring, findall(i->ring[i]==ring[i+1], collect(1:length(ring)-1)))
     if ring[1] != ring[end]
         push!(ring, deepcopy(ring[1]))
@@ -24,7 +24,7 @@ Takes a PolyVec object and make sure that the last element of each "ring"
 not duplicate adjacent elements. Also asserts that each "ring" as at least three
 distinct elements or else it is not a valid ring, but rather a line segment. 
 """
-function valid_polyvec!(coords::PolyVec{FT}) where {FT<:AbstractFloat}
+function valid_polyvec!(coords)
     for ring in coords
         valid_ringvec!(ring)
     end
