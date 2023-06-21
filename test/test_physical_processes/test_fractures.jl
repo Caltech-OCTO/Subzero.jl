@@ -48,7 +48,42 @@
             [-59567.307, 3313.799],
             atol = 1e-3
         ))
-        # Test update criteria
+        # Test Mohr's Cone
+        @test typeof(Subzero.MohrsCone(Float32)) <: MohrsCone{Float32}
+        @test typeof(Subzero.MohrsCone(Float64)) <: MohrsCone{Float64}
+
+        # Float64 Mohr's Cone with q, σc, σ11
+        mohrs_verts_64 = Subzero.calculate_mohrs(5.2, 2.5e5, -3.375e4)
+        @test all(isapprox.(
+            mohrs_verts_64[1],
+            [
+                [59523.809, 59523.809],
+                [33750.0, -74500.0],
+                [-74500.0, 33750.0],
+                [59523.809, 59523.809],
+            ],
+            atol = 1e-3
+        ))
+        # Float32 Mohr's Cone with q, σc, σ11
+        mohrs_verts_32 = Subzero.calculate_mohrs(5.2, 2.5e5, 1.5e5)
+        @test all(isapprox.(
+            mohrs_verts_32[1],
+            [
+                [59523.809, 59523.809],
+                [-150000.0, -1.03e6],
+                [-1.03e6, -150000.0],
+                [59523.809, 59523.809],
+            ],
+            atol = 1e-3,
+        ))
+        # Float64 Mohr's Cone with σ1, σ2, σ11, σ22
+        mohrs_verts_coords = Subzero.calculate_mohrs(
+            5.95e4,
+            5.95e4,
+            -1.5e5,
+            -1.03e6,
+        )
+        # Test update criteria for Hibler's curve
         floes = StructArray([Floe(
             [[[0.0, 0.0], [0, 1], [1 ,1], [1, 0]]],
             0.25,  # Floe has a height of 0.25
@@ -61,7 +96,11 @@
         floes.height .= 0.5
         Subzero.update_criteria!(yield_curve, floes)
         @test verts != yield_curve.vertices
-
+        # Test update criteria for Mohr's cone
+        cone_curve = MohrsCone()
+        verts = cone_curve.vertices
+        Subzero.update_criteria!(cone_curve, floes)
+        @test verts == cone_curve.vertices
     end
     @testset "Fractures Floes" begin
         # Fracture tests depend on these floes and settings

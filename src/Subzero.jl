@@ -51,6 +51,7 @@ export
     AbstractFractureCriteria,
     NoFracture,
     HiblerYieldCurve,
+    MohrsCone,
     CollisionSettings,
     FractureSettings,
     CouplingSettings,

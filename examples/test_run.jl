@@ -9,7 +9,6 @@ const Δgrid = 1e4
 const hmean = 0.25
 const Δh = 0.0
 const Δt = 10
-
 # Model instantiation
 grid = RegRectilinearGrid(
     (0, Lx),
