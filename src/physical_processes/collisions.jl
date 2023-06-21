@@ -135,10 +135,13 @@ function calc_elastic_forces(
     force_factor::FT,
 ) where {FT<:AbstractFloat}
     ipoints = intersect_lines(c1, c2)  # Intersection points
-    if isempty(ipoints) || size(ipoints,2) < 2  # No overlap points
-         # Force, contact points, overlap area all 0s
-        return zeros(FT, 1, 2), zeros(FT, 1, 2), zeros(FT, 1)
-    else
+    ncontact = 0
+    overlap = FT(0)
+    # if isempty(ipoints) || size(ipoints,2) < 2  # No overlap points
+    #      # Force, contact points, overlap area all 0s
+    #     return zeros(FT, 1, 2), zeros(FT, 1, 2), zeros(FT, 1)
+    # else
+    if !isempty(ipoints) && size(ipoints,2) >= 2
         # Find overlapping regions greater than minumum area
         n1 = length(c1[1]) - 1
         n2 = length(c2[1]) - 1
@@ -147,29 +150,29 @@ function calc_elastic_forces(
         region_areas = region_areas[region_areas .> min_area]
         overlap = region_areas
         ncontact = length(regions)
-        # Calculate forces for each remaining region
-        force = zeros(FT, ncontact, 2)
-        fpoint = zeros(FT, ncontact, 2)
-        Δl_lst = zeros(FT, ncontact)
-        for k in 1:ncontact
-            normal_force = zeros(FT, 1, 2)
-            if region_areas[k] != 0
-                cx, cy = find_poly_centroid(regions[k])::Vector{Float64}
-                fpoint[k, :] = [cx, cy]
-                normal_force, Δl = calc_normal_force(
-                    c1,
-                    c2,
-                    regions[k],
-                    region_areas[k],
-                    ipoints,
-                    force_factor
-                )
-            end
+    end
+    # Calculate forces for each remaining region
+    force = zeros(FT, ncontact, 2)
+    fpoint = zeros(FT, ncontact, 2)
+    Δl_lst = zeros(FT, ncontact)
+    for k in 1:ncontact
+        if region_areas[k] != 0
+            cx, cy = find_poly_centroid(regions[k])::Vector{Float64}
+            fpoint[k, 1] = cx
+            fpoint[k, 2] = cy
+            normal_force, Δl = calc_normal_force(
+                c1,
+                c2,
+                regions[k],
+                region_areas[k],
+                ipoints,
+                force_factor
+            )
             force[k, :] = normal_force
             Δl_lst[k] = Δl
         end
-        return force, fpoint, overlap, Δl_lst
     end
+    return force, fpoint, overlap, Δl_lst
 end
 
 """
@@ -567,26 +570,28 @@ function floe_domain_element_interaction!(
                 region_areas,
                 force_factor,
             )
-            normal_direction_correct!(normal_forces, fpoints, element)
-            # Calculate frictional forces at each force point
             np = size(fpoints, 1)
-            vfloe = repeat([floe.u floe.v], outer = np) .+
-                floe.ξ*(fpoints .- repeat(floe.centroid', outer = np)) 
-            vbound = repeat(zeros(FT, 1, 2), outer = np)
-            friction_forces = calc_friction_forces(
-                vfloe,
-                vbound,
-                normal_forces,
-                Δl,
-                consts,
-                Δt,
-            )
-            # Calculate total forces and update ifloe's interactions
-            forces = normal_forces .+ friction_forces
-            if sum(abs.(forces)) != 0
-                floe.interactions = [floe.interactions;
-                    fill(Inf, np) forces fpoints zeros(np) overlaps]
-                floe.overarea += sum(overlaps)
+            if np > 0
+                normal_direction_correct!(normal_forces, fpoints, element)
+                # Calculate frictional forces at each force point
+                vfloe = repeat([floe.u floe.v], outer = np) .+
+                    floe.ξ*(fpoints .- repeat(floe.centroid', outer = np)) 
+                vbound = repeat(zeros(FT, 1, 2), outer = np)
+                friction_forces = calc_friction_forces(
+                    vfloe,
+                    vbound,
+                    normal_forces,
+                    Δl,
+                    consts,
+                    Δt,
+                )
+                # Calculate total forces and update ifloe's interactions
+                forces = normal_forces .+ friction_forces
+                if sum(abs.(forces)) != 0
+                    floe.interactions = [floe.interactions;
+                        fill(Inf, np) forces fpoints zeros(np) overlaps]
+                    floe.overarea += sum(overlaps)
+                end
             end
         end
     end

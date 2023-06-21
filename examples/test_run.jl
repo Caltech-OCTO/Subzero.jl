@@ -1,6 +1,43 @@
 using JLD2, Random, Statistics, Subzero, BenchmarkTools
 import LibGEOS as LG
 
+Δt = 10
+        max_overlap = 0.55
+        hmean = 0.25
+        Δh = 0.0
+rect = Floe(
+    [[
+        [0.0, 2.5e4],
+        [0.0, 2.9e4],
+        [2e4, 2.9e4],
+        [2e4, 2.5e4],
+        [0.0, 2.5e4],
+    ]],
+    hmean,
+    Δh,
+)
+rect.v = -0.1
+cfloe = Floe(
+    [[
+        [0.5e4, 2.7e4],
+        [0.5e4, 3.5e4],
+        [1.5e4, 3.5e4],
+        [1.5e4, 2.7e4],
+        [1.25e4, 2.7e4],
+        [1.25e4, 3e4],
+        [1e4, 3e4],
+        [1e4, 2.7e4],
+        [0.5e4, 2.7e4],
+    ]],
+    hmean,
+    Δh,
+)
+cfloe.u = 0.3
+consts = Constants()
+Subzero.floe_floe_interaction!(cfloe, 1, rect, 2, 2, consts, Δt, max_overlap)
+
+
+
 # User Inputs
 const FT = Float64
 const Lx = 1e5

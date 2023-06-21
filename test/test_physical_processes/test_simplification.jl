@@ -543,6 +543,8 @@
         floe_arr.status[2].tag = Subzero.active
         floe_arr.status[3].tag = Subzero.fuse
         floe_arr.status[4].tag = Subzero.fuse
+        push!(floe_arr.status[3].fuse_idx, 4)
+        push!(floe_arr.status[4].fuse_idx, 3)
         floe_arr.id .= [1, 2, 3, 4]
         dissolve_mass = floe_arr.mass[2] + floe_arr.mass[4]
 
@@ -559,6 +561,7 @@
         @test length(floe_arr) == 1
         @test floe_arr.id == [3]
         @test floe_arr.status[1].tag == Subzero.active
+        @test isempty(floe_arr.status[1].fuse_idx)
         @test sum(dissolved) == dissolve_mass
     end
 end
