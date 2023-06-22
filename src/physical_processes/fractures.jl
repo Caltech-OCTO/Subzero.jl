@@ -352,7 +352,7 @@ function deform_floe!(
             find_poly_coords(overlap_region),
         )
         force_fracs = deforming_forces ./ 2norm(deforming_forces)
-        Δx, Δy = abs.(dist)[1] .* force_fracs
+        Δx, Δy = abs(dist[1]) .* force_fracs
         # Temporarily move deformer floe to find new shape of floe
         deformer_poly = LG.Polygon(translate(deformer_coords, Δx, Δy))
         new_floe_poly = sortregions(LG.difference(poly, deformer_poly))[1]
