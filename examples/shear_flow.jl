@@ -1,4 +1,4 @@
-using JLD2, Random, Statistics, StructArrays, Subzero
+using JLD2, Random, Statistics, StructArrays, Subzero, ProfileView
 import LibGEOS as LG
 
 # User Inputs
@@ -58,12 +58,14 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 2000,
+    nΔt = 500,
     verbose = false,
     writers = writers,
     rng = Xoshiro(1),
 )
-run_time!(simulation)
+#run_time!(simulation)
+
+ProfileView.@profview run!(simulation)
  
 # Subzero.create_sim_gif("output/shear_flow/floes.jld2", 
 #                        "output/shear_flow/initial_state.jld2",

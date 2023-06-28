@@ -1021,25 +1021,27 @@ struct Domain{
     SB<:AbstractBoundary{South, FT},
     EB<:AbstractBoundary{East, FT},
     WB<:AbstractBoundary{West, FT},
+    TT<:StructArray{<:TopographyElement{FT}},
 }
     north::NB
     south::SB
     east::EB
     west::WB
-    topography::StructArray{TopographyElement{FT}}
+    topography::TT
 
-    function Domain{FT, NB, SB, EB, WB}(
+    function Domain{FT, NB, SB, EB, WB, TT}(
         north::NB,
         south::SB,
         east::EB,
         west::WB,
-        topography::StructArray{TopographyElement{FT}},
+        topography::TT,
     ) where {
         FT<:AbstractFloat,
         NB<:AbstractBoundary{North, FT},
         SB<:AbstractBoundary{South, FT},
         EB<:AbstractBoundary{East, FT},
         WB<:AbstractBoundary{West, FT},
+        TT<:StructArray{<:TopographyElement{FT}},
     }
         if !periodic_compat(north, south)
             throw(ArgumentError("North and south boundary walls are not \
@@ -1054,7 +1056,7 @@ struct Domain{
             throw(ArgumentError("East boundary value is less than west \
                 boundary value."))
         end
-        new{FT, NB, SB, EB, WB}(north, south, east, west, topography)
+        new{FT, NB, SB, EB, WB, TT}(north, south, east, west, topography)
     end
 
     Domain(
@@ -1062,15 +1064,16 @@ struct Domain{
         south::SB,
         east::EB,
         west::WB,
-        topography::StructArray{TopographyElement{FT}},
+        topography::TT,
     ) where {
         FT<:AbstractFloat,
         NB<:AbstractBoundary{North, FT},
         SB<:AbstractBoundary{South, FT},
         EB<:AbstractBoundary{East, FT},
         WB<:AbstractBoundary{West, FT},
+        TT<:StructArray{<:TopographyElement{FT}},
     } =
-        Domain{FT, NB, SB, EB, WB}(north, south, east, west, topography)
+        Domain{FT, NB, SB, EB, WB, TT}(north, south, east, west, topography)
 end
 
 """
@@ -1095,7 +1098,7 @@ Domain(
     EB<:AbstractBoundary{East, FT},
     WB<:AbstractBoundary{West, FT},
 } =
-    Domain{FT, NB, SB, EB, WB}(
+    Domain(
         north,
         south,
         east,
@@ -1156,19 +1159,20 @@ struct Model{
         <:AbstractBoundary,
         <:AbstractBoundary,
     },
+    FLT<:StructArray{<:Floe{FT}},  # Floe list type
 }
     grid::GT
     ocean::Ocean{FT}
     atmos::Atmos{FT}
     domain::DT
-    floes::StructArray{Floe{FT}}  # See floes.jl for floe creation
+    floes::FLT # See floes.jl for floe creation
 
-    function Model{FT, GT, DT}(
+    function Model{FT, GT, DT, FLT}(
         grid::GT,
         ocean::Ocean{FT},
         atmos::Atmos{FT},
         domain::DT,
-        floes::StructArray{Floe{FT}},
+        floes::FLT,
     ) where {
         FT<:AbstractFloat,
         GT<:AbstractGrid{FT},
@@ -1179,6 +1183,7 @@ struct Model{
             <:AbstractBoundary,
             <:AbstractBoundary,
         },
+        FLT<:StructArray{<:Floe{FT}},
     }
         if !domain_in_grid(domain, grid)
             throw(ArgumentError("Domain does not fit within grid."))
@@ -1195,7 +1200,7 @@ struct Model{
             warmer than the ocean. This is not a situation in which the \
             thermodynamics are setup for right now."
         end
-        new{FT, GT, DT}(grid, ocean, atmos, domain, floes)
+        new{FT, GT, DT, FLT}(grid, ocean, atmos, domain, floes)
     end
 
     Model(
@@ -1203,7 +1208,7 @@ struct Model{
         ocean::Ocean{FT},
         atmos::Atmos{FT},
         domain::DT,
-        floes::StructArray{Floe{FT}},
+        floes::FLT,
     ) where {
         FT<:AbstractFloat,
         GT<:AbstractGrid{FT},
@@ -1214,6 +1219,7 @@ struct Model{
             <:AbstractBoundary,
             <:AbstractBoundary,
         },
+        FLT<:StructArray{<:Floe{FT}},
     } = 
-        Model{FT, GT, DT}(grid, ocean, atmos, domain, floes)
+        Model{FT, GT, DT, FLT}(grid, ocean, atmos, domain, floes)
 end

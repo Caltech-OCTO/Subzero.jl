@@ -49,16 +49,17 @@ The user can also define settings for each physical process.
 """
 @kwdef struct Simulation{
     FT<:AbstractFloat,
-    GT<:AbstractGrid,
-    DT<:Domain,
+    MT<:Model{FT, <:AbstractGrid, <:Domain},
     CT<:AbstractFractureCriteria,
     RT<:Random.AbstractRNG,
-    IW<:StructVector{<:InitialStateOutputWriter},
-    FW<:StructVector{<:FloeOutputWriter},
-    GW<:StructVector{<:GridOutputWriter},
-    CW<:StructVector{<:CheckpointOutputWriter},
+    OT<:OutputWriters{
+        <:StructVector{<:InitialStateOutputWriter},
+        <:StructVector{<:FloeOutputWriter},
+        <:StructVector{<:GridOutputWriter},
+        <:StructVector{<:CheckpointOutputWriter},
+    }
 }
-    model::Model{FT, GT, DT}            # Model to simulate
+    model::MT                           # Model to simulate
     consts::Constants{FT} = Constants() # Constants used in Simulation
     rng::RT = Xoshiro()                     # Random number generator 
     verbose::Bool = false               # String output printed during run
@@ -72,7 +73,7 @@ The user can also define settings for each physical process.
     fracture_settings::FractureSettings{CT} = FractureSettings()
     simp_settings::SimplificationSettings{FT} = SimplificationSettings()
     # Output Writers -----------------------------------------------------------
-    writers::OutputWriters{IW, FW, GW, CW} = OutputWriters()
+    writers::OT = OutputWriters()
 end
 
 """

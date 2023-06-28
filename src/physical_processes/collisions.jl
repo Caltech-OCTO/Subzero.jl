@@ -36,7 +36,7 @@ function calc_normal_force(
     region,
     area::FT,
     ipoints,
-    force_factor::FT,
+    force_factor,
 ) where {FT<:AbstractFloat}
     force_dir = zeros(FT, 2)
     coords = find_poly_coords(region)
@@ -88,9 +88,14 @@ function calc_normal_force(
     if Δl > 0.1
         c1new = [[c .+ vec(force_dir) for c in c1[1]]]
         # Floe/boudary intersection after being moved in force direction
-        new_inter_floe = LG.intersection(LG.Polygon(c1new), LG.Polygon(c2))
+        new_regions_list = get_polygons(
+            LG.intersection(
+                LG.Polygon(c1new),
+                LG.Polygon(c2),
+            ),
+        )
         # See if the area of overlap has increased in corresponding region
-        for new_region in LG.getGeometries(new_inter_floe)
+        for new_region in new_regions_list
             if LG.intersects(new_region, region) && LG.area(new_region)/area > 1
                 force_dir *= -1 
             end
@@ -131,7 +136,7 @@ function calc_elastic_forces(
     c1,
     c2,
     regions,
-    region_areas::Vector{FT},
+    region_areas,
     force_factor::FT,
 ) where {FT<:AbstractFloat}
     ipoints = intersect_lines(c1, c2)  # Intersection points
@@ -266,17 +271,18 @@ function floe_floe_interaction!(
 ) where {FT<:AbstractFloat}
     ifloe_poly = LG.Polygon(ifloe.coords)
     jfloe_poly = LG.Polygon(jfloe.coords)
-    inter_floe = LG.intersection(ifloe_poly, jfloe_poly)
-    inter_regions = LG.Polygon[]
-    region_areas = FT[]
+    inter_regions = get_polygons(
+        LG.intersection(
+            ifloe_poly,
+            jfloe_poly,
+        ),
+    )::Vector{LG.Polygon}
+    region_areas = Vector{FT}(undef, length(inter_regions))
     total_area = FT(0)
-    for geom in LG.getGeometries(inter_floe)
-        a = LG.area(geom)::FT
-        if a > 0
-            push!(inter_regions, geom)
-            push!(region_areas, a)
-            total_area += a
-        end
+    for i in eachindex(inter_regions)
+        a = FT(LG.area(inter_regions[i]))
+        region_areas[i] = a
+        total_area += a
     end
     if total_area > 0
         # Floes overlap too much - remove floe or transfer floe mass
@@ -287,9 +293,9 @@ function floe_floe_interaction!(
         else
             # Constant needed to calculate force
             ih = ifloe.height
-            ir = sqrt(ifloe.area)
+            ir = FT(sqrt(ifloe.area))
             jh = jfloe.height
-            jr = sqrt(jfloe.area)
+            jr = FT(sqrt(jfloe.area))
             force_factor = if ir>1e5 || jr>1e5
                 consts.E*min(ih, jh)/min(ir, jr)
             else
@@ -323,7 +329,7 @@ function floe_floe_interaction!(
                 forces = normal_forces .+ friction_forces
                 if sum(abs.(forces)) != 0
                     ifloe.interactions = [ifloe.interactions;
-                        fill(j, np) forces fpoints zeros(np) overlaps]
+                        fill(j, np) forces fpoints zeros(FT, np) overlaps]
                     ifloe.overarea += sum(overlaps)
                 end
             end
@@ -538,18 +544,19 @@ function floe_domain_element_interaction!(
     floe_poly = LG.Polygon(floe.coords)
     bounds_poly = LG.Polygon(element.coords)
     # Check if the floe and element actually overlap
-    inter_floe = LG.intersection(floe_poly, bounds_poly)
-    inter_regions = LG.Polygon[]
-    region_areas = FT[]
+    inter_regions = get_polygons(
+        LG.intersection(
+            floe_poly,
+            bounds_poly,
+        ),
+    )::Vector{LG.Polygon}
+    region_areas = Vector{FT}(undef, length(inter_regions))
     max_area = FT(0)
-    for geom in LG.getGeometries(inter_floe)
-        a = LG.area(geom)::FT
-        if a > 0
-            push!(inter_regions, geom)
-            push!(region_areas, a)
-            if a > max_area
-                max_area = a
-            end
+    for i in eachindex(inter_regions)
+        a = LG.area(inter_regions[i])::FT
+        region_areas[i] = a
+        if a > max_area
+            max_area = a
         end
     end
     if max_area > 0
@@ -1036,10 +1043,10 @@ Outputs:
     None. Ghosts of floes are added to floe list. 
 """
 function add_floe_ghosts!(
-    floes::StructArray{Floe{FT}},
+    floes::FLT,
     max_boundary,
     min_boundary,
-) where {FT <: AbstractFloat}
+) where {FT <: AbstractFloat, FLT <: StructArray{<:Floe{FT}}}
     nfloes = length(floes)
     # uses initial length of floes so we can append to list
     for i in eachindex(floes)
