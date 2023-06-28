@@ -36,15 +36,36 @@ wboundary = PeriodicBoundary(West, grid)
 
 domain = Domain(nboundary, sboundary, eboundary, wboundary)
 
+coupling_settings = CouplingSettings(
+    two_way_coupling_on = true,
+    random_floe_points = true,
+)
+fracture_settings = FractureSettings()
+simp_settings = SimplificationSettings()
+consts = Constants()
+
 # Floe creation
-floe_arr = initialize_floe_field(FT, 50, [0.8], domain, hmean, Δh, rng = Xoshiro(1))
+floe_arr = initialize_floe_field(
+    FT,
+    50,
+    [0.8],
+    domain,
+    hmean,
+    Δh,
+    consts,
+    coupling_settings,
+    fracture_settings,
+    simp_settings,
+    rng = Xoshiro(1),
+    Δg = min(grid.Δx, grid.Δy),
+)
 
 # Model creation
 model = Model(grid, ocean, atmos, domain, floe_arr)
 
 # Simulation setup
-modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
-consts = Constants(E = modulus)
+# modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
+# consts = Constants(E = modulus)
 
 # Run simulation
 run_time!(simulation) =  @time run!(simulation)
@@ -62,7 +83,9 @@ simulation = Simulation(
     verbose = false,
     writers = writers,
     rng = Xoshiro(1),
-    coupling_settings = CouplingSettings(two_way_coupling_on = true)
+    coupling_settings = coupling_settings,
+    fracture_settings = fracture_settings,
+    simp_settings = simp_settings,
 )
 run_time!(simulation)
  

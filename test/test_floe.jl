@@ -55,6 +55,43 @@
     @test status3.tag == Subzero.active
     @test eltype(mc_x3) == eltype(mc_y3) == Float32
 
+    rhombus_coords = [[
+        [0.0, 0.0],
+        [40.0, 50.0],
+        [100.0, 50.0],
+        [80.0, 0.0],
+        [0.0, 0.0],
+    ]]
+    rhombus_centroid = [54.285, 23.809]
+
+    small_grid = RegRectilinearGrid(
+        (-150, 150),
+        (-150, 150),
+        5,   # Δx
+        10,  # Δy
+    )
+
+    medium_grid = RegRectilinearGrid(
+        (-150, 150),
+        (-150, 150),
+        40,   # Δx
+        40,  # Δy
+    )
+
+    large_grid = RegRectilinearGrid(
+        (-150, 150),
+        (-150, 150),
+        100,   # Δx
+        100,  # Δy
+    )
+
+    x, y = Subzero.generate_floe_points(
+        rhombus_coords,
+        rhombus_centroid,
+        1,  # number of points per grid cell
+        small_grid,
+    )
+
     # Test InteractionFields enum
     interactions = range(1, 7)'
     @test interactions[floeidx] == 1

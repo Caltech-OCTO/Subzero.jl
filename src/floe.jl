@@ -221,27 +221,27 @@ Note:
 """
 function generate_mc_points(
     ::Type{FT},
-    npoints::Int,
     coords,
     rmax,
     area,
     status,
+    coupling_settings,
     rng,
 ) where {FT<:AbstractFloat}
     count = 1
     err = FT(1)
-    mc_x = zeros(FT, npoints)
-    mc_y = zeros(FT, npoints)
-    mc_in = fill(false, npoints)
+    mc_x = zeros(FT, coupling_settings.npoints)
+    mc_y = zeros(FT, coupling_settings.npoints)
+    mc_in = fill(false, coupling_settings.npoints)
     while err > 0.1
         if count > 10
             err = 0.0
             status.tag = remove
         else
-            mc_x .= rmax * (2rand(rng, FT, Int(npoints)) .- 1)
-            mc_y .= rmax * (2rand(rng, FT, Int(npoints)) .- 1)
+            mc_x .= rmax * (2rand(rng, FT, Int(coupling_settings.npoints)) .- 1)
+            mc_y .= rmax * (2rand(rng, FT, Int(coupling_settings.npoints)) .- 1)
             mc_in .= points_in_poly(hcat(mc_x, mc_y), coords)
-            err = abs(sum(mc_in)/npoints * 4 * rmax^2 - area)/area
+            err = abs(sum(mc_in)/coupling_settings.npoints * 4 * rmax^2 - area)/area
             count += 1
         end
     end
@@ -249,11 +249,27 @@ function generate_mc_points(
     return mc_x[mc_in], mc_y[mc_in], status
 end
 
-function generate_floe_points(
+"""
+    generate_subgrid_points(
+        coords,
+        centroid,
+        grid::AbstractGrid{<:FT},
+        coupling_settings,
+    ) where {FT}
+
+Generate evenly spaced points within given floe coordinates to be used for
+coupling. If only one point falls within the floe, return the floe's centroid.
+Inputs:
+    coords              <PolyVec{AbstractFloat}>
+    centroid            <Vector{AbstractFloat}>
+    grid                <RegRectilinearGrid>
+"""
+function generate_subgrid_points(
     ::Type{FT},
-    points_per_cell_dim::Int,
-    Δg,
     coords,
+    centroid,
+    Δg,
+    coupling_settings,
 ) where {FT}
     xmax = FT(-Inf)
     ymax = FT(-Inf)
@@ -273,14 +289,67 @@ function generate_floe_points(
             ymin = point[2]
         end
     end
-    subgrid_dim = FT(Δg/points_per_cell_dim)
-    xc = xmin:subgrid_dim:xmax
-    yc = ymin:subgrid_dim:ymax
-    mc_x = repeat(xc, length(yc))
-    mc_y = repeat(yc, inner = length(xc))
-    mc_in = points_in_poly(hcat(mc_x, mc_y), coords)
+    Δg = Δg / coupling_settings.npoints
+    n_xpoints = round(Int, (xmax - xmin) / Δg) + 1
+    n_ypoints = round(Int, (ymax - ymin) / Δg) + 1
+    xpoints = if n_xpoints < 3
+        centroid[1]:centroid[1]
+    else
+        range(xmin, xmax, length = n_xpoints)
+    end
+    ypoints = if n_ypoints < 3
+        centroid[2]:centroid[2]
+    else
+        range(ymin, ymax, length = n_ypoints)
+    end
+    x_sub_floe = repeat(xpoints, length(ypoints))
+    y_sub_floe = repeat(ypoints, inner = length(xpoints))
+    in_floe = points_in_poly(hcat(x_sub_floe, y_sub_floe), coords)
 
-    return mc_x[mc_in], mc_y[mc_in]
+    x_sub_floe = x_sub_floe[in_floe]
+    y_sub_floe = y_sub_floe[in_floe]
+    if length(x_sub_floe) < 2
+        x_sub_floe = centroid[1]:centroid[1]
+    end
+    if length(y_sub_floe) < 2
+        y_sub_floe = centroid[2]:centroid[2]
+    end
+
+    return x_sub_floe, y_sub_floe
+end
+
+function generate_floe_points(
+    ::Type{FT},
+    coords,
+    centroid,
+    rmax,
+    area,
+    status,
+    Δg,
+    coupling_settings,
+    rng,
+) where {FT}
+    x, y = if coupling_settings.random_floe_points
+        generate_mc_points(
+            FT,
+            coords,
+            rmax,
+            area,
+            status,
+            coupling_settings,
+            rng,
+        )
+    else
+        @assert Δg > 0 "Grid cells must have positive dimensions."
+        generate_subgrid_points(
+            FT,
+            coords,
+            centroid,
+            Δg,
+            coupling_settings,
+        )
+    end
+    return x, y
 end
 
 """
@@ -289,7 +358,7 @@ end
         hmean,
         Δh;
         ρi = 920.0,
-        mc_n = 1000,
+        npoints = 1000,
         nhistory = 1000,
         rng = Xoshiro(),
         kwargs...
@@ -302,7 +371,7 @@ Inputs:
     Δh          <Real> variability in height for floes
     grid        <Grid> simulation grid
     ρi          <Real> ice density kg/m3 - default 920
-    mc_n        <Int> number of monte carlo points -default 1000
+    npoints        <Int> number of monte carlo points -default 1000
     n_history   <Int> number of elements in stress history
     rng         <RNG> random number generator to generate random floe attributes
                     default is RNG using Xoshiro256++ algorithm
@@ -315,10 +384,11 @@ Output:
 function Floe{FT}(
     poly::LG.Polygon,
     hmean,
-    Δh;
-    ρi = 920.0,
-    mc_n::Int = 1000,
-    nhistory::Int = 1000,
+    Δh,
+    consts,
+    coupling_settings,
+    fracture_settings;
+    Δg = 0,
     rng = Xoshiro(),
     kwargs...
 ) where {FT <: AbstractFloat}
@@ -327,28 +397,30 @@ function Floe{FT}(
     centroid = find_poly_centroid(floe)
     height = hmean + (-1)^rand(rng, 0:1) * rand(rng, FT) * Δh
     area_tot = LG.area(floe)
-    mass = area_tot * height * ρi
+    mass = area_tot * height * consts.ρi
     coords = find_poly_coords(floe)
     coords = [orient_coords(coords[1])]
-    moment = calc_moment_inertia(coords, centroid, height, ρi = ρi)
+    moment = calc_moment_inertia(coords, centroid, height, ρi = consts.ρi)
     angles = calc_poly_angles(coords)
     translate!(coords, -centroid[1], -centroid[2])
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
     status = Status()
     # Generate Monte Carlo Points
-    # mc_x, mc_y, status = generate_mc_points(
-    #     FT,
-    #     mc_n,
-    #     coords,
-    #     rmax,
-    #     area_tot,
-    #     status,
-    #     rng,
-    # )
-    mc_x, mc_y = generate_floe_points(FT, 1, 2e3, coords)
+    mc_x, mc_y, status = generate_floe_points(
+        FT,
+        coords,
+        centroid,
+        rmax,
+        area_tot,
+        status,
+        Δg,
+        coupling_settings,
+        rng,
+    )
+
     translate!(coords, centroid[1], centroid[2])
     # Generate Stress History
-    stress_history = StressCircularBuffer{FT}(nhistory)
+    stress_history = StressCircularBuffer{FT}(fracture_settings.nhistory)
     fill!(stress_history, zeros(FT, 2, 2))
 
     return Floe{FT}(;
@@ -374,7 +446,7 @@ end
         hmean,
         Δh;
         ρi = 920.0,
-        mc_n = 1000,
+        npoints = 1000,
         nhistory = 1000,
         rng = Xoshiro(),
         kwargs...,
@@ -386,7 +458,7 @@ Inputs:
     hmean       <Real> mean height for floes
     Δh          <Real> variability in height for floes
     ρi          <Real> ice density kg/m3 - default 920
-    mc_n        <Int> number of monte carlo points -default 1000
+    npoints        <Int> number of monte carlo points -default 1000
     n_history   <Int> number of elements in stress history
     rng         <RNG> random number generator to generate random floe attributes
                     default is RNG using Xoshiro256++ algorithm
@@ -399,12 +471,13 @@ Output:
 Floe{FT}(
     coords::PolyVec,
     hmean,
-    Δh;
-    ρi = 920.0,
-    mc_n::Int = 1000,
-    nhistory::Int = 1000,
+    Δh,
+    consts,
+    coupling_settings,
+    fracture_settings;
+    Δg = 0,
     rng = Xoshiro(),
-    kwargs...,
+    kwargs...
 ) where {FT <: AbstractFloat} =
     Floe{FT}( # Polygon convert is needed since LibGEOS only takes Float64
         LG.Polygon(
@@ -414,12 +487,13 @@ Floe{FT}(
             ),
         ),
         hmean,
-        Δh;
-        ρi = ρi,
-        mc_n = mc_n,
-        nhistory = nhistory,
+        Δh,
+        consts,
+        coupling_settings,
+        fracture_settings;
+        Δg = Δg,
         rng = rng,
-        kwargs...,
+        kwargs...
     ) 
 
 """
@@ -432,7 +506,7 @@ Floe{FT}(
         u = 0.0,
         v = 0.0,
         ξ = 0.0,
-        mc_n::Int = 1000,
+        npoints::Int = 1000,
         nhistory::Int = 1000,
         rng = Xoshiro(),
         min_floe_area = 0,
@@ -452,7 +526,7 @@ Inputs:
     u               <AbstratFloat> floe u velocity
     v               <AbstratFloat> floe v velocity
     ξ               <AbstratFloat> floe angular velocity
-    mc_n            <Int> number of monte carlo points
+    npoints            <Int> number of monte carlo points
     nhistory        <Int> number of element in floe's stress history
     rng             <RNG> random number generator to generate random floe
                         attributes - default is RNG using Xoshiro256++ algorithm
@@ -465,35 +539,32 @@ function poly_to_floes(
     ::Type{FT},
     floe_poly,
     hmean,
-    Δh;
-    ρi = 920.0,
-    u = 0.0,
-    v = 0.0,
-    ξ = 0.0,
-    mc_n::Int = 1000,
-    nhistory::Int = 1000,
+    Δh,
+    consts,
+    coupling_settings,
+    fracture_settings,
+    simp_settings;
     rng = Xoshiro(),
-    min_floe_area = 0,
+    Δg = 0,
+    kwargs...,
 ) where {FT <: AbstractFloat}
     floes = StructArray{Floe{FT}}(undef, 0)
     regions = LG.getGeometries(floe_poly)::Vector{LG.Polygon}
     while !isempty(regions)
         r = pop!(regions)
         a = LG.area(r)
-        if a >= min_floe_area && a > 0
+        if a >= simp_settings.min_floe_area && a > 0
             if !hashole(r)
-                floe = Floe(
-                    FT,
+                floe = Floe{FT}(
                     r::LG.Polygon,
                     hmean,
                     Δh,
-                    ρi = ρi,
-                    u = u,
-                    v = v,
-                    ξ = ξ,
-                    mc_n = mc_n,
-                    nhistory = nhistory,
+                    consts,
+                    coupling_settings,
+                    fracture_settings;
                     rng = rng,
+                    Δg = Δg,
+                    kwargs...,
                 )
                 push!(floes, floe)
             else
@@ -524,7 +595,7 @@ initialize_floe_field(args...; kwargs...) =
         Δh;
         min_floe_area = 0.0,
         ρi = 920.0,
-        mc_n::Int = 1000,
+        npoints::Int = 1000,
         nhistory::Int = 1000,
         rng = Xoshiro(),
     )
@@ -543,7 +614,7 @@ Inputs:
                         program will throw a warning (optional) -  default is 0
                         where Lx and Ly are the size of the domain edges
     ρi              <Float> ice density (optional) - default is 920.0
-    mc_n            <Int> number of monte carlo points to intially generate for
+    npoints            <Int> number of monte carlo points to intially generate for
                         each floe (optional) - default is 1000 - note that this
                         is not the number you will end up with as some will be
                         outside of the floe
@@ -558,12 +629,13 @@ function initialize_floe_field(
     coords,
     domain,
     hmean,
-    Δh;
-    min_floe_area = 0.0,
-    ρi = 920.0,
-    mc_n::Int = 1000,
-    nhistory::Int = 1000,
+    Δh,
+    consts,
+    coupling_settings,
+    fracture_settings,
+    simp_settings;
     rng = Xoshiro(),
+    Δg = 0,
 ) where {FT <: AbstractFloat}
     floe_arr = StructArray{Floe{FT}}(undef, 0)
     floe_polys = [LG.Polygon(valid_polyvec!(c)) for c in coords]
@@ -580,23 +652,24 @@ function initialize_floe_field(
                 FT,
                 p,
                 hmean,
-                Δh;
-                ρi = ρi,
-                mc_n = mc_n,
-                nhistory = nhistory,
+                Δh,
+                consts,
+                coupling_settings,
+                fracture_settings,
+                simp_settings;
                 rng = rng,
-                min_floe_area = min_floe_area,
+                Δg = Δg,
             ),
         )
     end
     # Warn about floes with area less than minimum floe size
-    min_floe_area = min_floe_area > 0 ?
-        min_floe_area :
+    suggested_min_area = simp_settings.min_floe_area > 0 ?
+        simp_settings.min_floe_area :
         FT(
             4 * (domain.east.val - domain.west.val) *
             (domain.north.val - domain.south.val) / 1e4
         )
-    if any(floe_arr.area .< min_floe_area)
+    if any(floe_arr.area .< suggested_min_area)
         @warn "Some user input floe areas are less than the suggested minimum \
             floe area."
     end
@@ -725,7 +798,7 @@ end
         Δh;
         min_floe_area = 0.0,
         ρi = 920.0,
-        mc_n::Int = 1000,
+        npoints::Int = 1000,
 
 Create a field of floes using Voronoi Tesselation.
 Inputs:
@@ -751,7 +824,7 @@ Inputs:
                         with 4*Lx*Ly/1e4 where Lx and Ly are the size of the
                         domain edges
     ρi              <Float> ice density (optional) - default is 920.0
-    mc_n            <Int> number of monte carlo points to intially generate
+    npoints            <Int> number of monte carlo points to intially generate
                         for each floe (optional) - default is 1000 - note
                         that this is not the number you will end up with as
                         some will be outside of the floe
@@ -767,12 +840,13 @@ function initialize_floe_field(
     concentrations,
     domain,
     hmean,
-    Δh;
-    min_floe_area = 0.0,
-    ρi = 920.0,
-    mc_n::Int = 1000,
-    nhistory::Int = 1000,
+    Δh,
+    consts,
+    coupling_settings,
+    fracture_settings,
+    simp_settings;
     rng = Xoshiro(),
+    Δg = 0,
 ) where {FT <: AbstractFloat}
     floe_arr = StructArray{Floe{FT}}(undef, 0)
     # Split domain into cells with given concentrations
@@ -795,7 +869,9 @@ function initialize_floe_field(
         )
     end
     open_water_area = LG.area(open_water)
-    min_floe_area = min_floe_area >= 0 ? min_floe_area : FT(4 * Lx * Lx / 1e4)
+    suggested_min_area = simp_settings.min_floe_area > 0 ?
+        simp_settings.min_floe_area :
+        FT(4 * Lx * Lx / 1e4)
     # Loop over cells
     for j in range(1, ncols)
         for i in range(1, nrows)
@@ -840,12 +916,13 @@ function initialize_floe_field(
                             FT,
                             floe_poly,
                             hmean,
-                            Δh;
-                            ρi = ρi,
-                            mc_n = mc_n,
-                            nhistory = nhistory,
+                            Δh,
+                            consts,
+                            coupling_settings,
+                            fracture_settings,
+                            simp_settings;
                             rng = rng,
-                            min_floe_area = min_floe_area,
+                            Δg = Δg,
                         )
                         append!(floe_arr, floes)
                         floes_area += sum(floes.area)

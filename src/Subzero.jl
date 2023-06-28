@@ -91,6 +91,7 @@ const RingVec{T} = R where {
 }
 
 # Model
+include("grids.jl")
 include("floe.jl")
 include("floe_utils.jl")
 include("model.jl")

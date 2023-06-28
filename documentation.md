@@ -166,7 +166,7 @@ coords = [
 | moment         | floe's mass moment of intertia in [kg m^2]    | Float64 or Float32|
 | angles         | list of floe's vertex angles in [degrees] | Vector of Float64 or Float32|
 
-The second catagory is **monte carlo points**. These are used for interpolation of the ocean and atmosphere onto the floe. They are a list of random points within the floe. They are randomly generated, with the user providing an initial target number of points using the `mc_n` argument in the floe constructor or in the initial floe field function. The user will not end up with `mc_n` monte carlo points. These are the number of points generated in a bounding box around the floe generated using the floe's `rmax` as the side lengths. However, every point that is outside of the floe will be removed. The monte carlo points are repeatedly generated until a set is created with 5% accuracy. If a set cannot be determined in 10 tries, the floe will be marked for removal using the `status` field (see below)
+The second catagory is **monte carlo points**. These are used for interpolation of the ocean and atmosphere onto the floe. They are a list of random points within the floe. They are randomly generated, with the user providing an initial target number of points using the `npoints` argument in the floe constructor or in the initial floe field function. The user will not end up with `npoints` monte carlo points. These are the number of points generated in a bounding box around the floe generated using the floe's `rmax` as the side lengths. However, every point that is outside of the floe will be removed. The monte carlo points are repeatedly generated until a set is created with 5% accuracy. If a set cannot be determined in 10 tries, the floe will be marked for removal using the `status` field (see below)
 | Monte Carlo Fields| Meaning                                 | Type                        |
 | ----------------- | --------------------------------------- | --------------------------- |
 | mc_x              | floe's monte carlo points x-coordinates | Vector of Float64 or Float32|
@@ -241,7 +241,7 @@ floe = Floe(
     u = 0.0,
     v = 0.0,
     ξ = 0.0,
-    mc_n = 1000,
+    npoints = 1000,
     nhistory = 1000,
     rng = Xoshiro(1), # seed of 1
 )
@@ -259,7 +259,7 @@ Both of these functions share most arguments. They are as follows (with default 
 - `Δh`, which is the maximum potential height difference from `hmean` between floes
 - `min_floe_area = 0.0`, which is the minimum floe area for any floes initialized and smaller floes will not be added to the list of initial floes
 - `ρi = 920.0`, which is the density of ice in kg/m^3
-- `mc_n = 1000`, which is the number of monte carlo points desired for each floe
+- `npoints = 1000`, which is the number of monte carlo points desired for each floe
 - `nhistory = 1000`, which is the length of stress history for each floe
 - `rng = Xoshiro()`, which is a random number generator so that floe creation is reproducible if a seeded random number generator is provided
 
@@ -341,7 +341,7 @@ Subzero allows you to turn on and off various physical processes, as well as cha
 - coupling_on, which turns this process on and off
 - ∆t, which sets the number of timesteps between this process running
 - ∆d, which sets the number of ocean/atmosphere grid cells around a floe to consider when interpolating ocean/atmosphere forcings
-- mc_n, which sets the number of monte carlo points for each floe that are used for the interpolation
+- npoints, which sets the number of monte carlo points for each floe that are used for the interpolation
 - two_way_coupling_on, which turns on and off the calculation of the ice and atmosphere effects on the ocean and stores output in the ocean's stress fields.
 
 Here is an example of creating your own coupling settings, using the default values:
@@ -350,7 +350,7 @@ couple_settings = CouplingSettings(
   coupling_on = true,
   Δt = 10,
   Δd = 1,
-  mc_n = 1000,
+  npoints = 1000,
   two_way_coupling_on = false,
 )
 ```

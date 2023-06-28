@@ -10,7 +10,7 @@ from the timestep_simulation! function.
         new_poly,
         new_mass,
         consts,
-        mc_n,
+        npoints,
         rng,
     )
 Updates existing floe shape and related physical properties based of the polygon
@@ -20,7 +20,7 @@ Inputs:
     new_poly    <LG.Polygon> polygon representing new outline of floe
     new_mass    <AbstractFloat> mass of floe
     consts      <Constants> simulation's constants
-    mc_n        <Int> number of monte carlo points to attempt to generate
+    npoints        <Int> number of monte carlo points to attempt to generate
     rng         <RNG> random number generator
 Ouputs:
     Updates a given floe's physical properties given new shape and total mass.
@@ -30,7 +30,8 @@ function replace_floe!(
     new_poly,
     new_mass,
     consts,
-    mc_n,
+    coupling_settings,
+    Δg,
     rng,
 ) where {FT}
     # Floe shape
@@ -54,15 +55,18 @@ function replace_floe!(
     translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
     floe.rmax = sqrt(maximum([sum(c.^2) for c in floe.coords[1]]))
     # Floe monte carlo points
-    mc_x, mc_y, status = generate_mc_points(
+    mc_x, mc_y, status = generate_floe_points(
         FT,
-        mc_n,
-        floe.coords,
-        floe.rmax,
-        floe.area,
-        floe.status,
+        coords,
+        centroid,
+        rmax,
+        area,
+        status,
+        Δg,
+        coupling_settings,
         rng,
     )
+
     translate!(floe.coords, floe.centroid[1], floe.centroid[2])
     floe.mc_x = mc_x
     floe.mc_y = mc_y

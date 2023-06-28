@@ -897,7 +897,7 @@ Outputs:
         where an entry is true if the corresponding element in xy is within the
         given polygon.
 """
-function points_in_poly(xy, coords::PolyVec{<:AbstractFloat})
+function points_in_poly(xy, coords)
     in_idx = fill(false, length(xy[:, 1]))
     if !isempty(xy) && !isempty(coords[1][1])
         # Loop over exterior coords and each hole

@@ -90,7 +90,7 @@ function smooth_floes!(
                 simp_poly,
                 floes.mass[i],
                 consts,
-                coupling_settings.mc_n,
+                coupling_settings.npoints,
                 rng,
             )
             # conserve momentum
@@ -185,7 +185,7 @@ function fuse_two_floes!(
             new_poly,
             floe1.mass + floe2.mass,
             consts,
-            coupling_settings.mc_n,
+            coupling_settings.npoints,
             rng,
         )
         # conserve momentum

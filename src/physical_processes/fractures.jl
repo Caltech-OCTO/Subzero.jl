@@ -214,7 +214,7 @@ function deform_floe!(
     deforming_forces,
     consts,
     Δt,
-    mc_n,
+    npoints,
     rng,
 )
     poly = LG.Polygon(floe.coords)
@@ -245,7 +245,7 @@ function deform_floe!(
                 new_floe_poly,
                 floe.mass,
                 consts,
-                mc_n,
+                npoints,
                 rng,
             )
             conserve_momentum_combination!(
@@ -332,7 +332,7 @@ function split_floe(
                     u = floe.u,
                     v = floe.v,
                     ξ = floe.ξ,
-                    mc_n = coupling_settings.mc_n,
+                    npoints = coupling_settings.npoints,
                     nhistory = fracture_settings.nhistory,
                     rng = rng,
                 )
@@ -415,7 +415,7 @@ function fracture_floes!(
                         deforming_inter[xforce:yforce],
                         consts,
                         Δt,
-                        coupling_settings.mc_n,
+                        coupling_settings.npoints,
                         rng,
                     )
                 end
