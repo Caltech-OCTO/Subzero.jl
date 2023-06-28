@@ -559,6 +559,7 @@
         @test length(floe_arr) == 1
         @test floe_arr.id == [3]
         @test floe_arr.status[1].tag == Subzero.active
+        @test isempty(floe_arr.status[1].fuse_idx)
         @test sum(dissolved) == dissolve_mass
     end
 end
