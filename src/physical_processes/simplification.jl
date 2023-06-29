@@ -328,6 +328,7 @@ function remove_floes!(
             )
         else  # reset continuing floes' status
             floes.status[i].tag = active
+            empty!(floes.status[i].fuse_idx)
         end
     end
     return

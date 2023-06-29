@@ -28,14 +28,11 @@ struct NoFracture<:AbstractFractureCriteria end
 
 
 """
-    struct HiblerYieldCurve{FT<:AbstractFloat}<:AbstractFractureCriteria
-        pstar::FT
-        c::FT
-        vertices::PolyVec{FT}
-    end
+    HiblerYieldCurve{FT<:AbstractFloat}<:AbstractFractureCriteria
 
-Type of AbstractFractureCriteria using TODO: finish! 
-
+Type of AbstractFractureCriteria that creates a yield curve that determines if a
+floe fractures based off if its stress in principal stress space  is inside or
+outside of the yield curve.
 Fields:
     pstar       <AbstractFloat> used to tune ellipse for optimal fracturing
     c           <AbstractFloat> used to tune ellipse for optimal fracturing
@@ -139,6 +136,121 @@ HiblerYieldCurve{FT}(
     )
 
 """
+MohrsCone{FT<:AbstractFloat}<:AbstractFractureCriteria
+
+Type of AbstractFractureCriteria that creates a cone in principal stress space
+that determines if a floe fractures based off if its stress in principal stress
+space  is inside or outside of the cone.
+Fields:
+    verticies   <PolyVec> vertices of criteria in principal stress space
+Note:
+    Concepts from the following papter -
+    Weiss, Jérôme, and Erland M. Schulson. "Coulombic faulting from the grain
+    scale to the geophysical scale: lessons from ice." Journal of Physics D:
+    Applied Physics 42.21 (2009): 214017.
+"""
+struct MohrsCone{FT<:AbstractFloat}<:AbstractFractureCriteria
+    vertices::PolyVec
+    
+    function MohrsCone{FT}(
+        vertices::PolyVec
+    ) where {FT <: AbstractFloat}
+        try
+            valid_polyvec!(vertices)
+        catch
+            throw(ArgumentError("The given vertices for the Mohr's Cone can't \
+            be made into a valid polygon and thus the initial yield \
+            curve can't be created."))
+        end
+        new{FT}(vertices)
+    end
+end
+
+"""
+    MohrsCone(::Type{FT}, args...)
+
+A float type FT can be provided as the first argument of any MohrsCone
+constructor. A MohrsCone of type FT will be created by passing all
+other arguments to the correct constructor. 
+"""
+MohrsCone(::Type{FT}, args...) where {FT <: AbstractFloat}=
+    MohrsCone{FT}(args...)
+
+"""
+    MohrsCone(args...)
+
+If a type isn't specified, MohrsCone will be of type Float64 and the correct
+constructor will be called with all other arguments.
+"""
+MohrsCone(args...) = MohrsCone{Float64}(args...)
+
+"""
+    calculate_mohrs(σ1, σ2, σ11, σ22)
+
+Creates PolyVec from vertex values for Mohr's Cone (triangle in 2D)
+Inputs:
+    σ1  <AbstractFloat> x-coordiante of first point in cone
+    σ2  <AbstractFloat> y-coordiante of first point in cone
+    σ11 <AbstractFloat> x-coordinate of one vertex of cone and negative of the
+            y-coordinate of adjacend vertex in principal stress space
+    σ22 <AbstractFloat> y-coordinate of one vertex of cone and negative of the
+    x-coordinate of adjacend vertex in principal stress space
+Output:
+    Mohr's Cone vertices (triangle since we are in 2D) in principal stress space
+"""
+calculate_mohrs(σ1, σ2, σ11, σ22) = valid_polyvec!([[
+    [σ1, σ2],
+    [σ11, σ22],
+    [σ22, σ11],
+    [σ1, σ2],
+]])
+
+"""
+    calculate_mohrs(
+        q,
+        σc,
+        σ11;
+        σ1 = nothing,
+        σ2 = nothing,
+        σ22 = nothing,
+    )
+
+Calculate Mohr's Cone coordinates in principal stress space.
+Inputs:
+    q   <AbstractFloat> based on the coefficient of internal friction (µi) by
+            ((μi^2 + 1)^(1/2) + μi^2
+    σc  <AbstractFloat> uniaxial compressive strength
+    σ11 <AbstractFloat> negative of the x-coordinate of one vertex of cone
+            (triangle in 2D) and negative of the y-coordinate of adjacend vertex
+            in principal stress space
+Outputs:
+    Mohr's Cone vertices (triangle since we are in 2D) in principal stress space
+Note:
+    Concepts from the following papter -
+    Weiss, Jérôme, and Erland M. Schulson. "Coulombic faulting from the grain
+    scale to the geophysical scale: lessons from ice." Journal of Physics D:
+    Applied Physics 42.21 (2009): 214017.
+    Equations taken from original version of Subzero written in MATLAB
+"""
+function calculate_mohrs(
+    q = 5.2,
+    σc = 2.5e5,
+    σ11 = -3.375e4,
+)
+    σ1 = ((1/q) + 1) * σc / ((1/q) - q)
+    σ2 = q * σ1 + σc
+    σ22 = q * σ11 + σc
+    return calculate_mohrs(-σ1, -σ2, -σ11, -σ22)
+end
+
+"""
+    MohrsCone{FT}(val::AbstractFloat, args...)
+
+Calculate Mohr's Cone vertices given calculate_mohrs arguments.
+"""
+MohrsCone{FT}(args...) where FT = MohrsCone{FT}(calculate_mohrs(args...))
+
+"""
     update_criteria!(criteria::HiblerYieldCurve, floes)
 
 Update the Hibler Yield Curve vertices based on the current set of floes. The
@@ -155,6 +267,16 @@ function update_criteria!(criteria::HiblerYieldCurve, floes)
         criteria.pstar,
         criteria.c
     )
+    return
+end
+
+"""
+    update_criteria!(::MohrsCone, floes)
+
+Mohr's cone is not time or floe dependent so it doesn't need to be updates.
+"""
+function update_criteria!(::MohrsCone, floes)
+    return
 end
 
 """
@@ -230,7 +352,7 @@ function deform_floe!(
             find_poly_coords(overlap_region),
         )
         force_fracs = deforming_forces ./ 2norm(deforming_forces)
-        Δx, Δy = abs.(dist)[1] .* force_fracs
+        Δx, Δy = abs(dist[1]) .* force_fracs
         # Temporarily move deformer floe to find new shape of floe
         deformer_poly = LG.Polygon(translate(deformer_coords, Δx, Δy))
         new_floe_poly = sortregions(LG.difference(poly, deformer_poly))[1]
