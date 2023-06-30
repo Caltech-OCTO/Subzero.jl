@@ -16,6 +16,12 @@ const newfloe_Δt = 500
 const coarse_nx = 10
 const coarse_ny = 10
 
+# Settings for simulation
+collisions_off_settings = CollisionSettings(collisions_on = false)
+coupling_off_settings = CouplingSettings(coupling_on = false)
+fracture_off_settings = FractureSettings()
+basic_simp_settings = SimplificationSettings()
+
 # Setup for Simulations
 grid = RegRectilinearGrid(
     (-2.5e4, Lx),
@@ -62,7 +68,7 @@ stationary_rect_floe = StructArray([Floe(
         [0.0, 0.0],
     ]],
     hmean,
-    Δh,
+    Δh
 )])
 zonal_3rect_floes = initialize_floe_field(
     FT,
@@ -89,9 +95,13 @@ zonal_3rect_floes = initialize_floe_field(
             [8e4, 0.0],
         ]],
     ],
-    collision_domain_topo,
     hmean,
     Δh,
+    collision_domain_topo,
+    grid,
+    coupling_off_settings,
+    fracture_off_settings,
+    basic_simp_settings,
 )
 zonal_3rect_floes.u .= [3.0, -3.0, 0.0]
 
@@ -201,7 +211,7 @@ simulation3 = Simulation(
     Δt = 10,
     nΔt = nΔt,
     writers = writers3,
-    coupling_settings = CouplingSettings(coupling_on = false),
+    coupling_settings = coupling_off_settings,
 )
 push!(sim_arr, simulation3)
 
@@ -277,7 +287,7 @@ simulation4 = Simulation(
     Δt = 10,
     nΔt = nΔt,
     writers = writers4,
-    coupling_settings = CouplingSettings(coupling_on = false),
+    coupling_settings = coupling_off_settings,
 )
 push!(sim_arr, simulation4)
 
@@ -294,9 +304,13 @@ funky_floe_coords = file["floe_vertices"][1:100]
 funky_floe_arr = initialize_floe_field(
     FT,
     funky_floe_coords,
-    collision_domain_topo,
     hmean,
     Δh,
+    collision_domain_topo,
+    grid,
+    coupling_off_settings,
+    fracture_off_settings,
+    basic_simp_settings,
 )
 close(file)
 funky_floe_arr.u .= (-1)^rand(0:1) * (0.1 * rand(length(funky_floe_arr)))
@@ -326,7 +340,7 @@ simulation5 = Simulation(
     Δt = 10,
     nΔt = nΔt,
     writers = writers5,
-    coupling_settings = CouplingSettings(coupling_on = false),
+    coupling_settings = coupling_off_settings,
 )
 push!(sim_arr, simulation5)
 

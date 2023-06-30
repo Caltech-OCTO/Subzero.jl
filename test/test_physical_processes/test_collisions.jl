@@ -1,5 +1,7 @@
 @testset "Collisions" begin
     FT = Float64
+    coupling_settings = CouplingSettings()
+    frac_settings = FractureSettings()
     @testset "Floe-Floe Interactions" begin
         Δt = 10
         max_overlap = 0.55
@@ -9,6 +11,8 @@
             [[[0.0, 0.0], [1e4, 3e4], [2e4, 0], [0.0, 0.0]]],
             hmean,
             Δh,
+            coupling_settings,
+            frac_settings,
         )
         tri.u = 0.1
         rect = Floe(
@@ -21,6 +25,8 @@
             ]],
             hmean,
             Δh,
+            coupling_settings,
+            frac_settings,
         )
         rect.v = -0.1
         cfloe = Floe(
@@ -37,6 +43,8 @@
             ]],
             hmean,
             Δh,
+            coupling_settings,
+            frac_settings,
         )
         cfloe.u = 0.3
         consts = Constants()
@@ -89,6 +97,8 @@
             ]],
             hmean,
             Δh,
+            coupling_settings,
+            frac_settings,
         )
         Subzero.floe_floe_interaction!(
             rect,
@@ -149,6 +159,8 @@
             ]],
             hmean,
             Δh,
+            coupling_settings,
+            frac_settings,
         )
         efloe_small.u = 0.5
         efloe_small.v = 0.25
@@ -163,6 +175,8 @@
             ]],
             hmean,
             Δh,
+            coupling_settings,
+            frac_settings,
         )
         efloe_large.u = 0.1
         efloe_large.v = -0.35
@@ -181,6 +195,8 @@
             ]],
             hmean,
             Δh,
+            coupling_settings,
+            frac_settings,
         )
         cfloe.v = -0.1
         # Floe overlapping with western open boundary
@@ -194,6 +210,8 @@
             ]],
             hmean,
             Δh,
+            coupling_settings,
+            frac_settings,
         )
         # Floe overlapping with northern periodic boundary
         nfloe = Floe(
@@ -206,6 +224,8 @@
             ]],
             hmean,
             Δh,
+            coupling_settings,
+            frac_settings,
         )
         # Floe overlapping with topography element
         tfloe = Floe(
@@ -218,6 +238,8 @@
             ]],
             hmean,
             Δh,
+            coupling_settings,
+            frac_settings,
         )
         efloe_large.u = -0.4
         efloe_large.v = 0.2
@@ -281,6 +303,8 @@
             ]],
             hmean,
             Δh,
+            coupling_settings,
+            frac_settings,
         )
         Subzero.floe_domain_interaction!(
             corner_floe,
@@ -340,7 +364,13 @@
         coords4 = [[[0.0, 0.0], [0.0, 2e4], [2e4, 2e4], [2e4, 0.0], [0.0, 0.0]]]
 
         floe_arr = StructArray(
-            [Floe(c, 0.5, 0.0) for c in [coords1, coords2, coords3, coords4]],
+            [Floe(
+                c,
+                0.5,
+                0.0,
+                coupling_settings,
+                frac_settings,
+            ) for c in [coords1, coords2, coords3, coords4]],
         )
         for i in eachindex(floe_arr)
             floe_arr.id[i] = Float64(i)
@@ -498,15 +528,22 @@
         end
         trans_arr = StructArray([
             Floe(
-                Subzero.translate([coords1],
-                0.0, -2Ly),
+                Subzero.translate(
+                    [coords1],
+                    0.0,
+                    -2Ly,
+                ),
                 0.5,
                 0.0,
+                coupling_settings,
+                frac_settings,
             ),
             Floe(
                 Subzero.translate([coords2], 2Lx, 0.0),
                 0.5,
                 0.0,
+                coupling_settings,
+                frac_settings,
             ),
         ])
         for i in eachindex(trans_arr)
@@ -546,14 +583,48 @@
         @test floe_arr[2].interactions[:, [1:5; 7]] == floe_arr[3].interactions[:, [1:5; 7]]
 
         # Parent-Ghost Collision
-        coords1 = splitdims(vcat([5*Lx/8 5*Lx/8 3*Lx/4 3*Lx/4].+1000, [3*Ly/4 5*Ly/4 5*Ly/4 3*Ly/4]))
-        coords2 = splitdims(vcat(-[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000], [7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8]))
-        floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
+        coords1 = splitdims(
+            vcat(
+                [5*Lx/8 5*Lx/8 3*Lx/4 3*Lx/4].+1000,
+                [3*Ly/4 5*Ly/4 5*Ly/4 3*Ly/4],
+            ),
+        )
+        coords2 = splitdims(
+            vcat(
+                -[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000],
+                [7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8],
+            ),
+        )
+        floe_arr = StructArray(Floe(
+            [c],
+            0.5,
+            0.0,
+            coupling_settings,
+            frac_settings,
+        ) for c in [coords1, coords2])
         for i in eachindex(floe_arr)
             floe_arr.id[i] = Float64(i)
         end
-        trans_arr = StructArray([Floe(Subzero.translate([coords1], -2Lx, 0.0), 0.5, 0.0),
-                                 Floe([coords2], 0.5, 0.0)])
+        trans_arr = StructArray([
+            Floe(
+                Subzero.translate(
+                    [coords1],
+                    -2Lx,
+                    0.0,
+                ),
+                0.5,
+                0.0,
+                coupling_settings,
+                frac_settings,
+            ),
+            Floe(
+                [coords2],
+                0.5,
+                0.0,
+                coupling_settings,
+                frac_settings,
+            ),
+        ])
         for i in eachindex(trans_arr)
             trans_arr.id[i] = Float64(i)
         end
@@ -600,6 +671,8 @@
             ]],
             0.5,
             0.0,
+            coupling_settings,
+            frac_settings,
         )
         # triangle in the middle of the domain with no ghosts - touches 3/4 corners
         large_tri = Floe(
@@ -611,6 +684,8 @@
             ]],
             0.5,
             0.0,
+            coupling_settings,
+            frac_settings,
         )
         # rectangle along south boundary, ghost along north boundary
         bound_rect =  Floe(
@@ -623,6 +698,8 @@
             ]],
             0.5,
             0.0,
+            coupling_settings,
+            frac_settings,
         )
         floe_arr = StructArray([small_rect, large_tri])
         for i in eachindex(floe_arr)

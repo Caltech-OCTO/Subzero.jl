@@ -10,6 +10,17 @@ const hmean = 0.25
 const Δh = 0.0
 const Δt = 20
 
+coupling_settings = CouplingSettings()
+fracture_settings = FractureSettings(
+        fractures_on = true,
+        criteria = HiblerYieldCurve(floe_arr),
+        Δt = 75,
+        npieces = 3,
+        nhistory = 1000,
+        deform_on = false,
+)
+simp_settings = SimplificationSettings()
+
 # Model instantiation
 grid = RegRectilinearGrid(
     (0.0, Lx),
@@ -38,7 +49,19 @@ topo_arr = initialize_topography_field(
 domain = Domain(nboundary, sboundary, eboundary, wboundary, topo_arr)
 
 # Floe creation
-floe_arr = initialize_floe_field(FT, 50, [0.7], domain, hmean, Δh, rng = Xoshiro(3))
+floe_arr = initialize_floe_field(
+    FT,
+    50,
+    [0.7],
+    hmean,
+    Δh,
+    domain,
+    grid,
+    coupling_settings, 
+    fracture_settings,
+    simp_settings,
+    rng = Xoshiro(3),
+)
 
 # Model creation
 model = Model(grid, ocean, atmos, domain, floe_arr)
@@ -46,14 +69,6 @@ model = Model(grid, ocean, atmos, domain, floe_arr)
 # Simulation setup
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 consts = Constants(E = modulus)
-fracture_settings = FractureSettings(
-        fractures_on = true,
-        criteria = HiblerYieldCurve(floe_arr),
-        Δt = 75,
-        npieces = 3,
-        nhistory = 1000,
-        deform_on = false,
-)
 
 # Output setup
 dir = "output/simple_strait"

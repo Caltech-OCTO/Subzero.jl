@@ -21,7 +21,13 @@ function test_basic_outputwriters()
         ocean,
         atmos,
         domain,
-        StructArray([Floe(floe_coords, 0.5, 0.0)]),
+        StructArray([Floe(
+            floe_coords,
+            0.5,
+            0.0,
+            CouplingSettings(),
+            FractureSettings(),
+        )]),
     )
 
     dir = "output/sim"

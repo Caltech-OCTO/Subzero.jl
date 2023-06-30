@@ -20,7 +20,7 @@ ocean.
     Δd::Int = 1
     npoints::Int = 1000
     two_way_coupling_on::Bool = false
-    random_floe_points::Bool = false
+    random_floe_points::Bool = true
 
     function CouplingSettings(
         coupling_on,

@@ -28,9 +28,23 @@ eboundary = PeriodicBoundary(East, grid)
 wboundary = PeriodicBoundary(West, grid)
 
 domain = Domain(nboundary, sboundary, eboundary, wboundary)
-
+coupling_settings = CouplingSettings()
+fracture_settings = FractureSettings()
+simp_settings = SimplificationSettings()
 # Floe creation
-floe_arr = initialize_floe_field(FT, 50, [0.8], domain, hmean, Δh, rng = Xoshiro(1))
+floe_arr = initialize_floe_field(
+    FT,
+    50,
+    [0.8],
+    hmean,
+    Δh,
+    domain,
+    grid,
+    coupling_settings,
+    fracture_settings,
+    simp_settings,
+    rng = Xoshiro(1),
+)
 
 # Model creation
 model = Model(grid, ocean, atmos, domain, floe_arr)

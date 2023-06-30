@@ -1,6 +1,9 @@
 @testset "Simplification" begin
     FT = Float64
     @testset "Dissolve Floes" begin
+        coupling_settings = CouplingSettings()
+        fracture_settings = FractureSettings()
+        simp_settings = SimplificationSettings()
         grid = RegRectilinearGrid(
             (-1e5, 1e5),
             (0.0, 1e5),
@@ -25,30 +28,69 @@
         mass = 9e8 * height * ρi
         dissolved = zeros(Float64, 10, 20)  # 20x20 ocean grid
         # Add 2 floes in the middle of the grid -> masses added to cell
-        floe = Floe(coords, height, 0.0,)
+        floe = Floe(
+            coords,
+            height,
+            0.0,
+            coupling_settings,
+            fracture_settings,
+        )
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 12] == mass
-        floe = Floe(Subzero.translate(coords, 2.5e3, 2.5e3), height, 0.0)
+        floe = Floe(
+            Subzero.translate(coords, 2.5e3, 2.5e3),
+            height,
+            0.0,
+            coupling_settings,
+            fracture_settings,
+        )
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 12] == 2mass
         # Add floe over periodic bound -> mass added to cell wrapped around grid
-        floe = Floe(Subzero.translate(coords, 9e4, 0.0), height, 0.0)
+        floe = Floe(
+            Subzero.translate(coords, 9e4, 0.0),
+            height,
+            0.0,
+            coupling_settings,
+            fracture_settings,
+        )
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 1] == mass
-        floe = Floe(Subzero.translate(coords, -1.2e5, 0.0), height, 0.0)
+        floe = Floe(
+            Subzero.translate(coords, -1.2e5, 0.0),
+            height,
+            0.0,
+            coupling_settings,
+            fracture_settings,
+        )
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 20] == mass
         total_mass = sum(dissolved)
         # Add floe over non-periodic bound -> mass not added since out of bounds
-        floe = Floe(Subzero.translate(coords, 0.0, 6e4), height, 0.0)
+        floe = Floe(
+            Subzero.translate(coords, 0.0, 6e4),
+            height,
+            0.0,
+            coupling_settings,
+            fracture_settings,
+        )
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test total_mass == sum(dissolved)  # nothing was added
-        floe = Floe(Subzero.translate(coords, 0.0, -7e4), height, 0.0)
+        floe = Floe(
+            Subzero.translate(coords, 0.0, -7e4),
+            height,
+            0.0,
+            coupling_settings,
+            fracture_settings,
+        )
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test total_mass == sum(dissolved)  # nothing was added
     end
 
     @testset "Fuse Floes" begin
+        coupling_settings = CouplingSettings()
+        fracture_settings = FractureSettings()
+        simp_settings = SimplificationSettings()
         coords1 = [[
             [0.0, 0.0],
             [0.0, 10.0],
@@ -60,14 +102,14 @@
         # Test two floes not intersecting -> will not fuse
         coords2 = deepcopy(coords1)
         Subzero.translate!(coords2, 20.0, 0.0)
-        f1 = Floe(coords1, 0.5, 0.0)
-        f2 = Floe(coords2, 0.5, 0.0)
+        f1 = Floe(coords1, 0.5, 0.0, coupling_settings, fracture_settings)
+        f2 = Floe(coords2, 0.5, 0.0, coupling_settings, fracture_settings)
         max_id = Subzero.fuse_two_floes!(
             f1,
             f2,
             Subzero.Constants(),
             10,
-            CouplingSettings(),
+            coupling_settings,
             2,
             2,
             Xoshiro(1),
@@ -78,7 +120,7 @@
 
         # Test two floes intersecting -> will fuse into floe1 since same size
         Subzero.Subzero.translate!(coords2, -13.0, 0.0)
-        f2 = Floe(coords2, 0.75, 0.0)
+        f2 = Floe(coords2, 0.75, 0.0, coupling_settings, fracture_settings)
         f1.id = 1
         f2.id = 2
         mass_tot = f1.mass + f2.mass
@@ -132,7 +174,7 @@
             f2,
             Constants(),
             10,
-            CouplingSettings(),
+            coupling_settings,
             2,
             4,
             Xoshiro(1),
@@ -191,7 +233,7 @@
         @test f1.stress == (stress1_init * (f2.mass - mass_tot) .+ f2.stress * f2.mass) / mass_tot
 
         # Test two floes intersecting -> will fuse into floe2 since bigger
-        f1 = Floe(coords1, 0.5, 0.0)
+        f1 = Floe(coords1, 0.5, 0.0, coupling_settings, fracture_settings)
         f3 = Floe(
             [[
                 [0.0, 0.0],
@@ -202,13 +244,15 @@
             ]],
             0.55,
             0.0,
+            coupling_settings,
+            fracture_settings,
         )
         max_id = Subzero.fuse_two_floes!(
             f1,
             f3,
             Constants(),
             10,
-            CouplingSettings(),
+            coupling_settings,
             3,
             3,
             Xoshiro(1),
@@ -263,10 +307,13 @@
         floe_arr = initialize_floe_field(
             FT,
             [coords1, coords2, coords3, coords4],
-            open_domain_no_topo,
             0.5,
             0.0,
-            min_floe_area = 1e6,
+            open_domain_no_topo,
+            grid,
+            coupling_settings,
+            fracture_settings,
+            simp_settings,
             rng = Xoshiro(1),
         )
         floe_arr.status[1].tag = Subzero.fuse
@@ -281,7 +328,7 @@
         max_floe_id = Subzero.fuse_floes!(
             floe_arr,
             4,
-            CouplingSettings(),
+            coupling_settings,
             10,
             Constants(),
             Xoshiro(1),
@@ -316,10 +363,13 @@
         floe_arr = initialize_floe_field(
             FT,
             floe_coords,
-            open_domain_no_topo,
             0.5,
             0.0,
-            min_floe_area = 1e6,
+            open_domain_no_topo,
+            grid,
+            CouplingSettings(),
+            FractureSettings(),
+            SimplificationSettings(min_floe_area = 1e6),
             rng = Xoshiro(1),
         )
         close(file)
@@ -532,10 +582,13 @@
         floe_arr = initialize_floe_field(
             FT,
             [coords1, coords2, coords3, coords4],
-            open_domain_no_topo,
             0.5,
             0.0,
-            min_floe_area = 1e6,
+            open_domain_no_topo,
+            grid,
+            CouplingSettings(),
+            FractureSettings(),
+            SimplificationSettings(min_floe_area = 1e6),
             rng = Xoshiro(1),
         )
         floe_arr.height[4] = 0.05

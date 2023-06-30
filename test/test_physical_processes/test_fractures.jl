@@ -88,6 +88,8 @@
             [[[0.0, 0.0], [0, 1], [1 ,1], [1, 0]]],
             0.25,  # Floe has a height of 0.25
             0.0,
+            CouplingSettings(),
+            FractureSettings(),
         )])
         yield_curve = HiblerYieldCurve(floes)
         verts = deepcopy(yield_curve.vertices)
@@ -103,6 +105,8 @@
         @test verts == cone_curve.vertices
     end
     @testset "Fractures Floes" begin
+        coupling_settings = CouplingSettings()
+        frac_settings = FractureSettings()
         # Fracture tests depend on these floes and settings
         frac_stress = [-29955.396 -3428.008; -3428.008	-1942.0464]
         frac_deform_floe = Floe(
@@ -115,6 +119,8 @@
             ]],
             0.25,
             0.0,
+            coupling_settings,
+            frac_settings;
             u = 0.1,
             v = -0.2,
             ξ = 0.05,
@@ -134,6 +140,8 @@
             ]],
             0.25,
             0.0,
+            coupling_settings,
+            frac_settings,
         )
         no_frac_small = Floe(  # This floe is too small to fracture or deform
             [[
@@ -145,6 +153,8 @@
             ]],
             0.25,
             0.0,
+            coupling_settings,
+            frac_settings;
         )
         frac_deform_floe.stress = frac_stress
         frac_deform_floe.interactions = collect([

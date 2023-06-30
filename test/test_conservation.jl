@@ -57,6 +57,9 @@ end
 
 @testset "Conservation of Energy and Momentum" begin
     FT = Float64
+    coupling_settings = CouplingSettings()
+    fracture_settings = FractureSettings(nhistory = 100)
+    simp_settings = SimplificationSettings()
     grid = RegRectilinearGrid(
         (-2e4, 1e5),
         (0, 1e5),
@@ -95,11 +98,14 @@ end
     head_on_floes = initialize_floe_field(
         FT,
         [floe1, floe2],
-        open_domain, # Just affects shape, type doesn't matter
         0.25,
         0.0,
+        open_domain, # Just affects shape, type doesn't matter
+        grid,
+        coupling_settings,
+        fracture_settings,
+        simp_settings,
         rng = rng,
-        nhistory = 100,
     )
     head_on_floes.u[1] = 0.15
     head_on_floes.u[2] = -0.1
@@ -118,11 +124,14 @@ end
     offset_floes = initialize_floe_field(
         FT,
         [floe1, Subzero.translate(floe2, 0.0, 1e4)],
-        open_domain, # Just affects shape, type doesn't matter
         0.25,
         0.0,
+        open_domain, # Just affects shape, type doesn't matter
+        grid,
+        coupling_settings,
+        fracture_settings,
+        simp_settings,
         rng = rng,
-        nhistory = 100,
     )
     offset_floes.u[1] = 0.11
     offset_floes.u[2] = -0.1
@@ -140,11 +149,14 @@ end
     rotating_floes = initialize_floe_field(
         FT,
         [floe1, floe2, floe3],
-        open_domain, # Just affects shape, type doesn't matter
         0.25,
         0.0,
+        open_domain, # Just affects shape, type doesn't matter
+        grid,
+        coupling_settings,
+        fracture_settings,
+        simp_settings,
         rng = rng,
-        nhistory = 100,
     )
     rotating_floes.u[1] = 0.11
     rotating_floes.u[2] = -0.1
@@ -168,9 +180,13 @@ end
             file["floe_vertices"][4],
             file["floe_vertices"][5],
         ],
-        open_domain,
         0.25,
         0.0,
+        open_domain,
+        grid,
+        coupling_settings,
+        fracture_settings,
+        simp_settings,
         rng = rng,
     )
     close(file)
@@ -193,9 +209,13 @@ end
     floe_arr = initialize_floe_field(
         FT,
         [floe_on_wall_topo],
-        open_domain_w_topography,
         0.25,
         0.0,
+        open_domain_w_topography,
+        grid,
+        coupling_settings,
+        fracture_settings,
+        simp_settings,
         rng = rng,
     )
     close(file)

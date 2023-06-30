@@ -316,16 +316,16 @@ function calc_mc_values!(
     # Translate/rotate monte carlo points to floe location/orientation
     α = floe.α
     j = 0  # index in output array
-    for i in eachindex(floe.mc_x)  # index of monte carlo points
-        mc_px = cos(α)*floe.mc_x[i] - sin(α)*floe.mc_y[i]  # at origin
-        mc_py = sin(α)*floe.mc_x[i] + cos(α)*floe.mc_y[i]  # at origin
-        mc_x = mc_px + floe.centroid[1]  # at centroid
-        mc_y = mc_py + floe.centroid[2]  # at centroid
+    for i in eachindex(floe.x_subpoints)  # index of monte carlo points
+        px = cos(α)*floe.x_subpoints[i] - sin(α)*floe.y_subpoints[i]  # at origin
+        py = sin(α)*floe.x_subpoints[i] + cos(α)*floe.y_subpoints[i]  # at origin
+        x = px + floe.centroid[1]  # at centroid
+        y = py + floe.centroid[2]  # at centroid
         # If point is in bounds, continue to find rest of values
-        if in_bounds(mc_x, mc_y, grid, domain.east, domain.north)
+        if in_bounds(x, y, grid, domain.east, domain.north)
             j += 1  # if added to outputs, move to next index in output array
-            mc_cart[j, 1] = mc_x
-            mc_cart[j, 2] = mc_y
+            mc_cart[j, 1] = x
+            mc_cart[j, 2] = y
             mc_grid_idx[j, 1], mc_grid_idx[j, 2] = find_center_cell_index(
                 mc_cart[j, 1],
                 mc_cart[j, 2],
@@ -524,19 +524,19 @@ Outputs:
 """
 function mc_interpolation(
     npoints,
-    mc_grid_idx,
+    grid_idx,
     grid,
     domain,
     atmos,
     ocean,
     coupling_settings,
 )
-    mc_xidx = @view mc_grid_idx[1:npoints, 1]
-    mc_yidx = @view mc_grid_idx[1:npoints, 2]
+    xidx = @view grid_idx[1:npoints, 1]
+    yidx = @view grid_idx[1:npoints, 2]
 
     # Find knots and indices of knots for monte carlo interpolation
     xknots, xknot_idx = find_interp_knots(
-        mc_xidx,
+        xidx,
         grid.Nx,
         grid.x0:grid.Δx:grid.xf,
         grid.xf - grid.x0,
@@ -544,7 +544,7 @@ function mc_interpolation(
         domain.east,
     )
     yknots, yknot_idx = find_interp_knots(
-        mc_yidx,
+        yidx,
         grid.Ny,
         grid.y0:grid.Δy:grid.yf,
         grid.yf - grid.y0,
@@ -861,8 +861,8 @@ end
 #-------------- Ocean and Atmosphere on Ice --------------#
 """
     calc_atmosphere_forcing(
-        mc_xr, 
-        mc_yr,
+        xr, 
+        yr,
         upoint,
         vpoint,
         uatm_interp,
@@ -873,8 +873,8 @@ end
 Calculates the stresses on a floe from the atmosphere above at given monte
 carlo point.
 Inputs:
-    mc_xr       <AbstractFloat> monte carlo point x-coordinate
-    mc_yr       <AbstractFloat> monte carlo point y-coordinate
+    xr       <AbstractFloat> monte carlo point x-coordinate
+    yr       <AbstractFloat> monte carlo point y-coordinate
     upoint      <AbstractFloat> u velocity of floe at monte carlo point
     vpoint      <AbstractFloat> v velocity of floe at monte carlo point
     uatm_interp <Interplations object> linear interpolation function from
@@ -891,8 +891,8 @@ Outputs:
                 y-direction at given monte carlo point
 """
 function calc_atmosphere_forcing(
-    mc_xr, 
-    mc_yr,
+    xr, 
+    yr,
     upoint,
     vpoint,
     uatm_interp,
@@ -900,8 +900,8 @@ function calc_atmosphere_forcing(
     c,  # constants
 )
     # Atmosphere velocities at monte carlo point
-    uatm = uatm_interp(mc_xr, mc_yr) 
-    vatm = vatm_interp(mc_xr, mc_yr) 
+    uatm = uatm_interp(xr, yr) 
+    vatm = vatm_interp(xr, yr) 
 
     # Stress on ice from atmopshere
     Δu_AI = uatm - upoint
@@ -914,8 +914,8 @@ end
 
 """
     calc_ocean_forcing!(
-        mc_xr,
-        mc_yr,
+        xr,
+        yr,
         upoint,
         vpoint,
         uocn_interp,
@@ -928,8 +928,8 @@ end
 Calculates the stresses on a floe from the ocean above at given monte carlo
 point.
 Inputs:
-    mc_xr       <AbstractFloat> monte carlo point x-coordinate
-    mc_yr       <AbstractFloat> monte carlo point y-coordinate
+    xr          <AbstractFloat> monte carlo point x-coordinate
+    yr          <AbstractFloat> monte carlo point y-coordinate
     upoint      <AbstractFloat> u velocity of floe at monte carlo point
     vpoint      <AbstractFloat> v velocity of floe at monte carlo point
     uocn_interp <Interplations object> linear interpolation function from
@@ -956,8 +956,8 @@ Outputs:
                         from the heatflux factors of ocean below floe
 """
 function calc_ocean_forcing!(
-    mc_xr,
-    mc_yr,
+    xr,
+    yr,
     upoint,
     vpoint,
     uocn_interp,
@@ -966,9 +966,9 @@ function calc_ocean_forcing!(
     ma_ratio,
     c,  # constants
 )
-    uocn = uocn_interp(mc_xr, mc_yr)
-    vocn = vocn_interp(mc_xr, mc_yr)
-    hflx_factor = hflx_interp(mc_xr, mc_yr)
+    uocn = uocn_interp(xr, yr)
+    vocn = vocn_interp(xr, yr)
+    hflx_factor = hflx_interp(xr, yr)
     Δu_OI = uocn - upoint
     Δv_OI = vocn - vpoint
     norm = sqrt(Δu_OI^2 + Δv_OI^2)
@@ -1173,22 +1173,22 @@ function calc_one_way_coupling!(
     coupling_settings,
     consts,
 ) where {FT}
-    max_n_mc = maximum(length, floes.mc_x)
-    mc_cart = Matrix{FT}(undef, max_n_mc, 2)
-    mc_grid_idx = Matrix{Int}(undef, max_n_mc, 2)
+    max_subpoints = maximum(length, floes.x_subpoints)
+    cart_coords = Matrix{FT}(undef, max_subpoints, 2)
+    grid_idx = Matrix{Int}(undef, max_subpoints, 2)
     for i in eachindex(floes)
         # Monte carlo point cartesian coordinates and grid cell indices
         npoints = calc_mc_values!(
             LazyRow(floes, i),
             grid,
             domain,
-            mc_cart,
-            mc_grid_idx,
+            cart_coords,
+            grid_idx,
         )
         # Interpolaters for ocean and atmosphere
         uatm_int, vatm_int, uocn_int, vocn_int, hflx_int = mc_interpolation(
             npoints,
-            mc_grid_idx,
+            grid_idx,
             grid,
             domain,
             atmos,
@@ -1215,8 +1215,8 @@ function calc_one_way_coupling!(
             vpoint = floes.v[i] + floes.ξ[i] * rad * cos(θ)
             # Stress at monte carlo point from ocean and atmosphere
             τx_atm, τy_atm = calc_atmosphere_forcing(
-                mc_cart[j, 1], 
-                mc_cart[j, 2],
+                cart_coords[j, 1], 
+                cart_coords[j, 2],
                 upoint,
                 vpoint,
                 uatm_int,
@@ -1224,8 +1224,8 @@ function calc_one_way_coupling!(
                 consts,
             )
             τx_ocn, τy_ocn, τx_p∇, τy_p∇, hflx_factor = calc_ocean_forcing!(
-                mc_cart[j, 1],
-                mc_cart[j, 2],
+                cart_coords[j, 1],
+                cart_coords[j, 2],
                 upoint,
                 vpoint,
                 uocn_int,
@@ -1246,8 +1246,8 @@ function calc_one_way_coupling!(
             # Save floe info onto the grid
             floe_to_grid_info!(
                 i,
-                mc_grid_idx[j, 1],
-                mc_grid_idx[j, 2],
+                grid_idx[j, 1],
+                grid_idx[j, 2],
                 τx_ocn,
                 τy_ocn,
                 grid,

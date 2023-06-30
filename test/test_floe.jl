@@ -1,4 +1,8 @@
 @testset "Floe" begin
+    coupling_settings = CouplingSettings()
+    fracture_settings = FractureSettings()
+    simp_settings = SimplificationSettings()
+
     FT = Float64
     # test generating monte carlo points
     file = jldopen("inputs/floe_shapes.jld2", "r")
@@ -16,11 +20,11 @@
     area = LG.area(poly1)
     mc_x, mc_y, status = Subzero.generate_mc_points(
         Float64,
-        1000,
         origin_coords,
         rmax,
         area,
         Subzero.Status(),
+        CouplingSettings(),
         Xoshiro(1)
     )
     @test length(mc_x) == length(mc_y) && length(mc_x) > 0
@@ -32,11 +36,11 @@
     # Test that random number generator is working
     mc_x2, mc_y2, status2 = Subzero.generate_mc_points(
         Float64,
-        1000,
         origin_coords,
         rmax,
         area,
         Subzero.Status(),
+        CouplingSettings(npoints = 1000),
         Xoshiro(1)
     )
     @test all(mc_x .== mc_x2)
@@ -45,11 +49,11 @@
 
     mc_x3, mc_y3, status3 = Subzero.generate_mc_points(
         Float32,
-        1000,
         origin_coords,
         rmax,
         area,
         Subzero.Status(),
+        CouplingSettings(npoints = 1000),
         Xoshiro(1)
     )
     @test status3.tag == Subzero.active
@@ -216,9 +220,10 @@
     floe_arr = (@test_logs (:warn, "Some user input floe areas are less than the suggested minimum floe area.") initialize_floe_field(
         FT,
         floe_coords,
-        domain_no_topo,
         0.5,
         0.1,
+        domain_no_topo,
+        grid,
     ))
     nfloes = length(floe_coords)
     @test typeof(floe_arr) <: StructArray{<:Floe}

@@ -1,4 +1,6 @@
 @testset "Update floe" begin
+    coupling_settings = CouplingSettings()
+    frac_settings = FractureSettings()
     @testset "Stress/Strain" begin
         # Test Stress History buffer
         scb = Subzero.StressCircularBuffer{Float64}(10)
@@ -35,6 +37,8 @@
                 floe_dict["coords"][i],
                 floe_dict["height"][i],
                 0.0,
+                coupling_settings,
+                frac_settings;
                 u = floe_dict["u"][i],
                 v = floe_dict["v"][i],
                 ξ = floe_dict["ξ"][i],
@@ -65,7 +69,13 @@
             [10.0, 0.0],
             [0.0, 0.0],
         ]]
-        f1 = Floe(coords1, 0.5, 0.0)  # this is a square
+        f1 = Floe(
+            coords1,
+            0.5,
+            0.0,
+            coupling_settings,
+            frac_settings,
+        )  # this is a square
         mass1 = f1.mass
         triangle_coords = [[
             [0.0, 0.0],
@@ -79,7 +89,8 @@
             tri_poly,
             f1.mass,
             Constants(),
-            100,
+            CouplingSettings(npoints = 100),
+            Δg = 2,
             Xoshiro(1)
         )
         @test f1.centroid == Subzero.find_poly_centroid(tri_poly)
@@ -109,6 +120,8 @@
             square_coords,
             0.5,
             0.0,
+            coupling_settings,
+            frac_settings;
             u = 0.1,
             v = 0.25,
             ξ = -0.5,
@@ -121,6 +134,8 @@
             triangle_coords,
             0.5,
             0.0,
+            coupling_settings,
+            frac_settings;
             u = 0.1,
             v = 0.25,
             ξ = -0.5,
@@ -213,6 +228,8 @@
             square_coords,
             0.5,
             0.0,
+            coupling_settings,
+            frac_settings;
             u = 0.1,
             v = 0.25,
             ξ = -0.5,
@@ -225,6 +242,8 @@
             triangle_coords,
             0.5,
             0.0,
+            coupling_settings,
+            frac_settings;
             u = 0.3,
             v = 0.05,
             ξ = 0.2,
@@ -272,7 +291,8 @@
             ),
             sqr_floe.mass + tri_floe.mass,
             Constants(),
-            1000,
+            CouplingSettings(npoints = 100),
+            Δg = 2,
             Xoshiro(1)
         )
         Subzero.conserve_momentum_combination!(
@@ -367,7 +387,9 @@
         initial_floe = Floe(
             initial_coords,
             0.5,
-            0.0
+            0.0,
+            coupling_settings,
+            frac_settings,
         )
         initial_floe.u = 0.1
         initial_floe.v = -0.2
@@ -407,12 +429,16 @@
             Floe(
                 left_coords,
                 0.5,
-                0.0
+                0.0,
+                coupling_settings,
+                frac_settings
             ),
             Floe(
                 right_and_mid_coords,
                 0.5,
                 0.0,
+                coupling_settings,
+                frac_settings,
             )
         ])
         Subzero.conserve_momentum_fracture!(
@@ -468,17 +494,23 @@
             Floe(
                 left_coords,
                 0.5,
-                0.0
+                0.0,
+                coupling_settings,
+                frac_settings
             ),
             Floe(
                 right_coords,
                 0.5,
-                0.0
+                0.0,
+                coupling_settings,
+                frac_settings
             ),
             Floe(
                 mid_coords,
                 0.5,
                 0.0,
+                coupling_settings,
+                frac_settings,
             )
         ])
         Subzero.conserve_momentum_fracture!(

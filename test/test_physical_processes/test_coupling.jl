@@ -1,5 +1,7 @@
 @testset "Coupling" begin
     FT = Float64
+    coupling_settings = CouplingSettings()
+    frac_settings = FractureSettings()
     @testset "Coupling Helper Functions" begin
         grid = Subzero.RegRectilinearGrid(
             (-10, 10),
@@ -365,12 +367,14 @@
             ]],
             0.25,
             0.0,
+            coupling_settings,
+            frac_settings,
         )
         area = floe.area
     # Standard Monte Carlo points for below floe - used to compare with MATLAB
         jldopen("inputs/test_mc_points.jld2", "r") do f
-            floe.mc_x = f["X"]
-            floe.mc_y = f["Y"]
+            floe.x_subpoints = f["X"]
+            floe.y_subpoints = f["Y"]
         end
         
         modulus = 1.5e3*(sqrt(area) + sqrt(area))
@@ -480,7 +484,7 @@
             model5,
             10,
             consts,
-            CouplingSettings(),
+            coupling_settings,
         )
         @test isapprox(model5.floes[1].fxOA/area, -0.0182, atol = 1e-3)
         @test isapprox(model5.floes[1].fyOA/area, 0.0392, atol = 1e-3)

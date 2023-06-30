@@ -107,10 +107,8 @@ Singular sea ice floe with fields describing current state.
     moment::FT              # mass moment of intertia
     angles::Vector{FT}      # interior angles of floe in degrees
     # Monte Carlo Points ---------------------------------------------------
-    mc_x::Vector{FT}        # x-coordinates for monte carlo integration centered
-                            #   at origin
-    mc_y::Vector{FT}        # y-coordinates for monte carlo integration centered
-                            #   at origin
+    x_subpoints::Vector{FT} # x-coords for sub-floe points used in integration
+    y_subpoints::Vector{FT} # y-coords for sub-floe points used in integration
     # Velocity/Orientation -------------------------------------------------
     α::FT = 0.0             # floe rotation from starting position in radians
     u::FT = 0.0             # floe x-velocity
@@ -203,21 +201,21 @@ Generate monte carlo points, determine which are within the given floe, and the
 error associated with the points
 Inputs:
     Type{FT}<AbstractFloat> simulation run type
-    npoints <Int> number of points to generate
-    coords  <PolyVec{AbstractFloat}> PolyVec of floe coords centered on origin
-    yfloe   <Vector{Float}> vector of floe y-coordinates centered on the origin
-    rmax    <Int> floe maximum radius
-    area    <Int> floe area
-    status  <Status> floe status (i.e. active, fuse, etc in simulation)
-    rng     <RNG> random number generator to generate monte carlo points
+    coords              <PolyVec{AbstractFloat}> PolyVec of floe coords centered
+                            on origin
+    rmax                <Int> floe maximum radius
+    area                <Int> floe area
+    status              <Status> floe status (i.e. active, fuse, etc)
+    coupling_settings   <CouplingSettings> simulation's coupling settings
+    rng                 <RNG> random number generator to generate random points
 Outputs:
-    mc_x   <Vector{FT}> vector of monte carlo point x-coords that are within floe
-    mc_y   <Vector{FT}> vector of monte carlo point y-coords that are within floe
-    status <Status> tag is `active` if points created correctly, else `remove``
+    mc_x    <Vector{FT}> vector of monte carlo x-coords within floe
+    mc_y    <Vector{FT}> vector of monte carlo y-coords within floe
+    status  <Status> tag is `active` if points created correctly, else `remove`
 Note:
-    You will not end up with npoints. This is the number originally generated,
-    but any not in the floe are deleted. The more oblong the floe shape, the
-    less points. 
+    You will not end up with coupling_settings.npoints. This is the number
+    originally generated, but any not in the floe are deleted. The more oblong
+    the floe shape, the less points. 
 """
 function generate_mc_points(
     ::Type{FT},
@@ -245,7 +243,6 @@ function generate_mc_points(
             count += 1
         end
     end
-
     return mc_x[mc_in], mc_y[mc_in], status
 end
 
@@ -260,14 +257,21 @@ end
 Generate evenly spaced points within given floe coordinates to be used for
 coupling. If only one point falls within the floe, return the floe's centroid.
 Inputs:
-    coords              <PolyVec{AbstractFloat}>
-    centroid            <Vector{AbstractFloat}>
-    grid                <RegRectilinearGrid>
+    Type{FT}            <AbstractFloat> simulation run type
+    coords              <PolyVec{AbstractFloat}> PolyVec of floe coords centered
+                            on origin
+    status              <Status> floe status (i.e. active, fuse in simulation)
+    Δg                  <AbstractFloat> minimum of grid cell's width and height
+    coupling_settings   <CouplingSettings> simulation's coupling settings
+Ouputs:
+    x_sub_floe  <Vector{FT}> vector of sub-floe grid points x-coords within floe
+    y_sub_floe  <Vector{FT}> vector of sub-floe grid points y-coords within floe
+    status      <Status> tag isn't changed with this generation method
 """
 function generate_subgrid_points(
     ::Type{FT},
     coords,
-    centroid,
+    status,
     Δg,
     coupling_settings,
 ) where {FT}
@@ -309,19 +313,49 @@ function generate_subgrid_points(
     x_sub_floe = x_sub_floe[in_floe]
     y_sub_floe = y_sub_floe[in_floe]
     if length(x_sub_floe) < 2
-        x_sub_floe = centroid[1]:centroid[1]
+        x_sub_floe = FT(0):FT(0)  # coords are centered at the origin
     end
     if length(y_sub_floe) < 2
-        y_sub_floe = centroid[2]:centroid[2]
+        y_sub_floe = FT(0):FT(0)  # coords are centered at the origin
     end
 
-    return x_sub_floe, y_sub_floe
+    return x_sub_floe, y_sub_floe, status
 end
 
+"""
+    generate_floe_points(
+        ::Type{FT},
+        coords,
+        rmax,
+        area,
+        status,
+        Δg,
+        coupling_settings,
+        rng,
+    )
+
+Generate sub-floe points spread throughout the floe to be used when
+interpolating ocean and atmosphere stresses onto the floe. Points are generated
+for the floe centered at the origin and at original angle. When points are used
+they must be translated and rotated to match floe's current position.
+Inputs:
+    Type{FT}            <AbstractFloat> simulation run type
+    coords              <PolyVec{AbstractFloat}> PolyVec of floe coords centered
+                            on origin
+    rmax                <Int> floe maximum radius
+    area                <Int> floe area
+    status              <Status> floe status (i.e. active, fuse in simulation)
+    Δg                  <AbstractFloat> minimum of grid cell's width and height
+    coupling_settings   <CouplingSettings> simulation's coupling settings
+    rng                 <RNG> random number generator to generate random points
+Outputs:
+    x       <Vector{FT}> vector of sub-floe points x-coords within floe
+    y       <Vector{FT}> vector of sub-floe points y-coords within floe
+    status  <Status> floe's status depends on sucess of sub-floe point creation
+"""
 function generate_floe_points(
     ::Type{FT},
     coords,
-    centroid,
     rmax,
     area,
     status,
@@ -329,7 +363,7 @@ function generate_floe_points(
     coupling_settings,
     rng,
 ) where {FT}
-    x, y = if coupling_settings.random_floe_points
+    x, y, status = if coupling_settings.random_floe_points
         generate_mc_points(
             FT,
             coords,
@@ -344,12 +378,12 @@ function generate_floe_points(
         generate_subgrid_points(
             FT,
             coords,
-            centroid,
+            status,
             Δg,
             coupling_settings,
         )
     end
-    return x, y
+    return x, y, status
 end
 
 """
@@ -385,9 +419,9 @@ function Floe{FT}(
     poly::LG.Polygon,
     hmean,
     Δh,
-    consts,
     coupling_settings,
     fracture_settings;
+    ρi = 920.0,
     Δg = 0,
     rng = Xoshiro(),
     kwargs...
@@ -397,19 +431,18 @@ function Floe{FT}(
     centroid = find_poly_centroid(floe)
     height = hmean + (-1)^rand(rng, 0:1) * rand(rng, FT) * Δh
     area_tot = LG.area(floe)
-    mass = area_tot * height * consts.ρi
+    mass = area_tot * height * ρi
     coords = find_poly_coords(floe)
     coords = [orient_coords(coords[1])]
-    moment = calc_moment_inertia(coords, centroid, height, ρi = consts.ρi)
+    moment = calc_moment_inertia(coords, centroid, height, ρi = ρi)
     angles = calc_poly_angles(coords)
     translate!(coords, -centroid[1], -centroid[2])
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
     status = Status()
     # Generate Monte Carlo Points
-    mc_x, mc_y, status = generate_floe_points(
+    xpoints, ypoints, status = generate_floe_points(
         FT,
         coords,
-        centroid,
         rmax,
         area_tot,
         status,
@@ -417,7 +450,6 @@ function Floe{FT}(
         coupling_settings,
         rng,
     )
-
     translate!(coords, centroid[1], centroid[2])
     # Generate Stress History
     stress_history = StressCircularBuffer{FT}(fracture_settings.nhistory)
@@ -432,8 +464,8 @@ function Floe{FT}(
         rmax = rmax,
         moment = moment,
         angles = angles,
-        mc_x = mc_x,
-        mc_y = mc_y,
+        x_subpoints = xpoints,
+        y_subpoints = ypoints,
         stress_history = stress_history,
         status = status,
         kwargs...
@@ -472,9 +504,9 @@ Floe{FT}(
     coords::PolyVec,
     hmean,
     Δh,
-    consts,
     coupling_settings,
     fracture_settings;
+    ρi = 920.0,
     Δg = 0,
     rng = Xoshiro(),
     kwargs...
@@ -488,9 +520,9 @@ Floe{FT}(
         ),
         hmean,
         Δh,
-        consts,
         coupling_settings,
         fracture_settings;
+        ρi = ρi,
         Δg = Δg,
         rng = rng,
         kwargs...
@@ -540,10 +572,10 @@ function poly_to_floes(
     floe_poly,
     hmean,
     Δh,
-    consts,
     coupling_settings,
     fracture_settings,
     simp_settings;
+    ρi = 920.0,
     rng = Xoshiro(),
     Δg = 0,
     kwargs...,
@@ -559,9 +591,9 @@ function poly_to_floes(
                     r::LG.Polygon,
                     hmean,
                     Δh,
-                    consts,
                     coupling_settings,
                     fracture_settings;
+                    ρi = ρi,
                     rng = rng,
                     Δg = Δg,
                     kwargs...,
@@ -627,15 +659,15 @@ Output:
 function initialize_floe_field(
     ::Type{FT},
     coords,
-    domain,
     hmean,
     Δh,
-    consts,
+    domain,
+    grid,
     coupling_settings,
     fracture_settings,
     simp_settings;
+    ρi = 920.0,
     rng = Xoshiro(),
-    Δg = 0,
 ) where {FT <: AbstractFloat}
     floe_arr = StructArray{Floe{FT}}(undef, 0)
     floe_polys = [LG.Polygon(valid_polyvec!(c)) for c in coords]
@@ -653,12 +685,12 @@ function initialize_floe_field(
                 p,
                 hmean,
                 Δh,
-                consts,
                 coupling_settings,
                 fracture_settings,
                 simp_settings;
+                ρi = ρi,
                 rng = rng,
-                Δg = Δg,
+                Δg = min(grid.Δx, grid.Δy),
             ),
         )
     end
@@ -838,15 +870,15 @@ function initialize_floe_field(
     ::Type{FT},
     nfloes::Int,
     concentrations,
-    domain,
     hmean,
     Δh,
-    consts,
+    domain,
+    grid,
     coupling_settings,
     fracture_settings,
     simp_settings;
+    ρi = ρi,
     rng = Xoshiro(),
-    Δg = 0,
 ) where {FT <: AbstractFloat}
     floe_arr = StructArray{Floe{FT}}(undef, 0)
     # Split domain into cells with given concentrations
@@ -869,9 +901,6 @@ function initialize_floe_field(
         )
     end
     open_water_area = LG.area(open_water)
-    suggested_min_area = simp_settings.min_floe_area > 0 ?
-        simp_settings.min_floe_area :
-        FT(4 * Lx * Lx / 1e4)
     # Loop over cells
     for j in range(1, ncols)
         for i in range(1, nrows)
@@ -914,16 +943,16 @@ function initialize_floe_field(
                         )
                         floes = poly_to_floes(
                             FT,
-                            floe_poly,
+                            p,
                             hmean,
                             Δh,
-                            consts,
                             coupling_settings,
                             fracture_settings,
                             simp_settings;
+                            ρi = ρi,
                             rng = rng,
-                            Δg = Δg,
-                        )
+                            Δg = min(grid.Δx, grid.Δy),
+                        ),
                         append!(floe_arr, floes)
                         floes_area += sum(floes.area)
                     end

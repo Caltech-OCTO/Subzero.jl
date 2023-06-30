@@ -9,6 +9,9 @@ const hmean = 0.25
 const Δh = 0.0
 const Δt = 20
 
+coupling_settings = CouplingSettings(two_way_coupling_on = true)
+fracture_settings = FractureSettings()
+simp_settings = SimplficationSettings()
 # Model instantiation
 grid = RegRectilinearGrid(
     (0.0, Lx),
@@ -32,9 +35,13 @@ floe_arr = initialize_floe_field(
     FT,
     5,
     [0.4],
-    domain,
     hmean,
     Δh,
+    domain,
+    grid,
+    coupling_settings,
+    fracture_settings,
+    simp_settings,
     rng = Xoshiro(1),
 )
 
@@ -61,7 +68,6 @@ simulation = Simulation(
     verbose = true,
     writers = writers,
     rng = Xoshiro(1),
-    coupling_settings = CouplingSettings(two_way_coupling_on = true),
 )
 run_time!(simulation)
  

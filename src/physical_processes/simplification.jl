@@ -90,7 +90,8 @@ function smooth_floes!(
                 simp_poly,
                 floes.mass[i],
                 consts,
-                coupling_settings.npoints,
+                coupling_settings,
+
                 rng,
             )
             # conserve momentum
@@ -379,6 +380,7 @@ function simplify_floes!(
             coupling_settings,
             consts,
             Δt,
+            min(model.grid.Δx, model.grid.Δy)
             rng,
         )
     end
