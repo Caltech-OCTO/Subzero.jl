@@ -877,7 +877,7 @@ function initialize_floe_field(
     coupling_settings,
     fracture_settings,
     simp_settings;
-    ρi = ρi,
+    ρi = 920.0,
     rng = Xoshiro(),
 ) where {FT <: AbstractFloat}
     floe_arr = StructArray{Floe{FT}}(undef, 0)
@@ -943,7 +943,7 @@ function initialize_floe_field(
                         )
                         floes = poly_to_floes(
                             FT,
-                            p,
+                            floe_poly,
                             hmean,
                             Δh,
                             coupling_settings,

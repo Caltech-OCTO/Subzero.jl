@@ -90,7 +90,7 @@
             f1.mass,
             Constants(),
             CouplingSettings(npoints = 100),
-            Δg = 2,
+            2,
             Xoshiro(1)
         )
         @test f1.centroid == Subzero.find_poly_centroid(tri_poly)
@@ -292,7 +292,7 @@
             sqr_floe.mass + tri_floe.mass,
             Constants(),
             CouplingSettings(npoints = 100),
-            Δg = 2,
+            2,
             Xoshiro(1)
         )
         Subzero.conserve_momentum_combination!(

@@ -335,8 +335,9 @@ function deform_floe!(
     deformer_coords,
     deforming_forces,
     consts,
+    coupling_settings,
+    Δg,
     Δt,
-    npoints,
     rng,
 )
     poly = LG.Polygon(floe.coords)
@@ -367,7 +368,8 @@ function deform_floe!(
                 new_floe_poly,
                 floe.mass,
                 consts,
-                npoints,
+                coupling_settings,
+                Δg,
                 rng,
             )
             conserve_momentum_combination!(
@@ -408,10 +410,12 @@ Outputs:
 function split_floe(
     floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
     rng,
-    fracture_settings,
     coupling_settings,
+    fracture_settings,
+    simp_settings,
     consts,
     Δt,
+    Δg,
 ) where {FT}
     new_floes = StructArray{Floe{FT}}(undef, 0)
     # Generate voronoi tesselation in floe's bounding box
@@ -449,14 +453,16 @@ function split_floe(
                     FT,
                     pieces_polys[i],
                     height,
-                    0;  # Δh - range of random height difference between floes
+                    0,  # Δh - range of random height difference between floes
+                    coupling_settings,
+                    fracture_settings,
+                    simp_settings;
                     ρi = consts.ρi,
+                    rng = rng,
+                    Δg = Δg,
                     u = floe.u,
                     v = floe.v,
                     ξ = floe.ξ,
-                    npoints = coupling_settings.npoints,
-                    nhistory = fracture_settings.nhistory,
-                    rng = rng,
                 )
                 append!(new_floes, pieces_floes)
             end
@@ -510,6 +516,7 @@ function fracture_floes!(
     simp_settings,
     consts,
     Δt,
+    Δg,
 ) where {FT <: AbstractFloat}
     # Determine which floes will fracture
     frac_idx = determine_fractures(
@@ -536,8 +543,9 @@ function fracture_floes!(
                         floes.coords[deforming_floe_idx],
                         deforming_inter[xforce:yforce],
                         consts,
+                        coupling_settings,
+                        Δg,
                         Δt,
-                        coupling_settings.npoints,
                         rng,
                     )
                 end
@@ -547,10 +555,12 @@ function fracture_floes!(
         new_floes = split_floe(
             LazyRow(floes, frac_idx[i]),
             rng,
-            fracture_settings,
             coupling_settings,
+            fracture_settings,
+            simp_settings,
             consts,
             Δt,
+            Δg,
         )
         append!(fracture_list[i], new_floes)
     end

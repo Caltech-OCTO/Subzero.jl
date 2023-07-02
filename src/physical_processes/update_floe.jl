@@ -57,10 +57,10 @@ function replace_floe!(
     # Floe monte carlo points
     x_subpoints, y_subpoints, status = generate_floe_points(
         FT,
-        coords,
-        rmax,
-        area,
-        status,
+        floe.coords,
+        floe.rmax,
+        floe.area,
+        floe.status,
         Δg,
         coupling_settings,
         rng,

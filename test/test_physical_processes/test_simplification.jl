@@ -108,7 +108,8 @@
             f1,
             f2,
             Subzero.Constants(),
-            10,
+            10, # Δt
+            2,  # Δg
             coupling_settings,
             2,
             2,
@@ -173,7 +174,8 @@
             f1,
             f2,
             Constants(),
-            10,
+            10, # Δt
+            2,  # Δg
             coupling_settings,
             2,
             4,
@@ -251,7 +253,8 @@
             f1,
             f3,
             Constants(),
-            10,
+            10, # Δt
+            2,  # Δg
             coupling_settings,
             3,
             3,
@@ -329,7 +332,8 @@
             floe_arr,
             4,
             coupling_settings,
-            10,
+            10,  # Δt
+            1e4,  # Δg
             Constants(),
             Xoshiro(1),
         )
@@ -420,7 +424,8 @@
             CollisionSettings(),
             CouplingSettings(),
             Constants(),
-            10,
+            10,  # Δt
+            1e4, # Δg
             Xoshiro(1),
         )
 
@@ -517,7 +522,8 @@
             CollisionSettings(floe_floe_max_overlap = 0.05), # set low for test
             CouplingSettings(),
             Constants(),
-            10,
+            10,  # Δt
+            1e4, # Δg
             Xoshiro(1),
         )
         for i in eachindex(floe_set2)

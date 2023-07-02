@@ -203,8 +203,9 @@
             colliding_coords,
             deforming_forces,
             Constants(),
+            CouplingSettings(),
+            1e4,
             10,
-            1000,
             Xoshiro(1),
         )
         @test init_overlap > LG.area(LG.intersection(
@@ -222,10 +223,12 @@
         new_floes = Subzero.split_floe(
             floes[1],
             Xoshiro(3),
+            coupling_settings,
             frac_settings,
-            CouplingSettings(),
+            SimplificationSettings(),
             Constants(),
             10,
+            1e4,
         ) 
         # Test that the pieces all fit within original floe
         og_floe_poly = LG.Polygon(floes.coords[1])
@@ -265,6 +268,7 @@
             SimplificationSettings(),
             Constants(),
             10,
+            1e4,
         )
         @test max_idx == 10
         @test length(floes) == 8

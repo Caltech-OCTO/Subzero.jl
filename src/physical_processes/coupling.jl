@@ -1207,8 +1207,8 @@ function calc_one_way_coupling!(
         # Determine total stress per-monte carlo point
         for j in 1:npoints
             # Monte carlo point properties
-            xcentered = mc_cart[j, 1] - floes.centroid[i][1]
-            ycentered = mc_cart[j, 2] - floes.centroid[i][2]
+            xcentered = cart_coords[j, 1] - floes.centroid[i][1]
+            ycentered = cart_coords[j, 2] - floes.centroid[i][2]
             θ = atan(ycentered, xcentered)
             rad = sqrt(xcentered^2 + ycentered^2)
             upoint = floes.u[i] - floes.ξ[i] * rad * sin(θ)

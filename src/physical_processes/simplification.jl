@@ -65,6 +65,7 @@ function smooth_floes!(
     coupling_settings,
     consts,
     Δt,
+    Δg,
     rng,
 ) where {FT <: AbstractFloat}
     topo_coords = topography.coords
@@ -91,7 +92,7 @@ function smooth_floes!(
                 floes.mass[i],
                 consts,
                 coupling_settings,
-
+                Δg,
                 rng,
             )
             # conserve momentum
@@ -135,6 +136,7 @@ end
         floe2,
         consts,
         Δt,
+        Δg,
         coupling_settings,
         max_floe_id,
         rng,
@@ -158,6 +160,7 @@ function fuse_two_floes!(
     floe2,
     consts,
     Δt,
+    Δg,
     coupling_settings,
     max_floe_id,
     prefuse_max_floe_id,
@@ -186,7 +189,8 @@ function fuse_two_floes!(
             new_poly,
             floe1.mass + floe2.mass,
             consts,
-            coupling_settings.npoints,
+            coupling_settings,
+            Δg,
             rng,
         )
         # conserve momentum
@@ -251,6 +255,7 @@ function fuse_floes!(
     max_floe_id,
     coupling_settings,
     Δt,
+    Δg,
     consts,
     rng,
 )
@@ -265,6 +270,7 @@ function fuse_floes!(
                         LazyRow(floes, j),
                         consts,
                         Δt,
+                        Δg,
                         coupling_settings,
                         max_floe_id,
                         prefuse_max_floe_id,
@@ -367,6 +373,7 @@ function simplify_floes!(
     collision_settings,
     coupling_settings,
     Δt,
+    Δg,
     consts,
     rng,
 )
@@ -380,7 +387,7 @@ function simplify_floes!(
             coupling_settings,
             consts,
             Δt,
-            min(model.grid.Δx, model.grid.Δy)
+            min(model.grid.Δx, model.grid.Δy),
             rng,
         )
     end
@@ -390,6 +397,7 @@ function simplify_floes!(
         max_floe_id,
         coupling_settings,
         Δt,
+        Δg,
         consts,
         rng,
     )

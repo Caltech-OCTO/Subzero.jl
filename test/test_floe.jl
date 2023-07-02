@@ -89,12 +89,13 @@
         100,  # Δy
     )
 
-    x, y = Subzero.generate_floe_points(
-        rhombus_coords,
-        rhombus_centroid,
-        1,  # number of points per grid cell
-        small_grid,
-    )
+    # x, y = Subzero.generate_floe_points(
+    #     FT,
+    #     rhombus_coords,
+    #     rhombus_centroid,
+    #     1,  # number of points per grid cell
+    #     small_grid,
+    # )
 
     # Test InteractionFields enum
     interactions = range(1, 7)'
@@ -107,6 +108,8 @@
         floe_coords[1],
         0.5,
         0.01,
+        coupling_settings,
+        fracture_settings;
         u = 0.2,
         rng = Xoshiro(1),
     )
@@ -122,6 +125,8 @@
         poly1,
         0.5,
         0.01,
+        coupling_settings,
+        fracture_settings;
         v = -0.2,
         rng = Xoshiro(1),
     )
@@ -146,6 +151,9 @@
         LG.Polygon(rect_poly),
         0.25,
         0.01,
+        coupling_settings,
+        fracture_settings,
+        SimplificationSettings(min_floe_area = 0.0),
     )
     @test length(floe_arr) == 1
     @test typeof(floe_arr[1]) <: Floe
@@ -157,7 +165,9 @@
         LG.Polygon(rect_poly),
         0.25,
         0.01,
-        min_floe_area = 55
+        coupling_settings,
+        fracture_settings,
+        SimplificationSettings(min_floe_area = 55),
     )
     @test isempty(floe_arr)
 
@@ -167,6 +177,9 @@
         LG.Polygon(c_poly_hole),
         0.25,
         0.01,
+        coupling_settings,
+        fracture_settings,
+        SimplificationSettings(min_floe_area = 0.0),
     )
     @test length(floe_arr) == 3
     @test !any(Subzero.hashole.(floe_arr.coords))
@@ -177,7 +190,10 @@
         FT,
         LG.MultiPolygon([c_poly_hole, rect_poly]),
         0.25,
-        0.01
+        0.01,
+        coupling_settings,
+        fracture_settings,
+        SimplificationSettings(min_floe_area = 0.0),
     )
     @test length(floe_arr) == 4
     @test typeof(floe_arr) <: StructArray{<:Floe}
@@ -188,7 +204,9 @@
         LG.MultiPolygon([c_poly_hole, rect_poly]),
         0.25,
         0.01,
-        min_floe_area = 30
+        coupling_settings,
+        fracture_settings,
+        SimplificationSettings(min_floe_area = 30),
     )
     @test length(floe_arr) == 2
     @test typeof(floe_arr) <: StructArray{<:Floe}
@@ -224,6 +242,9 @@
         0.1,
         domain_no_topo,
         grid,
+        coupling_settings,
+        fracture_settings,
+        SimplificationSettings(min_floe_area = 0.0);
     ))
     nfloes = length(floe_coords)
     @test typeof(floe_arr) <: StructArray{<:Floe}
@@ -246,10 +267,13 @@
     floe_arr = (@test_logs (:warn, "Some floe centroids are out of the domain.") initialize_floe_field(
         FT,
         floe_coords,
-        small_domain_no_topo,
         0.5,
         0.1,
-        min_floe_area = 1e5,
+        small_domain_no_topo,
+        small_grid,
+        coupling_settings,
+        fracture_settings,
+        SimplificationSettings(min_floe_area = 1e5);
     ))
     @test typeof(floe_arr) <: StructArray{<:Floe}
     @test all(floe_arr.area .> 1e5)
@@ -258,10 +282,13 @@
     floe_arr = initialize_floe_field(
         FT,
         floe_coords,
-        domain_with_topo,
         0.5,
         0.1,
-        min_floe_area = 10,
+        domain_with_topo,
+        grid,
+        coupling_settings,
+        fracture_settings,
+        SimplificationSettings(min_floe_area = 10);
         rng = Xoshiro(0)
     )
     @test typeof(floe_arr) <: StructArray{<:Floe}
@@ -310,10 +337,13 @@
         FT,
         25,
         [0.5],
-        domain_with_topo,
         0.5,
         0.1,
-        min_floe_area = 1e4,
+        domain_with_topo,
+        grid,
+        coupling_settings,
+        fracture_settings,
+        SimplificationSettings(min_floe_area = 1e4);
         rng = Xoshiro(1)
     )
     @test isapprox(
@@ -333,10 +363,13 @@
     floe_arr = initialize_floe_field(
         25,
         concentrations,
-        domain_with_topo,
         0.5,
         0.1,
-        min_floe_area = 1e4,
+        domain_with_topo,
+        grid,
+        coupling_settings,
+        fracture_settings,
+        SimplificationSettings(min_floe_area = 1e4);
         rng = rng
     )
     nfloes = length(floe_arr)
@@ -363,8 +396,12 @@
         Float32,
         25,
         concentrations,
-        domain_with_topo,
         0.5,
         0.1,
+        domain_with_topo,
+        grid,
+        coupling_settings,
+        fracture_settings,
+        simp_settings;
     )) <: StructArray{<:Floe{Float32}}
 end

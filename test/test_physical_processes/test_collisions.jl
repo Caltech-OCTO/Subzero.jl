@@ -481,7 +481,14 @@
         r = Ly/4+1000
         coords2 = invert([r * cos.(th) .+ (Lx-1), r * sin.(th) .+ (Ly-1)])
 
-        floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
+        floe_arr = StructArray(Floe(
+                [c],
+                0.5,
+                0.0,
+                coupling_settings,
+                frac_settings,
+        ) for c in [coords1, coords2])
+
         for i in eachindex(floe_arr)
             floe_arr.id[i] = Float64(i)
         end
@@ -522,7 +529,13 @@
         # Ghost-Ghost collision (parents aren't touching, only ghosts touch)
         coords1 = splitdims(vcat([5*Lx/8 5*Lx/8 3*Lx/4 3*Lx/4].+1000, [3*Ly/4 5*Ly/4 5*Ly/4 3*Ly/4]))
         coords2 = splitdims(vcat(-[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000], -[7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8]))
-        floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
+        floe_arr = StructArray(Floe(
+            [c],
+            0.5,
+            0.0,
+            coupling_settings,
+            frac_settings,
+        ) for c in [coords1, coords2])
         for i in eachindex(floe_arr)
             floe_arr.id[i] = i
         end
