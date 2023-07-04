@@ -89,8 +89,8 @@ function smooth_floes!(
                 LazyRow(floes, i),
                 simp_poly,
                 floes.mass[i],
+                coupling_settings,
                 consts,
-                coupling_settings.mc_n,
                 rng,
             )
             # conserve momentum
@@ -184,8 +184,8 @@ function fuse_two_floes!(
             keep_floe,
             new_poly,
             floe1.mass + floe2.mass,
+            coupling_settings,
             consts,
-            coupling_settings.mc_n,
             rng,
         )
         # conserve momentum

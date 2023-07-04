@@ -2,6 +2,139 @@
 Functions needed for coupling the ice, ocean, and atmosphere.
 """
 
+abstract type AbstractSubFloePointsGenerator end
+
+@kwdef struct MonteCarloPointsGenerator{
+    FT <: AbstractFloat,
+} <: AbstractSubFloePointsGenerator
+    npoints::Int = 1000
+    ntries::Int = 10
+    err::FT = 0.1
+end
+
+MonteCarloPointsGenerator(::Type{FT}; kwargs...) where {FT <: AbstractFloat} =
+    MonteCarloPointsGenerator{FT}(; kwargs...)
+
+MonteCarloPointsGenerator(; kwargs...) =
+    MonteCarloPointsGenerator{Float64}(; kwargs...)
+
+@kwdef struct SubGridPointsGenerator{
+    FT <: AbstractFloat,
+} <: AbstractSubFloePointsGenerator
+    Δg::FT
+end
+
+SubGridPointsGenerator(::Type{FT}; kwargs...) where {FT <: AbstractFloat} =
+    SubGridPointsGenerator{FT}(; kwargs...)
+
+SubGridPointsGenerator(; kwargs...) =
+    SubGridPointsGenerator{Float64}(; kwargs...)
+
+function generate_subfloe_points(
+    point_generator::MonteCarloPointsGenerator{FT},
+    coords,
+    rmax,
+    area,
+    status,
+    rng
+) where {FT <: AbstractFloat}
+    count = 1
+    err = FT(1)
+    mc_x = zeros(FT, point_generator.npoints)
+    mc_y = zeros(FT, point_generator.npoints)
+    mc_in = fill(false, point_generator.npoints)
+    while err > point_generator.err
+        if count > 10
+            err = 0.0
+            status.tag = remove
+        else
+            mc_x .= rmax * (2rand(rng, FT, Int(point_generator.npoints)) .- 1)
+            mc_y .= rmax * (2rand(rng, FT, Int(point_generator.npoints)) .- 1)
+            mc_in .= points_in_poly(hcat(mc_x, mc_y), coords)
+            err = abs(sum(mc_in)/point_generator.npoints * 4rmax^2 - area)/area
+            count += 1
+        end
+    end
+    return mc_x[mc_in], mc_y[mc_in], status
+end
+
+"""
+    generate_subgrid_points(
+        coords,
+        centroid,
+        grid::AbstractGrid{<:FT},
+        coupling_settings,
+    ) where {FT}
+
+Generate evenly spaced points within given floe coordinates to be used for
+coupling. If only one point falls within the floe, return the floe's centroid.
+Inputs:
+    Type{FT}            <AbstractFloat> simulation run type
+    coords              <PolyVec{AbstractFloat}> PolyVec of floe coords centered
+                            on origin
+    status              <Status> floe status (i.e. active, fuse in simulation)
+    Δg                  <AbstractFloat> minimum of grid cell's width and height
+    coupling_settings   <CouplingSettings> simulation's coupling settings
+Ouputs:
+    x_sub_floe  <Vector{FT}> vector of sub-floe grid points x-coords within floe
+    y_sub_floe  <Vector{FT}> vector of sub-floe grid points y-coords within floe
+    status      <Status> tag isn't changed with this generation method
+"""
+function generate_subfloe_points(
+    point_generator::SubGridPointsGenerator{FT},
+    coords,
+    rmax,
+    area,
+    status,
+    rng
+) where {FT <: AbstractFloat}
+    xmax = FT(-Inf)
+    ymax = FT(-Inf)
+    xmin = FT(Inf)
+    ymin = FT(Inf)
+    @views for vert in coords[1]
+        if vert[1] > xmax
+            xmax = vert[1]
+        end
+        if vert[1] < xmin
+            xmin = vert[1]
+        end
+        if vert[2] > ymax
+            ymax = vert[2]
+        end
+        if vert[2] < ymin
+            ymin = vert[2]
+        end
+    end
+
+    n_xpoints = round(Int, (xmax - xmin) / point_generator.Δg) + 1
+    n_ypoints = round(Int, (ymax - ymin) / point_generator.Δg) + 1
+    xpoints = if n_xpoints < 3
+        FT(0):FT(0)  # coords are centered at the origin
+    else
+        range(xmin, xmax, length = n_xpoints)
+    end
+    ypoints = if n_ypoints < 3
+        FT(0):FT(0)  # coords are centered at the origin
+    else
+        range(ymin, ymax, length = n_ypoints)
+    end
+    x_sub_floe = repeat(xpoints, length(ypoints))
+    y_sub_floe = repeat(ypoints, inner = length(xpoints))
+    in_floe = points_in_poly(hcat(x_sub_floe, y_sub_floe), coords)
+
+    x_sub_floe = x_sub_floe[in_floe]
+    y_sub_floe = y_sub_floe[in_floe]
+    if length(x_sub_floe) < 2
+        x_sub_floe = FT(0):FT(0)  # coords are centered at the origin
+    end
+    if length(y_sub_floe) < 2
+        y_sub_floe = FT(0):FT(0)  # coords are centered at the origin
+    end
+
+    return x_sub_floe, y_sub_floe, status
+end
+
 #-------------- Monte Carlo Point Calculations --------------#
 
 """

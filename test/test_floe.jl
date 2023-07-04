@@ -14,9 +14,8 @@
     xo, yo = Subzero.separate_xy(origin_coords)
     rmax = sqrt(maximum([sum(xo[i]^2 + yo[i]^2) for i in eachindex(xo)]))
     area = LG.area(poly1)
-    mc_x, mc_y, status = Subzero.generate_mc_points(
-        Float64,
-        1000,
+    mc_x, mc_y, status = Subzero.generate_subfloe_points(
+        MonteCarloPointsGenerator(),
         origin_coords,
         rmax,
         area,
@@ -30,9 +29,8 @@
     @test abs(sum(mc_in)/1000 * 4 * rmax^2 - area)/area < 0.1
     @test status.tag == Subzero.active
     # Test that random number generator is working
-    mc_x2, mc_y2, status2 = Subzero.generate_mc_points(
-        Float64,
-        1000,
+    mc_x2, mc_y2, status2 = Subzero.generate_subfloe_points(
+        MonteCarloPointsGenerator(),
         origin_coords,
         rmax,
         area,
@@ -43,9 +41,8 @@
     @test all(mc_y .== mc_y2)
     @test status2.tag == Subzero.active
 
-    mc_x3, mc_y3, status3 = Subzero.generate_mc_points(
-        Float32,
-        1000,
+    mc_x3, mc_y3, status3 = Subzero.generate_subfloe_points(
+        MonteCarloPointsGenerator{Float32}(),
         origin_coords,
         rmax,
         area,

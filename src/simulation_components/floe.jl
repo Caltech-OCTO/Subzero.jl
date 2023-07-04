@@ -188,68 +188,6 @@ Create a range of interactions field columns with InteractionFields enum objects
 Base.:(:)(a::InteractionFields, b::InteractionFields) = Int(a):Int(b)
 
 """
-    generate_mc_points(
-        ::Type{FT},
-        npoints,
-        xfloe,
-        yfloe,
-        rmax,
-        area,
-        status,
-        rng,
-    )
-
-Generate monte carlo points, determine which are within the given floe, and the
-error associated with the points
-Inputs:
-    Type{FT}<AbstractFloat> simulation run type
-    npoints <Int> number of points to generate
-    coords  <PolyVec{AbstractFloat}> PolyVec of floe coords centered on origin
-    yfloe   <Vector{Float}> vector of floe y-coordinates centered on the origin
-    rmax    <Int> floe maximum radius
-    area    <Int> floe area
-    status  <Status> floe status (i.e. active, fuse, etc in simulation)
-    rng     <RNG> random number generator to generate monte carlo points
-Outputs:
-    mc_x   <Vector{FT}> vector of monte carlo point x-coords that are within floe
-    mc_y   <Vector{FT}> vector of monte carlo point y-coords that are within floe
-    status <Status> tag is `active` if points created correctly, else `remove``
-Note:
-    You will not end up with npoints. This is the number originally generated,
-    but any not in the floe are deleted. The more oblong the floe shape, the
-    less points. 
-"""
-function generate_mc_points(
-    ::Type{FT},
-    npoints::Int,
-    coords,
-    rmax,
-    area,
-    status,
-    rng,
-) where {FT<:AbstractFloat}
-    count = 1
-    err = FT(1)
-    mc_x = zeros(FT, npoints)
-    mc_y = zeros(FT, npoints)
-    mc_in = fill(false, npoints)
-    while err > 0.1
-        if count > 10
-            err = 0.0
-            status.tag = remove
-        else
-            mc_x .= rmax * (2rand(rng, FT, Int(npoints)) .- 1)
-            mc_y .= rmax * (2rand(rng, FT, Int(npoints)) .- 1)
-            mc_in = points_in_poly(hcat(mc_x, mc_y), coords)
-            err = abs(sum(mc_in)/npoints * 4 * rmax^2 - area)/area
-            count += 1
-        end
-    end
-
-    return mc_x[mc_in], mc_y[mc_in], status
-end
-
-"""
     Floe{FT}(
         poly::LG.Polygon,
         hmean,
@@ -283,7 +221,7 @@ function Floe{FT}(
     hmean,
     Δh;
     ρi = 920.0,
-    mc_n::Int = 1000,
+    coupling_settings = CouplingSettings(),
     nhistory::Int = 1000,
     rng = Xoshiro(),
     kwargs...
@@ -302,9 +240,8 @@ function Floe{FT}(
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
     status = Status()
     # Generate Monte Carlo Points
-    mc_x, mc_y, status = generate_mc_points(
-        FT,
-        mc_n,
+    mc_x, mc_y, status = generate_subfloe_points(
+        coupling_settings.subfloe_point_generator,
         coords,
         rmax,
         area_tot,
@@ -366,7 +303,7 @@ Floe{FT}(
     hmean,
     Δh;
     ρi = 920.0,
-    mc_n::Int = 1000,
+    coupling_settings = CouplingSettings(),
     nhistory::Int = 1000,
     rng = Xoshiro(),
     kwargs...,
@@ -381,7 +318,7 @@ Floe{FT}(
         hmean,
         Δh;
         ρi = ρi,
-        mc_n = mc_n,
+        coupling_settings = coupling_settings,
         nhistory = nhistory,
         rng = rng,
         kwargs...,
@@ -432,13 +369,11 @@ function poly_to_floes(
     hmean,
     Δh;
     ρi = 920.0,
-    u = 0.0,
-    v = 0.0,
-    ξ = 0.0,
-    mc_n::Int = 1000,
+    coupling_settings = CouplingSettings(),
     nhistory::Int = 1000,
     rng = Xoshiro(),
     min_floe_area = 0,
+    kwargs...
 ) where {FT <: AbstractFloat}
     floes = StructArray{Floe{FT}}(undef, 0)
     regions = LG.getGeometries(floe_poly)::Vector{LG.Polygon}
@@ -451,14 +386,12 @@ function poly_to_floes(
                     FT,
                     r::LG.Polygon,
                     hmean,
-                    Δh,
+                    Δh;
                     ρi = ρi,
-                    u = u,
-                    v = v,
-                    ξ = ξ,
-                    mc_n = mc_n,
+                    coupling_settings = coupling_settings,
                     nhistory = nhistory,
                     rng = rng,
+                    kwargs...
                 )
                 push!(floes, floe)
             else
@@ -526,7 +459,7 @@ function initialize_floe_field(
     Δh;
     min_floe_area = 0.0,
     ρi = 920.0,
-    mc_n::Int = 1000,
+    coupling_settings = CouplingSettings(),
     nhistory::Int = 1000,
     rng = Xoshiro(),
 ) where {FT <: AbstractFloat}
@@ -547,7 +480,7 @@ function initialize_floe_field(
                 hmean,
                 Δh;
                 ρi = ρi,
-                mc_n = mc_n,
+                coupling_settings = coupling_settings,
                 nhistory = nhistory,
                 rng = rng,
                 min_floe_area = min_floe_area,
@@ -735,7 +668,7 @@ function initialize_floe_field(
     Δh;
     min_floe_area = 0.0,
     ρi = 920.0,
-    mc_n::Int = 1000,
+    coupling_settings = CouplingSettings(),
     nhistory::Int = 1000,
     rng = Xoshiro(),
 ) where {FT <: AbstractFloat}
@@ -807,7 +740,7 @@ function initialize_floe_field(
                             hmean,
                             Δh;
                             ρi = ρi,
-                            mc_n = mc_n,
+                            coupling_settings = coupling_settings,
                             nhistory = nhistory,
                             rng = rng,
                             min_floe_area = min_floe_area,
