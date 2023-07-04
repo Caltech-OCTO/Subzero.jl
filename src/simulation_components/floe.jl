@@ -222,7 +222,7 @@ function Floe{FT}(
     Δh;
     ρi = 920.0,
     coupling_settings = CouplingSettings(),
-    nhistory::Int = 1000,
+    fracture_settings = FractureSettings(),
     rng = Xoshiro(),
     kwargs...
 ) where {FT <: AbstractFloat}
@@ -250,7 +250,7 @@ function Floe{FT}(
     )
     translate!(coords, centroid[1], centroid[2])
     # Generate Stress History
-    stress_history = StressCircularBuffer{FT}(nhistory)
+    stress_history = StressCircularBuffer{FT}(fracture_settings.nhistory)
     fill!(stress_history, zeros(FT, 2, 2))
 
     return Floe{FT}(;
@@ -304,7 +304,7 @@ Floe{FT}(
     Δh;
     ρi = 920.0,
     coupling_settings = CouplingSettings(),
-    nhistory::Int = 1000,
+    fracture_settings = FractureSettings(),
     rng = Xoshiro(),
     kwargs...,
 ) where {FT <: AbstractFloat} =
@@ -319,7 +319,7 @@ Floe{FT}(
         Δh;
         ρi = ρi,
         coupling_settings = coupling_settings,
-        nhistory = nhistory,
+        fracture_settings = fracture_settings,
         rng = rng,
         kwargs...,
     ) 
@@ -370,9 +370,9 @@ function poly_to_floes(
     Δh;
     ρi = 920.0,
     coupling_settings = CouplingSettings(),
-    nhistory::Int = 1000,
+    fracture_settings = FractureSettings(),
+    simp_settings = SimplificationSettings(min_floe_area = 0),
     rng = Xoshiro(),
-    min_floe_area = 0,
     kwargs...
 ) where {FT <: AbstractFloat}
     floes = StructArray{Floe{FT}}(undef, 0)
@@ -380,7 +380,7 @@ function poly_to_floes(
     while !isempty(regions)
         r = pop!(regions)
         a = LG.area(r)
-        if a >= min_floe_area && a > 0
+        if a >= simp_settings.min_floe_area && a > 0
             if !hashole(r)
                 floe = Floe(
                     FT,
@@ -389,7 +389,7 @@ function poly_to_floes(
                     Δh;
                     ρi = ρi,
                     coupling_settings = coupling_settings,
-                    nhistory = nhistory,
+                    fracture_settings = fracture_settings,
                     rng = rng,
                     kwargs...
                 )
@@ -457,10 +457,10 @@ function initialize_floe_field(
     domain,
     hmean,
     Δh;
-    min_floe_area = 0.0,
     ρi = 920.0,
     coupling_settings = CouplingSettings(),
-    nhistory::Int = 1000,
+    fracture_settings = FractureSettings(),
+    simp_settings = SimplificationSettings(min_floe_area = 0.0),
     rng = Xoshiro(),
 ) where {FT <: AbstractFloat}
     floe_arr = StructArray{Floe{FT}}(undef, 0)
@@ -481,15 +481,15 @@ function initialize_floe_field(
                 Δh;
                 ρi = ρi,
                 coupling_settings = coupling_settings,
-                nhistory = nhistory,
+                fracture_settings = fracture_settings,
+                simp_settings = simp_settings,
                 rng = rng,
-                min_floe_area = min_floe_area,
             ),
         )
     end
     # Warn about floes with area less than minimum floe size
-    min_floe_area = min_floe_area > 0 ?
-        min_floe_area :
+    min_floe_area = simp_settings.min_floe_area > 0 ?
+        simp_settings.min_floe_area :
         FT(
             4 * (domain.east.val - domain.west.val) *
             (domain.north.val - domain.south.val) / 1e4
@@ -509,8 +509,6 @@ function initialize_floe_field(
     floe_arr.id .= range(1, length(floe_arr))
     return floe_arr
 end
-
-
 
 """
     generate_voronoi_coords(
@@ -666,10 +664,10 @@ function initialize_floe_field(
     domain,
     hmean,
     Δh;
-    min_floe_area = 0.0,
     ρi = 920.0,
     coupling_settings = CouplingSettings(),
-    nhistory::Int = 1000,
+    fracture_settings = FractureSettings(),
+    simp_settings = SimplificationSettings(min_floe_area = 0.0),
     rng = Xoshiro(),
 ) where {FT <: AbstractFloat}
     floe_arr = StructArray{Floe{FT}}(undef, 0)
@@ -693,7 +691,7 @@ function initialize_floe_field(
         )
     end
     open_water_area = LG.area(open_water)
-    min_floe_area = min_floe_area >= 0 ? min_floe_area : FT(4 * Lx * Lx / 1e4)
+
     # Loop over cells
     for j in range(1, ncols)
         for i in range(1, nrows)
@@ -741,9 +739,9 @@ function initialize_floe_field(
                             Δh;
                             ρi = ρi,
                             coupling_settings = coupling_settings,
-                            nhistory = nhistory,
+                            fracture_settings = fracture_settings,
+                            simp_settings = simp_settings,
                             rng = rng,
-                            min_floe_area = min_floe_area,
                         )
                         append!(floe_arr, floes)
                         floes_area += sum(floes.area)

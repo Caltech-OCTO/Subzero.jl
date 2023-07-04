@@ -452,7 +452,7 @@ function split_floe(
                     0;  # Δh - range of random height difference between floes
                     ρi = consts.ρi,
                     coupling_settings = coupling_settings,
-                    nhistory = fracture_settings.nhistory,
+                    fracture_settings = fracture_settings,
                     rng = rng,
                     u = floe.u,
                     v = floe.v,
