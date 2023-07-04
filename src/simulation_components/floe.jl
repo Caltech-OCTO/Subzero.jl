@@ -107,9 +107,9 @@ Singular sea ice floe with fields describing current state.
     moment::FT              # mass moment of intertia
     angles::Vector{FT}      # interior angles of floe in degrees
     # Monte Carlo Points ---------------------------------------------------
-    mc_x::Vector{FT}        # x-coordinates for monte carlo integration centered
+    x_subfloe_points::Vector{FT}        # x-coordinates for monte carlo integration centered
                             #   at origin
-    mc_y::Vector{FT}        # y-coordinates for monte carlo integration centered
+    y_subfloe_points::Vector{FT}        # y-coordinates for monte carlo integration centered
                             #   at origin
     # Velocity/Orientation -------------------------------------------------
     α::FT = 0.0             # floe rotation from starting position in radians
@@ -240,7 +240,7 @@ function Floe{FT}(
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
     status = Status()
     # Generate Monte Carlo Points
-    mc_x, mc_y, status = generate_subfloe_points(
+    x_subfloe_points, y_subfloe_points, status = generate_subfloe_points(
         coupling_settings.subfloe_point_generator,
         coords,
         rmax,
@@ -262,8 +262,8 @@ function Floe{FT}(
         rmax = rmax,
         moment = moment,
         angles = angles,
-        mc_x = mc_x,
-        mc_y = mc_y,
+        x_subfloe_points = x_subfloe_points,
+        y_subfloe_points = y_subfloe_points,
         stress_history = stress_history,
         status = status,
         kwargs...

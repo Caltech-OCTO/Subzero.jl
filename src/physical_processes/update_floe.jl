@@ -54,7 +54,7 @@ function replace_floe!(
     translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
     floe.rmax = sqrt(maximum([sum(c.^2) for c in floe.coords[1]]))
     # Floe monte carlo points
-    xpoints, ypoints, status = generate_subfloe_points(
+    x_subfloe_points, y_subfloe_points, status = generate_subfloe_points(
         coupling_settings.subfloe_point_generator,
         floe.coords,
         floe.rmax,
@@ -63,8 +63,8 @@ function replace_floe!(
         rng,
     )
     translate!(floe.coords, floe.centroid[1], floe.centroid[2])
-    floe.mc_x = xpoints
-    floe.mc_y = ypoints
+    floe.x_subfloe_points = x_subfloe_points
+    floe.y_subfloe_points = y_subfloe_points
     # Floe status / identification
     floe.status = status
     return

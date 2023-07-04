@@ -369,8 +369,8 @@
         area = floe.area
     # Standard Monte Carlo points for below floe - used to compare with MATLAB
         jldopen("inputs/test_mc_points.jld2", "r") do f
-            floe.mc_x = f["X"]
-            floe.mc_y = f["Y"]
+            floe.x_subfloe_points = f["X"]
+            floe.y_subfloe_points = f["Y"]
         end
         
         modulus = 1.5e3*(sqrt(area) + sqrt(area))
