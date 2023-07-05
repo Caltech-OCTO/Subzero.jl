@@ -334,9 +334,9 @@ function deform_floe!(
     floe,
     deformer_coords,
     deforming_forces,
+    coupling_settings,
     consts,
     Δt,
-    mc_n,
     rng,
 )
     poly = LG.Polygon(floe.coords)
@@ -366,8 +366,8 @@ function deform_floe!(
                 floe,
                 new_floe_poly,
                 floe.mass,
+                coupling_settings,
                 consts,
-                mc_n,
                 rng,
             )
             conserve_momentum_combination!(
@@ -451,12 +451,12 @@ function split_floe(
                     height,
                     0;  # Δh - range of random height difference between floes
                     ρi = consts.ρi,
+                    coupling_settings = coupling_settings,
+                    fracture_settings = fracture_settings,
+                    rng = rng,
                     u = floe.u,
                     v = floe.v,
                     ξ = floe.ξ,
-                    mc_n = coupling_settings.mc_n,
-                    nhistory = fracture_settings.nhistory,
-                    rng = rng,
                 )
                 append!(new_floes, pieces_floes)
             end
@@ -535,9 +535,9 @@ function fracture_floes!(
                         LazyRow(floes, frac_idx[i]), 
                         floes.coords[deforming_floe_idx],
                         deforming_inter[xforce:yforce],
+                        coupling_settings,
                         consts,
                         Δt,
-                        coupling_settings.mc_n,
                         rng,
                     )
                 end

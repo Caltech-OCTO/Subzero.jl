@@ -265,8 +265,8 @@
             [coords1, coords2, coords3, coords4],
             open_domain_no_topo,
             0.5,
-            0.0,
-            min_floe_area = 1e6,
+            0.0;
+            simp_settings = SimplificationSettings(min_floe_area = 1e6),
             rng = Xoshiro(1),
         )
         floe_arr.status[1].tag = Subzero.fuse
@@ -318,8 +318,8 @@
             floe_coords,
             open_domain_no_topo,
             0.5,
-            0.0,
-            min_floe_area = 1e6,
+            0.0;
+            simp_settings = SimplificationSettings(min_floe_area = 1e6),
             rng = Xoshiro(1),
         )
         close(file)
@@ -534,8 +534,8 @@
             [coords1, coords2, coords3, coords4],
             open_domain_no_topo,
             0.5,
-            0.0,
-            min_floe_area = 1e6,
+            0.0;
+            simp_settings = SimplificationSettings(min_floe_area = 1e6),
             rng = Xoshiro(1),
         )
         floe_arr.height[4] = 0.05
@@ -559,6 +559,7 @@
         @test length(floe_arr) == 1
         @test floe_arr.id == [3]
         @test floe_arr.status[1].tag == Subzero.active
+        @test isempty(floe_arr.status[1].fuse_idx)
         @test sum(dissolved) == dissolve_mass
     end
 end

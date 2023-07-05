@@ -29,8 +29,8 @@ function replace_floe!(
     floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
     new_poly,
     new_mass,
+    coupling_settings,
     consts,
-    mc_n,
     rng,
 ) where {FT}
     # Floe shape
@@ -54,9 +54,8 @@ function replace_floe!(
     translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
     floe.rmax = sqrt(maximum([sum(c.^2) for c in floe.coords[1]]))
     # Floe monte carlo points
-    mc_x, mc_y, status = generate_mc_points(
-        FT,
-        mc_n,
+    x_subfloe_points, y_subfloe_points, status = generate_subfloe_points(
+        coupling_settings.subfloe_point_generator,
         floe.coords,
         floe.rmax,
         floe.area,
@@ -64,8 +63,8 @@ function replace_floe!(
         rng,
     )
     translate!(floe.coords, floe.centroid[1], floe.centroid[2])
-    floe.mc_x = mc_x
-    floe.mc_y = mc_y
+    floe.x_subfloe_points = x_subfloe_points
+    floe.y_subfloe_points = y_subfloe_points
     # Floe status / identification
     floe.status = status
     return

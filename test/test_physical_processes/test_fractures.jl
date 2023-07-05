@@ -192,9 +192,9 @@
             floe1_copy,
             colliding_coords,
             deforming_forces,
+            CouplingSettings(),
             Constants(),
             10,
-            1000,
             Xoshiro(1),
         )
         @test init_overlap > LG.area(LG.intersection(

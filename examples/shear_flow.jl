@@ -36,8 +36,21 @@ wboundary = PeriodicBoundary(West, grid)
 
 domain = Domain(nboundary, sboundary, eboundary, wboundary)
 
+coupling_settings = CouplingSettings(
+    subfloe_point_generator = SubGridPointsGenerator(grid, 2),
+    two_way_coupling_on = true,
+)
 # Floe creation
-floe_arr = initialize_floe_field(FT, 50, [0.8], domain, hmean, Δh, rng = Xoshiro(1))
+floe_arr = initialize_floe_field(
+    FT,
+    50,
+    [0.8],
+    domain,
+    hmean,
+    Δh;
+    rng = Xoshiro(1),
+    coupling_settings = coupling_settings
+)
 
 # Model creation
 model = Model(grid, ocean, atmos, domain, floe_arr)
@@ -58,15 +71,16 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 500,
-    verbose = false,
+    nΔt = 2000,
+    verbose = true,
     writers = writers,
     rng = Xoshiro(1),
+    coupling_settings = coupling_settings,
 )
 #run_time!(simulation)
 
 ProfileView.@profview run!(simulation)
  
-# Subzero.create_sim_gif("output/shear_flow/floes.jld2", 
-#                        "output/shear_flow/initial_state.jld2",
-#                        "output/shear_flow/shear_flow.gif")
+Subzero.create_sim_gif("output/shear_flow/floes.jld2", 
+                       "output/shear_flow/initial_state.jld2",
+                       "output/shear_flow/shear_flow.gif")
