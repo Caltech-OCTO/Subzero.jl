@@ -73,8 +73,12 @@ A float type FT can be provided as the first argument of any
 SubGridPointsGenerator constructor. A SubGridPointsGenerator of type FT will be
 created by passing all other arguments to the correct constructor. 
 """
-SubGridPointsGenerator(::Type{FT}; kwargs...) where {FT <: AbstractFloat} =
-    SubGridPointsGenerator{FT}(; kwargs...)
+SubGridPointsGenerator(
+    ::Type{FT},
+    args...;
+    kwargs...,
+) where {FT <: AbstractFloat} =
+    SubGridPointsGenerator{FT}(args...; kwargs...)
 
 """
     SubGridPointsGenerator(; kwargs...)
@@ -82,8 +86,8 @@ SubGridPointsGenerator(::Type{FT}; kwargs...) where {FT <: AbstractFloat} =
 If type isn't specified, SubGridPointsGenerator(; kwargs...) will be of type
 Float64 and the correct constructor will be called with all other arguments.
 """
-SubGridPointsGenerator(; kwargs...) =
-    SubGridPointsGenerator{Float64}(; kwargs...)
+SubGridPointsGenerator(args...; kwargs...) =
+    SubGridPointsGenerator{Float64}(args...; kwargs...)
 
 """
     SubGridPointsGenerator{FT}(grid, npoint_per_cell)
