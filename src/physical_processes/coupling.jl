@@ -55,7 +55,13 @@ function generate_subfloe_points(
             count += 1
         end
     end
-    return mc_x[mc_in], mc_y[mc_in], status
+    # Check if any points are within floe
+    mc_x = mc_x[mc_in]
+    mc_y = mc_y[mc_in]
+    if isempty(mc_x)
+        status.tag = remove
+    end
+    return mc_x, mc_y, status
 end
 
 """
@@ -122,7 +128,8 @@ function generate_subfloe_points(
     x_sub_floe = repeat(xpoints, length(ypoints))
     y_sub_floe = repeat(ypoints, inner = length(xpoints))
     in_floe = points_in_poly(hcat(x_sub_floe, y_sub_floe), coords)
-
+    
+    # Check if any points are within floe
     x_sub_floe = x_sub_floe[in_floe]
     y_sub_floe = y_sub_floe[in_floe]
     if length(x_sub_floe) < 2
@@ -412,7 +419,7 @@ function in_bounds(
 end
 
 """
-    calc_mc_values!(
+    calc_subfloe_point_values!(
         floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
         grid,
         domain,
@@ -439,7 +446,7 @@ Outputs:
     mc_cart and mc_grid_idx filled with data for given floe's monte carlo points
     up to row j.
 """
-function calc_mc_values!(
+function calc_subfloe_point_values!(
     floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
     grid,
     domain,
@@ -714,6 +721,10 @@ function mc_interpolation(
     )
 
     return uatm_interp, vatm_interp, uocn_interp, vocn_interp, hflx_interp
+end
+
+function get_interpolation()
+
 end
 
 #-------------- Effects of Ice and Atmosphere on Ocean --------------#
@@ -1313,7 +1324,7 @@ function calc_one_way_coupling!(
     grid_idx = Matrix{Int}(undef, max_points, 2)
     for i in eachindex(floes)
         # Monte carlo point cartesian coordinates and grid cell indices
-        npoints = calc_mc_values!(
+        npoints = calc_subfloe_point_values!(
             LazyRow(floes, i),
             grid,
             domain,
