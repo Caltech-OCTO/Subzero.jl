@@ -37,7 +37,7 @@ wboundary = PeriodicBoundary(West, grid)
 domain = Domain(nboundary, sboundary, eboundary, wboundary)
 
 coupling_settings = CouplingSettings(
-    subfloe_point_generator = SubGridPointsGenerator(Δg = 2e3),
+    subfloe_point_generator = SubGridPointsGenerator(grid, 2),
     two_way_coupling_on = true,
 )
 # Floe creation
