@@ -193,23 +193,23 @@ Base.:(:)(a::InteractionFields, b::InteractionFields) = Int(a):Int(b)
         hmean,
         Δh;
         ρi = 920.0,
-        mc_n = 1000,
-        nhistory = 1000,
+        coupling_settings = CouplingSettings(),
+        fracture_settings = FractureSettings(),
         rng = Xoshiro(),
         kwargs...
     )
 
 Constructor for floe with LibGEOS Polygon
 Inputs:
-    poly        <LibGEOS.Polygon> 
-    hmean       <Real> mean height for floes
-    Δh          <Real> variability in height for floes
-    grid        <Grid> simulation grid
-    ρi          <Real> ice density kg/m3 - default 920
-    mc_n        <Int> number of monte carlo points -default 1000
-    n_history   <Int> number of elements in stress history
-    rng         <RNG> random number generator to generate random floe attributes
-                    default is RNG using Xoshiro256++ algorithm
+    poly                <LibGEOS.Polygon> 
+    hmean               <Real> mean height for floes
+    Δh                  <Real> variability in height for floes
+    grid                <Grid> simulation grid
+    ρi                  <Real> ice density kg/m3 - default 920
+    coupling_settings   <CouplingSettings> simulation coupling settings
+    fracture_settings   <FractureSettings> simulation fracture settings        
+    rng                 <RNG> random number generator to generate floe
+                            attributes - default is Xoshiro256++ algorithm
     kwargs      Any other floe fields to set as keyword arguments
 Output:
     <Floe> with needed fields defined - all default field values used so all
@@ -284,15 +284,15 @@ end
 
 Floe constructor with PolyVec coordinates
 Inputs:
-    coords      <Vector{Vector{Vector{Float64}}}> floe coordinates
-    hmean       <Real> mean height for floes
-    Δh          <Real> variability in height for floes
-    ρi          <Real> ice density kg/m3 - default 920
-    mc_n        <Int> number of monte carlo points -default 1000
-    n_history   <Int> number of elements in stress history
-    rng         <RNG> random number generator to generate random floe attributes
-                    default is RNG using Xoshiro256++ algorithm
-    kwargs      Any other floe fields to set as keyword arguments
+    coords              <Vector{Vector{Vector{Float64}}}> floe coordinates
+    hmean               <Real> mean height for floes
+    Δh                  <Real> variability in height for floes
+    ρi                  <Real> ice density kg/m3 - default 920
+    coupling_settings   <CouplingSettings> simulation coupling settings
+    fracture_settings   <FractureSettings> simulation fracture settings  
+    rng                 <RNG> random number generator to generate random floe
+                            attributes - default uses Xoshiro256++ algorithm
+    kwargs              Any other floe fields to set as keyword arguments
 Output:
     <Floe> with needed fields defined - all default field values used so all
     forcings start at 0 and floe's status is "active" as long as monte carlo
@@ -331,11 +331,9 @@ Floe{FT}(
         hmean,
         Δh;
         ρi = 920.0,
-        u = 0.0,
-        v = 0.0,
-        ξ = 0.0,
-        mc_n::Int = 1000,
-        nhistory::Int = 1000,
+        coupling_settings,
+        fracture_settings,
+        simp_settings
         rng = Xoshiro(),
         min_floe_area = 0,
     )
@@ -343,22 +341,20 @@ Floe{FT}(
 Split a given polygon into regions and split around any holes before turning
 each region with an area greater than the minimum floe area into a floe.
 Inputs:
-    Type{FT}        <AbstractFloat> Type for grid's numberical fields -
+    Type{FT}            <AbstractFloat> Type for grid's numberical fields -
                         determines simulation run type
-    floe_poly       <LibGEOS.Polygon or LibGEOS.MultiPolygon> polygon/
+    floe_poly           <LibGEOS.Polygon or LibGEOS.MultiPolygon> polygon/
                         multipolygon to turn into floes
-    hmean           <AbstratFloat> average floe height
-    Δh              <AbstratFloat> height range - floes will range in height
+    hmean               <AbstratFloat> average floe height
+    Δh                  <AbstratFloat> height range - floes will range in height
                         from hmean - Δh to hmean + Δh
-    ρi              <AbstratFloat> ice density
-    u               <AbstratFloat> floe u velocity
-    v               <AbstratFloat> floe v velocity
-    ξ               <AbstratFloat> floe angular velocity
-    mc_n            <Int> number of monte carlo points
-    nhistory        <Int> number of element in floe's stress history
-    rng             <RNG> random number generator to generate random floe
-                        attributes - default is RNG using Xoshiro256++ algorithm
-    min_floe_area   <AbstratFloat> minimum area for floe creation - default is 0
+    ρi                  <AbstratFloat> ice density
+    coupling_settings   <CouplingSettings> simulation coupling settings
+    fracture_settings   <FractureSettings> simulation fracture settings
+    simp_settings       <SimplificationSettings> simulation simplification
+                            settings
+    rng                 <RNG> random number generator to generate random floe
+                            attributes - default uses Xoshiro256++ algorithm
 Output:
     <StructArray{Floe}> vector of floes making up input polygon(s) with area
         above given minimum floe area. Floe's with holes split around holes. 
@@ -420,33 +416,30 @@ initialize_floe_field(args...; kwargs...) =
         domain,
         hmean,
         Δh;
-        min_floe_area = 0.0,
-        ρi = 920.0,
-        mc_n::Int = 1000,
-        nhistory::Int = 1000,
-        rng = Xoshiro(),
+        ρi,
+        coupling_settings,
+        fracture_settings,
+        simp_settings,
+        rng,
     )
 
 Create a field of floes from a list of polygon coordiantes. User is wanrned if
 floe's do not meet minimum size requirment. 
 Inputs:
-    Type{FT}        <AbstractFloat> Type for grid's numberical fields -
-                        determines simulation run type
-    coords          <Vector{PolyVec}> list of polygon coords to make into floes
-    domain          <Domain> model domain 
-    hmean           <Float> average floe height
-    Δh              <Float> height range - floes will range in height from hmean
-                        - Δh to hmean + Δh
-    min_floe_area   <Float> if a floe below this minimum floe size is created
-                        program will throw a warning (optional) -  default is 0
-                        where Lx and Ly are the size of the domain edges
-    ρi              <Float> ice density (optional) - default is 920.0
-    mc_n            <Int> number of monte carlo points to intially generate for
-                        each floe (optional) - default is 1000 - note that this
-                        is not the number you will end up with as some will be
-                        outside of the floe
-    rng             <RNG> random number generator to generate random floe
-                        attributes - default is RNG using Xoshiro256++ algorithm
+    Type{FT}            <AbstractFloat> Type for grid's numberical fields -
+                            determines simulation run type
+    coords              <Vector{PolyVec}> list of polygon coords to make into floes
+    domain              <Domain> model domain 
+    hmean               <Float> average floe height
+    Δh                  <Float> height range - floes will range in height from hmean
+                            - Δh to hmean + Δh
+    ρi                  <Float> ice density (optional) - default is 920.0
+    coupling_settings   <CouplingSettings> simulation coupling settings
+    fracture_settings   <FractureSettings> simulation fracture settings
+    simp_settings       <SimplificationSettings> simulation simplification
+                            settings
+    rng                 <RNG> random number generator to generate random floe
+                            attributes - default uses Xoshiro256++ algorithm
 Output:
     floe_arr <StructArray{Floe}> list of floes created from given polygon
     coordinates
@@ -614,14 +607,17 @@ end
 """
     initialize_floe_field(
         ::Type{FT},
-        nfloes::Int,
+        nfloes,
         concentrations,
         domain,
         hmean,
         Δh;
-        min_floe_area = 0.0,
-        ρi = 920.0,
-        mc_n::Int = 1000,
+        ρi,
+        coupling_settings,
+        fracture_settings,
+        simp_settings,
+        rng,
+    )
 
 Create a field of floes using Voronoi Tesselation.
 Inputs:
@@ -641,18 +637,13 @@ Inputs:
     hmean           <Float> average floe height
     Δh              <Float> height range - floes will range in height from
                         hmean - Δh to hmean + Δh
-    min_floe_area   <Float> if a floe below this minimum floe size is
-                        created it will be deleted (optional) - default is
-                        0, but if a negative is provided it will be replaced
-                        with 4*Lx*Ly/1e4 where Lx and Ly are the size of the
-                        domain edges
     ρi              <Float> ice density (optional) - default is 920.0
-    mc_n            <Int> number of monte carlo points to intially generate
-                        for each floe (optional) - default is 1000 - note
-                        that this is not the number you will end up with as
-                        some will be outside of the floe
-    rng             <RNG> random number generator to generate random floe
-                        attributes - default is RNG using Xoshiro256++
+    coupling_settings   <CouplingSettings> simulation coupling settings
+    fracture_settings   <FractureSettings> simulation fracture settings
+    simp_settings       <SimplificationSettings> simulation simplification
+                            settings
+    rng                 <RNG> random number generator to generate random floe
+                            attributes - default uses Xoshiro256++
 Output:
     floe_arr <StructArray> list of floes created using Voronoi Tesselation
         of the domain with given concentrations.

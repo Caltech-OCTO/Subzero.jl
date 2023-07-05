@@ -2,8 +2,28 @@
 Functions needed for coupling the ice, ocean, and atmosphere.
 """
 
+"""
+    AbstractSubFloePointsGenerator
+
+Abstract type for parameters determining generation of sub-floe points used for
+interpolation. The points generated using these parameters will be used to find
+stresses on each floe from the ocean and the atmosphere. There must be a
+`generate_subfloe_points` function that dispatches off of the subtype of
+AbstractSubFloePointsGenerator to generate the points for a given floe.
+Points generated must all be within a given floe.
+"""
 abstract type AbstractSubFloePointsGenerator end
 
+"""
+    MonteCarloPointsGenerator
+
+Subtype of AbstractSubFloePointsGenerator that defines parameters needed to
+generate a set of random monte carlo points within a given floe. `npoints` is
+the number of monte carlo points to generate within the floe's bounding box -
+the floe will not end up with this many points as all points outside of the floe
+will be removed. `ntries` is the number of tries to generate a set of points
+within the floe that have a smaller error than `err`.
+"""
 @kwdef struct MonteCarloPointsGenerator{
     FT <: AbstractFloat,
 } <: AbstractSubFloePointsGenerator
@@ -12,24 +32,106 @@ abstract type AbstractSubFloePointsGenerator end
     err::FT = 0.1
 end
 
+"""
+    MonteCarloPointsGenerator(::Type{FT}; kwargs...)
+
+A float type FT can be provided as the first argument of any
+MonteCarloPointsGenerator constructor. A MonteCarloPointsGenerato of type FT
+will be created by passing all other arguments to the correct constructor. 
+"""
 MonteCarloPointsGenerator(::Type{FT}; kwargs...) where {FT <: AbstractFloat} =
     MonteCarloPointsGenerator{FT}(; kwargs...)
 
+"""
+    MonteCarloPointsGenerator(; kwargs...)
+
+If type isn't specified, MonteCarloPointsGenerator(; kwargs...) will be of type
+Float64 and the correct constructor will be called with all other arguments.
+"""
 MonteCarloPointsGenerator(; kwargs...) =
     MonteCarloPointsGenerator{Float64}(; kwargs...)
 
+"""
+    SubGridPointsGenerator
+
+Subtype of AbstractSubFloePointsGenerator that defines parameters needed to
+generate a set of points on a "subgrid" within the floe where the subgrid is a
+regular rectilinar grid with cells of size `Δg` in both width and height. If
+two-way coupling, `Δg` should be smaller than the grid's Δx and Δy so that there
+is at least one point in each grid cell that the floe occupies.
+"""
 @kwdef struct SubGridPointsGenerator{
     FT <: AbstractFloat,
 } <: AbstractSubFloePointsGenerator
     Δg::FT
 end
 
+"""
+    SubGridPointsGenerator(::Type{FT}; kwargs...)
+
+A float type FT can be provided as the first argument of any
+SubGridPointsGenerator constructor. A SubGridPointsGenerator of type FT will be
+created by passing all other arguments to the correct constructor. 
+"""
 SubGridPointsGenerator(::Type{FT}; kwargs...) where {FT <: AbstractFloat} =
     SubGridPointsGenerator{FT}(; kwargs...)
 
+"""
+    SubGridPointsGenerator(; kwargs...)
+
+If type isn't specified, SubGridPointsGenerator(; kwargs...) will be of type
+Float64 and the correct constructor will be called with all other arguments.
+"""
 SubGridPointsGenerator(; kwargs...) =
     SubGridPointsGenerator{Float64}(; kwargs...)
 
+"""
+    SubGridPointsGenerator{FT}(grid, npoint_per_cell)
+
+SubGridPointsGenerator constructor that uses the simulation grid and the desired
+number of sub-floe points per simulation grid cell to determine the correct
+value of Δg
+Inputs:
+    grid                <RegRectilinearGrid> simulation's grid
+    npoint_per_cell     <Int> number of points per grid cell, where the grid
+                            is redefined to have width and height equal to the
+                            minimum of Δx and Δy
+Output:
+    SubGridPointsGenerator with Δg defined to be the minimum of Δx and Δy over
+    the number of desired points per grid cell
+"""
+SubGridPointsGenerator{FT}(
+    grid::RegRectilinearGrid,
+    npoint_per_cell::Int,
+) where {FT <: AbstractFloat} =
+    SubGridPointsGenerator{FT}(min(grid.Δx, grid.Δy) / npoint_per_cell)
+
+"""
+    generate_subfloe_points(
+        point_generator
+        coords,
+        rmax,
+        area,
+        status,
+        rng
+    )
+
+Generate monte carlo points centered on the origin within the floe according to
+parameters defined in the point_generator argument.
+Inputs:
+    point_generator     <MonteCarloPointsGenerator> monte carlo point generator
+    coords              <PolyVec> PolyVec of floe coords centered on origin
+    rmax                <AbstractFloat> floe's maximum radius
+    area                <AbstractFloat> floe's area
+    status              <Status> floe status (i.e. active, fuse in simulation)
+    rng                 <AbstractRNG> random number generator to generate monte
+                            carlo points
+Ouputs:
+    x_sub_floe  <Vector{FT}> vector of sub-floe grid points x-coords within floe
+    y_sub_floe  <Vector{FT}> vector of sub-floe grid points y-coords within floe
+    status      <Status> floe's status post generation, changed to remove if 
+                    generation is unsuccessful
+"""
 function generate_subfloe_points(
     point_generator::MonteCarloPointsGenerator{FT},
     coords,
@@ -55,26 +157,35 @@ function generate_subfloe_points(
             count += 1
         end
     end
-    return mc_x[mc_in], mc_y[mc_in], status
+    mc_x = mc_x[mc_in]
+    mc_y = mc_y[mc_in]
+    if isempty(mc_x)
+        status.tag = remove
+    end
+
+    return mc_x, mc_y, status
 end
 
 """
-    generate_subgrid_points(
+    generate_subfloe_points(
+        point_generator,
         coords,
-        centroid,
-        grid::AbstractGrid{<:FT},
-        coupling_settings,
-    ) where {FT}
+        rmax,
+        area,
+        status,
+        rng
+    )
 
 Generate evenly spaced points within given floe coordinates to be used for
 coupling. If only one point falls within the floe, return the floe's centroid.
 Inputs:
-    Type{FT}            <AbstractFloat> simulation run type
-    coords              <PolyVec{AbstractFloat}> PolyVec of floe coords centered
-                            on origin
+    point_generator     <SubGridPointsGenerator> sub-grid point generator
+    coords              <PolyVec> PolyVec of floe coords centered on origin
+    rmax                <AbstractFloat> floe's maximum radius
+    area                <AbstractFloat> floe's area
     status              <Status> floe status (i.e. active, fuse in simulation)
-    Δg                  <AbstractFloat> minimum of grid cell's width and height
-    coupling_settings   <CouplingSettings> simulation's coupling settings
+    rng                 <AbstractRNG> random number generator is not used in
+                            this generation method
 Ouputs:
     x_sub_floe  <Vector{FT}> vector of sub-floe grid points x-coords within floe
     y_sub_floe  <Vector{FT}> vector of sub-floe grid points y-coords within floe
