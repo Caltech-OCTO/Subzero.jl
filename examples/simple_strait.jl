@@ -37,8 +37,22 @@ topo_arr = initialize_topography_field(
 
 domain = Domain(nboundary, sboundary, eboundary, wboundary, topo_arr)
 
+coupling_settings = CouplingSettings(
+    subfloe_point_generator = SubGridPointsGenerator(grid, 2),
+    two_way_coupling_on = true,
+)
+
 # Floe creation
-floe_arr = initialize_floe_field(FT, 50, [0.7], domain, hmean, Δh, rng = Xoshiro(3))
+floe_arr = initialize_floe_field(
+    FT,
+    10,
+    [0.7],
+    domain,
+    hmean,
+    Δh,
+    rng = Xoshiro(3),
+    coupling_settings = coupling_settings,
+)
 
 # Model creation
 model = Model(grid, ocean, atmos, domain, floe_arr)
@@ -58,25 +72,24 @@ fracture_settings = FractureSettings(
 # Output setup
 dir = "output/simple_strait"
 run_time!(simulation) = @time run!(simulation)
-for i in 1:1
-    local initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
-    local floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
-    local writers = OutputWriters(initwriter, floewriter)
 
-    local simulation = Simulation(
-        model = model,
-        consts = consts,
-        Δt = Δt,
-        nΔt = 4320,
-        verbose = false,
-        fracture_settings = fracture_settings,
-        writers = writers,
-    )
+initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
+floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
+writers = OutputWriters(initwriter, floewriter)
+
+simulation = Simulation(
+    model = model,
+    consts = consts,
+    Δt = Δt,
+    nΔt = 1000,
+    verbose = false,
+    coupling_settings = coupling_settings,
+    fracture_settings = fracture_settings,
+    writers = writers,
+)
     
-    # Run simulation
-    run_time!(simulation)
-end
- 
+# Run simulation
+run_time!(simulation)
 
 Subzero.create_sim_gif("output/simple_strait/floes.jld2", 
                        "output/simple_strait/initial_state.jld2",

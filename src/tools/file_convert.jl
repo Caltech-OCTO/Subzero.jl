@@ -26,8 +26,8 @@ function matfloe2julfloes(filename)
     coords = Subzero.translate([coords], vars["floe"]["Xi"], vars["floe"]["Yi"])
     floe = Floe(coords, vars["floe"]["h"], 0.0)
     floe.centroid = [vars["floe"]["Xi"], vars["floe"]["Yi"]]
-    floe.mc_x = vec(vars["floe"]["X"])[vec(vars["floe"]["A"]) .== 1]
-    floe.mc_y = vec(vars["floe"]["Y"])[vec(vars["floe"]["A"]) .== 1]
+    floe.x_subfloe_points = vec(vars["floe"]["X"])[vec(vars["floe"]["A"]) .== 1]
+    floe.y_subfloe_points = vec(vars["floe"]["Y"])[vec(vars["floe"]["A"]) .== 1]
     floe.u =vars["floe"]["Ui"]
     floe.v =vars["floe"]["Vi"]
     floe.ξ = vars["floe"]["ksi_ice"]
@@ -72,8 +72,8 @@ function julfloe2matfloe(floes, Δg, out_fn)
     end
     out_fn = auto_extension(out_fn, ".mat")
     matwrite(out_fn, Dict(
-        "mc_x" => floes.mc_x,
-        "mc_y" =>  floes.mc_y,
+        "x_subfloe_points" => floes.x_subfloe_points,
+        "y_subfloe_points" =>  floes.y_subfloe_points,
         "xcoords" => reshaped_x,
         "ycoords" => reshaped_y,
         "u" => floes.u,
@@ -93,8 +93,8 @@ function julfloe2matfloe(floes, Δg, out_fn)
 end
 
     matwrite(out_fn, Dict(
-        "mc_x" => floes.mc_x,
-        "mc_y" =>  floes.mc_y,
+        "x_subfloe_points" => floes.x_subfloe_points,
+        "y_subfloe_points" =>  floes.y_subfloe_points,
         "xcoords" => reshaped_x,
         "ycoords" => reshaped_y,
     );)

@@ -943,8 +943,8 @@ function getattrs(output::Symbol)
         output == :rmax ? ("m", "Maximum radius within floe") :
         output == :moment ? ("kg m^2", "Floe mass moment of intertia") :
         output == :angles ? ("kg m^2", "Floe interior angles") :
-        output == :mc_x ? ("location", "x-coordinates for floe monte carlo points") :
-        output == :mc_y ? ("location", "y-coordinates for floe monte carlo points") :
+        output == :x_subfloe_points ? ("location", "x-coordinates for floe monte carlo points") :
+        output == :y_subfloe_points ? ("location", "y-coordinates for floe monte carlo points") :
         output == :α ? ("radians", "Floe rotation since starting position") :
         output == :u ? ("m/s", "Floe x-direction velocity") :
         output == :v ? ("m/s", "Floe y-direction velocity") :

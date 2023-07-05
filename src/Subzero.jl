@@ -60,7 +60,9 @@ export
     OutputWriters,
     check_energy_momentum_conservation_julia,
     IceStressCell,
-    CellFloes
+    CellFloes,
+    MonteCarloPointsGenerator,
+    SubGridPointsGenerator
 
 import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG
@@ -92,9 +94,11 @@ const RingVec{T} = R where {
 }
 
 # Model
-include("floe.jl")
+include("simulation_components/floe.jl")
 include("floe_utils.jl")
-include("model.jl")
+include("simulation_components/domain_and_grid.jl")
+include("simulation_components/ocean_and_atmos.jl")
+include("simulation_components/model.jl")
 # Physical Processes
 include("physical_processes/update_floe.jl")
 include("physical_processes/coupling.jl")
@@ -109,5 +113,5 @@ include("tools/compare_files.jl")
 include("logger.jl")
 # Simulation
 include("output.jl")
-include("simulation.jl")
+include("simulation_components/simulation.jl")
 end

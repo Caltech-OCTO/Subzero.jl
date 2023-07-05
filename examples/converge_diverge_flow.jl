@@ -17,8 +17,14 @@ grid = RegRectilinearGrid(
     Δgrid,
     Δgrid,
 )
-uvels = repeat(hcat(range(0.1 ,0.6, step = 0.1)', range(0.5, 0.1, step = -0.1)'), outer = 11)
-ocean = Ocean(uvels, zeros(grid.Nx + 1, grid.Ny + 1), zeros(grid.Nx, grid.Ny))
+uvels = repeat(
+    hcat(
+        range(0.1 ,0.6, step = 0.1)',
+        range(0.5, 0.1, step = -0.1)',
+    ),
+    outer = 11,
+)
+ocean = Ocean(uvels, zeros(grid.Nx + 1, grid.Ny + 1), zeros(grid.Nx + 1, grid.Ny + 1))
 atmos = Atmos(grid, 0.0, 0.0, -1.0)
 
 # Domain creation
@@ -30,7 +36,15 @@ wboundary = PeriodicBoundary(West, grid)
 domain = Domain(nboundary, sboundary, eboundary, wboundary)
 
 # Floe creation
-floe_arr = initialize_floe_field(FT, 50, [0.8], domain, hmean, Δh, rng = Xoshiro(1))
+floe_arr = initialize_floe_field(
+    FT,
+    50,
+    [0.8],
+    domain,
+    hmean,
+    Δh,
+    rng = Xoshiro(1),
+)
 
 # Model creation
 model = Model(grid, ocean, atmos, domain, floe_arr)

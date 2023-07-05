@@ -78,8 +78,8 @@
             f1,
             tri_poly,
             f1.mass,
+            CouplingSettings(),
             Constants(),
-            100,
             Xoshiro(1)
         )
         @test f1.centroid == Subzero.find_poly_centroid(tri_poly)
@@ -271,8 +271,8 @@
                 LG.Polygon(triangle_coords)
             ),
             sqr_floe.mass + tri_floe.mass,
+            CouplingSettings(),
             Constants(),
-            1000,
             Xoshiro(1)
         )
         Subzero.conserve_momentum_combination!(
