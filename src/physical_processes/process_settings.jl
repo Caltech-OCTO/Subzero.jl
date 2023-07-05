@@ -14,20 +14,20 @@ of monte carlo points to attempt to generage for each floe. If two_way_coupling_
 true then the simulation calculates the stress the ice/atmosphere put on the
 ocean. 
 """
-@kwdef struct CouplingSettings
+@kwdef struct CouplingSettings{GT <: AbstractSubFloePointsGenerator}
     coupling_on::Bool = true
     Δt::Int = 10
     Δd::Int = 1
-    mc_n::Int = 1000
+    subfloe_point_generator::GT = MonteCarloPointsGenerator()
     two_way_coupling_on::Bool = false
 
-    function CouplingSettings(
+    function CouplingSettings{GT}(
         coupling_on,
         Δt,
         Δd,
-        mc_n,
+        subfloe_point_generator,
         two_way_coupling_on,
-    )
+    ) where {GT <: AbstractSubFloePointsGenerator}
         if coupling_on && Δt < 0
             @warn "Coupling can't occur on a multiple of negative timesteps. \
                 Turning coupling off."
@@ -43,8 +43,29 @@ ocean.
                 with a buffer of less than 0 grid cells. Setting Δd = 0."
             Δd = 0
         end
-        new(coupling_on, Δt, Δd, mc_n, two_way_coupling_on)
+        new{GT}(
+            coupling_on,
+            Δt,
+            Δd,
+            subfloe_point_generator,
+            two_way_coupling_on,
+        )
     end
+
+    CouplingSettings(
+        coupling_on,
+        Δt,
+        Δd,
+        subfloe_point_generator::GT,
+        two_way_coupling_on,
+    ) where {GT <: AbstractSubFloePointsGenerator} = 
+        CouplingSettings{GT}(
+            coupling_on,
+            Δt,
+            Δd,
+            subfloe_point_generator::GT,
+            two_way_coupling_on,
+        )
 end
 
 """

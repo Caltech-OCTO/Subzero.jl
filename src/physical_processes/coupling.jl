@@ -2,6 +2,254 @@
 Functions needed for coupling the ice, ocean, and atmosphere.
 """
 
+"""
+    AbstractSubFloePointsGenerator
+
+Abstract type for parameters determining generation of sub-floe points used for
+interpolation. The points generated using these parameters will be used to find
+stresses on each floe from the ocean and the atmosphere. There must be a
+`generate_subfloe_points` function that dispatches off of the subtype of
+AbstractSubFloePointsGenerator to generate the points for a given floe.
+Points generated must all be within a given floe.
+"""
+abstract type AbstractSubFloePointsGenerator end
+
+"""
+    MonteCarloPointsGenerator
+
+Subtype of AbstractSubFloePointsGenerator that defines parameters needed to
+generate a set of random monte carlo points within a given floe. `npoints` is
+the number of monte carlo points to generate within the floe's bounding box -
+the floe will not end up with this many points as all points outside of the floe
+will be removed. `ntries` is the number of tries to generate a set of points
+within the floe that have a smaller error than `err`.
+"""
+@kwdef struct MonteCarloPointsGenerator{
+    FT <: AbstractFloat,
+} <: AbstractSubFloePointsGenerator
+    npoints::Int = 1000
+    ntries::Int = 10
+    err::FT = 0.1
+end
+
+"""
+    MonteCarloPointsGenerator(::Type{FT}; kwargs...)
+
+A float type FT can be provided as the first argument of any
+MonteCarloPointsGenerator constructor. A MonteCarloPointsGenerato of type FT
+will be created by passing all other arguments to the correct constructor. 
+"""
+MonteCarloPointsGenerator(::Type{FT}; kwargs...) where {FT <: AbstractFloat} =
+    MonteCarloPointsGenerator{FT}(; kwargs...)
+
+"""
+    MonteCarloPointsGenerator(; kwargs...)
+
+If type isn't specified, MonteCarloPointsGenerator(; kwargs...) will be of type
+Float64 and the correct constructor will be called with all other arguments.
+"""
+MonteCarloPointsGenerator(; kwargs...) =
+    MonteCarloPointsGenerator{Float64}(; kwargs...)
+
+"""
+    SubGridPointsGenerator
+
+Subtype of AbstractSubFloePointsGenerator that defines parameters needed to
+generate a set of points on a "subgrid" within the floe where the subgrid is a
+regular rectilinar grid with cells of size `Δg` in both width and height. If
+two-way coupling, `Δg` should be smaller than the grid's Δx and Δy so that there
+is at least one point in each grid cell that the floe occupies.
+"""
+@kwdef struct SubGridPointsGenerator{
+    FT <: AbstractFloat,
+} <: AbstractSubFloePointsGenerator
+    Δg::FT
+end
+
+"""
+    SubGridPointsGenerator(::Type{FT}; kwargs...)
+
+A float type FT can be provided as the first argument of any
+SubGridPointsGenerator constructor. A SubGridPointsGenerator of type FT will be
+created by passing all other arguments to the correct constructor. 
+"""
+SubGridPointsGenerator(
+    ::Type{FT},
+    args...;
+    kwargs...,
+) where {FT <: AbstractFloat} =
+    SubGridPointsGenerator{FT}(args...; kwargs...)
+
+"""
+    SubGridPointsGenerator(; kwargs...)
+
+If type isn't specified, SubGridPointsGenerator(; kwargs...) will be of type
+Float64 and the correct constructor will be called with all other arguments.
+"""
+SubGridPointsGenerator(args...; kwargs...) =
+    SubGridPointsGenerator{Float64}(args...; kwargs...)
+
+"""
+    SubGridPointsGenerator{FT}(grid, npoint_per_cell)
+
+SubGridPointsGenerator constructor that uses the simulation grid and the desired
+number of sub-floe points per simulation grid cell to determine the correct
+value of Δg
+Inputs:
+    grid                <RegRectilinearGrid> simulation's grid
+    npoint_per_cell     <Int> number of points per grid cell, where the grid
+                            is redefined to have width and height equal to the
+                            minimum of Δx and Δy
+Output:
+    SubGridPointsGenerator with Δg defined to be the minimum of Δx and Δy over
+    the number of desired points per grid cell
+"""
+SubGridPointsGenerator{FT}(
+    grid::RegRectilinearGrid,
+    npoint_per_cell::Int,
+) where {FT <: AbstractFloat} =
+    SubGridPointsGenerator{FT}(min(grid.Δx, grid.Δy) / npoint_per_cell)
+
+"""
+    generate_subfloe_points(
+        point_generator
+        coords,
+        rmax,
+        area,
+        status,
+        rng
+    )
+
+Generate monte carlo points centered on the origin within the floe according to
+parameters defined in the point_generator argument.
+Inputs:
+    point_generator     <MonteCarloPointsGenerator> monte carlo point generator
+    coords              <PolyVec> PolyVec of floe coords centered on origin
+    rmax                <AbstractFloat> floe's maximum radius
+    area                <AbstractFloat> floe's area
+    status              <Status> floe status (i.e. active, fuse in simulation)
+    rng                 <AbstractRNG> random number generator to generate monte
+                            carlo points
+Ouputs:
+    x_sub_floe  <Vector{FT}> vector of sub-floe grid points x-coords within floe
+    y_sub_floe  <Vector{FT}> vector of sub-floe grid points y-coords within floe
+    status      <Status> floe's status post generation, changed to remove if 
+                    generation is unsuccessful
+"""
+function generate_subfloe_points(
+    point_generator::MonteCarloPointsGenerator{FT},
+    coords,
+    rmax,
+    area,
+    status,
+    rng
+) where {FT <: AbstractFloat}
+    count = 1
+    err = FT(1)
+    mc_x = zeros(FT, point_generator.npoints)
+    mc_y = zeros(FT, point_generator.npoints)
+    mc_in = fill(false, point_generator.npoints)
+    while err > point_generator.err
+        if count > 10
+            err = 0.0
+            status.tag = remove
+        else
+            mc_x .= rmax * (2rand(rng, FT, Int(point_generator.npoints)) .- 1)
+            mc_y .= rmax * (2rand(rng, FT, Int(point_generator.npoints)) .- 1)
+            mc_in .= points_in_poly(hcat(mc_x, mc_y), coords)
+            err = abs(sum(mc_in)/point_generator.npoints * 4rmax^2 - area)/area
+            count += 1
+        end
+    end
+    mc_x = mc_x[mc_in]
+    mc_y = mc_y[mc_in]
+    if isempty(mc_x)
+        status.tag = remove
+    end
+
+    return mc_x, mc_y, status
+end
+
+"""
+    generate_subfloe_points(
+        point_generator,
+        coords,
+        rmax,
+        area,
+        status,
+        rng
+    )
+
+Generate evenly spaced points within given floe coordinates to be used for
+coupling. If only one point falls within the floe, return the floe's centroid.
+Inputs:
+    point_generator     <SubGridPointsGenerator> sub-grid point generator
+    coords              <PolyVec> PolyVec of floe coords centered on origin
+    rmax                <AbstractFloat> floe's maximum radius
+    area                <AbstractFloat> floe's area
+    status              <Status> floe status (i.e. active, fuse in simulation)
+    rng                 <AbstractRNG> random number generator is not used in
+                            this generation method
+Ouputs:
+    x_sub_floe  <Vector{FT}> vector of sub-floe grid points x-coords within floe
+    y_sub_floe  <Vector{FT}> vector of sub-floe grid points y-coords within floe
+    status      <Status> tag isn't changed with this generation method
+"""
+function generate_subfloe_points(
+    point_generator::SubGridPointsGenerator{FT},
+    coords,
+    rmax,
+    area,
+    status,
+    rng
+) where {FT <: AbstractFloat}
+    xmax = FT(-Inf)
+    ymax = FT(-Inf)
+    xmin = FT(Inf)
+    ymin = FT(Inf)
+    @views for vert in coords[1]
+        if vert[1] > xmax
+            xmax = vert[1]
+        end
+        if vert[1] < xmin
+            xmin = vert[1]
+        end
+        if vert[2] > ymax
+            ymax = vert[2]
+        end
+        if vert[2] < ymin
+            ymin = vert[2]
+        end
+    end
+
+    n_xpoints = round(Int, (xmax - xmin) / point_generator.Δg) + 1
+    n_ypoints = round(Int, (ymax - ymin) / point_generator.Δg) + 1
+    xpoints = if n_xpoints < 3
+        FT(0):FT(0)  # coords are centered at the origin
+    else
+        range(xmin, xmax, length = n_xpoints)
+    end
+    ypoints = if n_ypoints < 3
+        FT(0):FT(0)  # coords are centered at the origin
+    else
+        range(ymin, ymax, length = n_ypoints)
+    end
+    x_sub_floe = repeat(xpoints, length(ypoints))
+    y_sub_floe = repeat(ypoints, inner = length(xpoints))
+    in_floe = points_in_poly(hcat(x_sub_floe, y_sub_floe), coords)
+
+    x_sub_floe = x_sub_floe[in_floe]
+    y_sub_floe = y_sub_floe[in_floe]
+    if length(x_sub_floe) < 2
+        x_sub_floe = FT(0):FT(0)  # coords are centered at the origin
+    end
+    if length(y_sub_floe) < 2
+        y_sub_floe = FT(0):FT(0)  # coords are centered at the origin
+    end
+
+    return x_sub_floe, y_sub_floe, status
+end
+
 #-------------- Monte Carlo Point Calculations --------------#
 
 """
@@ -310,25 +558,27 @@ function calc_mc_values!(
     floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
     grid,
     domain,
-    mc_cart,
-    mc_grid_idx,
+    cart_vals,
+    grid_idx,
 ) where {FT<:AbstractFloat}
     # Translate/rotate monte carlo points to floe location/orientation
     α = floe.α
     j = 0  # index in output array
-    for i in eachindex(floe.mc_x)  # index of monte carlo points
-        mc_px = cos(α)*floe.mc_x[i] - sin(α)*floe.mc_y[i]  # at origin
-        mc_py = sin(α)*floe.mc_x[i] + cos(α)*floe.mc_y[i]  # at origin
-        mc_x = mc_px + floe.centroid[1]  # at centroid
-        mc_y = mc_py + floe.centroid[2]  # at centroid
+    for i in eachindex(floe.x_subfloe_points)  # index of monte carlo points
+        px = cos(α)*floe.x_subfloe_points[i] -
+            sin(α)*floe.y_subfloe_points[i]  # at origin
+        py = sin(α)*floe.x_subfloe_points[i] +
+            cos(α)*floe.y_subfloe_points[i]  # at origin
+        x = px + floe.centroid[1]  # at centroid
+        y = py + floe.centroid[2]  # at centroid
         # If point is in bounds, continue to find rest of values
-        if in_bounds(mc_x, mc_y, grid, domain.east, domain.north)
+        if in_bounds(x, y, grid, domain.east, domain.north)
             j += 1  # if added to outputs, move to next index in output array
-            mc_cart[j, 1] = mc_x
-            mc_cart[j, 2] = mc_y
-            mc_grid_idx[j, 1], mc_grid_idx[j, 2] = find_center_cell_index(
-                mc_cart[j, 1],
-                mc_cart[j, 2],
+            cart_vals[j, 1] = x
+            cart_vals[j, 2] = y
+            grid_idx[j, 1], grid_idx[j, 2] = find_center_cell_index(
+                cart_vals[j, 1],
+                cart_vals[j, 2],
                 grid,
             )
         end
@@ -524,19 +774,19 @@ Outputs:
 """
 function mc_interpolation(
     npoints,
-    mc_grid_idx,
+    grid_idx,
     grid,
     domain,
     atmos,
     ocean,
     coupling_settings,
 )
-    mc_xidx = @view mc_grid_idx[1:npoints, 1]
-    mc_yidx = @view mc_grid_idx[1:npoints, 2]
+    xidx = @view grid_idx[1:npoints, 1]
+    yidx = @view grid_idx[1:npoints, 2]
 
     # Find knots and indices of knots for monte carlo interpolation
     xknots, xknot_idx = find_interp_knots(
-        mc_xidx,
+        xidx,
         grid.Nx,
         grid.x0:grid.Δx:grid.xf,
         grid.xf - grid.x0,
@@ -544,7 +794,7 @@ function mc_interpolation(
         domain.east,
     )
     yknots, yknot_idx = find_interp_knots(
-        mc_yidx,
+        yidx,
         grid.Ny,
         grid.y0:grid.Δy:grid.yf,
         grid.yf - grid.y0,
@@ -891,8 +1141,8 @@ Outputs:
                 y-direction at given monte carlo point
 """
 function calc_atmosphere_forcing(
-    mc_xr, 
-    mc_yr,
+    xr, 
+    yr,
     upoint,
     vpoint,
     uatm_interp,
@@ -900,8 +1150,8 @@ function calc_atmosphere_forcing(
     c,  # constants
 )
     # Atmosphere velocities at monte carlo point
-    uatm = uatm_interp(mc_xr, mc_yr) 
-    vatm = vatm_interp(mc_xr, mc_yr) 
+    uatm = uatm_interp(xr, yr) 
+    vatm = vatm_interp(xr, yr) 
 
     # Stress on ice from atmopshere
     Δu_AI = uatm - upoint
@@ -956,8 +1206,8 @@ Outputs:
                         from the heatflux factors of ocean below floe
 """
 function calc_ocean_forcing!(
-    mc_xr,
-    mc_yr,
+    xr,
+    yr,
     upoint,
     vpoint,
     uocn_interp,
@@ -966,9 +1216,9 @@ function calc_ocean_forcing!(
     ma_ratio,
     c,  # constants
 )
-    uocn = uocn_interp(mc_xr, mc_yr)
-    vocn = vocn_interp(mc_xr, mc_yr)
-    hflx_factor = hflx_interp(mc_xr, mc_yr)
+    uocn = uocn_interp(xr, yr)
+    vocn = vocn_interp(xr, yr)
+    hflx_factor = hflx_interp(xr, yr)
     Δu_OI = uocn - upoint
     Δv_OI = vocn - vpoint
     norm = sqrt(Δu_OI^2 + Δv_OI^2)
@@ -1173,22 +1423,22 @@ function calc_one_way_coupling!(
     coupling_settings,
     consts,
 ) where {FT}
-    max_n_mc = maximum(length, floes.mc_x)
-    mc_cart = Matrix{FT}(undef, max_n_mc, 2)
-    mc_grid_idx = Matrix{Int}(undef, max_n_mc, 2)
+    max_points = maximum(length, floes.x_subfloe_points)
+    cart_vals = Matrix{FT}(undef, max_points, 2)
+    grid_idx = Matrix{Int}(undef, max_points, 2)
     for i in eachindex(floes)
         # Monte carlo point cartesian coordinates and grid cell indices
         npoints = calc_mc_values!(
             LazyRow(floes, i),
             grid,
             domain,
-            mc_cart,
-            mc_grid_idx,
+            cart_vals,
+            grid_idx,
         )
         # Interpolaters for ocean and atmosphere
         uatm_int, vatm_int, uocn_int, vocn_int, hflx_int = mc_interpolation(
             npoints,
-            mc_grid_idx,
+            grid_idx,
             grid,
             domain,
             atmos,
@@ -1207,16 +1457,16 @@ function calc_one_way_coupling!(
         # Determine total stress per-monte carlo point
         for j in 1:npoints
             # Monte carlo point properties
-            xcentered = mc_cart[j, 1] - floes.centroid[i][1]
-            ycentered = mc_cart[j, 2] - floes.centroid[i][2]
+            xcentered = cart_vals[j, 1] - floes.centroid[i][1]
+            ycentered = cart_vals[j, 2] - floes.centroid[i][2]
             θ = atan(ycentered, xcentered)
             rad = sqrt(xcentered^2 + ycentered^2)
             upoint = floes.u[i] - floes.ξ[i] * rad * sin(θ)
             vpoint = floes.v[i] + floes.ξ[i] * rad * cos(θ)
             # Stress at monte carlo point from ocean and atmosphere
             τx_atm, τy_atm = calc_atmosphere_forcing(
-                mc_cart[j, 1], 
-                mc_cart[j, 2],
+                cart_vals[j, 1], 
+                cart_vals[j, 2],
                 upoint,
                 vpoint,
                 uatm_int,
@@ -1224,8 +1474,8 @@ function calc_one_way_coupling!(
                 consts,
             )
             τx_ocn, τy_ocn, τx_p∇, τy_p∇, hflx_factor = calc_ocean_forcing!(
-                mc_cart[j, 1],
-                mc_cart[j, 2],
+                cart_vals[j, 1],
+                cart_vals[j, 2],
                 upoint,
                 vpoint,
                 uocn_int,
@@ -1246,8 +1496,8 @@ function calc_one_way_coupling!(
             # Save floe info onto the grid
             floe_to_grid_info!(
                 i,
-                mc_grid_idx[j, 1],
-                mc_grid_idx[j, 2],
+                grid_idx[j, 1],
+                grid_idx[j, 2],
                 τx_ocn,
                 τy_ocn,
                 grid,
