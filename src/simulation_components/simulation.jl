@@ -51,13 +51,14 @@ The user can also define settings for each physical process.
     FT<:AbstractFloat,
     MT<:Model{FT, <:AbstractGrid, <:Domain},
     CT<:AbstractFractureCriteria,
+    PT<:AbstractSubFloePointsGenerator,
     RT<:Random.AbstractRNG,
     OT<:OutputWriters{
         <:StructVector{<:InitialStateOutputWriter},
         <:StructVector{<:FloeOutputWriter},
         <:StructVector{<:GridOutputWriter},
         <:StructVector{<:CheckpointOutputWriter},
-    }
+    },
 }
     model::MT                           # Model to simulate
     consts::Constants{FT} = Constants() # Constants used in Simulation
@@ -68,7 +69,7 @@ The user can also define settings for each physical process.
     Δt::Int = 10                        # Simulation timestep (seconds)
     nΔt::Int = 7500                     # Total timesteps simulation runs for
     # Physical Processes -------------------------------------------------------
-    coupling_settings::CouplingSettings = CouplingSettings()
+    coupling_settings::CouplingSettings{PT} = CouplingSettings()
     collision_settings::CollisionSettings{FT} = CollisionSettings()
     fracture_settings::FractureSettings{CT} = FractureSettings()
     simp_settings::SimplificationSettings{FT} = SimplificationSettings()

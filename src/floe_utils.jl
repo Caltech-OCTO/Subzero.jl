@@ -65,7 +65,37 @@ Inputs:
 Outputs:
     <Vector{LG.Polygon}>
 """
-get_polygons(geom) = Vector{LG.Polygon}()
+# get_polygons(geom) = Vector{LG.Polygon}()
+
+function get_polygons(geom)
+    polys =
+        if geom isa LG.Polygon
+            [geom]
+        elseif geom isa LG.MultiPolygon
+            sub_geoms = LG.getGeometries(multipoly)
+            for i in reverse(eachindex(sub_geoms))
+                if LG.area(sub_geoms[i]) == 0
+                    deleteat!(sub_geoms, i)
+                end
+            end
+            sub_geoms
+        else
+            Vector{LG.Polygon}()
+        end
+    return polys::Vector{LG.Polygon}
+end
+
+intersect_polys(p1, p2) = get_polygons(
+    LG.intersection(
+        p1,
+        p2,
+    )::LG.Geometry,
+)::Vector{LG.Polygon}
+
+intersect_coords(c1, c2) = intersect_polys(
+    LG.Polygon(c1),
+    LG.Polygon(c2),
+)::Vector{LG.Polygon}
 
 """
     get_polygons(poly::LG.Polygon) = [poly]
@@ -76,7 +106,7 @@ Inputs:
 Outputs:
     <Vector{LG.Polygon}>
 """
-get_polygons(poly::LG.Polygon) = [poly]
+# get_polygons(poly::LG.Polygon) = [poly]
 
 """
     get_polygons(multipoly::LG.MultiPolygon)
@@ -87,15 +117,15 @@ Inputs:
 Outputs:
     sub_geoms   <Vector{LG.Polygon}>
 """
-function get_polygons(multipoly::LG.MultiPolygon)
-    sub_geoms = LG.getGeometries(multipoly)
-    for i in reverse(eachindex(sub_geoms))
-        if LG.area(sub_geoms[i]) == 0
-            deleteat!(sub_geoms, i)
-        end
-    end
-    return sub_geoms::Vector{LG.Polygon}
-end
+# function get_polygons(multipoly::LG.MultiPolygon)
+#     sub_geoms = LG.getGeometries(multipoly)
+#     for i in reverse(eachindex(sub_geoms))
+#         if LG.area(sub_geoms[i]) == 0
+#             deleteat!(sub_geoms, i)
+#         end
+#     end
+#     return sub_geoms::Vector{LG.Polygon}
+# end
 
 """
     find_multipoly_coords(poly)

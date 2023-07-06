@@ -34,9 +34,9 @@ function calc_normal_force(
     c1,
     c2,
     region,
-    area::FT,
+    area,
     ipoints,
-    force_factor,
+    force_factor::FT,
 ) where {FT<:AbstractFloat}
     force_dir = zeros(FT, 2)
     coords = find_poly_coords(region)
@@ -48,18 +48,18 @@ function calc_normal_force(
         p_i = repeat(ipoints[i, :], length(coords))
         dists[i], verts[i] = findmin([sum((c .- p_i).^2) for c in coords[1]])
     end
-    dists = sqrt.(dists)
+    dists .= sqrt.(dists)
     p = coords[1][verts[findall(d -> d<1, dists)]] # maybe do rmax/1000
     m = length(p)
 
     # Calculate force direction
     Δl = FT(0)
     if m == 2  # Two intersection points
-        Δx = p[2][1] - p[1][1]
-        Δy = p[2][2] - p[1][2]
+        Δx = FT(p[2][1] - p[1][1])
+        Δy = FT(p[2][2] - p[1][2])
         Δl = sqrt(Δx^2 + Δy^2)
         if Δl > 0.1  # should match our scale
-            force_dir = [-Δy/Δl; Δx/Δl]
+            force_dir .= [-Δy/Δl; Δx/Δl]
         end
     elseif m != 0  # Unusual number of intersection points
         x, y = separate_xy(coords)
@@ -80,28 +80,23 @@ function calc_normal_force(
             Δl = mean(mag[on_idx])
             if Δl > 0.1
                 Fn_tot = sum(Fn[on_idx, :], dims = 1)
-                force_dir = Fn_tot'/sqrt(Fn_tot*Fn_tot')
+                force_dir .= Fn_tot'/sqrt(Fn_tot*Fn_tot')[1]
             end
         end
     end
     # Check if direction of the force desceases overlap, else negate direction
     if Δl > 0.1
-        c1new = [[c .+ vec(force_dir) for c in c1[1]]]
+        c1new = [[c .+ force_dir for c in c1[1]]]
         # Floe/boudary intersection after being moved in force direction
-        new_regions_list = get_polygons(
-            LG.intersection(
-                LG.Polygon(c1new),
-                LG.Polygon(c2),
-            ),
-        )
+        new_regions_list = intersect_coords(c1new, c2)
         # See if the area of overlap has increased in corresponding region
         for new_region in new_regions_list
             if LG.intersects(new_region, region) && LG.area(new_region)/area > 1
-                force_dir *= -1 
+                force_dir .*= -1 
             end
         end
     end
-    return (force_dir * area * force_factor)', Δl
+    return force_dir * area * force_factor, Δl
 end
 
 """
@@ -141,7 +136,6 @@ function calc_elastic_forces(
 ) where {FT<:AbstractFloat}
     ipoints = intersect_lines(c1, c2)  # Intersection points
     ncontact = 0
-    overlap = FT(0)
     if !isempty(ipoints) && size(ipoints,2) >= 2
         # Find overlapping regions greater than minumum area
         n1 = length(c1[1]) - 1
@@ -149,12 +143,12 @@ function calc_elastic_forces(
         min_area = min(n1, n2) * 100 / 1.75
         regions = regions[region_areas .> min_area]
         region_areas = region_areas[region_areas .> min_area]
-        overlap = region_areas
         ncontact = length(regions)
     end
     # Calculate forces for each remaining region
     force = zeros(FT, ncontact, 2)
     fpoint = zeros(FT, ncontact, 2)
+    overlap = ncontact > 0 ? region_areas : zeros(FT, ncontact)
     Δl_lst = zeros(FT, ncontact)
     for k in 1:ncontact
         if region_areas[k] != 0
@@ -169,7 +163,8 @@ function calc_elastic_forces(
                 ipoints,
                 force_factor
             )
-            force[k, :] = normal_force
+            force[k, 1] = normal_force[1]
+            force[k, 2] = normal_force[2]
             Δl_lst[k] = Δl
         end
     end
@@ -268,14 +263,7 @@ function floe_floe_interaction!(
     Δt,
     max_overlap::FT,
 ) where {FT<:AbstractFloat}
-    ifloe_poly = LG.Polygon(ifloe.coords)
-    jfloe_poly = LG.Polygon(jfloe.coords)
-    inter_regions = get_polygons(
-        LG.intersection(
-            ifloe_poly,
-            jfloe_poly,
-        ),
-    )::Vector{LG.Polygon}
+    inter_regions = intersect_coords(ifloe.coords, jfloe.coords)
     region_areas = Vector{FT}(undef, length(inter_regions))
     total_area = FT(0)
     for i in eachindex(inter_regions)
@@ -1051,7 +1039,7 @@ function add_floe_ghosts!(
     for i in eachindex(floes)
         f = floes[i]
         # the floe is active in the simulation and a parent floe
-        if f.status.tag == active && f.ghost_id == 0
+        if floes.status[i].tag == active && floes.ghost_id[i] == 0
             f, new_ghosts = find_ghosts(
                 f,
                 floes[f.ghosts],
@@ -1066,7 +1054,7 @@ function add_floe_ghosts!(
                 # add ghosts to floe list
                 append!(floes, new_ghosts)
                 # index of ghosts floes saved in parent
-                append!(f.ghosts, (nfloes + 1):(nfloes + nghosts))
+                append!(floes.ghosts[i], (nfloes + 1):(nfloes + nghosts))
                 nfloes += nghosts
                 floes[i] = f
             end

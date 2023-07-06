@@ -71,7 +71,7 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 2000,
+    nΔt = 1000,
     verbose = true,
     writers = writers,
     rng = Xoshiro(1),
@@ -81,6 +81,6 @@ simulation = Simulation(
 
 ProfileView.@profview run!(simulation)
  
-Subzero.create_sim_gif("output/shear_flow/floes.jld2", 
-                       "output/shear_flow/initial_state.jld2",
-                       "output/shear_flow/shear_flow.gif")
+# Subzero.create_sim_gif("output/shear_flow/floes.jld2", 
+#                        "output/shear_flow/initial_state.jld2",
+#                        "output/shear_flow/shear_flow.gif")
