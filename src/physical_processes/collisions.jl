@@ -911,16 +911,25 @@ Inputs:
 Outputs:
         New ghosts created by the given element, or its current ghosts, passing through the given boundary. 
 """
-function ghosts_on_bounds(element, ghosts, boundary, trans_vec)
-    new_ghosts = StructArray(Vector{typeof(element)}())
-    if LG.area(LG.intersection(LG.Polygon(element.coords), LG.Polygon(boundary.coords))) > 0
-        # ghosts of existing ghosts and original element
-        append!(new_ghosts, deepcopy.(ghosts))
-        push!(new_ghosts, deepcopy(element))
-        for i in eachindex(new_ghosts)
-            translate!(new_ghosts.coords[i], trans_vec[1], trans_vec[2])
-            new_ghosts.centroid[i] .+= trans_vec
+function ghosts_on_bounds(
+    floes,
+    elem_idx,
+    boundary,
+    trans_vec,
+)
+    new_ghosts =
+        if sum(LG.area.(intersect_coords(
+            floes.coords[elem_idx],
+            boundary.coords,
+        ))) > 0
+            # make ghosts of existing ghosts and original element
+            floes[[floes.ghosts[elem_idx]; elem_idx]]
+        else
+            StructArray(Vector{eltype(floes)}())
         end
+    for i in eachindex(new_ghosts)
+        translate!(new_ghosts.coords[i], trans_vec[1], trans_vec[2])
+        new_ghosts.centroid[i] .+= trans_vec
     end
     return new_ghosts
 end
@@ -948,27 +957,50 @@ Outputs:
     including ghosts of previously existing ghosts.
 """
 function find_ghosts(
-    elem,
-    current_ghosts,
+    floes,
+    elem_idx,
     ebound::PeriodicBoundary{East, FT},
     wbound::PeriodicBoundary{West, FT},
 ) where {FT <: AbstractFloat}
     Lx = ebound.val - wbound.val
     new_ghosts =
         # passing through western boundary
-        if (elem.centroid[1] - elem.rmax < wbound.val)
-            ghosts_on_bounds(elem, current_ghosts, wbound, [Lx, FT(0)])
+        if (floes.centroid[elem_idx][1] - floes.rmax[elem_idx] < wbound.val)
+            ghosts_on_bounds(
+                floes,
+                elem_idx,
+                wbound,
+                [Lx, FT(0)],
+            )
         # passing through eastern boundary
-        elseif (elem.centroid[1] + elem.rmax > ebound.val)
-            ghosts_on_bounds(elem, current_ghosts, ebound, [-Lx, FT(0)])
+        elseif (floes.centroid[elem_idx][1] + floes.rmax[elem_idx] > ebound.val)
+            ghosts_on_bounds(
+                floes,
+                elem_idx,
+                ebound,
+                [-Lx, FT(0)],
+            )
         else
-            StructArray(Vector{typeof(elem)}())
+            StructArray(Vector{eltype(floes)}())
         end
     # if element centroid isn't in domain's east/west direction, swap with ghost
-    if !isempty(new_ghosts) && ((elem.centroid[1] < wbound.val) || (ebound.val < elem.centroid[1]))
-        elem, new_ghosts[end] = new_ghosts[end], elem
+    if !isempty(new_ghosts) 
+        Δx =
+            if floes.centroid[elem_idx][2] < wbound.val
+                Lx
+            elseif ebound.val < floes.centroid[elem_idx][2]
+            -Lx
+            else
+                FT(0)
+            end
+        if Δx != 0
+            translate!(floes.coords[elem_idx], Δx, FT(0))
+            floes.centroid[elem_idx] .+= [Δx, FT(0)]
+            translate!(new_ghosts.coords[end], -Δx, FT(0))
+            new_ghosts.centroid[elem_idx] .+= [-Δx, FT(0)]
+        end
     end
-    return elem, new_ghosts
+    return new_ghosts
 end
 
 """
@@ -994,27 +1026,51 @@ Outputs:
     including ghosts of previously existing ghosts.
 """
 function find_ghosts(
-    elem,
-    current_ghosts,
+    floes,
+    elem_idx,
     nbound::PeriodicBoundary{North, FT},
     sbound::PeriodicBoundary{South, FT},
 ) where {FT <: AbstractFloat}
     Ly =  nbound.val - sbound.val
     new_ghosts = 
         # passing through southern boundary
-        if (elem.centroid[2] - elem.rmax < sbound.val)
-            ghosts_on_bounds(elem, current_ghosts, sbound, [FT(0), Ly])
+        if (floes.centroid[elem_idx][2] - floes.rmax[elem_idx] < sbound.val)
+            ghosts_on_bounds(
+                floes,
+                elem_idx,
+                sbound,
+                [FT(0), Ly],
+            )
         # passing through northern boundary
-        elseif (elem.centroid[2] + elem.rmax > nbound.val) 
-            ghosts_on_bounds(elem, current_ghosts, nbound, [FT(0), -Ly])
+        elseif (floes.centroid[elem_idx][2] + floes.rmax[elem_idx] > nbound.val) 
+            ghosts_on_bounds(
+                floes,
+                elem_idx,
+                nbound,
+                [FT(0), -Ly],
+            )
         else
-            StructArray(Vector{typeof(elem)}())
+            StructArray(Vector{eltype(floes)}())
         end
     # if element centroid isn't in domain's north/south direction, swap with ghost
-    if !isempty(new_ghosts) && ((elem.centroid[2] < sbound.val) || (nbound.val < elem.centroid[2]))
-        elem, new_ghosts[end] = new_ghosts[end], elem
+
+    if !isempty(new_ghosts) 
+        Δy =
+            if floes.centroid[elem_idx][2] < sbound.val
+                Ly
+            elseif nbound.val < floes.centroid[elem_idx][2]
+                -Ly
+            else
+                FT(0)
+            end
+        if Δy != 0
+            translate!(floes.coords[elem_idx], FT(0), Δy)
+            floes.centroid[elem_idx] .+= [FT(0), Δy]
+            translate!(new_ghosts.coords[end], FT(0), -Δy)
+            new_ghosts.centroid[elem_idx] .+= [FT(0), -Δy]
+        end
     end
-    return elem, new_ghosts
+    return new_ghosts
 end
 
 """
@@ -1037,18 +1093,17 @@ function add_floe_ghosts!(
     nfloes = length(floes)
     # uses initial length of floes so we can append to list
     for i in eachindex(floes)
-        f = floes[i]
         # the floe is active in the simulation and a parent floe
         if floes.status[i].tag == active && floes.ghost_id[i] == 0
-            f, new_ghosts = find_ghosts(
-                f,
-                floes[f.ghosts],
+            new_ghosts = find_ghosts(
+                floes,
+                i,
                 max_boundary,
                 min_boundary,
             )
             if !isempty(new_ghosts)
                 nghosts = length(new_ghosts)
-                new_ghosts.ghost_id .= range(1, nghosts) .+ length(f.ghosts)
+                new_ghosts.ghost_id .= range(1, nghosts) .+ length(floes.ghosts[i])
                 # remove ghost floes ghosts as these were added to parent
                 empty!.(new_ghosts.ghosts)
                 # add ghosts to floe list
@@ -1056,7 +1111,6 @@ function add_floe_ghosts!(
                 # index of ghosts floes saved in parent
                 append!(floes.ghosts[i], (nfloes + 1):(nfloes + nghosts))
                 nfloes += nghosts
-                floes[i] = f
             end
         end
     end

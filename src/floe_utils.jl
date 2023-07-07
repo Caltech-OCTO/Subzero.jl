@@ -72,7 +72,7 @@ function get_polygons(geom)
         if geom isa LG.Polygon
             [geom]
         elseif geom isa LG.MultiPolygon
-            sub_geoms = LG.getGeometries(multipoly)
+            sub_geoms = LG.getGeometries(geom)
             for i in reverse(eachindex(sub_geoms))
                 if LG.area(sub_geoms[i]) == 0
                     deleteat!(sub_geoms, i)
