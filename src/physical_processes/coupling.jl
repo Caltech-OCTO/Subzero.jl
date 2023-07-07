@@ -30,6 +30,25 @@ within the floe that have a smaller error than `err`.
     npoints::Int = 1000
     ntries::Int = 10
     err::FT = 0.1
+
+    function MonteCarloPointsGenerator{FT}(
+        npoints,
+        ntries,
+        err,
+    ) where {FT <: AbstractFloat}
+        if npoints < 1
+            throw(ArgumentError("Interpolation cannot be preformed with no \
+            monte carlo points. Field npoints must be positive."))
+        end
+        if ntries < 1
+            throw(ArgumentError("Monte carlo points cannot be generated without\
+             trying at least once. Field ntried must be positive."))
+        end
+        if err < 0 || err > 1
+            throw(ArgumentError("Field err must be between 0 and 1."))
+        end
+        return new{FT}(npoints, ntries, err)
+    end
 end
 
 """
@@ -39,8 +58,12 @@ A float type FT can be provided as the first argument of any
 MonteCarloPointsGenerator constructor. A MonteCarloPointsGenerato of type FT
 will be created by passing all other arguments to the correct constructor. 
 """
-MonteCarloPointsGenerator(::Type{FT}; kwargs...) where {FT <: AbstractFloat} =
-    MonteCarloPointsGenerator{FT}(; kwargs...)
+MonteCarloPointsGenerator(
+    ::Type{FT},
+    args...;
+    kwargs...,
+) where {FT <: AbstractFloat} =
+    MonteCarloPointsGenerator{FT}(args...; kwargs...)
 
 """
     MonteCarloPointsGenerator(; kwargs...)
@@ -48,8 +71,8 @@ MonteCarloPointsGenerator(::Type{FT}; kwargs...) where {FT <: AbstractFloat} =
 If type isn't specified, MonteCarloPointsGenerator(; kwargs...) will be of type
 Float64 and the correct constructor will be called with all other arguments.
 """
-MonteCarloPointsGenerator(; kwargs...) =
-    MonteCarloPointsGenerator{Float64}(; kwargs...)
+MonteCarloPointsGenerator(args...; kwargs...) =
+    MonteCarloPointsGenerator{Float64}(args...; kwargs...)
 
 """
     SubGridPointsGenerator
@@ -64,6 +87,14 @@ is at least one point in each grid cell that the floe occupies.
     FT <: AbstractFloat,
 } <: AbstractSubFloePointsGenerator
     Δg::FT
+
+    function SubGridPointsGenerator{FT}(Δg) where {FT <: AbstractFloat}
+        if Δg <= 0
+            throw(ArgumentError("Field Δg must be positive as it is the width \
+            and height value of the sub-floe grid cells."))
+        end
+        return new{FT}(Δg)
+    end
 end
 
 """
