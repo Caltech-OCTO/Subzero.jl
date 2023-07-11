@@ -917,19 +917,18 @@ function ghosts_on_bounds(
     boundary,
     trans_vec,
 )
-    new_ghosts =
-        if sum(LG.area.(intersect_coords(
-            floes.coords[elem_idx],
-            boundary.coords,
-        ))) > 0
-            # make ghosts of existing ghosts and original element
-            floes[[floes.ghosts[elem_idx]; elem_idx]]
-        else
-            StructArray(Vector{eltype(floes)}())
+    new_ghosts = StructArray(Vector{eltype(floes)}())
+
+    if !isempty(intersect_coords(floes.coords[elem_idx], boundary.coords))
+        # ghosts of existing ghosts and original element
+        for i in floes.ghosts[elem_idx]
+            push!(new_ghosts, deepcopy(floes[i]))
         end
-    for i in eachindex(new_ghosts)
-        translate!(new_ghosts.coords[i], trans_vec[1], trans_vec[2])
-        new_ghosts.centroid[i] .+= trans_vec
+        push!(new_ghosts, deepcopy(floes[elem_idx]))
+        for i in eachindex(new_ghosts)
+            translate!(new_ghosts.coords[i], trans_vec[1], trans_vec[2])
+            new_ghosts.centroid[i] .+= trans_vec
+        end
     end
     return new_ghosts
 end
@@ -984,20 +983,17 @@ function find_ghosts(
             StructArray(Vector{eltype(floes)}())
         end
     # if element centroid isn't in domain's east/west direction, swap with ghost
-    if !isempty(new_ghosts) 
-        Δx =
-            if floes.centroid[elem_idx][2] < wbound.val
-                Lx
-            elseif ebound.val < floes.centroid[elem_idx][2]
-            -Lx
-            else
-                FT(0)
-            end
-        if Δx != 0
-            translate!(floes.coords[elem_idx], Δx, FT(0))
-            floes.centroid[elem_idx] .+= [Δx, FT(0)]
-            translate!(new_ghosts.coords[end], -Δx, FT(0))
-            new_ghosts.centroid[elem_idx] .+= [-Δx, FT(0)]
+    if !isempty(new_ghosts)
+        if floes.centroid[elem_idx][1] < wbound.val
+            translate!(floes.coords[elem_idx], Lx, FT(0))
+            floes.centroid[elem_idx][1] += Lx
+            translate!(new_ghosts.coords[end], -Lx, FT(0))
+            new_ghosts.centroid[end][1] -= Lx
+        elseif ebound.val < floes.centroid[elem_idx][1]
+            translate!(floes.coords[elem_idx], -Lx, FT(0))
+            floes.centroid[elem_idx][1] -= Lx
+            translate!(new_ghosts.coords[end], Lx, FT(0))
+            new_ghosts.centroid[end][1] += Lx
         end
     end
     return new_ghosts
@@ -1053,21 +1049,17 @@ function find_ghosts(
             StructArray(Vector{eltype(floes)}())
         end
     # if element centroid isn't in domain's north/south direction, swap with ghost
-
-    if !isempty(new_ghosts) 
-        Δy =
-            if floes.centroid[elem_idx][2] < sbound.val
-                Ly
-            elseif nbound.val < floes.centroid[elem_idx][2]
-                -Ly
-            else
-                FT(0)
-            end
-        if Δy != 0
-            translate!(floes.coords[elem_idx], FT(0), Δy)
-            floes.centroid[elem_idx] .+= [FT(0), Δy]
-            translate!(new_ghosts.coords[end], FT(0), -Δy)
-            new_ghosts.centroid[elem_idx] .+= [FT(0), -Δy]
+    if !isempty(new_ghosts)
+        if floes.centroid[elem_idx][2] < sbound.val
+            translate!(floes.coords[elem_idx], FT(0), Ly)
+            floes.centroid[elem_idx][2] += Ly
+            translate!(new_ghosts.coords[end], FT(0), -Ly)
+            new_ghosts.centroid[end][2] -= Ly
+        elseif nbound.val < floes.centroid[elem_idx][2]
+            translate!(floes.coords[elem_idx], FT(0), -Ly)
+            floes.centroid[elem_idx][2] -= Ly
+            translate!(new_ghosts.coords[end], FT(0), Ly)
+            new_ghosts.centroid[end][2] += Ly
         end
     end
     return new_ghosts
@@ -1116,7 +1108,6 @@ function add_floe_ghosts!(
     end
     return
 end
-
 """
     add_ghosts!(
         elems,

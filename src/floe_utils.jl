@@ -97,6 +97,10 @@ intersect_coords(c1, c2) = intersect_polys(
     LG.Polygon(c2),
 )::Vector{LG.Polygon}
 
+
+# Base.deepcopy(floe::Floe) = 
+#     Floe([deepcopy(getfield(floe, name)) for name in fieldnames(Floe)]...)
+
 """
     get_polygons(poly::LG.Polygon) = [poly]
 

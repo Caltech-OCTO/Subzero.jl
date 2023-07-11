@@ -77,10 +77,10 @@ simulation = Simulation(
     rng = Xoshiro(1),
     coupling_settings = coupling_settings,
 )
-#run_time!(simulation)
+run_time!(simulation)
 
-ProfileView.@profview run!(simulation)
+#ProfileView.@profview run!(simulation)
  
-# Subzero.create_sim_gif("output/shear_flow/floes.jld2", 
-#                        "output/shear_flow/initial_state.jld2",
-#                        "output/shear_flow/shear_flow.gif")
+Subzero.create_sim_gif("output/shear_flow/floes.jld2", 
+                       "output/shear_flow/initial_state.jld2",
+                       "output/shear_flow/shear_flow.gif")

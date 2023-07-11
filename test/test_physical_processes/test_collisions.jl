@@ -644,6 +644,7 @@
         @test floe_arr[1].interactions[1, Subzero.xforce] != floe_arr[1].interactions[2, Subzero.xforce] && floe_arr[1].interactions[1, Subzero.xforce] != floe_arr[1].interactions[3,Subzero.xforce]
         @test floe_arr[1].interactions[1, Subzero.yforce] != floe_arr[1].interactions[2, Subzero.yforce] && floe_arr[1].interactions[1, Subzero.yforce] != floe_arr[1].interactions[3, Subzero.yforce]
 
+        empty!(small_rect.ghosts)
         floe_arr = StructArray([small_rect, bound_rect])
         for i in eachindex(floe_arr)
             floe_arr.id[i] = Float64(i)
