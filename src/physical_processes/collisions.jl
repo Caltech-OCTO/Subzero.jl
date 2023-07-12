@@ -49,7 +49,7 @@ function calc_normal_force(
         dists[i], verts[i] = findmin([sum((c .- p_i).^2) for c in coords[1]])
     end
     dists .= sqrt.(dists)
-    p = coords[1][verts[findall(d -> d<1, dists)]] # maybe do rmax/1000
+    p = @view coords[1][verts[dists .< 1]] # maybe do rmax/1000
     m = length(p)
 
     # Calculate force direction
@@ -315,8 +315,13 @@ function floe_floe_interaction!(
                 # Calculate total forces and update ifloe's interactions
                 forces = normal_forces .+ friction_forces
                 if sum(abs.(forces)) != 0
-                    ifloe.interactions = [ifloe.interactions;
-                        fill(j, np) forces fpoints zeros(FT, np) overlaps]
+                    new_interactions = [
+                        fill(j, np) forces fpoints zeros(FT, np) overlaps
+                    ]
+                    ifloe.interactions = vcat(
+                        ifloe.interactions,
+                        new_interactions
+                    )
                     ifloe.overarea += sum(overlaps)
                 end
             end
@@ -540,7 +545,7 @@ function floe_domain_element_interaction!(
     region_areas = Vector{FT}(undef, length(inter_regions))
     max_area = FT(0)
     for i in eachindex(inter_regions)
-        a = LG.area(inter_regions[i])::FT
+        a = FT(LG.area(inter_regions[i]))
         region_areas[i] = a
         if a > max_area
             max_area = a
@@ -875,8 +880,15 @@ function timestep_collisions!(
                 j = ij_inters[inter_idx, floeidx]  # Index of floe to update
                 if j <= length(floes) && j > i
                     jidx = Int(j)
-                    floes.interactions[jidx] = [floes.interactions[jidx]; i -ij_inters[inter_idx, xforce] -ij_inters[inter_idx, yforce] #=
-                                             =# ij_inters[inter_idx, xpoint] ij_inters[inter_idx, ypoint] FT(0.0) ij_inters[inter_idx, overlap]]
+                    floes.interactions[jidx] = vcat(
+                        floes.interactions[jidx],
+                        ij_inters[inter_idx:inter_idx, :]
+                    )
+                    floes.interactions[jidx][end, floeidx] = i
+                    floes.interactions[jidx][end, xforce] *= -1
+                    floes.interactions[jidx][end, yforce] *= -1
+                    # floes.interactions[jidx] = [floes.interactions[jidx]; i -ij_inters[inter_idx, xforce] -ij_inters[inter_idx, yforce] #=
+                    #                          =# ij_inters[inter_idx, xpoint] ij_inters[inter_idx, ypoint] FT(0.0) ij_inters[inter_idx, overlap]]
                     floes.overarea[jidx] += ij_inters[inter_idx, overlap]
                 end
             end
@@ -922,9 +934,9 @@ function ghosts_on_bounds(
     if !isempty(intersect_coords(floes.coords[elem_idx], boundary.coords))
         # ghosts of existing ghosts and original element
         for i in floes.ghosts[elem_idx]
-            push!(new_ghosts, deepcopy(floes[i]))
+            push!(new_ghosts, deepcopy_floe_fields!(floes[i]))
         end
-        push!(new_ghosts, deepcopy(floes[elem_idx]))
+        push!(new_ghosts, deepcopy_floe_fields!(floes[elem_idx]))
         for i in eachindex(new_ghosts)
             translate!(new_ghosts.coords[i], trans_vec[1], trans_vec[2])
             new_ghosts.centroid[i] .+= trans_vec

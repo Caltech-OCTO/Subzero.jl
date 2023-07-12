@@ -98,9 +98,9 @@ intersect_coords(c1, c2) = intersect_polys(
 )::Vector{LG.Polygon}
 
 
-function deepcopy_floe_fields!(floe::Floe)
+function deepcopy_floe_fields!(floe::Floe{FT}) where {FT}
     floe.centroid = copy(floe.centroid)
-    floe.coords = deepcopy(floe.coords)
+    floe.coords = translate(floe.coords, 0, 0)
     floe.angles = copy(floe.angles)
     floe.x_subfloe_points = copy(floe.x_subfloe_points)
     floe.y_subfloe_points = copy(floe.y_subfloe_points)
@@ -110,8 +110,12 @@ function deepcopy_floe_fields!(floe::Floe)
     floe.collision_force = copy(floe.collision_force)
     floe.interactions = copy(floe.interactions)
     floe.stress = copy(floe.stress)
-    floe.stress_history.cb = deepcopy(floe.stress_history.cb)
-    floe.stress_history.total = copy(floe.stress_history.total)
+    new_stress_history = StressCircularBuffer{FT}(
+        capacity(floe.stress_history.cb),
+    )
+    new_stress_history.total = copy(floe.stress_history.total)
+    append!(new_stress_history.cb, copy(floe.stress_history.cb))
+    floe.stress_history = new_stress_history
     floe.strain = copy(floe.strain)
     return floe
 end
@@ -181,19 +185,19 @@ Inputs:
 Output:
     Updates given coords
 """
-# function translate(coords::PolyVec{FT}, Δx, Δy) where {FT<:AbstractFloat}
-#     @views new_coords = [[Vector{Float64}(undef, 2) for _ in eachindex(coords[1])]]
-#     @views for i in eachindex(coords[1])
-#         new_coords[1][i][1] = coords[1][i][1] + Δx
-#         new_coords[1][i][2] = coords[1][i][2] + Δy 
-#     end
-#     return new_coords
-# end
 function translate(coords::PolyVec{FT}, Δx, Δy) where {FT<:AbstractFloat}
-    new_coords = deepcopy(coords)
-    translate!(new_coords, Δx, Δy)
+    @views new_coords = [[Vector{Float64}(undef, 2) for _ in eachindex(coords[1])]]
+    @views for i in eachindex(coords[1])
+        new_coords[1][i][1] = coords[1][i][1] + Δx
+        new_coords[1][i][2] = coords[1][i][2] + Δy 
+    end
     return new_coords
 end
+# function translate(coords::PolyVec{FT}, Δx, Δy) where {FT<:AbstractFloat}
+#     new_coords = deepcopy(coords)
+#     translate!(new_coords, Δx, Δy)
+#     return new_coords
+# end
 
 """
     translate!(coords, Δx, Δy)
