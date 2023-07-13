@@ -98,7 +98,7 @@ intersect_coords(c1, c2) = intersect_polys(
 )::Vector{LG.Polygon}
 
 
-function deepcopy_floe_fields!(floe::Floe{FT}) where {FT}
+function deepcopy_floe_fields!(floe::LazyRow{Floe{FT}}) where {FT}
     floe.centroid = copy(floe.centroid)
     floe.coords = translate(floe.coords, 0, 0)
     floe.angles = copy(floe.angles)
