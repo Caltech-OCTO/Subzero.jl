@@ -70,7 +70,7 @@ Outputs:
 function get_polygons(geom)
     polys =
         if geom isa LG.Polygon
-            [geom]
+            LG.area(geom) > 0 ? [geom] : Vector{LG.Polygon}()
         elseif geom isa LG.MultiPolygon
             sub_geoms = LG.getGeometries(geom)
             for i in reverse(eachindex(sub_geoms))
