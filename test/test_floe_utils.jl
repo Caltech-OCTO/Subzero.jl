@@ -187,12 +187,21 @@
     # ------------------------- Test intersection of lines ---------------------
     l1 = [[[0.0, 0.0], [2.5, 0.0], [5.0, 0.0]]]
     l2 = [[[2.0, -3.0], [3.0, 0.0], [4.0, 3.0]]]
-    @test Subzero.intersect_lines(l1, l2) == [3.0 0.0]
+    @test issetequal(
+        Subzero.intersect_lines(l1, l2),
+        Set([(3.0, 0.0)]),
+    )
     l1 = [[[0., -1], [1, 1], [2, -1], [3, 1]]]
     l2 = [[[0., 0], [1, 0], [3, 0]]]
-    @test Subzero.intersect_lines(l1, l2) == [0.5 0; 1.5 0; 2.5 0]
+    @test issetequal(
+        Subzero.intersect_lines(l1, l2),
+        Set([(0.5, -0.0), (1.5, 0), (2.5, -0.0)]),
+    )
     l2 = [[[10., 10]]]
-    @test Subzero.intersect_lines(l1, l2) == zeros(2,0)
+    @test issetequal(
+        Subzero.intersect_lines(l1, l2),
+        Set{Tuple{Float64, Float64}}(),
+    )
 
     # -------------- Test cutting polygon through horizontal line --------------
     # Cut a hexagon through the line y = -1

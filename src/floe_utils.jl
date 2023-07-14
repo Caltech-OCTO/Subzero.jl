@@ -778,47 +778,86 @@ Note - Translated into Julia from the following program:
     MATLAB Central File Exchange. Retrieved November 2, 2022.
     Only translated for the case where l1 and l2 are distinct. 
 """
-function intersect_lines(l1, l2)
-    x1, y1 = separate_xy(l1)
-    x2, y2 = separate_xy(l2)
-    x2t = x2'
-    y2t = y2'
-    Δx1 = diff(x1)
-    Δx2 = diff(x2t, dims = 2)
-    Δy1 = diff(y1)
-    Δy2 = diff(y2t, dims = 2)
+function intersect_lines(l1::PolyVec{FT}, l2) where {FT}
+    points = Set{Tuple{FT, FT}}()
+    for i in 1:(length(l1[1]) - 1)
+         # First line represented as a1x + b1y = c1
+         x11 = l1[1][i][1]
+         x12 = l1[1][i+1][1]
+         y11 = l1[1][i][2]
+         y12 = l1[1][i+1][2]
+         a1 = y12 - y11
+         b1 = x11 - x12
+         c1 = a1 * x11 + b1 * y11
+        for j in 1:(length(l2[1]) - 1)
+            # Second line represented as a2x + b2y = c2
+            x21 = l2[1][j][1]
+            x22 = l2[1][j+1][1]
+            y21 = l2[1][j][2]
+            y22 = l2[1][j+1][2]
+            a2 = y22 - y21
+            b2 = x21 - x22
+            c2 = a2 * x21 + b2 * y21
 
-    # Determine 'signed distances' 
-    S1 = Δx1 .* @view(y1[1:end-1]) .- Δy1 .* @view(x1[1:end-1])
-    s1 = (Δx1 .* y2t .- Δy1 .*x2t)  # Needed for S1 calculation
-    C1 = (@view(s1[:, 1:end-1]) .- S1) .* (@view(s1[:, 2:end]) .- S1) .<= 0
+            determinant = a1 * b2 - a2 * b1
+            if determinant != 0
+                x = (b2*c1 - b1*c2)/determinant
+                y = (a1*c2 - a2*c1)/determinant
 
-    S2 = Δx2 .* @view(y2t[:, 1:end-1]) .- Δy2 .* @view(x2t[:, 1:end-1])
-    s2 = (y1 .* Δx2 .- x1 .* Δy2)'  # Needed for S2 calculation
-    C2 = ((@view(s2[:, 1:end-1]) .- S2') .* (@view(s2[:, 2:end]) .- S2') .<= 0)'
-
-    # Obtain the segments where an intersection is expected
-    idx = findall(C1 .& C2)
-
-    P = if isempty(idx)
-        zeros(eltype(x1), 2,0)
-    else
-        # Transpose and prepare for output
-        i = getindex.(idx, 1)
-        j = getindex.(idx, 2)[:, :]
-        Δx2t = Δx2'
-        Δy2t = Δy2'
-        S2t = S2'
-        L = Δy2t[j] .* Δx1[i] - Δy1[i] .* Δx2t[j]
-        i = i[:, :][L .!= 0]
-        j = j[L .!= 0]
-        L = L[L .!= 0]
-        # Solve system of eqs to get the common points
-        unique(hcat((Δx2t[j] .* S1[i] - Δx1[i] .* S2t[j]) ./ L,
-                    (Δy2t[j] .* S1[i] - Δy1[i] .* S2t[j]) ./ L), dims = 1)
+                if min(x11, x12) <= x <= max(x11, x12) &&
+                    min(x21, x22) <= x <= max(x21, x22) &&
+                    min(y11, y12) <= y <= max(y11, y12) &&
+                    min(y21, y22) <= y <= max(y21, y22)
+                    push!(points, (x, y))
+                end
+            end
+        end
     end
-    return P
+    return points
 end
+
+
+# function intersect_lines(l1, l2)
+#     x1, y1 = separate_xy(l1)
+#     x2, y2 = separate_xy(l2)
+#     x2t = x2'
+#     y2t = y2'
+#     Δx1 = diff(x1)
+#     Δx2 = diff(x2t, dims = 2)
+#     Δy1 = diff(y1)
+#     Δy2 = diff(y2t, dims = 2)
+
+#     # Determine 'signed distances' 
+#     S1 = Δx1 .* @view(y1[1:end-1]) .- Δy1 .* @view(x1[1:end-1])
+#     s1 = (Δx1 .* y2t .- Δy1 .*x2t)  # Needed for C1 calculation
+#     C1 = (@view(s1[:, 1:end-1]) .- S1) .* (@view(s1[:, 2:end]) .- S1) .<= 0
+
+#     S2 = Δx2 .* @view(y2t[:, 1:end-1]) .- Δy2 .* @view(x2t[:, 1:end-1])
+#     s2 = (y1 .* Δx2 .- x1 .* Δy2)'  # Needed for C2 calculation
+#     C2 = ((@view(s2[:, 1:end-1]) .- S2') .* (@view(s2[:, 2:end]) .- S2') .<= 0)'
+
+#     # Obtain the segments where an intersection is expected
+#     idx = findall(C1 .& C2)
+
+#     P = if isempty(idx)
+#         zeros(eltype(x1), 2,0)
+#     else
+#         # Transpose and prepare for output
+#         i = getindex.(idx, 1)
+#         j = getindex.(idx, 2)[:, :]
+#         Δx2t = Δx2'
+#         Δy2t = Δy2'
+#         S2t = S2'
+#         L = Δy2t[j] .* Δx1[i] - Δy1[i] .* Δx2t[j]
+#         i = i[:, :][L .!= 0]
+#         j = j[L .!= 0]
+#         L = L[L .!= 0]
+#         # Solve system of eqs to get the common points
+#         unique(hcat((Δx2t[j] .* S1[i] - Δx1[i] .* S2t[j]) ./ L,
+#                     (Δy2t[j] .* S1[i] - Δy1[i] .* S2t[j]) ./ L), dims = 1)
+#     end
+#     return P
+# end
 
 """
     cut_polygon_coords(poly_coords::PolyVec, yp)

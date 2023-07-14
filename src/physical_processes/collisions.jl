@@ -40,16 +40,33 @@ function calc_normal_force(
 ) where {FT<:AbstractFloat}
     force_dir = zeros(FT, 2)
     coords = find_poly_coords(region)
-    n_ipoints = size(ipoints, 1)
+    n_ipoints = length(ipoints)
     # Identify which region coordinates are the intersection points (ipoints)
-    verts = zeros(Int64, n_ipoints)
-    dists = zeros(FT, n_ipoints)
-    for i in 1:n_ipoints
-        p_i = repeat(ipoints[i, :], length(coords))
-        dists[i], verts[i] = findmin([sum((c .- p_i).^2) for c in coords[1]])
+    #verts = zeros(Int64, n_ipoints)
+    #dists = zeros(FT, n_ipoints)
+    p = Vector{Vector{FT}}()
+    @views for ip in ipoints
+        min_dist = FT(Inf)
+        min_vert = 1
+        for i in eachindex(coords[1])
+            dist = sqrt((coords[1][i][1] - ip[1])^2 + (coords[1][i][2] - ip[2])^2)
+            if dist < min_dist
+                min_dist = dist
+                min_vert = i
+            end
+        end
+        if min_dist < 1
+            push!(p, coords[1][min_vert])
+        end
     end
-    dists .= sqrt.(dists)
-    p = @view coords[1][verts[dists .< 1]] # maybe do rmax/1000
+    #println(p)
+    # for i in 1:n_ipoints
+    #     p_i = repeat(ipoints[i, :], length(coords))
+    #     dists[i], verts[i] = findmin([sum((c .- p_i).^2) for c in coords[1]])
+    # end
+    # dists .= sqrt.(dists)
+    # p = @view coords[1][verts[dists .< 1]] # maybe do rmax/1000
+    # println(p)
     m = length(p)
 
     # Calculate force direction
@@ -136,7 +153,7 @@ function calc_elastic_forces(
 ) where {FT<:AbstractFloat}
     ipoints = intersect_lines(c1, c2)  # Intersection points
     ncontact = 0
-    if !isempty(ipoints) && size(ipoints,2) >= 2
+    if !isempty(ipoints) && length(ipoints) >= 2
         # Find overlapping regions greater than minumum area
         n1 = length(c1[1]) - 1
         n2 = length(c2[1]) - 1
@@ -533,15 +550,7 @@ function floe_domain_element_interaction!(
     Δt,
     max_overlap::FT,
 ) where {FT}
-    floe_poly = LG.Polygon(floe.coords)
-    bounds_poly = LG.Polygon(element.coords)
-    # Check if the floe and element actually overlap
-    inter_regions = get_polygons(
-        LG.intersection(
-            floe_poly,
-            bounds_poly,
-        ),
-    )::Vector{LG.Polygon}
+    inter_regions = intersect_coords(floe.coords, element.coords)
     region_areas = Vector{FT}(undef, length(inter_regions))
     max_area = FT(0)
     for i in eachindex(inter_regions)
@@ -551,6 +560,7 @@ function floe_domain_element_interaction!(
             max_area = a
         end
     end
+
     if max_area > 0
         # Regions overlap too much
         if maximum(region_areas)/floe.area > max_overlap
@@ -811,7 +821,7 @@ function timestep_collisions!(
 ) where {FT<:AbstractFloat}
     collide_pairs = Dict{Tuple{Int, Int}, Tuple{Int, Int}}()
     # floe-floe collisions for floes i and j where i<j
-    Threads.@threads for i in eachindex(floes)
+    for i in eachindex(floes)
         # reset collision values
         fill!(floes.collision_force[i], FT(0))
         floes.collision_trq[i] = FT(0.0)
@@ -929,22 +939,20 @@ function ghosts_on_bounds(
     boundary,
     trans_vec,
 )
-    #new_ghosts = StructArray(Vector{eltype(floes)}())
     nfloes = length(floes)
+    nghosts = 1
     if !isempty(intersect_coords(floes.coords[elem_idx], boundary.coords))
         # ghosts of existing ghosts and original element
-        for i in eachindex(floes.ghosts[elem_idx])
-            push!(floes, floes[floes.ghosts[elem_idx][i]])
-            deepcopy_floe_fields!(LazyRow(floes, nfloes + i))
-            #push!(new_ghosts, deepcopy_floe_fields!(floes[i]))
+        for i in floes.ghosts[elem_idx]
+            push!(floes, floes[i])
+            deepcopy_floe_fields!(LazyRow(floes, nfloes + nghosts))
+            nghosts += 1
         end
-        #push!(new_ghosts, deepcopy_floe_fields!(floes[elem_idx]))
         push!(floes, floes[elem_idx])
-        deepcopy_floe_fields!(LazyRow(floes, nfloes + length(elem_idx)))
-
-        for i in 1:(length(floes.ghosts[elem_idx]) + 1)
-            translate!(floes.coords[nfloes + i], trans_vec[1], trans_vec[2])
-            floes.centroid[nfloes + i] .+= trans_vec
+        deepcopy_floe_fields!(LazyRow(floes, nfloes + nghosts))
+        for i in (nfloes + 1):(nfloes + nghosts)
+            translate!(floes.coords[i], trans_vec[1], trans_vec[2])
+            floes.centroid[i] .+= trans_vec
         end
     end
     return

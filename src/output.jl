@@ -487,7 +487,11 @@ function write_data!(sim, tstep)
     # Write checkpoint data
     write_checkpoint_data!(sim, tstep)
     # Write floe data
-    write_floe_data!(sim, tstep)
+    write_floe_data!(
+        sim.writers.floewriters,
+        sim.model.floes,
+        tstep,
+    )
     # Write grid data
     write_grid_data!(
         sim.writers.gridwriters,
@@ -554,20 +558,24 @@ Output:
     Writes desired fields writer.outputs to JLD2 file with name writer.fn for
     current timestep, which will be the group in the JLD2 file. 
 """
-function write_floe_data!(sim, tstep)
-    for w in sim.writers.floewriters[
-        mod.(tstep, sim.writers.floewriters.Δtout) .== 0
+function write_floe_data!(writers, floes, tstep)
+    for w in writers[
+        mod.(tstep, writers.Δtout) .== 0
     ]
         jldopen(w.filepath, "a+") do file
             for output in w.outputs
-                file[string(output, "/", tstep)] =
-                    StructArrays.component(sim.model.floes, output)
+                vals = StructArrays.component(floes, output)
+                write_field!(vals, string(output, "/", tstep), file)
             end
         end
     end
     # once parents are recorded, they should be deleted
-    empty!.(sim.model.floes.parent_ids) 
+    empty!.(floes.parent_ids) 
     return
+end
+
+function write_field!(vals, group, file)
+    file[group] = vals
 end
 
 """
