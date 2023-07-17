@@ -562,22 +562,19 @@ function write_floe_data!(writers, floes, tstep)
     for w in writers[
         mod.(tstep, writers.Δtout) .== 0
     ]
-        jldopen(w.filepath, "a+") do file
-            for output in w.outputs
-                vals = StructArrays.component(floes, output)
-                write_field!(vals, string(output, "/", tstep), file)
-            end
+        file = jldopen(w.filepath, "a+")
+        for output in w.outputs
+            vals = StructArrays.component(floes, output)
+            write_field(file, string(output, "/", tstep), vals)
         end
+        close(file)
     end
     # once parents are recorded, they should be deleted
     empty!.(floes.parent_ids) 
     return
 end
 
-function write_field!(vals, group, file)
-    file[group] = vals
-end
-
+write_field(file, group, vals) = write(file, group, vals)
 """
     write_grid_data!(sim, tstep)
 

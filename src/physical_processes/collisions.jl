@@ -103,7 +103,7 @@ function calc_normal_force(
     end
     # Check if direction of the force desceases overlap, else negate direction
     if Δl > 0.1
-        c1new = [[c .+ force_dir for c in c1[1]]]
+        c1new = translate(c1, force_dir[1], force_dir[2])
         # Floe/boudary intersection after being moved in force direction
         new_regions_list = intersect_coords(c1new, c2)
         # See if the area of overlap has increased in corresponding region
@@ -158,9 +158,14 @@ function calc_elastic_forces(
         n1 = length(c1[1]) - 1
         n2 = length(c2[1]) - 1
         min_area = min(n1, n2) * 100 / 1.75
-        regions = regions[region_areas .> min_area]
-        region_areas = region_areas[region_areas .> min_area]
-        ncontact = length(regions)
+        for i in reverse(eachindex(region_areas))
+            if region_areas[i] < min_area
+                deleteat!(region_areas, i)
+                deleteat!(regions, i)
+            else
+                ncontact += 1
+            end
+        end
     end
     # Calculate forces for each remaining region
     force = zeros(FT, ncontact, 2)
@@ -207,7 +212,66 @@ Input:
 Outputs:
         <Float> frictional/tangential force of the collision
 """
+function get_velocity(
+    floe::Union{LazyRow{Floe{FT}}, Floe{FT}},
+    x,
+    y,
+) where {FT}
+    u = floe.u + floe.ξ * (x - floe.centroid[1])
+    v = floe.v + floe.ξ * (y - floe.centroid[2])
+    return u, v
+end
+
+get_velocity(
+    element::AbstractDomainElement{FT},
+    x,
+    y,
+) where {FT} = 
+    FT(0), FT(0)
+
 function calc_friction_forces(
+    ifloe,
+    jfloe,  # could be a boundary or a topography
+    fpoints,
+    normal::Matrix{FT},
+    Δl,
+    consts,
+    Δt,
+) where {FT}
+    force = zeros(FT, size(fpoints, 1), 2)
+    G = consts.E/(2*(1+consts.ν))
+    for i in axes(fpoints, 1)
+        px = fpoints[i, 1]
+        py = fpoints[i, 2]
+        nnorm = sqrt(normal[i, 1]^2 + normal[i, 2]^2)
+        iu, iv = get_velocity(ifloe, px, py)
+        ju, jv = get_velocity(jfloe, px, py)
+
+        udiff = iu - ju
+        vdiff = iv - jv
+
+        vnorm = sqrt(udiff^2 + vdiff^2)
+        xdir = FT(0)
+        ydir = FT(0)
+        if udiff != 0 || vdiff != 0
+            xdir = udiff/vnorm
+            ydir = vdiff/vnorm
+        end
+        dot_dir = xdir * udiff + ydir * vdiff
+        xfriction = G *  Δl[i] * Δt * nnorm * xdir * -dot_dir
+        yfriction = G *  Δl[i] * Δt * nnorm * ydir * -dot_dir
+        norm_fric = sqrt(xfriction^2 + yfriction^2)
+        if norm_fric > consts.μ * nnorm
+            xfriction = -consts.μ * nnorm * xdir
+            yfriction = -consts.μ * nnorm * ydir
+        end
+        force[i, 1] = xfriction
+        force[i, 2] = yfriction
+    end
+    return force
+end
+
+function calc_friction_forces_old(
     v1,
     v2,
     normal::Matrix{FT},
@@ -317,17 +381,14 @@ function floe_floe_interaction!(
             velocities at force points =#
             np = size(fpoints, 1)
             if np > 0
-                iv = repeat([ifloe.u ifloe.v], outer = np) .+
-                    ifloe.ξ*(fpoints .- repeat(ifloe.centroid', outer = np)) 
-                jv = repeat([jfloe.u jfloe.v], outer = np) .+
-                    jfloe.ξ*(fpoints .- repeat(jfloe.centroid', outer = np))
                 friction_forces = calc_friction_forces(
-                    iv,
-                    jv,
+                    ifloe,
+                    jfloe,
+                    fpoints,
                     normal_forces,
                     Δl,
                     consts,
-                    Δt
+                    Δt,
                 )
                 # Calculate total forces and update ifloe's interactions
                 forces = normal_forces .+ friction_forces
@@ -579,23 +640,23 @@ function floe_domain_element_interaction!(
             normal_direction_correct!(normal_forces, fpoints, element)
             # Calculate frictional forces at each force point
             np = size(fpoints, 1)
-            vfloe = repeat([floe.u floe.v], outer = np) .+
-                floe.ξ*(fpoints .- repeat(floe.centroid', outer = np)) 
-            vbound = repeat(zeros(FT, 1, 2), outer = np)
-            friction_forces = calc_friction_forces(
-                vfloe,
-                vbound,
-                normal_forces,
-                Δl,
-                consts,
-                Δt,
-            )
-            # Calculate total forces and update ifloe's interactions
-            forces = normal_forces .+ friction_forces
-            if sum(abs.(forces)) != 0
-                floe.interactions = [floe.interactions;
-                    fill(Inf, np) forces fpoints zeros(np) overlaps]
-                floe.overarea += sum(overlaps)
+            if np > 0
+                friction_forces = calc_friction_forces(
+                    floe,
+                    element,
+                    fpoints,
+                    normal_forces,
+                    Δl,
+                    consts,
+                    Δt,
+                )
+                # Calculate total forces and update ifloe's interactions
+                forces = normal_forces .+ friction_forces
+                if sum(abs.(forces)) != 0
+                    floe.interactions = [floe.interactions;
+                        fill(Inf, np) forces fpoints zeros(np) overlaps]
+                    floe.overarea += sum(overlaps)
+                end
             end
         end
     end
@@ -775,6 +836,7 @@ function calc_torque!(floe::Union{LazyRow{<:Floe{FT}}, Floe{FT}}) where {FT<:Abs
             floe.interactions[i, torque] = itorque[3]
         end
     end
+    return
 end
 
 """
@@ -944,12 +1006,20 @@ function ghosts_on_bounds(
     if !isempty(intersect_coords(floes.coords[elem_idx], boundary.coords))
         # ghosts of existing ghosts and original element
         for i in floes.ghosts[elem_idx]
-            push!(floes, floes[i])
-            deepcopy_floe_fields!(LazyRow(floes, nfloes + nghosts))
+            push!(
+                floes,
+                deepcopy_floe(LazyRow(floes, i)),
+            )
+            # push!(floes, floes[i])
+            # deepcopy_floe_fields!(LazyRow(floes, nfloes + nghosts))
             nghosts += 1
         end
-        push!(floes, floes[elem_idx])
-        deepcopy_floe_fields!(LazyRow(floes, nfloes + nghosts))
+        # push!(floes, floes[elem_idx])
+        # deepcopy_floe_fields!(LazyRow(floes, nfloes + nghosts))
+        push!(
+                floes,
+                deepcopy_floe(LazyRow(floes, elem_idx)),
+            )
         for i in (nfloes + 1):(nfloes + nghosts)
             translate!(floes.coords[i], trans_vec[1], trans_vec[2])
             floes.centroid[i] .+= trans_vec

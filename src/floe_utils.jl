@@ -54,7 +54,6 @@ Output:
 """
 find_poly_coords(poly::LG.Polygon) =
     LG.GeoInterface.coordinates(poly)::PolyVec{Float64}
-# [LG.GeoInterface.coordinates(LG.exteriorRing(poly))]::PolyVec{Float64}
 
 """
     get_polygons(geom)
@@ -98,26 +97,71 @@ intersect_coords(c1, c2) = intersect_polys(
 )::Vector{LG.Polygon}
 
 
-function deepcopy_floe_fields!(floe::LazyRow{Floe{FT}}) where {FT}
-    floe.centroid = copy(floe.centroid)
-    floe.coords = translate(floe.coords, 0, 0)
-    floe.angles = copy(floe.angles)
-    floe.x_subfloe_points = copy(floe.x_subfloe_points)
-    floe.y_subfloe_points = copy(floe.y_subfloe_points)
-    floe.status.fuse_idx = copy(floe.status.fuse_idx)
-    floe.parent_ids = copy(floe.parent_ids)
-    floe.ghosts = copy(floe.ghosts)
-    floe.collision_force = copy(floe.collision_force)
-    floe.interactions = copy(floe.interactions)
-    floe.stress = copy(floe.stress)
-    new_stress_history = StressCircularBuffer{FT}(
-        capacity(floe.stress_history.cb),
+# function deepcopy_floe_fields!(floe::LazyRow{Floe{FT}}) where {FT}
+#     floe.centroid = copy(floe.centroid)
+#     floe.coords = translate(floe.coords, 0, 0)
+#     floe.angles = copy(floe.angles)
+#     floe.x_subfloe_points = copy(floe.x_subfloe_points)
+#     floe.y_subfloe_points = copy(floe.y_subfloe_points)
+#     floe.status.fuse_idx = copy(floe.status.fuse_idx)
+#     floe.parent_ids = copy(floe.parent_ids)
+#     floe.ghosts = copy(floe.ghosts)
+#     floe.collision_force = copy(floe.collision_force)
+#     floe.interactions = copy(floe.interactions)
+#     floe.stress = copy(floe.stress)
+#     new_stress_history = StressCircularBuffer{FT}(
+#         capacity(floe.stress_history.cb),
+#     )
+#     new_stress_history.total = copy(floe.stress_history.total)
+#     append!(new_stress_history.cb, copy(floe.stress_history.cb))
+#     floe.stress_history = new_stress_history
+#     floe.strain = copy(floe.strain)
+#     return floe
+# end
+
+function deepcopy_floe(floe::LazyRow{Floe{FT}}) where {FT}
+    f = Floe{FT}(
+        centroid = copy(floe.centroid),
+        coords = translate(floe.coords, 0, 0),
+        height = floe.height,
+        area = floe.area,
+        mass = floe.mass,
+        rmax = floe.rmax,
+        moment = floe.moment,
+        angles = copy(floe.angles),
+        x_subfloe_points = copy(floe.x_subfloe_points),
+        y_subfloe_points = copy(floe.y_subfloe_points),
+        α = floe.α,
+        u = floe.u,
+        v = floe.v,
+        ξ = floe.ξ,
+        status = Status(floe.status.tag, copy(floe.status.fuse_idx)),
+        id = floe.id,
+        ghost_id = floe.ghost_id,
+        parent_ids = copy(floe.parent_ids),
+        ghosts = copy(floe.ghosts),
+        fxOA= floe.fxOA,
+        fyOA = floe.fyOA,
+        trqOA = floe.trqOA,
+        hflx_factor = floe.hflx_factor,
+        overarea = floe.overarea,
+        collision_force = copy(floe.collision_force),
+        collision_trq = floe.collision_trq,
+        stress = copy(floe.stress),
+        stress_history = StressCircularBuffer{FT}(
+            capacity(floe.stress_history.cb),
+        ),
+        strain = copy(floe.strain),
+        p_dxdt = floe.p_dxdt,
+        p_dydt = floe.p_dydt,
+        p_dudt = floe.p_dudt,
+        p_dvdt = floe.p_dvdt,
+        p_dξdt = floe.p_dξdt,
+        p_dαdt = floe.p_dαdt,
     )
-    new_stress_history.total = copy(floe.stress_history.total)
-    append!(new_stress_history.cb, copy(floe.stress_history.cb))
-    floe.stress_history = new_stress_history
-    floe.strain = copy(floe.strain)
-    return floe
+    f.stress_history.total .= copy(floe.stress_history.total)
+    append!(f.stress_history.cb, copy(floe.stress_history.cb))
+    return f
 end
 
 """
@@ -779,7 +823,7 @@ Note - Translated into Julia from the following program:
     Only translated for the case where l1 and l2 are distinct. 
 """
 function intersect_lines(l1::PolyVec{FT}, l2) where {FT}
-    points = Set{Tuple{FT, FT}}()
+    points = Vector{Tuple{FT, FT}}()
     for i in 1:(length(l1[1]) - 1)
          # First line represented as a1x + b1y = c1
          x11 = l1[1][i][1]
@@ -813,7 +857,7 @@ function intersect_lines(l1::PolyVec{FT}, l2) where {FT}
             end
         end
     end
-    return points
+    return Set(points)
 end
 
 

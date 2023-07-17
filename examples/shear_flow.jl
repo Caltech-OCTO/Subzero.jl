@@ -77,7 +77,7 @@ simulation = Simulation(
     rng = Xoshiro(1),
     coupling_settings = coupling_settings,
 )
-# run_time!(simulation)
+#run_time!(simulation)
 
 ProfileView.@profview run!(simulation)
  

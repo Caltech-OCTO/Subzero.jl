@@ -5,7 +5,7 @@ import LibGEOS as LG
 const FT = Float64
 const Lx = 1e5
 const Ly = 1e5
-const Δgrid = 1e4
+const Δgrid = 2e3
 const hmean = 0.25
 const Δh = 0.0
 const Δt = 20
