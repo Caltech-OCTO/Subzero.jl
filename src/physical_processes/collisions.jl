@@ -25,7 +25,6 @@ Inputs:
                     and 2 where the first column is the x-coordinates and the
                     second column is the y-coordinates
     force_factor <Float> Spring constant equivalent for collisions
-    t            <Type> Float type model is running on (Float64 or Float32)
 Outputs:
         <Float> normal force of collision
         Δl <Float> mean length of distance between intersection points
@@ -59,14 +58,6 @@ function calc_normal_force(
             push!(p, coords[1][min_vert])
         end
     end
-    #println(p)
-    # for i in 1:n_ipoints
-    #     p_i = repeat(ipoints[i, :], length(coords))
-    #     dists[i], verts[i] = findmin([sum((c .- p_i).^2) for c in coords[1]])
-    # end
-    # dists .= sqrt.(dists)
-    # p = @view coords[1][verts[dists .< 1]] # maybe do rmax/1000
-    # println(p)
     m = length(p)
 
     # Calculate force direction
@@ -194,34 +185,41 @@ function calc_elastic_forces(
 end
 
 """
-    calc_friction_forces(v1, v2, fpoint, nforce, Δl, consts)
+    get_velocity(
+        floe,
+        x,
+        y,
+    )
 
-Calculate frictional force for collision between two floes.
-Input:
-    v1   <Array{Float, N, 2}> Matrix of floe speeds for first floe in collision
-            at each point a force is applied to the floe - row is [u v] and one
-            row per each N point
-    v2   <Array{Float, N, 2}> vector of floe speeds for second floe or boundary
-            in collision - see v1 for form
-    fpoint  <Array{Float, N, 2}> x,y-coordinates of the point the force is
-                applied on floe overlap region
-    normal  <Array{Float, N, 2}> x,y normal force applied on fpoint on floe
-                overlap region
-    Δl      <Float> mean length of distance between intersection points
-    consts  <Constants> model constants needed for calculations
+Get velocity of a point, assumed to be on given floe.
+Inputs:
+    floe <Union{LazyRow{Floe}, Floe}> floe
+    x    <AbstractFloat> x-coordinate of point to find velocity at
+    y    <AbstractFloat> y-coordinate of point to find velocity at
 Outputs:
-        <Float> frictional/tangential force of the collision
+    u   <AbstractFloat> u velocity at point (x, y) assuming it is on given floe
+    v   <AbstractFloat> v velocity at point (x, y) assuming it is on given floe
 """
 function get_velocity(
     floe::Union{LazyRow{Floe{FT}}, Floe{FT}},
-    x,
-    y,
+    x::FT,
+    y::FT,
 ) where {FT}
     u = floe.u + floe.ξ * (x - floe.centroid[1])
     v = floe.v + floe.ξ * (y - floe.centroid[2])
     return u, v
 end
 
+"""
+    get_velocity(
+        element::AbstractDomainElement{FT},
+        x,
+        y,
+    )
+
+Get velocity, which is 0m/s by default, of a point on topography element or
+boundary. 
+"""
 get_velocity(
     element::AbstractDomainElement{FT},
     x,
@@ -229,6 +227,33 @@ get_velocity(
 ) where {FT} = 
     FT(0), FT(0)
 
+"""
+    calc_friction_forces(
+        ifloe,
+        jfloe,
+        fpoints,
+        normal::Matrix{FT},
+        Δl,
+        consts,
+        Δt,
+    )
+Calculate frictional force for collision between two floes or a floe and a
+domain element.
+Input:
+    ifloe   <Floe> first floe in collsion
+    jfloe   <Union{Floe, DomainElement}> either second floe or topography
+                element/boundary element
+    fpoints <Array{Float, N, 2}> x,y-coordinates of the point the force is
+                applied on floe overlap region
+    normal  <Array{Float, N, 2}> x,y normal force applied on fpoint on floe
+                overlap region
+    Δl      <Vector> mean length of distance between intersection points
+    consts  <Constants> model constants needed for calculations
+    Δt      <AbstractFloat> simulation's timestep
+Outputs:
+    force   <Array{Float, N, 2}> frictional/tangential force of the collision in
+                x and y (each row) for each collision (each column)
+"""
 function calc_friction_forces(
     ifloe,
     jfloe,  # could be a boundary or a topography
@@ -267,32 +292,6 @@ function calc_friction_forces(
         end
         force[i, 1] = xfriction
         force[i, 2] = yfriction
-    end
-    return force
-end
-
-function calc_friction_forces_old(
-    v1,
-    v2,
-    normal::Matrix{FT},
-    Δl,
-    consts,
-    Δt,
-) where {FT}
-    force = zeros(FT, size(v1, 1), 2)
-    G = consts.E/(2*(1+consts.ν))  # Shear modulus
-    # Difference in velocities between floes in x and y direction
-    vdiff = v1 .- v2
-    # Friction forces for each vector
-    for i in axes(vdiff, 1)
-        v = vdiff[i, :]
-        n = normal[i, :]
-        force_dir = maximum(abs.(v)) == 0 ? zeros(FT, 2) : v/norm(v)
-        friction = G * Δl[i] * Δt * norm(n) * -dot(force_dir, v) * force_dir
-        if norm(friction) > consts.μ*norm(n)
-            friction = -consts.μ*norm(n)*force_dir
-        end
-        force[i, :] = friction
     end
     return force
 end
@@ -823,7 +822,9 @@ Inputs:
 Outputs:
         None. Floe's interactions field is updated with calculated torque.
 """
-function calc_torque!(floe::Union{LazyRow{<:Floe{FT}}, Floe{FT}}) where {FT<:AbstractFloat}
+function calc_torque!(
+    floe::Union{LazyRow{<:Floe{FT}}, Floe{FT}},
+) where {FT<:AbstractFloat}
     inters = floe.interactions
     if !isempty(inters)
         dir = [inters[:, xpoint] .- floe.centroid[1] inters[:, ypoint] .- floe.centroid[2] zeros(FT, size(inters, 1))]
@@ -839,15 +840,29 @@ function calc_torque!(floe::Union{LazyRow{<:Floe{FT}}, Floe{FT}}) where {FT<:Abs
 end
 
 """
-
+    potential_interaction(
+        centroid1,
+        centroid2,
+        rmax1,
+        rmax2,
+    )
+Determine if two floes could potentially interact using the two centroid and two
+radii to form a bounding circle.
+Inputs:
+    centroid1   <Vector> first floe's centroid [x, y]
+    centroid2   <Vector> second floe's centroid [x, y]
+    rmax1       <Float> first floe's maximum radius
+    rmax2       <Float> second floe's maximum radius
+Outputs:
+    <Bool> true if floes could potentially interact, false otherwise
 """
 potential_interaction(
     centroid1,
     centroid2,
     rmax1,
     rmax2,
-) = (sum((centroid1 .- centroid2).^2) < (rmax1 + rmax2)^2)
-
+) = ((centroid1[1] - centroid2[1])^2 + (centroid1[2] - centroid2[2])^2) < 
+    (rmax1 + rmax2)^2
 
 """
     timestep_collisions!(
@@ -987,14 +1002,16 @@ end
 If the given element intersects with the boundary, add ghosts of the element and 
 any of its existing ghosts. 
 Inputs:
-        element     <StructArray{Floe} or StructArray{TopographyElement}> given element
-        ghosts      <StructArray{Floe} or StructArray{TopographyElement}> current ghosts of element
-        boundary    <PeriodicBoundary> boundary to translate element through
-        trans_vec   <Matrix{Float}> 1x2 matrix of form [x y] to translate element through the boundary
+    floes       <StructArray{Floe}> model's list of floes
+    elem_idx    <Int> floe of interest's index within the floe list
+    boundary    <PeriodicBoundary> boundary to translate element through
+    trans_vec   <Matrix{Float}> 1x2 matrix of form [x y] to translate element
+                    through the boundary
 Outputs:
-        New ghosts created by the given element, or its current ghosts, passing through the given boundary. 
+    Nothing. New ghosts created by the given element, or its current ghosts,
+    are added to the floe list
 """
-function ghosts_on_bounds(
+function ghosts_on_bounds!(
     floes,
     elem_idx,
     boundary,
@@ -1009,12 +1026,8 @@ function ghosts_on_bounds(
                 floes,
                 deepcopy_floe(LazyRow(floes, i)),
             )
-            # push!(floes, floes[i])
-            # deepcopy_floe_fields!(LazyRow(floes, nfloes + nghosts))
             nghosts += 1
         end
-        # push!(floes, floes[elem_idx])
-        # deepcopy_floe_fields!(LazyRow(floes, nfloes + nghosts))
         push!(
                 floes,
                 deepcopy_floe(LazyRow(floes, elem_idx)),
@@ -1029,8 +1042,8 @@ end
 
 """
     find_ghosts(
-        elem,
-        current_ghosts,
+        floes,
+        elem_idx,
         ebound::PeriodicBoundary,
         wbound::PeriodicBoundary,
     )
@@ -1040,14 +1053,14 @@ periodic boundary. If element's centroid isn't within the domain in the
 east/west direction, swap it with its ghost since the ghost's centroid must then
 be within the domain. 
 Inputs:
-    elem            <StructArray{Floe}> given element
-    current_ghosts  <StructArray{Floe}> current ghosts of element
-    eboundary       <PeriodicBoundary{East, Float}> domain's eastern boundary
-    wboundary       <PeriodicBoundary{West, Float}> domain's western boundary
+    floes       <StructArray{Floe}> model's list of floes
+    elem_idx    <Int> floe of interest's index within the floe list
+    eboundary   <PeriodicBoundary{East, Float}> domain's eastern boundary
+    wboundary   <PeriodicBoundary{West, Float}> domain's western boundary
 Outputs:
-    Return "primary" element, which has its centroid within the domain in the
-    east/west direction, and all of its ghosts in the east/west direction,
-    including ghosts of previously existing ghosts.
+    None. Ghosts added to the floe list. Primary floe always has centroid within
+    the domain, else it is swapped with one of its ghost's which has a centroid
+    within the domain.
 """
 function find_ghosts(
     floes,
@@ -1059,7 +1072,7 @@ function find_ghosts(
     nfloes = length(floes)
     # passing through western boundary
     if (floes.centroid[elem_idx][1] - floes.rmax[elem_idx] < wbound.val)
-        ghosts_on_bounds(
+        ghosts_on_bounds!(
             floes,
             elem_idx,
             wbound,
@@ -1067,7 +1080,7 @@ function find_ghosts(
         )
     # passing through eastern boundary
     elseif (floes.centroid[elem_idx][1] + floes.rmax[elem_idx] > ebound.val)
-        ghosts_on_bounds(
+        ghosts_on_bounds!(
             floes,
             elem_idx,
             ebound,
@@ -1093,8 +1106,8 @@ end
 
 """
     find_ghosts(
-        elem,
-        current_ghosts,
+        floes,
+        elem_idx,
         nbound::PeriodicBoundary{North, <:AbstractFloat},
         sbound::PeriodicBoundary{South, <:AbstractFloat},
     )
@@ -1104,14 +1117,14 @@ southern periodic boundary. If element's centroid isn't within the domain in the
 north/south direction, swap it with its ghost since the ghost's centroid must
 then be within the domain. 
 Inputs:
-    elem            <StructArray{Floe}> given element
-    current_ghosts  <StructArray{Floe}> current ghosts of element
+    floes       <StructArray{Floe}> model's list of floes
+    elem_idx    <Int> floe of interest's index within the floe list
     nboundary        <PeriodicBoundary{North, Float}> domain's northern boundary
     sboundary        <PeriodicBoundary{South, Float}> domain's southern boundary
 Outputs:
-    Return "primary" element, which has its centroid within the domain in the
-    north/south direction, and all of its ghosts in the north/south direction,
-    including ghosts of previously existing ghosts.
+    None. Ghosts added to the floe list. Primary floe always has centroid within
+    the domain, else it is swapped with one of its ghost's which has a centroid
+    within the domain.
 """
 function find_ghosts(
     floes,
@@ -1123,7 +1136,7 @@ function find_ghosts(
     nfloes = length(floes)
         # passing through southern boundary
     if (floes.centroid[elem_idx][2] - floes.rmax[elem_idx] < sbound.val)
-        ghosts_on_bounds(
+        ghosts_on_bounds!(
             floes,
             elem_idx,
             sbound,
@@ -1131,7 +1144,7 @@ function find_ghosts(
         )
     # passing through northern boundary
     elseif (floes.centroid[elem_idx][2] + floes.rmax[elem_idx] > nbound.val) 
-        ghosts_on_bounds(
+        ghosts_on_bounds!(
             floes,
             elem_idx,
             nbound,
@@ -1186,11 +1199,10 @@ function add_floe_ghosts!(
             new_nfloes = length(floes)
             if new_nfloes > nfloes
                 nghosts = new_nfloes - nfloes
+                # set ghost floe's ghost id
                 floes.ghost_id[(nfloes + 1):new_nfloes] .= range(1, nghosts) .+ length(floes.ghosts[i])
                 # remove ghost floes ghosts as these were added to parent
                 empty!.(floes.ghosts[nfloes + 1:new_nfloes])
-                # add ghosts to floe list
-                #append!(floes, new_ghosts)
                 # index of ghosts floes saved in parent
                 append!(floes.ghosts[i], (nfloes + 1):(nfloes + nghosts))
                 nfloes += nghosts

@@ -245,14 +245,11 @@ function calc_stress!(floe)
     inters = floe.interactions
     # Calculates timestep stress
     stress = fill(1/(2* floe.area * floe.height), 2, 2)
-    stress[1, 1] *= sum((inters[:, xpoint] .- xi) .* inters[:, xforce]) +
-        sum(inters[:, xforce] .* (inters[:, xpoint] .- xi))
+    stress[1, 1] *= 2sum((inters[:, xpoint] .- xi) .* inters[:, xforce])
     stress[1, 2] *= sum((inters[:, ypoint] .- yi) .* inters[:, xforce]) + 
         sum(inters[:, yforce] .* (inters[:, xpoint] .- xi))
-    stress[2, 1] *= sum((inters[:, xpoint] .- xi) .* inters[:, yforce]) +
-        sum(inters[:, xforce] .* (inters[:, ypoint] .- yi))
-    stress[2, 2] *= sum((inters[:, ypoint] .- yi) .* inters[:, yforce]) +
-        sum(inters[:, yforce] .* (inters[:, ypoint] .- yi))
+    stress[2, 1] = stress[1, 2]
+    stress[2, 2] *= 2sum((inters[:, ypoint] .- yi) .* inters[:, yforce])
     # Add timestep stress to stress history
     push!(floe.stress_history, stress)
     # Average stress history to find floe's average stress

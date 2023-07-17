@@ -552,7 +552,8 @@ end
 Writes desired FloeOutputWriter data to JLD2 file.
 
 Inputs:
-    sim     <Simulation> simulation to run
+    writers     <StructArray{FloeWriter}> list of floe writers 
+    floes       <StructArray{Floe}> list of floes
     tstep       <Int> simulation timestep
 Output:
     Writes desired fields writer.outputs to JLD2 file with name writer.fn for
@@ -580,7 +581,9 @@ write_field(file, group, vals) = write(file, group, vals)
 
 Writes desired GridOutputWriter data to NetCDF file.
 Inputs:
-    sim         <Simulation> simulation to run
+    writers     <StructArray{GridWriter}> list of grid writers
+    floes       <StructArray{Floe}> list of floes
+    topography  <StructArray{TopographyElement}> list of topography elements
     tstep       <Int> simulation timestep
 Output:
     Writes desired fields writer.outputs to file with name writer.fn for current
