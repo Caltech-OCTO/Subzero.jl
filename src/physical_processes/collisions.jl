@@ -287,9 +287,8 @@ function calc_friction_forces_old(
     for i in axes(vdiff, 1)
         v = vdiff[i, :]
         n = normal[i, :]
-        vnorm = norm(v)
-        force_dir = maximum(abs.(v)) == 0 ? zeros(FT, 2) : v/vnorm
-        friction = G * Δl[i] * Δt * vnorm * -dot(force_dir, v) * force_dir
+        force_dir = maximum(abs.(v)) == 0 ? zeros(FT, 2) : v/norm(v)
+        friction = G * Δl[i] * Δt * norm(n) * -dot(force_dir, v) * force_dir
         if norm(friction) > consts.μ*norm(n)
             friction = -consts.μ*norm(n)*force_dir
         end

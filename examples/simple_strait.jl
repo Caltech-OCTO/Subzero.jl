@@ -45,7 +45,7 @@ coupling_settings = CouplingSettings(
 # Floe creation
 floe_arr = initialize_floe_field(
     FT,
-    10,
+    50,
     [0.7],
     domain,
     hmean,
@@ -81,7 +81,7 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 1000,
+    nΔt = 3000,
     verbose = false,
     coupling_settings = coupling_settings,
     fracture_settings = fracture_settings,
