@@ -92,6 +92,6 @@ simulation = Simulation(
 run_time!(simulation)
 #ProfileView.@profview run!(simulation)
 
-# Subzero.create_sim_gif("output/simple_strait/floes.jld2", 
-#                        "output/simple_strait/initial_state.jld2",
-#                        "output/simple_strait/simple_strait.gif")
+Subzero.create_sim_gif("output/simple_strait/floes.jld2", 
+                       "output/simple_strait/initial_state.jld2",
+                       "output/simple_strait/simple_strait.gif")

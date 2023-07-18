@@ -206,8 +206,8 @@ Output:
     Updates given coords
 """
 function translate(coords::PolyVec{FT}, Δx, Δy) where {FT<:AbstractFloat}
-    @views new_coords = [[Vector{Float64}(undef, 2) for _ in eachindex(coords[1])]]
-    @views for i in eachindex(coords[1])
+    new_coords = [[Vector{Float64}(undef, 2) for _ in eachindex(coords[1])]]
+    for i in eachindex(coords[1])
         new_coords[1][i][1] = coords[1][i][1] + Δx
         new_coords[1][i][2] = coords[1][i][2] + Δy 
     end
