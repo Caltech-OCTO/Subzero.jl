@@ -1,54 +1,11 @@
 using JLD2, Random, Statistics, Subzero, BenchmarkTools, StructArrays
 import LibGEOS as LG
 
-Δt = 10
-max_overlap = 0.75
-Lx = 1e5
-Ly = Lx
-hmean = 0.25
-Δh = 0.0
-grid = RegRectilinearGrid(
-    (-Lx, Lx),
-    (-Ly, Ly),
-    1e4,
-    1e4,
-)
-nboundary = PeriodicBoundary(North, grid)
-sboundary = PeriodicBoundary(South, grid)
-eboundary = CollisionBoundary(East, grid)
-wboundary = OpenBoundary(West, grid)
-topo_elem = TopographyElement(
-    [[[1e4, 0.0], [0.0, 1e4], [1e4, 2e4], [2e4, 1e4], [1e4, 0.0]]],
-)
-domain = Domain(
-    nboundary,
-    sboundary,
-    eboundary,
-    wboundary,
-    StructArray([topo_elem]),
-)
-# Diagonal floe barely overlaping with eastern collision boundary
-efloe_small = Floe(
-    [[
-        [9.5e4, 0.0],
-        [9e4, 0.5e4],
-        [10e4, 2.5e4],
-        [10.05e4, 2e4],
-        [9.5e4, 0.0],
-    ]],
-    hmean,
-    Δh,
-)
-efloe_small.u = 0.5
-efloe_small.v = 0.25
-consts = Constants()
-Subzero.floe_domain_interaction!(efloe_small, domain, consts, Δt, max_overlap)
-
 # User Inputs
 const FT = Float64
 const Lx = 1e5
 const Ly = 1e5
-const Δgrid = 1e4
+const Δgrid = 2e3
 const hmean = 0.25
 const Δh = 0.0
 const Δt = 10
@@ -59,74 +16,102 @@ grid = RegRectilinearGrid(
     Δgrid,
     Δgrid,
 )
-zero_ocn = Ocean(grid, 0.0, 0.0, 0.0)
+zonal_ocn = Ocean(grid, 0.5, 0.0, 0.0)
 
-zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
+zero_atmos = Atmos(grid, 0.5, 0.0, 0.0)
 
 
 domain = Subzero.Domain(
-    CollisionBoundary(North, grid),
-    CollisionBoundary(South, grid),
-    CompressionBoundary(East, grid, -0.1),
-    CompressionBoundary(West, grid, 0.1),
+    PeriodicBoundary(North, grid),
+    PeriodicBoundary(South, grid),
+    PeriodicBoundary(East, grid),
+    PeriodicBoundary(West, grid),
 )
 
 # Floe instantiation
-coords = [[[0.0, 0.0], [0.0, 1e5], [1e5, 1e5], [1e5, 0.0], [0.0, 0.0]]]
+coords = [[
+    [0.0, 0.0],
+    [5e4, 1e5],
+    [1e5, 1e5],
+    [1e5, 0.0],
+    [0.0, 0.0],
+]]
+
+coupling_settings = CouplingSettings(
+    subfloe_point_generator = SubGridPointsGenerator(grid, 2),
+    two_way_coupling_on = true,
+)
 
 floe_arr = initialize_floe_field(
     FT,
-    50,
-    [1.0],
+    25,
+    [0.8],
     domain,
     0.5,
-    0.0,
-    min_floe_area = 1e6,
+    0.0;
+    coupling_settings = coupling_settings,
 )
 
 model = Model(
     grid,
-    zero_ocn,
+    zonal_ocn,
     zero_atmos,
     domain,
     floe_arr,
 )
 dir = "output/sim"
 writers = OutputWriters(
-    InitialStateOutputWriter(
-        dir = dir,
-        overwrite = true
-    ),
-    FloeOutputWriter(
-        250,
-        dir = dir,
-        overwrite = true,
-    ),
+    # InitialStateOutputWriter(
+    #     dir = dir,
+    #     overwrite = true
+    # ),
+    # FloeOutputWriter(
+    #     250,
+    #     dir = dir,
+    #     overwrite = true,
+    # ),
 )
 simulation = Simulation(
     name = "sim",
     model = model,
     Δt = 10,
-    nΔt = 4000,
+    nΔt = 100,
     writers = writers,
     verbose = true,
-    consts = Constants(Cd_io = 0, Cd_ia = 0, Cd_ao = 0),
-    fracture_settings = FractureSettings(
-        fractures_on = true,
-        criteria = HiblerYieldCurve(model.floes),
-        Δt = 75,
-    )
+    consts = Constants(Cd_ia = 0, Cd_ao = 0),
+    coupling_settings = coupling_settings,
+    
 )
 
 #@benchmark timestep_sim!(simulation, 10) setup=(sim=deepcopy(simulation))
+function run_with_saving(simulation, tstep_between_save)
+    nsave = fld(simulation.nΔt, tstep_between_save) + 1
+    τx = zeros(FT, grid.Nx + 1, grid.Ny + 1, nsave)
+    Subzero.startup_sim(simulation, nothing, 1)
+    tstep = 0
+    counter = 1
+    while tstep <= simulation.nΔt
+        # Timestep the simulation forward
+        timestep_sim!(simulation, tstep)
+        if mod(tstep, tstep_between_save) == 0
+            τx[:, :, counter] .= simulation.model.ocean.τx
+            counter += 1
+        end
+        tstep+=1
+    end
+    Subzero.teardown_sim(simulation)
+    return τx
+end
+
+τx = run_with_saving(simulation, 50)
 
 
-time_run(simulation) = @time run!(simulation)
-time_run(simulation)
+# time_run(simulation) = @time run!(simulation)
+# time_run(simulation)
 
-Subzero.create_sim_gif("output/sim/floes.jld2", 
-                       "output/sim/initial_state.jld2",
-                       "output/sim/sim.gif")
+# Subzero.create_sim_gif("output/sim/floes.jld2", 
+#                        "output/sim/initial_state.jld2",
+#                        "output/sim/sim.gif")
 # # Run simulation
 #time_run(simulation)
 #Profile.Allocs.clear()
