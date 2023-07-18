@@ -1,80 +1,48 @@
 using JLD2, Random, Statistics, Subzero, BenchmarkTools, StructArrays
 import LibGEOS as LG
 
-frac_stress = [-29955.396 -3428.008; -3428.008	-1942.0464]
-frac_deform_floe = Floe(
+Δt = 10
+max_overlap = 0.75
+Lx = 1e5
+Ly = Lx
+hmean = 0.25
+Δh = 0.0
+grid = RegRectilinearGrid(
+    (-Lx, Lx),
+    (-Ly, Ly),
+    1e4,
+    1e4,
+)
+nboundary = PeriodicBoundary(North, grid)
+sboundary = PeriodicBoundary(South, grid)
+eboundary = CollisionBoundary(East, grid)
+wboundary = OpenBoundary(West, grid)
+topo_elem = TopographyElement(
+    [[[1e4, 0.0], [0.0, 1e4], [1e4, 2e4], [2e4, 1e4], [1e4, 0.0]]],
+)
+domain = Domain(
+    nboundary,
+    sboundary,
+    eboundary,
+    wboundary,
+    StructArray([topo_elem]),
+)
+# Diagonal floe barely overlaping with eastern collision boundary
+efloe_small = Floe(
     [[
-        [-50548.186, -49995.968],
-        [-50550.745, -37790.078],
-        [-20856.010, -32518.566],
-        [-20929.577, -49989.757],
-        [-50548.186, -49995.968],
+        [9.5e4, 0.0],
+        [9e4, 0.5e4],
+        [10e4, 2.5e4],
+        [10.05e4, 2e4],
+        [9.5e4, 0.0],
     ]],
-    0.25,
-    0.0,
-    u = 0.1,
-    v = -0.2,
-    ξ = 0.05,
+    hmean,
+    Δh,
 )
-frac_floe = deepcopy(frac_deform_floe)  # Without interactions, won't deform
-no_frac_floe = Floe(  # This floe is colliding with frac_deform_floe
-    [[
-        [1467.795, -25319.563],
-        [1664.270, -25640.216],
-        [-1105.179, -33458.936],
-        [-17529.019, -50035.583],
-        [-21193.828, -50088.777],
-        [-21370.170, -32618.322],
-        [-21247.656, -31077.536],
-        [-12818.593, -27031.048],
-        [1467.795, -25319.563],
-    ]],
-    0.25,
-    0.0,
-)
-no_frac_small = Floe(  # This floe is too small to fracture or deform
-    [[
-        [1e3, 1e3],
-        [1e3, 1.5e3],
-        [1.5e3, 1.5e3],
-        [1.5e3, 1e3],
-        [1e3, 1e3],
-    ]],
-    0.25,
-    0.0,
-)
-frac_deform_floe.stress = frac_stress
-frac_deform_floe.interactions = collect([
-    3,
-    -279441968.984,
-    -54223517.438,
-    -21091.0918258529,
-    -40358.0042297616,
-    -148920620521.112,
-    6795329.38154967,
-]')
-frac_deform_floe.p_dudt = 0.11
-frac_floe.stress = frac_stress
-no_frac_small.stress = frac_stress
-
-floes = StructArray([
-    frac_deform_floe, frac_floe, no_frac_floe, no_frac_small
-])
-floes.id .= collect(1:4)
-frac_settings = FractureSettings(
-    fractures_on = true,
-    criteria = HiblerYieldCurve(floes),
-    Δt = 75,
-    deform_on = true,
-)
-new_floes = Subzero.split_floe(
-    floes[1],
-    Xoshiro(3),
-    frac_settings,
-    CouplingSettings(),
-    Constants(),
-    10,
-) 
+efloe_small.u = 0.5
+efloe_small.v = 0.25
+consts = Constants()
+Subzero.floe_domain_interaction!(efloe_small, domain, consts, Δt, max_overlap)
 
 # User Inputs
 const FT = Float64

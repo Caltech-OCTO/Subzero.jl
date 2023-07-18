@@ -45,28 +45,29 @@ simulation. This should be the length of the floes array at the beginning of the
 run. 
 """
 struct Model{
-    FT<:AbstractFloat,
-    GT<:AbstractGrid{FT},
-    DT<:Domain{
+    FT<:AbstractFloat,             # float type
+    GT<:AbstractGrid{FT},          # grid type
+    DT<:Domain{                    # domain type
         FT,
         <:AbstractBoundary,
         <:AbstractBoundary,
         <:AbstractBoundary,
         <:AbstractBoundary,
     },
+    FLT<:StructArray{<:Floe{FT}},  # floe list type
 }
     grid::GT
     ocean::Ocean{FT}
     atmos::Atmos{FT}
     domain::DT
-    floes::StructArray{Floe{FT}}  # See floes.jl for floe creation
+    floes::FLT  # See floes.jl for floe creation
 
-    function Model{FT, GT, DT}(
+    function Model{FT, GT, DT, FLT}(
         grid::GT,
         ocean::Ocean{FT},
         atmos::Atmos{FT},
         domain::DT,
-        floes::StructArray{Floe{FT}},
+        floes::FLT,
     ) where {
         FT<:AbstractFloat,
         GT<:AbstractGrid{FT},
@@ -77,6 +78,7 @@ struct Model{
             <:AbstractBoundary,
             <:AbstractBoundary,
         },
+        FLT<:StructArray{<:Floe{FT}},
     }
         if !domain_in_grid(domain, grid)
             throw(ArgumentError("Domain does not fit within grid."))
@@ -93,7 +95,7 @@ struct Model{
             warmer than the ocean. This is not a situation in which the \
             thermodynamics are setup for right now."
         end
-        new{FT, GT, DT}(grid, ocean, atmos, domain, floes)
+        new{FT, GT, DT, FLT}(grid, ocean, atmos, domain, floes)
     end
 
     Model(
@@ -101,7 +103,7 @@ struct Model{
         ocean::Ocean{FT},
         atmos::Atmos{FT},
         domain::DT,
-        floes::StructArray{Floe{FT}},
+        floes::FLT,
     ) where {
         FT<:AbstractFloat,
         GT<:AbstractGrid{FT},
@@ -112,6 +114,7 @@ struct Model{
             <:AbstractBoundary,
             <:AbstractBoundary,
         },
+        FLT<:StructArray{<:Floe{FT}},
     } = 
-        Model{FT, GT, DT}(grid, ocean, atmos, domain, floes)
+        Model{FT, GT, DT, FLT}(grid, ocean, atmos, domain, floes)
 end

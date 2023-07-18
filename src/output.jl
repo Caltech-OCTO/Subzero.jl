@@ -482,14 +482,23 @@ Output:
 function write_data!(sim, tstep)
     # write initial state on first timestep
     if tstep == 0
-        write_init_state_data!(sim, tstep)
+        write_init_state_data!(sim)
     end
     # Write checkpoint data
     write_checkpoint_data!(sim, tstep)
     # Write floe data
-    write_floe_data!(sim, tstep)
+    write_floe_data!(
+        sim.writers.floewriters,
+        sim.model.floes,
+        tstep,
+    )
     # Write grid data
-    write_grid_data!(sim, tstep)
+    write_grid_data!(
+        sim.writers.gridwriters,
+        sim.model.floes,
+        sim.model.domain.topography,
+        tstep,
+    )
     return
 end
 
@@ -503,7 +512,7 @@ Inputs:
 Outputs:
     Saves simulation state to file. 
 """
-function write_init_state_data!(sim, tstep)
+function write_init_state_data!(sim)
     for filepath in sim.writers.initialwriters.filepath
         jldopen(filepath, "a") do file
             file["sim"] = sim
@@ -543,45 +552,48 @@ end
 Writes desired FloeOutputWriter data to JLD2 file.
 
 Inputs:
-    sim     <Simulation> simulation to run
+    writers     <StructArray{FloeWriter}> list of floe writers 
+    floes       <StructArray{Floe}> list of floes
     tstep       <Int> simulation timestep
 Output:
     Writes desired fields writer.outputs to JLD2 file with name writer.fn for
     current timestep, which will be the group in the JLD2 file. 
 """
-function write_floe_data!(sim, tstep)
-    for w in sim.writers.floewriters[
-        mod.(tstep, sim.writers.floewriters.Δtout) .== 0
+function write_floe_data!(writers, floes, tstep)
+    for w in writers[
+        mod.(tstep, writers.Δtout) .== 0
     ]
-        jldopen(w.filepath, "a+") do file
-            for output in w.outputs
-                file[string(output, "/", tstep)] =
-                    StructArrays.component(sim.model.floes, output)
-            end
+        file = jldopen(w.filepath, "a+")
+        for output in w.outputs
+            vals = StructArrays.component(floes, output)
+            write_field(file, string(output, "/", tstep), vals)
         end
+        close(file)
     end
     # once parents are recorded, they should be deleted
-    empty!.(sim.model.floes.parent_ids) 
+    empty!.(floes.parent_ids) 
     return
 end
 
+write_field(file, group, vals) = write(file, group, vals)
 """
     write_grid_data!(sim, tstep)
 
 Writes desired GridOutputWriter data to NetCDF file.
 Inputs:
-    sim         <Simulation> simulation to run
+    writers     <StructArray{GridWriter}> list of grid writers
+    floes       <StructArray{Floe}> list of floes
+    topography  <StructArray{TopographyElement}> list of topography elements
     tstep       <Int> simulation timestep
 Output:
     Writes desired fields writer.outputs to file with name writer.fn for current
     timestep.
 """
-function write_grid_data!(sim, tstep)
-    live_floes = filter(f -> f.status.tag == active, sim.model.floes)
-    w_idx = mod.(tstep, sim.writers.gridwriters.Δtout) .== 0
-    if !isempty(live_floes) && sum(w_idx) != 0
-        for w in sim.writers.gridwriters[w_idx]
-            calc_eulerian_data!(live_floes, sim.model.domain.topography, w)
+function write_grid_data!(writers, floes, topography, tstep)
+    w_idx = mod.(tstep, writers.Δtout) .== 0
+    if !isempty(floes) && sum(w_idx) != 0
+        @views for w in writers[w_idx]
+            calc_eulerian_data!(floes, topography, w)
             istep = div(tstep, w.Δtout) + 1  # Julia indicies start at 1
             
             # Open file and write data from grid writer
@@ -839,68 +851,69 @@ function calc_eulerian_data!(floes, topography, writer)
                 pic_polys = [
                     LG.intersection(
                         cell_poly,
-                        LG.Polygon(floes[idx].coords),
+                        LG.Polygon(floes.coords[idx]),
                     ) for idx in floeidx]
 
                 pic_area = [LG.area(poly) for poly in pic_polys]
                 floeidx = floeidx[pic_area .> 0]
                 pic_area = pic_area[pic_area .> 0]
                 fic = floes[floeidx]
-                fic_area = fic.area
+                fic_area = floes.area[floeidx]
+                fic_mass = floes.mass[floeidx]
 
                 area_ratios = pic_area ./ fic_area
                 area_tot = sum(pic_area)
-                mass_tot = sum(fic.mass .* area_ratios)
+                mass_tot = sum(floes.mass[floeidx] .* area_ratios)
 
                 if mass_tot > 0
                     # mass and area ratios
-                    ma_ratios = area_ratios .* (fic.mass ./ mass_tot)
+                    ma_ratios = area_ratios .* (floes.mass[floeidx] ./ mass_tot)
                     outputs = writer.outputs
                     for k in eachindex(outputs)
                         data = if outputs[k] == :u_grid
-                            sum(fic.u .* ma_ratios)
+                            sum(floes.u[floeidx] .* ma_ratios)
                         elseif outputs[k] == :v_grid
-                            sum(fic.v .* ma_ratios)
+                            sum(floes.v[floeidx] .* ma_ratios)
                         elseif outputs[k] == :dudt_grid
-                            sum(fic.p_dudt .* ma_ratios)
+                            sum(floes.p_dudt[floeidx] .* ma_ratios)
                         elseif outputs[k] == :dvdt_grid
-                            sum(fic.p_dvdt .* ma_ratios)
+                            sum(floes.p_dvdt[floeidx] .* ma_ratios)
                         elseif outputs[k] == :si_frac_grid
                             area_tot/LG.area(cell_poly)
                         elseif outputs[k] == :overarea_grid
-                            sum(fic.overarea)/length(fic)
+                            sum(floes.overarea[floeidx])/length(floeidx)
                         elseif outputs[k] == :mass_grid
                             mass_tot
                         elseif outputs[k] == :area_grid
                             area_tot
                         elseif outputs[k] == :height_grid
-                            sum(fic.height .* ma_ratios)
+                            sum(floes.height[floeidx] .* ma_ratios)
                         elseif outputs[k] == :stress_xx_grid
-                            sum([s[1, 1] for s in fic.stress] .* ma_ratios)
+                            sum([s[1, 1] for s in floes.stress[floeidx]] .* ma_ratios)
                         elseif outputs[k] == :stress_yx_grid
-                            sum([s[1, 2] for s in fic.stress] .* ma_ratios)
+                            sum([s[1, 2] for s in floes.stress[floeidx]] .* ma_ratios)
                         elseif outputs[k] == :stress_xy_grid
-                            sum([s[2, 1] for s in fic.stress] .* ma_ratios)
+                            sum([s[2, 1] for s in floes.stress[floeidx]] .* ma_ratios)
                         elseif outputs[k] == :stress_yy_grid
-                            sum([s[2, 2] for s in fic.stress] .* ma_ratios)
+                            sum([s[2, 2] for s in floes.stress[floeidx]] .* ma_ratios)
                         elseif outputs[k] == :stress_eig_grid
-                            xx = sum([s[1, 1] for s in fic.stress] .* ma_ratios)
-                            yx = sum([s[1, 2] for s in fic.stress] .* ma_ratios)
-                            xy = sum([s[2, 1] for s in fic.stress] .* ma_ratios)
-                            yy = sum([s[2, 2] for s in fic.stress] .* ma_ratios)
+                            xx = sum([s[1, 1] for s in floes.stress[floeidx]] .* ma_ratios)
+                            yx = sum([s[1, 2] for s in floes.stress[floeidx]] .* ma_ratios)
+                            xy = sum([s[2, 1] for s in floes.stress[floeidx]] .* ma_ratios)
+                            yy = sum([s[2, 2] for s in floes.stress[floeidx]] .* ma_ratios)
                             stress = maximum(eigvals([xx yx; xy yy]))
                             if abs(stress) > 1e8
                                 stress = 0.0
                             end
                             stress
                         elseif outputs[k] == :strain_ux_grid
-                            sum([s[1, 1] for s in fic.strain] .* ma_ratios)
+                            sum([s[1, 1] for s in floes[floeidx].strain] .* ma_ratios)
                         elseif outputs[k] == :strain_vx_grid
-                            sum([s[1, 2] for s in fic.strain] .* ma_ratios)
+                            sum([s[1, 2] for s in floes[floeidx].strain] .* ma_ratios)
                         elseif outputs[k] == :strain_uy_grid
-                            sum([s[2, 1] for s in fic.strain] .* ma_ratios)
+                            sum([s[2, 1] for s in floes[floeidx].strain] .* ma_ratios)
                         elseif outputs[k] == :strain_vy_grid
-                            sum([s[2, 2] for s in fic.strain] .* ma_ratios)
+                            sum([s[2, 2] for s in floes[floeidx].strain] .* ma_ratios)
                         end
                         writer.data[j, i, k] = data
                     end

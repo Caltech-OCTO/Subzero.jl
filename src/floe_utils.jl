@@ -54,7 +54,6 @@ Output:
 """
 find_poly_coords(poly::LG.Polygon) =
     LG.GeoInterface.coordinates(poly)::PolyVec{Float64}
-# [LG.GeoInterface.coordinates(LG.exteriorRing(poly))]::PolyVec{Float64}
 
 """
     get_polygons(geom)
@@ -65,36 +64,110 @@ Inputs:
 Outputs:
     <Vector{LG.Polygon}>
 """
-get_polygons(geom) = Vector{LG.Polygon}()
-
-"""
-    get_polygons(poly::LG.Polygon) = [poly]
-
-Return a polygon list with polygon element provided.
-Inputs:
-    poly    <LG.Polygon>
-Outputs:
-    <Vector{LG.Polygon}>
-"""
-get_polygons(poly::LG.Polygon) = [poly]
-
-"""
-    get_polygons(multipoly::LG.MultiPolygon)
-
-Returns a list of polygons that make up multipolygon input
-Inputs:
-    multipoly   <LG.MultiPolygon>
-Outputs:
-    sub_geoms   <Vector{LG.Polygon}>
-"""
-function get_polygons(multipoly::LG.MultiPolygon)
-    sub_geoms = LG.getGeometries(multipoly)
-    for i in reverse(eachindex(sub_geoms))
-        if LG.area(sub_geoms[i]) == 0
-            deleteat!(sub_geoms, i)
+function get_polygons(geom)
+    polys =
+        if geom isa LG.Polygon
+            LG.area(geom) > 0 ? [geom] : Vector{LG.Polygon}()
+        elseif geom isa LG.MultiPolygon
+            sub_geoms = LG.getGeometries(geom)
+            for i in reverse(eachindex(sub_geoms))
+                if LG.area(sub_geoms[i]) == 0
+                    deleteat!(sub_geoms, i)
+                end
+            end
+            sub_geoms
+        else
+            Vector{LG.Polygon}()
         end
-    end
-    return sub_geoms::Vector{LG.Polygon}
+    return polys::Vector{LG.Polygon}
+end
+
+"""
+    intersect_polys(p1, p2)
+
+Intersect two geometries and return a list of polygons resulting.
+Inputs:
+    p1  <LG.AbstractGeometry>
+    p2  <LG.AbstractGeometry>
+Output:
+    Vector of LibGEOS Polygons
+"""
+intersect_polys(p1, p2) = get_polygons(
+    LG.intersection(
+        p1,
+        p2,
+    )::LG.Geometry,
+)::Vector{LG.Polygon}
+
+"""
+    intersect_coords(c1, c2)
+
+Intersect geometries using their coordinates to return list of resulting
+polygons.
+Inputs:
+    c1  <PolyVec>
+    c2  <PolyVec>
+Output:
+    Vector of LibGEOS Polygons
+"""
+intersect_coords(c1, c2) = intersect_polys(
+    LG.Polygon(c1),
+    LG.Polygon(c2),
+)::Vector{LG.Polygon}
+
+"""
+    deepcopy_floe(floe::LazyRow{Floe{FT}})
+
+Deepcopy of a floe by creating a new floe and copying all fields.
+Inputs:
+    floe    <Floe>
+Outputs:
+    New floe with floes that are equal in value. Any vector fields are copies so
+    they share values, but not referance.
+"""
+function deepcopy_floe(floe::LazyRow{Floe{FT}}) where {FT}
+    f = Floe{FT}(
+        centroid = copy(floe.centroid),
+        coords = translate(floe.coords, 0, 0),
+        height = floe.height,
+        area = floe.area,
+        mass = floe.mass,
+        rmax = floe.rmax,
+        moment = floe.moment,
+        angles = copy(floe.angles),
+        x_subfloe_points = copy(floe.x_subfloe_points),
+        y_subfloe_points = copy(floe.y_subfloe_points),
+        α = floe.α,
+        u = floe.u,
+        v = floe.v,
+        ξ = floe.ξ,
+        status = Status(floe.status.tag, copy(floe.status.fuse_idx)),
+        id = floe.id,
+        ghost_id = floe.ghost_id,
+        parent_ids = copy(floe.parent_ids),
+        ghosts = copy(floe.ghosts),
+        fxOA= floe.fxOA,
+        fyOA = floe.fyOA,
+        trqOA = floe.trqOA,
+        hflx_factor = floe.hflx_factor,
+        overarea = floe.overarea,
+        collision_force = copy(floe.collision_force),
+        collision_trq = floe.collision_trq,
+        stress = copy(floe.stress),
+        stress_history = StressCircularBuffer{FT}(
+            capacity(floe.stress_history.cb),
+        ),
+        strain = copy(floe.strain),
+        p_dxdt = floe.p_dxdt,
+        p_dydt = floe.p_dydt,
+        p_dudt = floe.p_dudt,
+        p_dvdt = floe.p_dvdt,
+        p_dξdt = floe.p_dξdt,
+        p_dαdt = floe.p_dαdt,
+    )
+    f.stress_history.total .= copy(floe.stress_history.total)
+    append!(f.stress_history.cb, copy(floe.stress_history.cb))
+    return f
 end
 
 """
@@ -133,11 +206,13 @@ Output:
     Updates given coords
 """
 function translate(coords::PolyVec{FT}, Δx, Δy) where {FT<:AbstractFloat}
-    new_coords = deepcopy(coords)
-    translate!(new_coords, Δx, Δy)
+    new_coords = [[Vector{Float64}(undef, 2) for _ in eachindex(coords[1])]]
+    for i in eachindex(coords[1])
+        new_coords[1][i][1] = coords[1][i][1] + Δx
+        new_coords[1][i][2] = coords[1][i][2] + Δy 
+    end
     return new_coords
 end
-
 
 """
     translate!(coords, Δx, Δy)
@@ -708,56 +783,47 @@ Inputs:
     l1 <PolyVec{Float}> line/polygon coordinates
     l2 <PolyVec{Float}> line/polygon coordinates
 Outputs:
-    <Matrix{AbstractFloat}> N intersection points in a Nx2 matrix where column 1
-        is the x-coordinates and column 2 is the y-coordinates and each row is
-        an intersection point.
-
-Note - Translated into Julia from the following program:
-    NS (2022). Curve intersections
-    (https://www.mathworks.com/matlabcentral/fileexchange/22441-curve-intersections),
-    MATLAB Central File Exchange. Retrieved November 2, 2022.
-    Only translated for the case where l1 and l2 are distinct. 
+    <Set{Tuple{Float, Float}}> Set of points that are at the intersection of the
+        two line segments.
 """
-function intersect_lines(l1, l2)
-    x1, y1 = separate_xy(l1)
-    x2, y2 = separate_xy(l2)
-    x2t = x2'
-    y2t = y2'
-    Δx1 = diff(x1)
-    Δx2 = diff(x2t, dims = 2)
-    Δy1 = diff(y1)
-    Δy2 = diff(y2t, dims = 2)
+function intersect_lines(l1::PolyVec{FT}, l2) where {FT}
+    points = Set{Tuple{FT, FT}}()
+    for i in 1:(length(l1[1]) - 1)
+         # First line represented as a1x + b1y = c1
+         x11 = l1[1][i][1]
+         x12 = l1[1][i+1][1]
+         y11 = l1[1][i][2]
+         y12 = l1[1][i+1][2]
+         a1 = y12 - y11
+         b1 = x11 - x12
+         c1 = a1 * x11 + b1 * y11
+        for j in 1:(length(l2[1]) - 1)
+            # Second line represented as a2x + b2y = c2
+            x21 = l2[1][j][1]
+            x22 = l2[1][j+1][1]
+            y21 = l2[1][j][2]
+            y22 = l2[1][j+1][2]
+            a2 = y22 - y21
+            b2 = x21 - x22
+            c2 = a2 * x21 + b2 * y21
 
-    # Determine 'signed distances' 
-    S1 = Δx1 .* @view(y1[1:end-1]) .- Δy1 .* @view(x1[1:end-1])
-    s1 = (Δx1 .* y2t .- Δy1 .*x2t)  # Needed for S1 calculation
-    C1 = (@view(s1[:, 1:end-1]) .- S1) .* (@view(s1[:, 2:end]) .- S1) .<= 0
-
-    S2 = Δx2 .* @view(y2t[:, 1:end-1]) .- Δy2 .* @view(x2t[:, 1:end-1])
-    s2 = (y1 .* Δx2 .- x1 .* Δy2)'  # Needed for S2 calculation
-    C2 = ((@view(s2[:, 1:end-1]) .- S2') .* (@view(s2[:, 2:end]) .- S2') .<= 0)'
-
-    # Obtain the segments where an intersection is expected
-    idx = findall(C1 .& C2)
-
-    P = if isempty(idx)
-        zeros(eltype(x1), 2,0)
-    else
-        # Transpose and prepare for output
-        i = getindex.(idx, 1)
-        j = getindex.(idx, 2)[:, :]
-        Δx2t = Δx2'
-        Δy2t = Δy2'
-        S2t = S2'
-        L = Δy2t[j] .* Δx1[i] - Δy1[i] .* Δx2t[j]
-        i = i[:, :][L .!= 0]
-        j = j[L .!= 0]
-        L = L[L .!= 0]
-        # Solve system of eqs to get the common points
-        unique(hcat((Δx2t[j] .* S1[i] - Δx1[i] .* S2t[j]) ./ L,
-                    (Δy2t[j] .* S1[i] - Δy1[i] .* S2t[j]) ./ L), dims = 1)
+            determinant = a1 * b2 - a2 * b1
+            # Find place there two lines cross
+            # Note that lines extend beyond given line segments
+            if determinant != 0
+                x = (b2*c1 - b1*c2)/determinant
+                y = (a1*c2 - a2*c1)/determinant
+                # Make sure intersection is on given line segments
+                if min(x11, x12) <= x <= max(x11, x12) &&
+                    min(x21, x22) <= x <= max(x21, x22) &&
+                    min(y11, y12) <= y <= max(y11, y12) &&
+                    min(y21, y22) <= y <= max(y21, y22)
+                    push!(points, (x, y))
+                end
+            end
+        end
     end
-    return P
+    return points
 end
 
 """
