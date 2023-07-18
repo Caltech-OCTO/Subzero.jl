@@ -38,18 +38,19 @@ coords = [[
 ]]
 
 coupling_settings = CouplingSettings(
-    subfloe_point_generator = SubGridPointsGenerator(grid, 2),
+    subfloe_point_generator = SubGridPointsGenerator(grid, 1),
     two_way_coupling_on = true,
 )
 
 floe_arr = initialize_floe_field(
     FT,
-    25,
+    30,
     [0.8],
     domain,
     0.5,
     0.0;
     coupling_settings = coupling_settings,
+    rng = Xoshiro(1),
 )
 
 model = Model(

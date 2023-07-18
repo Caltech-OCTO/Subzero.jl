@@ -253,17 +253,25 @@ function generate_subfloe_points(
         end
     end
 
-    n_xpoints = round(Int, (xmax - xmin) / point_generator.Δg) + 1
-    n_ypoints = round(Int, (ymax - ymin) / point_generator.Δg) + 1
+    n_xpoints = ceil(Int, (xmax - xmin) / point_generator.Δg)
+    n_ypoints = ceil(Int, (ymax - ymin) / point_generator.Δg)
     xpoints = if n_xpoints < 3
         FT(0):FT(0)  # coords are centered at the origin
     else
-        range(xmin, xmax, length = n_xpoints)
+        range(
+            xmin + point_generator.Δg/2,
+            xmax - point_generator.Δg/2,
+            length = n_xpoints,
+        )
     end
     ypoints = if n_ypoints < 3
         FT(0):FT(0)  # coords are centered at the origin
     else
-        range(ymin, ymax, length = n_ypoints)
+        range(
+            ymin + point_generator.Δg/2,
+            ymax - point_generator.Δg/2,
+            length = n_ypoints,
+        )
     end
     x_sub_floe = repeat(xpoints, length(ypoints))
     y_sub_floe = repeat(ypoints, inner = length(xpoints))
