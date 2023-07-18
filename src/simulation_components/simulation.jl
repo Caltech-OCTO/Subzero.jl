@@ -49,16 +49,18 @@ The user can also define settings for each physical process.
 """
 @kwdef struct Simulation{
     FT<:AbstractFloat,
-    GT<:AbstractGrid,
-    DT<:Domain,
+    MT<:Model{FT, <:AbstractGrid, <:Domain},
     CT<:AbstractFractureCriteria,
+    PT<:AbstractSubFloePointsGenerator,
     RT<:Random.AbstractRNG,
-    IW<:StructVector{<:InitialStateOutputWriter},
-    FW<:StructVector{<:FloeOutputWriter},
-    GW<:StructVector{<:GridOutputWriter},
-    CW<:StructVector{<:CheckpointOutputWriter},
+    OT<:OutputWriters{
+        <:StructVector{<:InitialStateOutputWriter},
+        <:StructVector{<:FloeOutputWriter},
+        <:StructVector{<:GridOutputWriter},
+        <:StructVector{<:CheckpointOutputWriter},
+    },
 }
-    model::Model{FT, GT, DT}            # Model to simulate
+    model::MT                           # Model to simulate
     consts::Constants{FT} = Constants() # Constants used in Simulation
     rng::RT = Xoshiro()                     # Random number generator 
     verbose::Bool = false               # String output printed during run
@@ -67,12 +69,12 @@ The user can also define settings for each physical process.
     Δt::Int = 10                        # Simulation timestep (seconds)
     nΔt::Int = 7500                     # Total timesteps simulation runs for
     # Physical Processes -------------------------------------------------------
-    coupling_settings::CouplingSettings = CouplingSettings()
+    coupling_settings::CouplingSettings{PT} = CouplingSettings()
     collision_settings::CollisionSettings{FT} = CollisionSettings()
     fracture_settings::FractureSettings{CT} = FractureSettings()
     simp_settings::SimplificationSettings{FT} = SimplificationSettings()
     # Output Writers -----------------------------------------------------------
-    writers::OutputWriters{IW, FW, GW, CW} = OutputWriters()
+    writers::OT = OutputWriters()
 end
 
 """

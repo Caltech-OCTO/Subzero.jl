@@ -25,7 +25,6 @@ Inputs:
                     and 2 where the first column is the x-coordinates and the
                     second column is the y-coordinates
     force_factor <Float> Spring constant equivalent for collisions
-    t            <Type> Float type model is running on (Float64 or Float32)
 Outputs:
         <Float> normal force of collision
         Δl <Float> mean length of distance between intersection points
@@ -34,32 +33,41 @@ function calc_normal_force(
     c1,
     c2,
     region,
-    area::FT,
+    area,
     ipoints,
     force_factor::FT,
 ) where {FT<:AbstractFloat}
     force_dir = zeros(FT, 2)
     coords = find_poly_coords(region)
-    n_ipoints = size(ipoints, 1)
+    n_ipoints = length(ipoints)
     # Identify which region coordinates are the intersection points (ipoints)
-    verts = zeros(Int64, n_ipoints)
-    dists = zeros(FT, n_ipoints)
-    for i in 1:n_ipoints
-        p_i = repeat(ipoints[i, :], length(coords))
-        dists[i], verts[i] = findmin([sum((c .- p_i).^2) for c in coords[1]])
+    #verts = zeros(Int64, n_ipoints)
+    #dists = zeros(FT, n_ipoints)
+    p = Vector{Vector{FT}}()
+    @views for ip in ipoints
+        min_dist = FT(Inf)
+        min_vert = 1
+        for i in eachindex(coords[1])
+            dist = sqrt((coords[1][i][1] - ip[1])^2 + (coords[1][i][2] - ip[2])^2)
+            if dist < min_dist
+                min_dist = dist
+                min_vert = i
+            end
+        end
+        if min_dist < 1
+            push!(p, coords[1][min_vert])
+        end
     end
-    dists = sqrt.(dists)
-    p = coords[1][verts[findall(d -> d<1, dists)]] # maybe do rmax/1000
     m = length(p)
 
     # Calculate force direction
     Δl = FT(0)
     if m == 2  # Two intersection points
-        Δx = p[2][1] - p[1][1]
-        Δy = p[2][2] - p[1][2]
+        Δx = FT(p[2][1] - p[1][1])
+        Δy = FT(p[2][2] - p[1][2])
         Δl = sqrt(Δx^2 + Δy^2)
         if Δl > 0.1  # should match our scale
-            force_dir = [-Δy/Δl; Δx/Δl]
+            force_dir .= [-Δy/Δl; Δx/Δl]
         end
     elseif m != 0  # Unusual number of intersection points
         x, y = separate_xy(coords)
@@ -80,23 +88,23 @@ function calc_normal_force(
             Δl = mean(mag[on_idx])
             if Δl > 0.1
                 Fn_tot = sum(Fn[on_idx, :], dims = 1)
-                force_dir = Fn_tot'/sqrt(Fn_tot*Fn_tot')
+                force_dir .= Fn_tot'/sqrt(Fn_tot*Fn_tot')[1]
             end
         end
     end
     # Check if direction of the force desceases overlap, else negate direction
     if Δl > 0.1
-        c1new = [[c .+ vec(force_dir) for c in c1[1]]]
+        c1new = translate(c1, force_dir[1], force_dir[2])
         # Floe/boudary intersection after being moved in force direction
-        new_inter_floe = LG.intersection(LG.Polygon(c1new), LG.Polygon(c2))
+        new_regions_list = intersect_coords(c1new, c2)
         # See if the area of overlap has increased in corresponding region
-        for new_region in LG.getGeometries(new_inter_floe)
+        for new_region in new_regions_list
             if LG.intersects(new_region, region) && LG.area(new_region)/area > 1
-                force_dir *= -1 
+                force_dir .*= -1 
             end
         end
     end
-    return (force_dir * area * force_factor)', Δl
+    return force_dir * area * force_factor, Δl
 end
 
 """
@@ -131,25 +139,29 @@ function calc_elastic_forces(
     c1,
     c2,
     regions,
-    region_areas::Vector{FT},
+    region_areas,
     force_factor::FT,
 ) where {FT<:AbstractFloat}
     ipoints = intersect_lines(c1, c2)  # Intersection points
     ncontact = 0
-    overlap = FT(0)
-    if !isempty(ipoints) && size(ipoints,2) >= 2
+    if !isempty(ipoints) && length(ipoints) >= 2
         # Find overlapping regions greater than minumum area
         n1 = length(c1[1]) - 1
         n2 = length(c2[1]) - 1
         min_area = min(n1, n2) * 100 / 1.75
-        regions = regions[region_areas .> min_area]
-        region_areas = region_areas[region_areas .> min_area]
-        overlap = region_areas
-        ncontact = length(regions)
+        for i in reverse(eachindex(region_areas))
+            if region_areas[i] < min_area
+                deleteat!(region_areas, i)
+                deleteat!(regions, i)
+            else
+                ncontact += 1
+            end
+        end
     end
     # Calculate forces for each remaining region
     force = zeros(FT, ncontact, 2)
     fpoint = zeros(FT, ncontact, 2)
+    overlap = ncontact > 0 ? region_areas : zeros(FT, ncontact)
     Δl_lst = zeros(FT, ncontact)
     for k in 1:ncontact
         if region_areas[k] != 0
@@ -164,7 +176,8 @@ function calc_elastic_forces(
                 ipoints,
                 force_factor
             )
-            force[k, :] = normal_force
+            force[k, 1] = normal_force[1]
+            force[k, 2] = normal_force[2]
             Δl_lst[k] = Δl
         end
     end
@@ -172,47 +185,113 @@ function calc_elastic_forces(
 end
 
 """
-    calc_friction_forces(v1, v2, fpoint, nforce, Δl, consts)
+    get_velocity(
+        floe,
+        x,
+        y,
+    )
 
-Calculate frictional force for collision between two floes.
+Get velocity of a point, assumed to be on given floe.
+Inputs:
+    floe <Union{LazyRow{Floe}, Floe}> floe
+    x    <AbstractFloat> x-coordinate of point to find velocity at
+    y    <AbstractFloat> y-coordinate of point to find velocity at
+Outputs:
+    u   <AbstractFloat> u velocity at point (x, y) assuming it is on given floe
+    v   <AbstractFloat> v velocity at point (x, y) assuming it is on given floe
+"""
+function get_velocity(
+    floe::Union{LazyRow{Floe{FT}}, Floe{FT}},
+    x::FT,
+    y::FT,
+) where {FT}
+    u = floe.u + floe.ξ * (x - floe.centroid[1])
+    v = floe.v + floe.ξ * (y - floe.centroid[2])
+    return u, v
+end
+
+"""
+    get_velocity(
+        element::AbstractDomainElement{FT},
+        x,
+        y,
+    )
+
+Get velocity, which is 0m/s by default, of a point on topography element or
+boundary. 
+"""
+get_velocity(
+    element::AbstractDomainElement{FT},
+    x,
+    y,
+) where {FT} = 
+    FT(0), FT(0)
+
+"""
+    calc_friction_forces(
+        ifloe,
+        jfloe,
+        fpoints,
+        normal::Matrix{FT},
+        Δl,
+        consts,
+        Δt,
+    )
+Calculate frictional force for collision between two floes or a floe and a
+domain element.
 Input:
-    v1   <Array{Float, N, 2}> Matrix of floe speeds for first floe in collision
-            at each point a force is applied to the floe - row is [u v] and one
-            row per each N point
-    v2   <Array{Float, N, 2}> vector of floe speeds for second floe or boundary
-            in collision - see v1 for form
-    fpoint  <Array{Float, N, 2}> x,y-coordinates of the point the force is
+    ifloe   <Floe> first floe in collsion
+    jfloe   <Union{Floe, DomainElement}> either second floe or topography
+                element/boundary element
+    fpoints <Array{Float, N, 2}> x,y-coordinates of the point the force is
                 applied on floe overlap region
     normal  <Array{Float, N, 2}> x,y normal force applied on fpoint on floe
                 overlap region
-    Δl      <Float> mean length of distance between intersection points
+    Δl      <Vector> mean length of distance between intersection points
     consts  <Constants> model constants needed for calculations
+    Δt      <AbstractFloat> simulation's timestep
 Outputs:
-        <Float> frictional/tangential force of the collision
+    force   <Array{Float, N, 2}> frictional/tangential force of the collision in
+                x and y (each row) for each collision (each column)
 """
 function calc_friction_forces(
-    v1,
-    v2,
+    ifloe,
+    jfloe,  # could be a boundary or a topography
+    fpoints,
     normal::Matrix{FT},
     Δl,
     consts,
     Δt,
 ) where {FT}
-    force = zeros(FT, size(v1, 1), 2)
-    G = consts.E/(2*(1+consts.ν))  # Shear modulus
-    # Difference in velocities between floes in x and y direction
-    vdiff = v1 .- v2
-    # Friction forces for each vector
-    for i in axes(vdiff, 1)
-        v = vdiff[i, :]
-        n = normal[i, :]
-        vnorm = norm(v)
-        force_dir = maximum(abs.(v)) == 0 ? zeros(FT, 2) : v/vnorm
-        friction = G * Δl[i] * Δt * vnorm * -dot(force_dir, v) * force_dir
-        if norm(friction) > consts.μ*norm(n)
-            friction = -consts.μ*norm(n)*force_dir
+    force = zeros(FT, size(fpoints, 1), 2)
+    G = consts.E/(2*(1+consts.ν))
+    for i in axes(fpoints, 1)
+        px = fpoints[i, 1]
+        py = fpoints[i, 2]
+        nnorm = sqrt(normal[i, 1]^2 + normal[i, 2]^2)
+        iu, iv = get_velocity(ifloe, px, py)
+        ju, jv = get_velocity(jfloe, px, py)
+
+        udiff = iu - ju
+        vdiff = iv - jv
+
+        vnorm = sqrt(udiff^2 + vdiff^2)
+        xdir = FT(0)
+        ydir = FT(0)
+        if udiff != 0 || vdiff != 0
+            xdir = udiff/vnorm
+            ydir = vdiff/vnorm
         end
-        force[i, :] = friction
+        dot_dir = xdir * udiff + ydir * vdiff
+        xfriction = G *  Δl[i] * Δt * nnorm * xdir * -dot_dir
+        yfriction = G *  Δl[i] * Δt * nnorm * ydir * -dot_dir
+        norm_fric = sqrt(xfriction^2 + yfriction^2)
+        if norm_fric > consts.μ * nnorm
+            xfriction = -consts.μ * nnorm * xdir
+            yfriction = -consts.μ * nnorm * ydir
+        end
+        force[i, 1] = xfriction
+        force[i, 2] = yfriction
     end
     return force
 end
@@ -263,19 +342,13 @@ function floe_floe_interaction!(
     Δt,
     max_overlap::FT,
 ) where {FT<:AbstractFloat}
-    ifloe_poly = LG.Polygon(ifloe.coords)
-    jfloe_poly = LG.Polygon(jfloe.coords)
-    inter_floe = LG.intersection(ifloe_poly, jfloe_poly)
-    inter_regions = LG.Polygon[]
-    region_areas = FT[]
+    inter_regions = intersect_coords(ifloe.coords, jfloe.coords)
+    region_areas = Vector{FT}(undef, length(inter_regions))
     total_area = FT(0)
-    for geom in LG.getGeometries(inter_floe)
-        a = LG.area(geom)::FT
-        if a > 0
-            push!(inter_regions, geom)
-            push!(region_areas, a)
-            total_area += a
-        end
+    for i in eachindex(inter_regions)
+        a = FT(LG.area(inter_regions[i]))
+        region_areas[i] = a
+        total_area += a
     end
     if total_area > 0
         # Floes overlap too much - remove floe or transfer floe mass
@@ -286,9 +359,9 @@ function floe_floe_interaction!(
         else
             # Constant needed to calculate force
             ih = ifloe.height
-            ir = sqrt(ifloe.area)
+            ir = FT(sqrt(ifloe.area))
             jh = jfloe.height
-            jr = sqrt(jfloe.area)
+            jr = FT(sqrt(jfloe.area))
             force_factor = if ir>1e5 || jr>1e5
                 consts.E*min(ih, jh)/min(ir, jr)
             else
@@ -306,23 +379,25 @@ function floe_floe_interaction!(
             velocities at force points =#
             np = size(fpoints, 1)
             if np > 0
-                iv = repeat([ifloe.u ifloe.v], outer = np) .+
-                    ifloe.ξ*(fpoints .- repeat(ifloe.centroid', outer = np)) 
-                jv = repeat([jfloe.u jfloe.v], outer = np) .+
-                    jfloe.ξ*(fpoints .- repeat(jfloe.centroid', outer = np))
                 friction_forces = calc_friction_forces(
-                    iv,
-                    jv,
+                    ifloe,
+                    jfloe,
+                    fpoints,
                     normal_forces,
                     Δl,
                     consts,
-                    Δt
+                    Δt,
                 )
                 # Calculate total forces and update ifloe's interactions
                 forces = normal_forces .+ friction_forces
                 if sum(abs.(forces)) != 0
-                    ifloe.interactions = [ifloe.interactions;
-                        fill(j, np) forces fpoints zeros(np) overlaps]
+                    new_interactions = [
+                        fill(j, np) forces fpoints zeros(FT, np) overlaps
+                    ]
+                    ifloe.interactions = vcat(
+                        ifloe.interactions,
+                        new_interactions
+                    )
                     ifloe.overarea += sum(overlaps)
                 end
             end
@@ -534,23 +609,17 @@ function floe_domain_element_interaction!(
     Δt,
     max_overlap::FT,
 ) where {FT}
-    floe_poly = LG.Polygon(floe.coords)
-    bounds_poly = LG.Polygon(element.coords)
-    # Check if the floe and element actually overlap
-    inter_floe = LG.intersection(floe_poly, bounds_poly)
-    inter_regions = LG.Polygon[]
-    region_areas = FT[]
+    inter_regions = intersect_coords(floe.coords, element.coords)
+    region_areas = Vector{FT}(undef, length(inter_regions))
     max_area = FT(0)
-    for geom in LG.getGeometries(inter_floe)
-        a = LG.area(geom)::FT
-        if a > 0
-            push!(inter_regions, geom)
-            push!(region_areas, a)
-            if a > max_area
-                max_area = a
-            end
+    for i in eachindex(inter_regions)
+        a = FT(LG.area(inter_regions[i]))
+        region_areas[i] = a
+        if a > max_area
+            max_area = a
         end
     end
+
     if max_area > 0
         # Regions overlap too much
         if maximum(region_areas)/floe.area > max_overlap
@@ -569,23 +638,23 @@ function floe_domain_element_interaction!(
             normal_direction_correct!(normal_forces, fpoints, element)
             # Calculate frictional forces at each force point
             np = size(fpoints, 1)
-            vfloe = repeat([floe.u floe.v], outer = np) .+
-                floe.ξ*(fpoints .- repeat(floe.centroid', outer = np)) 
-            vbound = repeat(zeros(FT, 1, 2), outer = np)
-            friction_forces = calc_friction_forces(
-                vfloe,
-                vbound,
-                normal_forces,
-                Δl,
-                consts,
-                Δt,
-            )
-            # Calculate total forces and update ifloe's interactions
-            forces = normal_forces .+ friction_forces
-            if sum(abs.(forces)) != 0
-                floe.interactions = [floe.interactions;
-                    fill(Inf, np) forces fpoints zeros(np) overlaps]
-                floe.overarea += sum(overlaps)
+            if np > 0
+                friction_forces = calc_friction_forces(
+                    floe,
+                    element,
+                    fpoints,
+                    normal_forces,
+                    Δl,
+                    consts,
+                    Δt,
+                )
+                # Calculate total forces and update ifloe's interactions
+                forces = normal_forces .+ friction_forces
+                if sum(abs.(forces)) != 0
+                    floe.interactions = [floe.interactions;
+                        fill(Inf, np) forces fpoints zeros(np) overlaps]
+                    floe.overarea += sum(overlaps)
+                end
             end
         end
     end
@@ -753,7 +822,9 @@ Inputs:
 Outputs:
         None. Floe's interactions field is updated with calculated torque.
 """
-function calc_torque!(floe::Union{LazyRow{<:Floe{FT}}, Floe{FT}}) where {FT<:AbstractFloat}
+function calc_torque!(
+    floe::Union{LazyRow{<:Floe{FT}}, Floe{FT}},
+) where {FT<:AbstractFloat}
     inters = floe.interactions
     if !isempty(inters)
         dir = [inters[:, xpoint] .- floe.centroid[1] inters[:, ypoint] .- floe.centroid[2] zeros(FT, size(inters, 1))]
@@ -765,18 +836,33 @@ function calc_torque!(floe::Union{LazyRow{<:Floe{FT}}, Floe{FT}}) where {FT<:Abs
             floe.interactions[i, torque] = itorque[3]
         end
     end
+    return
 end
 
 """
-
+    potential_interaction(
+        centroid1,
+        centroid2,
+        rmax1,
+        rmax2,
+    )
+Determine if two floes could potentially interact using the two centroid and two
+radii to form a bounding circle.
+Inputs:
+    centroid1   <Vector> first floe's centroid [x, y]
+    centroid2   <Vector> second floe's centroid [x, y]
+    rmax1       <Float> first floe's maximum radius
+    rmax2       <Float> second floe's maximum radius
+Outputs:
+    <Bool> true if floes could potentially interact, false otherwise
 """
 potential_interaction(
     centroid1,
     centroid2,
     rmax1,
     rmax2,
-) = (sum((centroid1 .- centroid2).^2) < (rmax1 + rmax2)^2)
-
+) = ((centroid1[1] - centroid2[1])^2 + (centroid1[2] - centroid2[2])^2) < 
+    (rmax1 + rmax2)^2
 
 """
     timestep_collisions!(
@@ -811,7 +897,7 @@ function timestep_collisions!(
 ) where {FT<:AbstractFloat}
     collide_pairs = Dict{Tuple{Int, Int}, Tuple{Int, Int}}()
     # floe-floe collisions for floes i and j where i<j
-    Threads.@threads for i in eachindex(floes)
+    for i in eachindex(floes)
         # reset collision values
         fill!(floes.collision_force[i], FT(0))
         floes.collision_trq[i] = FT(0.0)
@@ -880,8 +966,15 @@ function timestep_collisions!(
                 j = ij_inters[inter_idx, floeidx]  # Index of floe to update
                 if j <= length(floes) && j > i
                     jidx = Int(j)
-                    floes.interactions[jidx] = [floes.interactions[jidx]; i -ij_inters[inter_idx, xforce] -ij_inters[inter_idx, yforce] #=
-                                             =# ij_inters[inter_idx, xpoint] ij_inters[inter_idx, ypoint] FT(0.0) ij_inters[inter_idx, overlap]]
+                    floes.interactions[jidx] = vcat(
+                        floes.interactions[jidx],
+                        ij_inters[inter_idx:inter_idx, :]
+                    )
+                    floes.interactions[jidx][end, floeidx] = i
+                    floes.interactions[jidx][end, xforce] *= -1
+                    floes.interactions[jidx][end, yforce] *= -1
+                    # floes.interactions[jidx] = [floes.interactions[jidx]; i -ij_inters[inter_idx, xforce] -ij_inters[inter_idx, yforce] #=
+                    #                          =# ij_inters[inter_idx, xpoint] ij_inters[inter_idx, ypoint] FT(0.0) ij_inters[inter_idx, overlap]]
                     floes.overarea[jidx] += ij_inters[inter_idx, overlap]
                 end
             end
@@ -909,31 +1002,48 @@ end
 If the given element intersects with the boundary, add ghosts of the element and 
 any of its existing ghosts. 
 Inputs:
-        element     <StructArray{Floe} or StructArray{TopographyElement}> given element
-        ghosts      <StructArray{Floe} or StructArray{TopographyElement}> current ghosts of element
-        boundary    <PeriodicBoundary> boundary to translate element through
-        trans_vec   <Matrix{Float}> 1x2 matrix of form [x y] to translate element through the boundary
+    floes       <StructArray{Floe}> model's list of floes
+    elem_idx    <Int> floe of interest's index within the floe list
+    boundary    <PeriodicBoundary> boundary to translate element through
+    trans_vec   <Matrix{Float}> 1x2 matrix of form [x y] to translate element
+                    through the boundary
 Outputs:
-        New ghosts created by the given element, or its current ghosts, passing through the given boundary. 
+    Nothing. New ghosts created by the given element, or its current ghosts,
+    are added to the floe list
 """
-function ghosts_on_bounds(element, ghosts, boundary, trans_vec)
-    new_ghosts = StructArray(Vector{typeof(element)}())
-    if LG.area(LG.intersection(LG.Polygon(element.coords), LG.Polygon(boundary.coords))) > 0
+function ghosts_on_bounds!(
+    floes,
+    elem_idx,
+    boundary,
+    trans_vec,
+)
+    nfloes = length(floes)
+    nghosts = 1
+    if !isempty(intersect_coords(floes.coords[elem_idx], boundary.coords))
         # ghosts of existing ghosts and original element
-        append!(new_ghosts, deepcopy.(ghosts))
-        push!(new_ghosts, deepcopy(element))
-        for i in eachindex(new_ghosts)
-            translate!(new_ghosts.coords[i], trans_vec[1], trans_vec[2])
-            new_ghosts.centroid[i] .+= trans_vec
+        for i in floes.ghosts[elem_idx]
+            push!(
+                floes,
+                deepcopy_floe(LazyRow(floes, i)),
+            )
+            nghosts += 1
+        end
+        push!(
+                floes,
+                deepcopy_floe(LazyRow(floes, elem_idx)),
+            )
+        for i in (nfloes + 1):(nfloes + nghosts)
+            translate!(floes.coords[i], trans_vec[1], trans_vec[2])
+            floes.centroid[i] .+= trans_vec
         end
     end
-    return new_ghosts
+    return
 end
 
 """
     find_ghosts(
-        elem,
-        current_ghosts,
+        floes,
+        elem_idx,
         ebound::PeriodicBoundary,
         wbound::PeriodicBoundary,
     )
@@ -943,43 +1053,61 @@ periodic boundary. If element's centroid isn't within the domain in the
 east/west direction, swap it with its ghost since the ghost's centroid must then
 be within the domain. 
 Inputs:
-    elem            <StructArray{Floe}> given element
-    current_ghosts  <StructArray{Floe}> current ghosts of element
-    eboundary       <PeriodicBoundary{East, Float}> domain's eastern boundary
-    wboundary       <PeriodicBoundary{West, Float}> domain's western boundary
+    floes       <StructArray{Floe}> model's list of floes
+    elem_idx    <Int> floe of interest's index within the floe list
+    eboundary   <PeriodicBoundary{East, Float}> domain's eastern boundary
+    wboundary   <PeriodicBoundary{West, Float}> domain's western boundary
 Outputs:
-    Return "primary" element, which has its centroid within the domain in the
-    east/west direction, and all of its ghosts in the east/west direction,
-    including ghosts of previously existing ghosts.
+    None. Ghosts added to the floe list. Primary floe always has centroid within
+    the domain, else it is swapped with one of its ghost's which has a centroid
+    within the domain.
 """
 function find_ghosts(
-    elem,
-    current_ghosts,
+    floes,
+    elem_idx,
     ebound::PeriodicBoundary{East, FT},
     wbound::PeriodicBoundary{West, FT},
 ) where {FT <: AbstractFloat}
     Lx = ebound.val - wbound.val
-    new_ghosts =
-        # passing through western boundary
-        if (elem.centroid[1] - elem.rmax < wbound.val)
-            ghosts_on_bounds(elem, current_ghosts, wbound, [Lx, FT(0)])
-        # passing through eastern boundary
-        elseif (elem.centroid[1] + elem.rmax > ebound.val)
-            ghosts_on_bounds(elem, current_ghosts, ebound, [-Lx, FT(0)])
-        else
-            StructArray(Vector{typeof(elem)}())
-        end
-    # if element centroid isn't in domain's east/west direction, swap with ghost
-    if !isempty(new_ghosts) && ((elem.centroid[1] < wbound.val) || (ebound.val < elem.centroid[1]))
-        elem, new_ghosts[end] = new_ghosts[end], elem
+    nfloes = length(floes)
+    # passing through western boundary
+    if (floes.centroid[elem_idx][1] - floes.rmax[elem_idx] < wbound.val)
+        ghosts_on_bounds!(
+            floes,
+            elem_idx,
+            wbound,
+            [Lx, FT(0)],
+        )
+    # passing through eastern boundary
+    elseif (floes.centroid[elem_idx][1] + floes.rmax[elem_idx] > ebound.val)
+        ghosts_on_bounds!(
+            floes,
+            elem_idx,
+            ebound,
+            [-Lx, FT(0)],
+        )
     end
-    return elem, new_ghosts
+    # if element centroid isn't in domain's east/west direction, swap with ghost
+    if length(floes) > nfloes
+        if floes.centroid[elem_idx][1] < wbound.val
+            translate!(floes.coords[elem_idx], Lx, FT(0))
+            floes.centroid[elem_idx][1] += Lx
+            translate!(floes.coords[end], -Lx, FT(0))
+            floes.centroid[end][1] -= Lx
+        elseif ebound.val < floes.centroid[elem_idx][1]
+            translate!(floes.coords[elem_idx], -Lx, FT(0))
+            floes.centroid[elem_idx][1] -= Lx
+            translate!(floes.coords[end], Lx, FT(0))
+            floes.centroid[end][1] += Lx
+        end
+    end
+    return
 end
 
 """
     find_ghosts(
-        elem,
-        current_ghosts,
+        floes,
+        elem_idx,
         nbound::PeriodicBoundary{North, <:AbstractFloat},
         sbound::PeriodicBoundary{South, <:AbstractFloat},
     )
@@ -989,37 +1117,55 @@ southern periodic boundary. If element's centroid isn't within the domain in the
 north/south direction, swap it with its ghost since the ghost's centroid must
 then be within the domain. 
 Inputs:
-    elem            <StructArray{Floe}> given element
-    current_ghosts  <StructArray{Floe}> current ghosts of element
+    floes       <StructArray{Floe}> model's list of floes
+    elem_idx    <Int> floe of interest's index within the floe list
     nboundary        <PeriodicBoundary{North, Float}> domain's northern boundary
     sboundary        <PeriodicBoundary{South, Float}> domain's southern boundary
 Outputs:
-    Return "primary" element, which has its centroid within the domain in the
-    north/south direction, and all of its ghosts in the north/south direction,
-    including ghosts of previously existing ghosts.
+    None. Ghosts added to the floe list. Primary floe always has centroid within
+    the domain, else it is swapped with one of its ghost's which has a centroid
+    within the domain.
 """
 function find_ghosts(
-    elem,
-    current_ghosts,
+    floes,
+    elem_idx,
     nbound::PeriodicBoundary{North, FT},
     sbound::PeriodicBoundary{South, FT},
 ) where {FT <: AbstractFloat}
     Ly =  nbound.val - sbound.val
-    new_ghosts = 
+    nfloes = length(floes)
         # passing through southern boundary
-        if (elem.centroid[2] - elem.rmax < sbound.val)
-            ghosts_on_bounds(elem, current_ghosts, sbound, [FT(0), Ly])
-        # passing through northern boundary
-        elseif (elem.centroid[2] + elem.rmax > nbound.val) 
-            ghosts_on_bounds(elem, current_ghosts, nbound, [FT(0), -Ly])
-        else
-            StructArray(Vector{typeof(elem)}())
-        end
-    # if element centroid isn't in domain's north/south direction, swap with ghost
-    if !isempty(new_ghosts) && ((elem.centroid[2] < sbound.val) || (nbound.val < elem.centroid[2]))
-        elem, new_ghosts[end] = new_ghosts[end], elem
+    if (floes.centroid[elem_idx][2] - floes.rmax[elem_idx] < sbound.val)
+        ghosts_on_bounds!(
+            floes,
+            elem_idx,
+            sbound,
+            [FT(0), Ly],
+        )
+    # passing through northern boundary
+    elseif (floes.centroid[elem_idx][2] + floes.rmax[elem_idx] > nbound.val) 
+        ghosts_on_bounds!(
+            floes,
+            elem_idx,
+            nbound,
+            [FT(0), -Ly],
+        )
     end
-    return elem, new_ghosts
+    # if element centroid isn't in domain's north/south direction, swap with ghost
+    if length(floes) > nfloes
+        if floes.centroid[elem_idx][2] < sbound.val
+            translate!(floes.coords[elem_idx], FT(0), Ly)
+            floes.centroid[elem_idx][2] += Ly
+            translate!(floes.coords[end], FT(0), -Ly)
+            floes.centroid[end][2] -= Ly
+        elseif nbound.val < floes.centroid[elem_idx][2]
+            translate!(floes.coords[elem_idx], FT(0), -Ly)
+            floes.centroid[elem_idx][2] -= Ly
+            translate!(floes.coords[end], FT(0), Ly)
+            floes.centroid[end][2] += Ly
+        end
+    end
+    return
 end
 
 """
@@ -1035,39 +1181,36 @@ Outputs:
     None. Ghosts of floes are added to floe list. 
 """
 function add_floe_ghosts!(
-    floes::StructArray{Floe{FT}},
+    floes::FLT,
     max_boundary,
     min_boundary,
-) where {FT <: AbstractFloat}
+) where {FT <: AbstractFloat, FLT <: StructArray{<:Floe{FT}}}
     nfloes = length(floes)
     # uses initial length of floes so we can append to list
     for i in eachindex(floes)
-        f = floes[i]
         # the floe is active in the simulation and a parent floe
-        if f.status.tag == active && f.ghost_id == 0
-            f, new_ghosts = find_ghosts(
-                f,
-                floes[f.ghosts],
+        if floes.status[i].tag == active && floes.ghost_id[i] == 0
+            find_ghosts(
+                floes,
+                i,
                 max_boundary,
                 min_boundary,
             )
-            if !isempty(new_ghosts)
-                nghosts = length(new_ghosts)
-                new_ghosts.ghost_id .= range(1, nghosts) .+ length(f.ghosts)
+            new_nfloes = length(floes)
+            if new_nfloes > nfloes
+                nghosts = new_nfloes - nfloes
+                # set ghost floe's ghost id
+                floes.ghost_id[(nfloes + 1):new_nfloes] .= range(1, nghosts) .+ length(floes.ghosts[i])
                 # remove ghost floes ghosts as these were added to parent
-                empty!.(new_ghosts.ghosts)
-                # add ghosts to floe list
-                append!(floes, new_ghosts)
+                empty!.(floes.ghosts[nfloes + 1:new_nfloes])
                 # index of ghosts floes saved in parent
-                append!(f.ghosts, (nfloes + 1):(nfloes + nghosts))
+                append!(floes.ghosts[i], (nfloes + 1):(nfloes + nghosts))
                 nfloes += nghosts
-                floes[i] = f
             end
         end
     end
     return
 end
-
 """
     add_ghosts!(
         elems,
