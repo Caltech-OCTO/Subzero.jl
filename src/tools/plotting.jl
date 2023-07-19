@@ -268,7 +268,7 @@ function create_coupled_ro_sim_gif(
             plt,
             xc/1000,
             yc/1000,
-            Ro,  # should be transposed 
+            Ro',  # should be transposed 
             xlabel="x [km]",
             ylabel="y [km]",
             title=prettytime(t[i]),

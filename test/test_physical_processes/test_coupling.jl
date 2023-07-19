@@ -1,5 +1,81 @@
 @testset "Coupling" begin
     FT = Float64
+    @testset "Generating sub-floe points" begin
+        FT = Float64
+        # test generating monte carlo points
+        file = jldopen("inputs/floe_shapes.jld2", "r")
+        floe_coords = file["floe_vertices"][1:end]
+        close(file)
+        poly1 = LG.Polygon(Subzero.valid_polyvec!(floe_coords[1]))
+        centroid1 = LG.GeoInterface.coordinates(LG.centroid(poly1))
+        origin_coords = Subzero.translate(
+            floe_coords[1],
+            -centroid1[1],
+            -centroid1[2],
+        )
+        xo, yo = Subzero.separate_xy(origin_coords)
+        rmax = sqrt(maximum([sum(xo[i]^2 + yo[i]^2) for i in eachindex(xo)]))
+        area = LG.area(poly1)
+        mc_x, mc_y, status = Subzero.generate_subfloe_points(
+            MonteCarloPointsGenerator(),
+            origin_coords,
+            rmax,
+            area,
+            Subzero.Status(),
+            Xoshiro(1)
+        )
+        @test length(mc_x) == length(mc_y) && length(mc_x) > 0
+        in_on = inpoly2(hcat(mc_x, mc_y), hcat(xo, yo))
+        mc_in = in_on[:, 1] .|  in_on[:, 2]
+        @test all(mc_in)
+        @test abs(sum(mc_in)/1000 * 4 * rmax^2 - area)/area < 0.1
+        @test status.tag == Subzero.active
+        # Test that random number generator is working
+        mc_x2, mc_y2, status2 = Subzero.generate_subfloe_points(
+            MonteCarloPointsGenerator(),
+            origin_coords,
+            rmax,
+            area,
+            Subzero.Status(),
+            Xoshiro(1)
+        )
+        @test all(mc_x .== mc_x2)
+        @test all(mc_y .== mc_y2)
+        @test status2.tag == Subzero.active
+    
+        mc_x3, mc_y3, status3 = Subzero.generate_subfloe_points(
+            MonteCarloPointsGenerator{Float32}(),
+            origin_coords,
+            rmax,
+            area,
+            Subzero.Status(),
+            Xoshiro(1)
+        )
+        @test status3.tag == Subzero.active
+        @test eltype(mc_x3) == eltype(mc_y3) == Float32
+
+        # test generating sub-grid points for grid with Δx = Δy = 10
+        point_generator = SubGridPointsGenerator{Float64}(10/sqrt(2))
+        square = [[
+            [0.0, 0.0],
+            [0.0, 5.0],
+            [5.0, 5.0],
+            [5.0, 0.0],
+            [0.0, 0.0],
+        ]]
+        xpoints, ypoints = generate_subfloe_points(
+            point_generator,
+            square,
+            0.0, # Not used
+            0.0, # Not used
+            Subzero.Status(),
+            Xoshiro(), # Not random
+        )
+        @test xpoints == [2.5]
+        @test ypoints == [2.5]
+
+    end
+
     @testset "Coupling Helper Functions" begin
         grid = Subzero.RegRectilinearGrid(
             (-10, 10),
