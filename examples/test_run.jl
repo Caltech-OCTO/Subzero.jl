@@ -52,7 +52,7 @@ floe_arr = initialize_floe_field(
     coupling_settings = coupling_settings,
     rng = Xoshiro(1),
 )
-
+floe_arr.α .= 1e-5
 model = Model(
     grid,
     zonal_ocn,
@@ -76,7 +76,7 @@ simulation = Simulation(
     name = "sim",
     model = model,
     Δt = 10,
-    nΔt = 100,
+    nΔt = 2000,
     writers = writers,
     verbose = true,
     consts = Constants(Cd_ia = 0, Cd_ao = 0),
