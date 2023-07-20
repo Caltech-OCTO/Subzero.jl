@@ -139,7 +139,9 @@ SubGridPointsGenerator{FT}(
     grid::RegRectilinearGrid,
     npoint_per_cell::Int,
 ) where {FT <: AbstractFloat} =
-    SubGridPointsGenerator{FT}(min(grid.Δx, grid.Δy) / npoint_per_cell)
+    SubGridPointsGenerator{FT}(
+        min(grid.Δx, grid.Δy) / npoint_per_cell / sqrt(2)
+    )
 
 """
     generate_subfloe_points(
@@ -234,51 +236,95 @@ function generate_subfloe_points(
     status,
     rng
 ) where {FT <: AbstractFloat}
-    xmax = FT(-Inf)
-    ymax = FT(-Inf)
-    xmin = FT(Inf)
-    ymin = FT(Inf)
-    @views for vert in coords[1]
-        if vert[1] > xmax
-            xmax = vert[1]
-        end
-        if vert[1] < xmin
-            xmin = vert[1]
-        end
-        if vert[2] > ymax
-            ymax = vert[2]
-        end
-        if vert[2] < ymin
-            ymin = vert[2]
-        end
-    end
+    xmax = coords[1][1][1]
+    xmin = coords[1][1][1]
+    ymax = coords[1][1][2]
+    ymin = coords[1][1][2]
+    nverts = length(coords[1])
 
-    n_xpoints = round(Int, (xmax - xmin) / point_generator.Δg) + 1
-    n_ypoints = round(Int, (ymax - ymin) / point_generator.Δg) + 1
-    xpoints = if n_xpoints < 3
+    xpoints = Vector{FT}()
+    ypoints = Vector{FT}()
+    # Add points along edges
+    for i in 1:(nverts - 1)
+        # Determine points on edges
+        x1, y1 = coords[1][i]
+        x2, y2 = coords[1][i+1]
+        Δx = x2 - x1
+        Δy = y2 - y1
+        l = sqrt((Δx)^2 + (Δy)^2)
+        # Find maximum and minimum x and y points
+        if x1 > xmax
+            xmax = x1
+        elseif x1 < xmin
+            xmin = x1
+        end
+        if y1 > ymax
+            ymax = y1
+        elseif y1 < ymin
+            ymin = y1
+        end
+        # Add current vertex
+        push!(xpoints, x1)
+        push!(ypoints, y1)
+        # If distance between i and i+1 vertex is less than 2 sub-grid cells
+        # but greater than one, add a point inbetween those two vertices
+        if l <= 2point_generator.Δg
+            if l > point_generator.Δg
+                push!(xpoints, x1 + Δx/2)
+                push!(ypoints, y1 + Δy/2)
+            end
+        else  # The edge needs more points than the corners and midpoint
+            if Δx == 0
+                y1 +=  point_generator.Δg/2 * sign(Δy)
+                y2 -= point_generator.Δg/2 * sign(Δy)
+            elseif Δy == 0
+                x1 += point_generator.Δg/2 * sign(Δx)
+                x2 -= point_generator.Δg/2 * sign(Δx)
+            else  # shift points to still be on the line
+                m = Δy / Δx
+                x_shift = sqrt(point_generator.Δg^2 / 4(1 + m^2))
+                y_shift = m * x_shift
+                x1 += x_shift
+                x2 -= x_shift
+                y1 += y_shift
+                y2 -= y_shift
+            end
+            l = sqrt((x2 - x1)^2 + (y2 - y1)^2)
+            n_edge_points = ceil(Int, l / point_generator.Δg) + 1
+            append!(xpoints, range(x1, x2, length = n_edge_points))
+            append!(ypoints, range(y1, y2, length = n_edge_points))
+        end
+    end
+    # Add points in the interior of the floe
+    n_xpoints = ceil(Int, (xmax - xmin) / point_generator.Δg)
+    n_ypoints = ceil(Int, (ymax - ymin) / point_generator.Δg)
+    x_interior_points = if n_xpoints < 3
+        n_xpoints = 1
         FT(0):FT(0)  # coords are centered at the origin
     else
-        range(xmin, xmax, length = n_xpoints)
+        range(
+            xmin + point_generator.Δg/2,
+            xmax - point_generator.Δg/2,
+            length = n_xpoints,
+        )
     end
-    ypoints = if n_ypoints < 3
-        FT(0):FT(0)  # coords are centered at the origin
+    y_interior_points = if n_ypoints < 3
+        n_ypoints = 1
+        FT(0):FT(0)
     else
-        range(ymin, ymax, length = n_ypoints)
+        range(
+            ymin + point_generator.Δg/2,
+            ymax - point_generator.Δg/2,
+            length = n_ypoints,
+        )
     end
-    x_sub_floe = repeat(xpoints, length(ypoints))
-    y_sub_floe = repeat(ypoints, inner = length(xpoints))
+    x_sub_floe = repeat(x_interior_points, n_ypoints)
+    y_sub_floe = repeat(y_interior_points, inner = n_xpoints)
     in_floe = points_in_poly(hcat(x_sub_floe, y_sub_floe), coords)
 
-    x_sub_floe = x_sub_floe[in_floe]
-    y_sub_floe = y_sub_floe[in_floe]
-    if length(x_sub_floe) < 2
-        x_sub_floe = FT(0):FT(0)  # coords are centered at the origin
-    end
-    if length(y_sub_floe) < 2
-        y_sub_floe = FT(0):FT(0)  # coords are centered at the origin
-    end
-
-    return x_sub_floe, y_sub_floe, status
+    append!(xpoints, x_sub_floe[in_floe])
+    append!(ypoints, y_sub_floe[in_floe])
+    return xpoints, ypoints, status
 end
 
 #-------------- Monte Carlo Point Calculations --------------#
