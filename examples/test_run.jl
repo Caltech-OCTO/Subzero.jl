@@ -76,7 +76,7 @@ simulation = Simulation(
     name = "sim",
     model = model,
     Δt = 10,
-    nΔt = 2000,
+    nΔt = 200,
     writers = writers,
     verbose = true,
     consts = Constants(Cd_ia = 0, Cd_ao = 0),

@@ -56,14 +56,15 @@
 
         # test generating sub-grid points for grid with Δx = Δy = 10
         point_generator = SubGridPointsGenerator{Float64}(10/sqrt(2))
+        # Floe is smaller than grid cells --> centroid and vertices added
         square = [[
-            [0.0, 0.0],
-            [0.0, 5.0],
-            [5.0, 5.0],
-            [5.0, 0.0],
-            [0.0, 0.0],
+            [-2.5, -2.5],
+            [-2.5, 2.5],
+            [2.5, 2.5],
+            [2.5, -2.5],
+            [-2.5, -2.5],
         ]]
-        xpoints, ypoints = generate_subfloe_points(
+        xpoints, ypoints = Subzero.generate_subfloe_points(
             point_generator,
             square,
             0.0, # Not used
@@ -71,8 +72,86 @@
             Subzero.Status(),
             Xoshiro(), # Not random
         )
-        @test xpoints == [2.5]
-        @test ypoints == [2.5]
+        @test xpoints == [-2.5, -2.5, 2.5, 2.5, 0.0]
+        @test ypoints == [-2.5, 2.5, 2.5, -2.5, 0.0]
+        # Floe is larger than grid cell
+        tall_rect = [[
+            [-2.0, -10.0],
+            [-2.0, 10.0],
+            [2.0, 10.0],
+            [2.0, -10.0],
+            [-2.0, -10.0],
+        ]]
+        xpoints, ypoints = Subzero.generate_subfloe_points(
+            point_generator,
+            tall_rect,
+            0.0, # Not used
+            0.0, # Not used
+            Subzero.Status(),
+            Xoshiro(), # Not random
+        )
+        @test xpoints == [repeat([-2.0], 5); repeat([2.0], 5); repeat([0.0], 3)]
+        @test all(isapprox.(
+            ypoints,
+            [-10.0, -6.46447, 0.0, 6.46447, 10.0, 10.0, 6.46447, 0.0,
+                -6.46447, -10, -6.46447, 0.0, 6.46447,
+            ],
+            atol = 1e-5))
+
+        wide_rect = [[
+            [-10.0, -2.0],
+            [-10.0, 2.0],
+            [10.0, 2.0],
+            [10.0, -2.0],
+            [-10.0, -2.0],
+        ]]
+        xpoints, ypoints = Subzero.generate_subfloe_points(
+            point_generator,
+            wide_rect,
+            0.0, # Not used
+            0.0, # Not used
+            Subzero.Status(),
+            Xoshiro(), # Not random
+        )
+        @test all(isapprox.(
+            xpoints,
+            [-10, -10, -6.46447, 0.0, 6.46447, 10, 10, 6.46447, 0.0,
+                -6.464466, -6.46447, 0, 6.46447,
+            ],
+            atol = 1e-5
+        ))
+        @test ypoints == [-2; repeat([2], 5); repeat([-2], 4); repeat([0], 3)] 
+        trapeziod = [[
+            [-8.0, -8.0],
+            [-4.0, 8.0],
+            [4.0, 8.0],
+            [8.0, -8.0],
+            [-8.0, -8.0],
+        ]]
+        xpoints, ypoints = Subzero.generate_subfloe_points(
+            point_generator,
+            trapeziod,
+            0.0, # Not used
+            0.0, # Not used
+            Subzero.Status(),
+            Xoshiro(), # Not random
+        )
+        @test all(isapprox.(
+            xpoints,
+            [-8, -7.14251, -6.0, -4.85749, -4.0, 0.0, 4.0, 4.85749, 6.0,
+                7.14251, 8.0, 4.46447, 0.0, -4.46447, -4.46447, 0.0, 4.46447,
+                -4.46447, 0.0, 4.46447, -4.46447, 0.0, 4.46447
+            ],
+            atol = 1e-5
+        ))
+        @test all(isapprox.(
+            ypoints,
+            [-8; -4.57003; 0.0; 4.57003; repeat([8.0], 3); 4.57003; 0.0;
+                -4.57003; repeat([8.0], 4); repeat([-4.57003], 3);
+                repeat([0.0], 3); repeat([-4.57003], 3);
+            ],
+            atol = 1e-5
+        ))
 
     end
 

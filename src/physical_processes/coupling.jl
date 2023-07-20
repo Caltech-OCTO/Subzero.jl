@@ -240,8 +240,6 @@ function generate_subfloe_points(
     xmin = coords[1][1][1]
     ymax = coords[1][1][2]
     ymin = coords[1][1][2]
-
-    Δg_r = point_generator.Δg / sqrt(2)
     nverts = length(coords[1])
 
     xpoints = Vector{FT}()
@@ -251,10 +249,9 @@ function generate_subfloe_points(
         # Determine points on edges
         x1, y1 = coords[1][i]
         x2, y2 = coords[1][i+1]
-        l = sqrt((x2 - x1)^2 + (y2 - y1)^2)
-        n_edge_points = ceil(Int, l / point_generator.Δg) + 1
-        append!(xpoints, range(x1, x2, length = n_edge_points))
-        append!(ypoints, range(y1, y2, length = n_edge_points))
+        Δx = x2 - x1
+        Δy = y2 - y1
+        l = sqrt((Δx)^2 + (Δy)^2)
         # Find maximum and minimum x and y points
         if x1 > xmax
             xmax = x1
@@ -265,6 +262,37 @@ function generate_subfloe_points(
             ymax = y1
         elseif y1 < ymin
             ymin = y1
+        end
+        # Add current vertex
+        push!(xpoints, x1)
+        push!(ypoints, y1)
+        # If distance between i and i+1 vertex is less than 2 sub-grid cells
+        # but greater than one, add a point inbetween those two vertices
+        if l <= 2point_generator.Δg
+            if l > point_generator.Δg
+                push!(xpoints, x1 + Δx/2)
+                push!(ypoints, y1 + Δy/2)
+            end
+        else  # The edge needs more points than the corners and midpoint
+            if Δx == 0
+                y1 +=  point_generator.Δg/2 * sign(Δy)
+                y2 -= point_generator.Δg/2 * sign(Δy)
+            elseif Δy == 0
+                x1 += point_generator.Δg/2 * sign(Δx)
+                x2 -= point_generator.Δg/2 * sign(Δx)
+            else  # shift points to still be on the line
+                m = Δy / Δx
+                x_shift = sqrt(point_generator.Δg^2 / 4(1 + m^2))
+                y_shift = m * x_shift
+                x1 += x_shift
+                x2 -= x_shift
+                y1 += y_shift
+                y2 -= y_shift
+            end
+            l = sqrt((x2 - x1)^2 + (y2 - y1)^2)
+            n_edge_points = ceil(Int, l / point_generator.Δg) + 1
+            append!(xpoints, range(x1, x2, length = n_edge_points))
+            append!(ypoints, range(y1, y2, length = n_edge_points))
         end
     end
     # Add points in the interior of the floe
