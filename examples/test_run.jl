@@ -1,4 +1,4 @@
-using JLD2, Random, Statistics, Subzero, BenchmarkTools, StructArrays
+using JLD2, Random, Statistics, Subzero, BenchmarkTools, StructArrays, PProf, ProfileView, Profile
 import LibGEOS as LG
 
 # User Inputs
@@ -44,7 +44,7 @@ coupling_settings = CouplingSettings(
 
 floe_arr = initialize_floe_field(
     FT,
-    30,
+    50,
     [0.8],
     domain,
     0.5,
@@ -52,7 +52,7 @@ floe_arr = initialize_floe_field(
     coupling_settings = coupling_settings,
     rng = Xoshiro(1),
 )
-floe_arr.α .= 1e-5
+
 model = Model(
     grid,
     zonal_ocn,
@@ -62,49 +62,48 @@ model = Model(
 )
 dir = "output/sim"
 writers = OutputWriters(
-    # InitialStateOutputWriter(
-    #     dir = dir,
-    #     overwrite = true
-    # ),
-    # FloeOutputWriter(
-    #     250,
-    #     dir = dir,
-    #     overwrite = true,
-    # ),
+    InitialStateOutputWriter(
+        dir = dir,
+        overwrite = true
+    ),
+    FloeOutputWriter(
+        250,
+        dir = dir,
+        overwrite = true,
+    ),
 )
 simulation = Simulation(
     name = "sim",
     model = model,
     Δt = 10,
-    nΔt = 200,
+    nΔt = 500,
     writers = writers,
     verbose = true,
-    consts = Constants(Cd_ia = 0, Cd_ao = 0),
     coupling_settings = coupling_settings,
     
 )
 
 #@benchmark timestep_sim!(simulation, 10) setup=(sim=deepcopy(simulation))
-function run_with_saving(simulation, tstep_between_save)
-    nsave = fld(simulation.nΔt, tstep_between_save) + 1
-    τx = zeros(FT, grid.Nx + 1, grid.Ny + 1, nsave)
-    Subzero.startup_sim(simulation, nothing, 1)
-    tstep = 0
-    counter = 1
-    while tstep <= simulation.nΔt
-        # Timestep the simulation forward
-        timestep_sim!(simulation, tstep)
-        if mod(tstep, tstep_between_save) == 0
-            τx[:, :, counter] .= simulation.model.ocean.τx
-            counter += 1
-        end
-        tstep+=1
-    end
-    Subzero.teardown_sim(simulation)
-    return τx
-end
+# function run_with_saving(simulation, tstep_between_save)
+#     nsave = fld(simulation.nΔt, tstep_between_save) + 1
+#     τx = zeros(FT, grid.Nx + 1, grid.Ny + 1, nsave)
+#     Subzero.startup_sim(simulation, nothing, 1)
+#     tstep = 0
+#     counter = 1
+#     while tstep <= simulation.nΔt
+#         # Timestep the simulation forward
+#         timestep_sim!(simulation, tstep)
+#         if mod(tstep, tstep_between_save) == 0
+#             τx[:, :, counter] .= simulation.model.ocean.τx
+#             counter += 1
+#         end
+#         tstep+=1
+#     end
+#     Subzero.teardown_sim(simulation)
+#     return τx
+# end
 
-τx = run_with_saving(simulation, 50)
+# τx = run_with_saving(simulation, 50)
 
 
 # time_run(simulation) = @time run!(simulation)
@@ -115,10 +114,10 @@ end
 #                        "output/sim/sim.gif")
 # # Run simulation
 #time_run(simulation)
-#Profile.Allocs.clear()
+Profile.Allocs.clear()
 #@time run!(simulation)
 #ProfileView.@profview run!(simulation)
-#Profile.Allocs.@profile timestep_sim!(simulation, 1)
+Profile.Allocs.@profile run!(simulation)
 # Profile.Allocs.@profile sample_rate=1 Subzero.timestep_coupling!(
 #     simulation.model.floes,
 #     simulation.model.grid,
@@ -137,7 +136,7 @@ end
 #     Threads.SpinLock(),
 # )
 
-# PProf.Allocs.pprof(from_c = false)
+PProf.Allocs.pprof(from_c = false)
 # last(sort(results.allocs, by=x->x.size))
 # Subzero.create_sim_gif(
 #     joinpath(dir, "floes.jld2"), 
