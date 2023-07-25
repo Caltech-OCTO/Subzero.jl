@@ -1,4 +1,4 @@
-using JLD2, Random, Statistics, StructArrays, Subzero, ProfileView
+using JLD2, Random, Statistics, StructArrays, Subzero
 import LibGEOS as LG
 
 # User Inputs
@@ -63,7 +63,7 @@ consts = Constants(E = modulus)
 run_time!(simulation) =  @time run!(simulation)
 dir = "output/shear_flow"
 
-    # Output setup
+# Output setup
 initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
 floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
 writers = OutputWriters(initwriter, floewriter)
