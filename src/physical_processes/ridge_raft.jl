@@ -2,9 +2,24 @@
 Functions needed for ridging and rafting between floes and boundaries. 
 """
 
-# abound == "a boundary"
-# Only let one floe ridge with another floe...
-
+"""
+    add_floe_volume!(
+        floe,
+        vol,
+        simp_settings,
+        consts,
+        Δt,
+    )
+Add volume to existing floe and update fields that depend on the volume.
+Inputs:
+    floe            <Union{Floe, LazyRow{Floe}}> floe to add volume to
+    vol             <AbstractFloat> volume to add to floe
+    simp_settings   <SimplificationSettings> simulation simplification settings
+    consts          <Constants>  simulation's constants
+    Δt              <Int> length of timestep in seconds
+Outputs:
+    Nothing. Floe's fields are updated to reflect increase in volume.
+"""
 function add_floe_volume!(
     floe,
     vol,
@@ -33,6 +48,25 @@ function add_floe_volume!(
     )
 end
 
+"""
+    remove_floe_overlap!(
+        keepfloe,
+        floediff,
+        vol,
+        coupling_settings,
+        consts,
+        rng,  
+    )
+
+Removes area/volume of overlap from floe that loses area during ridging/rafting
+Inputs:
+    keepfloe            <Union{Floe, LazyRow{Floe}}> floe that loses area
+    floediff            <Union{Floe, LazyRow{Floe}}> floe that subsumes area
+    vol                 <AbstractFloat> volume of area being removed
+    coupling_settings   <CouplingSettings>  simulation's coupling settings
+    consts              <Constants>  simulation constants
+    rng                 <AbstractRNG> random number generator
+"""
 function remove_floe_overlap!(
     keepfloe::Union{Floe{FT}, LazyRow{Floe{FT}}},
     floediff,
@@ -41,13 +75,16 @@ function remove_floe_overlap!(
     consts,
     rng,  
 ) where {FT <: AbstractFloat}
+    # Find new floe shape
     new_floe_poly = LG.difference(
         LG.Polygon(keepfloe.coords),
         LG.Polygon(floediff.coords),
     )
     new_floe_area = LG.area(new_floe_poly)
     regions = get_polygons(new_floe_poly)
-    new_floes = StructVector{Floe}(undef, length(regions) - 1)
+    new_floes = StructVector{Floe}(undef)
+    n_new = 0
+    # Update floe and create new floes from ridging
     for i in eachindex(regions)
         new_coords = find_poly_coords(regions[i])::PolyVec{FT}
         new_poly = LG.Polygon(rmholes(new_coords))
@@ -75,11 +112,12 @@ function remove_floe_overlap!(
                 Δt,
                 keep_floe,
             )
-        else  # Create new floes
-            new_floes[i] = deepcopy(keepfloe)
+        else  # Create new floes if floe was split into multiple pieces
+            push!(new_floes, deepcopy_floe(keepfloe))
+            n_new += 1
             # Update floe based on new shape
             replace_floe!(
-                LazyRow(new_floes, i),
+                LazyRow(new_floes, n_new),
                 new_poly,
                 new_mass,
                 consts,
@@ -93,12 +131,37 @@ function remove_floe_overlap!(
                 x_tmp,
                 y_tmp,
                 Δt,
-                LazyRow(new_floes, i),
+                LazyRow(new_floes, n_new),
             )
         end
     end
 end
 
+"""
+    floe_floe_ridge!(
+        floe1,
+        floe2,
+        overlap_area,
+        ridgeraft_settings,
+        simp_settings,
+        consts,
+        Δt,
+    )
+Ridge two floes, updating both in-place and returning any new floes that
+resulting from the ridging event.
+Inputs:
+    floe1               <Union{Floe, LazyRow{Floe}}> floe 1 involved in ridging
+    floe2               <Union{Floe, LazyRow{Floe}}> floe 2 involved in ridging
+    overlap_area        <AbstractFloat> overlap area between floes
+    ridgeraft_settings  <RidgeRaftSettings> simulation's settings for ridging
+                            and rafting
+    simp_settings       <SimplificationSettings> simulation's simplification
+                            settings
+    consts              <Constants> simulation's constants
+    Δt                  <Int> simulation timestep in seconds
+Outputs:
+    Updates floe1 and floe2 and returns any new floes created by ridging
+"""
 function floe_floe_ridge!(
     floe1,
     floe2,
@@ -108,126 +171,217 @@ function floe_floe_ridge!(
     consts,
     Δt,
 )
-    vol1 = overlap_area * floe1.height
-    vol2 = overlap_area * floe2.height
+    # Heights of floes determine which floe subsumes shared area
+    f1_h = floe1.height >= ridgeraft_settings.hc
+    f2_h = floe2.height >= ridgeraft_settings.hc
 
-    if floe1.height >= ridgeraft_settings.hc && floe2.height >= ridgeraft_settings.hc
-        if rand(1) >= 1/(1 + (floe1.height/floe2.height))
-            add_floe_volume!(
-                floe1,
-                vol2,
-                simp_settings,
-                consts,
-                Δt,
-            )
-            remove_floe_overlap!(
-                floe2,
-                floe1,
-                vol2,
-                coupling_settings,
-                consts,
-                rng,  
-            ) 
-        else
-            add_floe_volume!(
-                floe2,
-                vol1,
-                simp_settings,
-                consts,
-                Δt,
-            )
-            remove_floe_overlap!(
-                floe1,
-                floe2,
-                vol1,
-                coupling_settings,
-                consts,
-                rng,  
-            )  
-        end
-    elseif floe1.height >= ridgeraft_settings.hc && floe2.height < ridgeraft_settings.hc
+    extra_floes = if(
+        (f1_h && f2_h && rand() >= 1/(1 + (floe1.height/floe2.height))) ||
+        (f1_h && !f2_h)
+    )
+        #=
+        Either both floes are over max height and we randomly pick floe 1 to
+        "subsume" the extra area, or only floe 1 is over max height and it
+        gets the extra area
+        =#
+        vol = overlap_area * floe2.height
         add_floe_volume!(
             floe1,
-            vol2,
+            vol,
             simp_settings,
             consts,
             Δt,
         )
-        remove_floe_overlap!(
+        extra_floes = remove_floe_overlap!(
             floe2,
             floe1,
-            vol2,
+            vol,
             coupling_settings,
             consts,
             rng,  
-        ) 
-    elseif floe1.height < ridgeraft_settings.hc && floe2.height >= ridgeraft_settings.hc
+        )
+        return extra_floes
+    elseif (f1_h && f2_h) ||  (!f1_h && f2_h)
+        #=
+        Either both floes are over max height and we randomly pick floe 2 to
+        "subsumes" the extra area, or only floe 2 is over max height and it
+        gets the extra area
+        =#
+        vol = overlap_area * floe1.height
         add_floe_volume!(
             floe2,
-            vol1,
+            vol,
             simp_settings,
             consts,
             Δt,
         )
-        remove_floe_overlap!(
+        extra_floes = remove_floe_overlap!(
             floe1,
             floe2,
-            vol1,
+            vol,
             coupling_settings,
             consts,
             rng,  
-        ) 
+        )
+        return extra_floes
     end
+    return nothing
 end
 
+"""
+    floe_domain_ridge!(
+        floe1,
+        domain_element,
+        simp_settings,
+        consts,
+    )
+
+Ridge a floe against a boundary or a topography element and return any excess
+floes created by the ridging.
+Inputs:
+    floe1           <Union{Floe, LazyRow{Floe}}> floe ridging
+    domain_element  <AbstractDomainElement> boundary or topography element
+    simp_settings   <SimplificationSettings> simulation simplification settings
+    consts          <Constants> simulation constants
+Outputs:
+    floe1 is updated with new shape. If any new floes are created by ridging
+    they are returned, else nothing.
+"""
 function floe_domain_ridge!(
-    floe1::F,
-    domain_element::B,
+    floe1::Union{Floe, LazyRow{Floe}},
+    domain_element::AbstractDomainElement,
     simp_settings,
     consts,
-) where {F <: Union{Floe, LazyRow{Floe}}, B <: AbstractDomainElement}
+)
+    # Calculate new floe shape and area/volume lost
     ridged_floe = LG.difference(
         LG.Polygon(floe1.coords),
         LG.Polygon(domain_element.coords)    
     )
     ridged_area = LG.area(ridged_floe)
-    if ridged_area > simp_settings.min_floe_area
-        # Add ridged floe/floes to floe list
-    else
+    vol1 = ridged_area * floe1.height
+    # Ridge floe if area is large enough, else reduce area so it will be removed
+    if ridged_area > simp_settings.min_floe_area  # boundary subsumes overlap
+        extra_floes = remove_floe_overlap!(
+            floe1,
+            domain_element,
+            vol1,
+            coupling_settings,
+            consts,
+            rng,  
+        )
+        return extra_floes
+    else  # remaining floe is too small, decrease area/mass to remove
         floe1.area = ridged_area
         floe1.mass = ridged_area * floe1.height * consts.ρi
         # do I need to do more so that this doesn't get used in other sections?
         # maybe we do need dissolved tag...
+        return nothing
     end
-
-    return
+    return nothing
 end
 
-function floe_floe_raft(
-    floe1::F,
-    floe2::F,
+"""
+    floe_floe_raft!(
+        floe1::F,
+        floe2::F,
+        overlap_area,
+        simp_settings,
+        consts,
+        Δt,
+    )
+
+Raft two floes, updating both in-place and returning any new floes that
+resulting from the rafting event.
+Inputs:
+    floe1               <Union{Floe, LazyRow{Floe}}> floe 1 involved in rafting
+    floe2               <Union{Floe, LazyRow{Floe}}> floe 2 involved in rafting
+    overlap_area        <AbstractFloat> overlap area between floes
+    simp_settings       <SimplificationSettings> simulation's simplification
+                            settings
+    consts              <Constants> simulation's constants
+    Δt                  <Int> simulation timestep in seconds
+Outputs:
+    Updates floe1 and floe2 and returns any new floes created by rafting
+"""
+function floe_floe_raft!(
+    floe1::Union{Floe, LazyRow{Floe}},
+    floe2::Union{Floe, LazyRow{Floe}},
     overlap_area,
-    ridgeraft_settings,
     simp_settings,
     consts,
-) where {F <: Union{Floe, LazyRow{Floe}}}
-    vol1 = overlap_area * floe1.height
-    vol2 = overlap_area * floe2.height
-
-    if rand(1) >= 1/(1 + (floe1.height/floe2.height))
-        # ridge value switch 
-    else
-         # ridge value switch 
+    Δt,
+)
+    # Based on height ratio, pick which floe subsumes shares area
+    if rand(1) >= 1/(1 + (floe1.height/floe2.height))  # Floe 1 subsumes
+        vol = overlap_area * floe2.height
+        # Add extra area/volume to floe 1
+        add_floe_volume!(
+            floe1,
+            vol,
+            simp_settings,
+            consts,
+            Δt,
+        )
+        # Change shape of floe 2
+        extra_floes = remove_floe_overlap!(
+            floe2,
+            floe1,
+            vol,
+            coupling_settings,
+            consts,
+            rng,  
+        )
+        return extra_floes 
+    else  # Floe 2 subsumes
+        vol = overlap_area * floe1.height
+        # Add extra area/volume to floe 2
+        add_floe_volume!(
+            floe2,
+            vol,
+            simp_settings,
+            consts,
+            Δt,
+        )
+        # Change shape of floe 1
+        extra_floes = remove_floe_overlap!(
+            floe1,
+            floe2,
+            vol,
+            coupling_settings,
+            consts,
+            rng,  
+        )
+        return extra_floes
     end
-
+    return nothing
 end
 
+"""
+    floe_domain_raft(
+        floe1::Union{Floe, LazyRow{Floe}},
+        domain_element::AbstractDomainElement,
+        simp_settings,
+        consts,
+    )
+
+Raft a floe against a boundary or a topography element and return any excess
+floes created by the rafting. This is equivalent to ridging.
+Inputs:
+    floe1           <Union{Floe, LazyRow{Floe}}> floe rafting
+    domain_element  <AbstractDomainElement> boundary or topography element
+    simp_settings   <SimplificationSettings> simulation simplification settings
+    consts          <Constants> simulation constants
+Outputs:
+    floe1 is updated with new shape. If any new floes are created by rafting
+    they are returned, else nothing.
+"""
 floe_domain_raft(
-    floe1,
-    domain_element,
+    floe1::Union{Floe, LazyRow{Floe}},
+    domain_element::AbstractDomainElement,
     simp_settings,
     consts,
-) = ridge_floe(
+) = floe_domain_ridge!(
     floe1,
     domain_element,
     simp_settings,

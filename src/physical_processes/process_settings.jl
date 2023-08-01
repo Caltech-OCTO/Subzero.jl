@@ -314,8 +314,6 @@ RidgeRaftSettings(args...) = RidgeRaftSettings{Float64}(args...)
 
 # CORNERS::Bool = false           # If true, corners of floes can break
 # PACKING::Bool = false           # If true, floe packing is enabled
-# RAFTING::Bool = false           # If true, floe rafting is enabled
-# RIDGING::Bool = false           # If true, floe ridging is enabled
 # WELDING::Bool = false           # If true, floe welding is enabled
 #Δtpack::Int = 500               # Timesteps between thermodynamic floe 
                                     # creation
