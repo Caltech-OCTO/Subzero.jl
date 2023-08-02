@@ -172,8 +172,8 @@ function floe_floe_ridge!(
     Δt,
 )
     # Heights of floes determine which floe subsumes shared area
-    f1_h = floe1.height >= ridgeraft_settings.hc
-    f2_h = floe2.height >= ridgeraft_settings.hc
+    f1_h = floe1.height >= ridgeraft_settings.min_ridge_height
+    f2_h = floe2.height >= ridgeraft_settings.min_ridge_height
 
     extra_floes = if(
         (f1_h && f2_h && rand() >= 1/(1 + (floe1.height/floe2.height))) ||
@@ -387,3 +387,44 @@ floe_domain_raft(
     simp_settings,
     consts,
 )
+
+function timestep_ridging_rafting!(
+    floes,
+    domain,
+    ridgeraft_settings::RidgeRaftSettings{FT},
+    pieces_buffer,
+    simp_settings,
+    consts,
+    Δt,
+) where {FT <: AbstractFloat}
+    for i in eachindex(floes)
+        # ridging and rafting only happens with floes that collided
+        if (
+            floes.status[i].tag != remove &&
+            !isempty(floes.interactions[i])
+        )        
+            # Ridge floe if it meets ridge probabilities and maximum height
+            if (floes.height[i] <= ridgeraft_settings.max_ridge_height &&
+                rand() <= ridgeraft_settings.ridge_probability
+            )
+            
+                for j in axes(floes.interactions[i], 1)
+                    # Ridge between two floes
+
+
+                    # Ridge between floe and domain element --> make sure don't do for periodic
+                end
+            end
+            # Raft floe if it meets raft possibility and maximum height
+            if (floes.height[i] <= ridgeraft_settings.max_raft_height &&
+                rand() <= ridgeraft_settings.raft_probability
+            )
+                # Raft between two floes
+
+                # Raft between floe and domain element --> make sure don't do for periodic
+
+            end
+        end
+    end
+
+end

@@ -291,7 +291,9 @@ Settings needed for ridging and rafting within the model.
     ridge_probability::FT = 0.95
     raft_probability::FT = 0.95
     min_overlap::FT = 500
-    hc::FT = 0.2
+    min_ridge_height::FT = 0.2
+    max_ridge_height::FT = 5.0
+    max_raft_height::FT = 0.25
 end
 
 """
