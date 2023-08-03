@@ -407,7 +407,6 @@ function timestep_ridging_rafting!(
             if (floes.height[i] <= ridgeraft_settings.max_ridge_height &&
                 rand() <= ridgeraft_settings.ridge_probability
             )
-            
                 for j in axes(floes.interactions[i], 1)
                     # Ridge between two floes
 
