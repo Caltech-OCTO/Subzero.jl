@@ -244,6 +244,7 @@ function generate_subfloe_points(
 
     xpoints = Vector{FT}()
     ypoints = Vector{FT}()
+    ϵ = 1e-5
     # Add points along edges
     for i in 1:(nverts - 1)
         # Determine points on edges
@@ -275,14 +276,14 @@ function generate_subfloe_points(
             end
         else  # The edge needs more points than the corners and midpoint
             if Δx == 0
-                y1 +=  point_generator.Δg/2 * sign(Δy)
-                y2 -= point_generator.Δg/2 * sign(Δy)
+                y1 += (point_generator.Δg - ϵ) * sign(Δy)
+                y2 -= (point_generator.Δg - ϵ) * sign(Δy)
             elseif Δy == 0
-                x1 += point_generator.Δg/2 * sign(Δx)
-                x2 -= point_generator.Δg/2 * sign(Δx)
+                x1 += (point_generator.Δg - ϵ) * sign(Δx)
+                x2 -= (point_generator.Δg - ϵ) * sign(Δx)
             else  # shift points to still be on the line
                 m = Δy / Δx
-                x_shift = sqrt(point_generator.Δg^2 / 4(1 + m^2))
+                x_shift = sqrt((point_generator.Δg - ϵ)^2 / (1 + m^2))
                 y_shift = m * x_shift
                 x1 += x_shift
                 x2 -= x_shift
@@ -303,8 +304,8 @@ function generate_subfloe_points(
         FT(0):FT(0)  # coords are centered at the origin
     else
         range(
-            xmin + point_generator.Δg/2,
-            xmax - point_generator.Δg/2,
+            xmin + (point_generator.Δg - ϵ),
+            xmax - (point_generator.Δg - ϵ),
             length = n_xpoints,
         )
     end
@@ -313,8 +314,8 @@ function generate_subfloe_points(
         FT(0):FT(0)
     else
         range(
-            ymin + point_generator.Δg/2,
-            ymax - point_generator.Δg/2,
+            ymin + (point_generator.Δg - ϵ),
+            ymax - (point_generator.Δg - ϵ),
             length = n_ypoints,
         )
     end
@@ -1499,6 +1500,7 @@ function calc_one_way_coupling!(
     domain,
     coupling_settings,
     consts,
+    tstep,
 ) where {FT}
     max_points = maximum(length, floes.x_subfloe_points)
     cart_vals = Matrix{FT}(undef, max_points, 2)
@@ -1522,7 +1524,7 @@ function calc_one_way_coupling!(
             ocean,
             coupling_settings,
         )
-
+        
         # Add coriolis stress to total stress - same for every monte carlo point
         xcoriolis = (floes.mass[i]/floes.area[i]) * consts.f * floes.v[i]
         ycoriolis = (floes.mass[i]/floes.area[i]) * consts.f * floes.u[i]
@@ -1532,6 +1534,7 @@ function calc_one_way_coupling!(
         tot_hflx_factor = FT(0)
         ma_ratio = floes.mass[i]/floes.area[i]
         # Determine total stress per-monte carlo point
+        # output = zeros(8, npoints)
         for j in 1:npoints
             # Monte carlo point properties
             xcentered = cart_vals[j, 1] - floes.centroid[i][1]
@@ -1540,6 +1543,7 @@ function calc_one_way_coupling!(
             rad = sqrt(xcentered^2 + ycentered^2)
             upoint = floes.u[i] - floes.ξ[i] * rad * sin(θ)
             vpoint = floes.v[i] + floes.ξ[i] * rad * cos(θ)
+
             # Stress at monte carlo point from ocean and atmosphere
             τx_atm, τy_atm = calc_atmosphere_forcing(
                 cart_vals[j, 1], 
@@ -1583,7 +1587,26 @@ function calc_one_way_coupling!(
                 ocean.scells,
                 coupling_settings,
             )
+            # All for output -  some repeat computations
+            # if tstep == 1000
+            #     shifted_xidx = shift_cell_idx(grid_idx[j, 1], grid.Nx + 1,  domain.east)
+            #     shifted_yidx = shift_cell_idx(grid_idx[j, 2], grid.Ny + 1, domain.north)
+            #     Δx = (shifted_xidx - grid_idx[j, 1]) * (grid.Δx)
+            #     Δy = (shifted_yidx - grid_idx[j, 2]) * (grid.Δy)
+            #     output[1, j] = cart_vals[j, 1]
+            #     output[2, j] = cart_vals[j, 2]
+            #     output[3, j] = Δx
+            #     output[4, j] = Δy
+            #     output[5, j] = upoint
+            #     output[6, j] = vpoint
+            #     output[7, j] = uocn_int(cart_vals[j, 1], cart_vals[j, 2])
+            #     output[8, j] = vocn_int(cart_vals[j, 1], cart_vals[j, 2])
+            # end
         end
+        # if tstep == 1000
+        #     jldsave("output/subfloe_points.jld2"; output)
+        # end
+
         # Average forces on ice floe
         floes.fxOA[i] = tot_τx/npoints * floes.area[i]
         floes.fyOA[i] = tot_τy/npoints * floes.area[i]
@@ -1710,11 +1733,13 @@ function timestep_coupling!(
     Δt,
     consts,
     coupling_settings,
+    tstep,
 )
     empty!.(model.grid.floe_locations)
     if coupling_settings.two_way_coupling_on
         empty!.(model.ocean.scells)
     end
+
     calc_one_way_coupling!(
         model.floes,
         model.grid,
@@ -1723,6 +1748,7 @@ function timestep_coupling!(
         model.domain,
         coupling_settings,
         consts,
+        tstep,
     )
     if coupling_settings.two_way_coupling_on
         calc_two_way_coupling!(
