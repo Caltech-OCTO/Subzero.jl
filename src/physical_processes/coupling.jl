@@ -297,27 +297,23 @@ function generate_subfloe_points(
         end
     end
     # Add points in the interior of the floe
+    xmin += point_generator.Δg - ϵ
+    ymin += point_generator.Δg - ϵ
+    xmax -= point_generator.Δg - ϵ
+    ymax -= point_generator.Δg - ϵ
     n_xpoints = ceil(Int, (xmax - xmin) / point_generator.Δg)
     n_ypoints = ceil(Int, (ymax - ymin) / point_generator.Δg)
     x_interior_points = if n_xpoints < 3
         n_xpoints = 1
         FT(0):FT(0)  # coords are centered at the origin
     else
-        range(
-            xmin + (point_generator.Δg - ϵ),
-            xmax - (point_generator.Δg - ϵ),
-            length = n_xpoints,
-        )
+        range(xmin, xmax, length = n_xpoints)
     end
     y_interior_points = if n_ypoints < 3
         n_ypoints = 1
         FT(0):FT(0)
     else
-        range(
-            ymin + (point_generator.Δg - ϵ),
-            ymax - (point_generator.Δg - ϵ),
-            length = n_ypoints,
-        )
+        range(ymin, ymax, length = n_ypoints)
     end
     x_sub_floe = repeat(x_interior_points, n_ypoints)
     y_sub_floe = repeat(y_interior_points, inner = n_xpoints)
@@ -1500,7 +1496,6 @@ function calc_one_way_coupling!(
     domain,
     coupling_settings,
     consts,
-    tstep,
 ) where {FT}
     max_points = maximum(length, floes.x_subfloe_points)
     cart_vals = Matrix{FT}(undef, max_points, 2)
@@ -1534,7 +1529,6 @@ function calc_one_way_coupling!(
         tot_hflx_factor = FT(0)
         ma_ratio = floes.mass[i]/floes.area[i]
         # Determine total stress per-monte carlo point
-        # output = zeros(8, npoints)
         for j in 1:npoints
             # Monte carlo point properties
             xcentered = cart_vals[j, 1] - floes.centroid[i][1]
@@ -1587,25 +1581,7 @@ function calc_one_way_coupling!(
                 ocean.scells,
                 coupling_settings,
             )
-            # All for output -  some repeat computations
-            # if tstep == 1000
-            #     shifted_xidx = shift_cell_idx(grid_idx[j, 1], grid.Nx + 1,  domain.east)
-            #     shifted_yidx = shift_cell_idx(grid_idx[j, 2], grid.Ny + 1, domain.north)
-            #     Δx = (shifted_xidx - grid_idx[j, 1]) * (grid.Δx)
-            #     Δy = (shifted_yidx - grid_idx[j, 2]) * (grid.Δy)
-            #     output[1, j] = cart_vals[j, 1]
-            #     output[2, j] = cart_vals[j, 2]
-            #     output[3, j] = Δx
-            #     output[4, j] = Δy
-            #     output[5, j] = upoint
-            #     output[6, j] = vpoint
-            #     output[7, j] = uocn_int(cart_vals[j, 1], cart_vals[j, 2])
-            #     output[8, j] = vocn_int(cart_vals[j, 1], cart_vals[j, 2])
-            # end
         end
-        # if tstep == 1000
-        #     jldsave("output/subfloe_points.jld2"; output)
-        # end
 
         # Average forces on ice floe
         floes.fxOA[i] = tot_τx/npoints * floes.area[i]
@@ -1733,7 +1709,6 @@ function timestep_coupling!(
     Δt,
     consts,
     coupling_settings,
-    tstep,
 )
     empty!.(model.grid.floe_locations)
     if coupling_settings.two_way_coupling_on
@@ -1748,7 +1723,6 @@ function timestep_coupling!(
         model.domain,
         coupling_settings,
         consts,
-        tstep,
     )
     if coupling_settings.two_way_coupling_on
         calc_two_way_coupling!(

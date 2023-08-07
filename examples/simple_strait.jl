@@ -1,4 +1,4 @@
-using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero, ProfileView
+using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero
 import LibGEOS as LG
 
 # User Inputs
@@ -90,7 +90,6 @@ simulation = Simulation(
     
 # Run simulation
 run_time!(simulation)
-#ProfileView.@profview run!(simulation)
 
 Subzero.create_sim_gif("output/simple_strait/floes.jld2", 
                        "output/simple_strait/initial_state.jld2",

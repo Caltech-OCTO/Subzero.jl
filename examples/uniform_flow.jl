@@ -27,15 +27,21 @@ wboundary = PeriodicBoundary(West, grid)
 
 domain = Domain(nboundary, sboundary, eboundary, wboundary)
 
+coupling_settings = CouplingSettings(
+    subfloe_point_generator = SubGridPointsGenerator(grid, 1),
+    two_way_coupling_on = true,
+)
+
 # Floe creation
 floe_arr = initialize_floe_field(
     FT,
-    5,
+    100,
     [0.4],
     domain,
     hmean,
     Δh,
     rng = Xoshiro(1),
+    coupling_settings = coupling_settings,
 )
 
 # Model creation
@@ -57,11 +63,11 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 20,
+    nΔt = 200,
     verbose = true,
     writers = writers,
     rng = Xoshiro(1),
-    coupling_settings = CouplingSettings(two_way_coupling_on = true),
+    coupling_settings = coupling_settings,
 )
 run_time!(simulation)
  

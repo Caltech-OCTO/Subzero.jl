@@ -131,7 +131,6 @@ function timestep_sim!(sim, tstep)
                 sim.Δt,
                 sim.consts,
                 sim.coupling_settings,
-                tstep,
             )
         end
         
