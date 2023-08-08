@@ -137,7 +137,117 @@ function create_sim_gif(
     gif(anim, output_fn, fps = fps)
     return
 end
+function plot_ocean_scene(
+    fig,
+    xlines,
+    ylines,
+    ocean_vals,
+    colormap,
+    bar_label,
+    max_tauval,
+)
+    ax, hm = heatmap!(
+            fig[1,1],
+            xlines,
+            ylines,
+            ocean_vals,
+            colormap = colormap,
+            colorrange = (-max_tauval, max_tauval)
+    )
+    Colorbar(fig[1,2], hm, label = bar_label)
+    return fig
+end
 
+function plot_floe_scene(
+    fig,
+    floe_coords,
+    title,
+    xmin = nothing,
+    xmax = nothing,
+    ymin = nothing,
+    ymax = nothing,
+    ocean_vals = nothing,
+    xlines = nothing,
+    ylines = nothing,
+    colormap = :RdBu_9,
+    colorbar_title = nothing,
+)
+    ax, _ = lines(fig[1,1], LibGEOS.MultiPolygon(floe_coords))
+
+    ax.title = title
+    if (!isnothing(xmin) && !isnothing(xmax) &&
+        !isnothing(ymin) && !isnothing(ymax)
+    )
+        ax.limits = (0, 1e5, 0, 1e5) 
+    end
+    return fig
+end
+
+function plot_floes_makie(
+    floe_fn,
+    title,
+    output_fn;
+    xmin,
+    xmax,
+    ymin,
+    ymax,
+    framerate = 4,
+    ocean_data = nothing,
+    xlines = nothing,
+    ylines = nothing,
+    colormap = :RdBu_9,
+    colorbar_title = nothing,
+)
+    # Get floe data
+    floe_data = jldopen(floe_fn, "r")
+    coords = floe_data["coords"]
+    timesteps = keys(coords)
+    nsteps = length(coords)
+    ocean_data = zeros(10, 10, nsteps)
+    # Plot starting configuration
+    fig = Figure()
+    
+    ax, ln = lines(fig[1,1], LibGEOS.MultiPolygon(coords[timesteps[1]]))
+    # if !isnothing(ocean_data)
+    #     ax, hm = heatmap!(
+    #         fig[1,1],
+    #         xlines,
+    #         ylines,
+    #         ocean_data[1],
+    #         colormap = colormap,
+    #     )
+    #     Colorbar(fig[1,2], hm, label = colorbar_title)
+    # end
+    ax.title = title
+    if (!isnothing(xmin) && !isnothing(xmax) &&
+        !isnothing(ymin) && !isnothing(ymax)
+    )
+        ax.limits = (0, 1e5, 0, 1e5) 
+    end
+    # Create movie
+    record(fig, output_fn, 1:nsteps; framerate = framerate) do i
+        empty!(fig)
+        ax, ln = lines(fig[1,1], LibGEOS.MultiPolygon(coords[timesteps[i]]))
+        # if !isnothing(ocean_data)
+        #     ax, hm = heatmap!(
+        #         fig[1,1],
+        #         xlines,
+        #         ylines,
+        #         ocean_data[i],
+        #         colormap = colormap,
+        #     )
+        #     Colorbar(fig[1,2], hm, label = colorbar_title)
+        # end
+        ax.title = title
+        if (!isnothing(xmin) && !isnothing(xmax) &&
+            !isnothing(ymin) && !isnothing(ymax)
+        )
+            ax.limits = (0, 1e5, 0, 1e5) 
+        end
+    end
+    JLD2.close(floe_data)
+    return
+end
 """
     prettytime(t)
 
