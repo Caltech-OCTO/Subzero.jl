@@ -292,8 +292,10 @@ Settings needed for ridging and rafting within the model.
     raft_probability::FT = 0.95
     min_overlap::FT = 500
     min_ridge_height::FT = 0.2
-    max_ridge_height::FT = 5.0
-    max_raft_height::FT = 0.25
+    max_floe_ridge_height::FT = 5.0
+    max_domain_ridge_height::FT = 1.25
+    max_floe_raft_height::FT = 0.25
+    max_domain_raft_height::FT = 0.25
 end
 
 """
@@ -317,5 +319,3 @@ RidgeRaftSettings(args...) = RidgeRaftSettings{Float64}(args...)
 # CORNERS::Bool = false           # If true, corners of floes can break
 # PACKING::Bool = false           # If true, floe packing is enabled
 # WELDING::Bool = false           # If true, floe welding is enabled
-#Δtpack::Int = 500               # Timesteps between thermodynamic floe 
-                                    # creation

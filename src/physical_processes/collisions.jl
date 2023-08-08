@@ -426,6 +426,7 @@ Output:
 function floe_domain_element_interaction!(
     floe,
     boundary::OpenBoundary,
+    element_idx,
     consts,
     Δt,
     max_overlap,
@@ -443,6 +444,7 @@ end
     floe_domain_element_interaction!(
         floe,
         ::PeriodicBoundary,
+        element_idx,
         consts,
         Δt,
     )
@@ -457,6 +459,7 @@ Output:
 function floe_domain_element_interaction!(
     floe,
     ::PeriodicBoundary,
+    element_idx,
     consts,
     Δt,
     max_overlap,
@@ -574,6 +577,7 @@ end
     floe_domain_element_interaction!(
         floe,
         element,
+        element_idx,
         consts,
         Δt,
     )
@@ -605,6 +609,7 @@ function floe_domain_element_interaction!(
         CompressionBoundary,
         TopographyElement,
     },
+    element_idx,
     consts,
     Δt,
     max_overlap::FT,
@@ -652,7 +657,7 @@ function floe_domain_element_interaction!(
                 forces = normal_forces .+ friction_forces
                 if sum(abs.(forces)) != 0
                     floe.interactions = [floe.interactions;
-                        fill(Inf, np) forces fpoints zeros(np) overlaps]
+                        fill(element_idx, np) forces fpoints zeros(np) overlaps]
                     floe.overarea += sum(overlaps)
                 end
             end
@@ -765,6 +770,7 @@ function floe_domain_interaction!(
         floe_domain_element_interaction!(
             floe,
             nbound,
+            -1,
             consts,
             Δt,
             max_overlap,
@@ -774,6 +780,7 @@ function floe_domain_interaction!(
         floe_domain_element_interaction!(
             floe,
             sbound,
+            -2,
             consts,
             Δt,
             max_overlap,
@@ -783,6 +790,7 @@ function floe_domain_interaction!(
         floe_domain_element_interaction!(
             floe,
             ebound,
+            -3,
             consts,
             Δt,
             max_overlap,
@@ -792,24 +800,25 @@ function floe_domain_interaction!(
         floe_domain_element_interaction!(
             floe,
             wbound,
+            -4,
             consts,
             Δt,
             max_overlap,
         )
     end
 
-    for topo_element in domain.topography
+    for (i, topo_element) in enumerate(domain.topography)
         if sum((topo_element.centroid .- floe.centroid).^2) < (topo_element.rmax + floe.rmax)^2
             floe_domain_element_interaction!(
                 floe,
                 topo_element,
+                -(4 + i),
                 consts,
                 Δt,
                 max_overlap,
             )
         end
     end
-
     return
 end
 

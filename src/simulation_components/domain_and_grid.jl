@@ -640,6 +640,21 @@ struct Domain{
         Domain{FT, NB, SB, EB, WB, TT}(north, south, east, west, topography)
 end
 
+function get_domain_element(domain, idx)
+    if idx == -1
+        return domain.North
+    elseif idx == -2
+        return domain.South
+    elseif idx == -3
+        return domain.East
+    elseif idx == -4
+        return domain.West
+    else
+        topo_idx = -(idx + 4)
+        return LazyRow(domain.topography, topo_idx)
+    end
+end
+
 """
     Domain(north, south, east, west)
 
