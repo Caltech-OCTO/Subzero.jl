@@ -165,6 +165,38 @@ function conserve_momentum_combination!(
     return
 end
 
+function conserve_momentum_transfer_mass(
+    m1, m2, I1, I2, u1, u2, v1, v2, ξ1, ξ2, p_dxdt1, p_dxdt2, p_dydt1, p_dydt2
+)
+    total_mass = m1 + m2
+    new_u = (m1 * u1 + m2 * u2) / total_mass
+    new_v = (m1 * v1 + m2 * v2) / total_mass
+    new_p_dxdt = (m1 * p_dxdt1 + m2 * p_dxdt2) / total_mass
+    new_p_dydt = (m1 * p_dydt1 + m2 * p_dydt2) / total_mass
+    # new_ξ = (
+    #     I1 * ξ1 + I2 * ξ2 +
+    #     m1 * (x1 * v1 - y1 * u1) +
+    #     m2 * (x2 * v2 - y1 * u1) - 
+    #     new_m1 * (new_x1 * new_v - new_y1 * new_u) - 
+    #     new_m2 * (new_x2 * new_v - new_y2 * new_u)
+    # ) / (new_I1 + new_I2)
+    # new_p_dαdt = (
+    #     I1 * p_dαdt1 + I2 * p_dαdt2 +
+    #     m1 * ((x1 - Δt * p_dxdt1) * p_dydt1 - (y1 - Δt * p_dydt1) * p_dxdt1) + 
+    #     m2 * ((x2 - Δt * p_dxdt2) * p_dydt2 - (y2 - Δt * p_dydt2) * p_dxdt2) -
+    #     new_m1 * (
+    #         (new_x1 - Δt * new_p_dxdt) * new_p_dydt1 -
+    #         (new_y1 - Δt * new_p_dydt) * new_p_dxdt1
+    #     ) -
+    #     new_m2 * (
+    #         (new_x2 - Δt * new_p_dxdt) * new_p_dydt2 -
+    #         (new_y2 - Δt * new_p_dydt) * new_p_dxdt2
+    #     )
+    # ) / (new_I1 + new_I2)
+    # new_p_dξdt = (keep_floe.ξ - keep_floe.p_dαdt) / Δt
+    return
+end
+
 """
     conserve_momentum_fracture!(
         init_floe,
@@ -197,32 +229,35 @@ function conserve_momentum_fracture!(
         new_floes.p_dydt .= init_floe.p_dydt
         new_floes.p_dudt .= init_floe.p_dudt
         new_floes.p_dvdt .= init_floe.p_dvdt
+        new_floes.p_dαdt .= 0
+        new_floes.ξ .= init_floe.ξ
+        new_floes.p_dξdt .= init_floe.p_dξdt
         # conserve rotational moment by offsetting change in orbital momentum
-        sum_moments = sum(new_floes.moment)
-        new_floes.ξ .= init_floe.moment * init_floe.ξ + # initial spin velocity
-            init_floe.mass * ( # initial orbital velocity
-                x_init * init_floe.v -
-                y_init * init_floe.u
-            )
-        new_floes.p_dαdt .= init_floe.moment * init_floe.p_dαdt + 
-            init_floe.mass * (
-                x_init * init_floe.p_dydt -
-                y_init * init_floe.p_dxdt
-            )
-        for i in eachindex(new_floes)
-            new_floes.ξ .-= new_floes.mass[i] * (
-                new_floes.centroid[i][1] * new_floes.v[i] -
-                new_floes.centroid[i][2] * new_floes.u[i]
-            )
-            new_floes.p_dαdt .-= new_floes.mass[i] * (
-                new_floes.centroid[i][1] * new_floes.p_dydt[i] -
-                new_floes.centroid[i][2] * new_floes.p_dxdt[i]
-            )
-        end
-        new_floes.ξ ./= sum_moments
-        new_floes.p_dαdt ./= sum_moments
-        # Calculate previous rotational acceleration
-        new_floes.p_dξdt .= (new_floes.ξ[1] - new_floes.p_dαdt[1]) / Δt
+        # sum_moments = sum(new_floes.moment)
+        # new_floes.ξ .= init_floe.moment * init_floe.ξ + # initial spin velocity
+        #     init_floe.mass * ( # initial orbital velocity
+        #         x_init * init_floe.v -
+        #         y_init * init_floe.u
+        #     )
+        # new_floes.p_dαdt .= init_floe.moment * init_floe.p_dαdt + 
+        #     init_floe.mass * (
+        #         x_init * init_floe.p_dydt -
+        #         y_init * init_floe.p_dxdt
+        #     )
+        # for i in eachindex(new_floes)
+        #     new_floes.ξ .-= new_floes.mass[i] * (
+        #         new_floes.centroid[i][1] * new_floes.v[i] -
+        #         new_floes.centroid[i][2] * new_floes.u[i]
+        #     )
+        #     new_floes.p_dαdt .-= new_floes.mass[i] * (
+        #         new_floes.centroid[i][1] * new_floes.p_dydt[i] -
+        #         new_floes.centroid[i][2] * new_floes.p_dxdt[i]
+        #     )
+        # end
+        # new_floes.ξ ./= sum_moments
+        # new_floes.p_dαdt ./= sum_moments
+        # # Calculate previous rotational acceleration
+        # new_floes.p_dξdt .= (new_floes.ξ[1] - new_floes.p_dαdt[1]) / Δt
     end
 end
 

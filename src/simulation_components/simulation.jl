@@ -90,6 +90,7 @@ Outputs:
 """
 function timestep_sim!(sim, tstep)
     sim.verbose && mod(tstep, 50) == 0 && println(tstep, " timesteps")
+    pieces_buffer = Vector{Union{nothing, PolyVec{FT}}}(nothing, length(floes) * 2)
     if !isempty(sim.model.floes)
         max_floe_id = maximum(sim.model.floes.id)
         # Need to lock some operations when multi-threading
@@ -114,6 +115,23 @@ function timestep_sim!(sim, tstep)
             )
         end
 
+        # Ridge and raft floes that meet overlap conditions
+        if (
+            sim.ridgeraft_settings.ridge_raft_on &&
+            mod(tstep, sim.ridgeraft_settings.Δt) == 0
+        )
+            timestep_ridging_rafting!(
+                sim.model.floes,
+                n_init_floes,
+                sim.model.domain,
+                sim.ridgeraft_settings,
+                pieces_buffer,
+                sim.simp_settings,
+                sim.consts,
+                sim.Δt,
+            )
+        end
+
         # Remove the ghost floes - only used for collisions
         for i in reverse(n_init_floes+1:length(sim.model.floes))
             StructArrays.foreachfield(
@@ -125,7 +143,10 @@ function timestep_sim!(sim, tstep)
 
         # Physical processes without ghost floes
         # Effects of ocean and atmosphere on ice and visa versa
-        if sim.coupling_settings.coupling_on && mod(tstep, sim.coupling_settings.Δt) == 0
+        if (
+            sim.coupling_settings.coupling_on &&
+            mod(tstep, sim.coupling_settings.Δt) == 0
+        )
             timestep_coupling!(
                 sim.model,
                 sim.Δt,
@@ -157,6 +178,7 @@ function timestep_sim!(sim, tstep)
                     sim.Δt,
                 )
         end
+        # What happens if floe tried to fuse with ghost floe?? 
         max_floe_id = 
             simplify_floes!(
                 sim.model,

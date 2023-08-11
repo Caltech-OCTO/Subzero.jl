@@ -425,8 +425,34 @@ floe_domain_raft(
     consts,
 )
 
-function timestep_ridging!(
+"""
+    timestep_ridging_rafting!(
+        floes,
+        domain,
+        ridgeraft_settings::RidgeRaftSettings{FT},
+        pieces_buffer,
+        simp_settings,
+        consts,
+        Δt,
+    )
+
+Ridge and raft floes that meet probability and height criteria.
+Inputs:
+    floes               <StructArray{Floe}> simulation's list of floes
+    n_init_floes        <Int> number of floes prior to adding ghosts
+    domain              <Domain> simulation's domain
+    ridgeraft_settings  <RidgeRaftSettings> ridge/raft settings
+    pieces_buffer       <Vector{Nothing, ???}> buffer to hold extra floe pieces
+    simp_settings       <SimplificationSettings> simplification settings
+    consts              <Consts> simulation's constants
+    Δt                  <Int> length of timestep in seconds
+Outputs:
+    Updates floes post ridging and rafting and adds any new pieces to the pieces
+    buffer to be made into new floes.
+"""
+function timestep_ridging_rafting!(
     floes,
+    n_init_floes,
     domain,
     ridgeraft_settings::RidgeRaftSettings{FT},
     pieces_buffer,
@@ -434,135 +460,109 @@ function timestep_ridging!(
     consts,
     Δt,
 ) where {FT <: AbstractFloat}
-    pieces_buffer = Vector{Union{nothing, PolyVec{FT}}}(nothing, length(floes) * 2)
-    for i in eachindex(floes)
+    ninters = 0
+    interactions_list = zeros(Int, size(floes.interactions[1], 1))
+    for i in 1:n_init_floes  # TODO: this shouldn't include ghost floes! --> easier once we get rid of ghost floes
         #=
             Floe is active in sim, hasn't broken, interacted with other floes,
-            isn't too thick, random check meets probability to ridge
+            isn't too thick, and meets probability check to ridge or raft
         =#
-        if (
-            floes.status[i].tag == active &&
-            isnothing(pieces_buffer[i]) &&
-            !isempty(floes.interactions[i]) &&
-            floes.height[i] <= ridgeraft_settings.max_floe_ridge_height &&
+        ridge = floes.height[i] <= ridgeraft_settings.max_floe_ridge_height &&
             rand() <= ridgeraft_settings.ridge_probability
-        )        
-            # TODO: Need to make sure we don't have repeats 
-            for jrow in axes(floes.interactions[i], 1)
-                j = Int(floes.interactions[jrow, floeidx])
-                #=
-                    Ridge between two floes (j > 0) if neither are broken and if
-                    both floes aren't too thick
-                =#
-                if (
-                    j > 0 &&
-                    isnothing(pieces_buffer[i]) &&
-                    isnothing(pieces_buffer[j]) &&
-                    floes.height[i] <= ridgeraft_settings.max_floe_ridge_height &&
-                    floes.height[j] <= ridgeraft_settings.max_floe_ridge_height
-                )
-                    floe_floe_ridge!(
-                        floes,
-                        i,
-                        j,
-                        floe.interactions[i, overlap],
-                        pieces_buffer,
-                        ridgeraft_settings,
-                        simp_settings,
-                        consts,
-                        Δt,
-                    )
-                #=
-                    Ridge between floe and domain element (j < 0) if floe isn't
-                    broken and if the floe isn't too thick
-                =#
-                elseif (
-                    j < 0 &&
-                    isnothing(pieces_buffer[i]) &&
-                    floes.height[i] <= ridgeraft_settings.max_domain_ridge_height
-                )
-                    floe_domain_ridge!(
-                        LazyRow(floes, i),
-                        i,
-                        get_domain_element(domain, j),
-                        pieces_buffer,
-                        simp_settings,
-                        consts,
-                    )
-                end
-            end
-        end
-    end
-    return
-end
-
-function timestep_rafting!(
-    floes,
-    domain,
-    ridgeraft_settings::RidgeRaftSettings{FT},
-    pieces_buffer,
-    simp_settings,
-    consts,
-    Δt,
-) where {FT <: AbstractFloat}
-    for i in eachindex(floes)
-        #=
-            Floe is active in sim, hasn't broken, interacted with other floes,
-            isn't too thick, random check meets probability to raft
-        =#
+        raft = floes.height[i] <= ridgeraft_settings.max_floe_raft_height &&
+            rand() <= ridgeraft_settings.raft_probability
         if (
+            (ridge || raft) &&
             floes.status[i].tag == active &&
             isnothing(pieces_buffer[i]) &&
-            !isempty(floes.interactions[i]) &&
-            floes.height[i] <= ridgeraft_settings.max_floe_raft_height &&
-            rand() <= ridgeraft_settings.raft_probability
+            !isempty(floes.interactions[i])
         )
-            for jrow in axes(floes.interactions[i], 1)
-                j = Int(floes.interactions[jrow, floeidx])
-                #=
-                    Raft between two floes (j > 0) if neither are broken and if
-                    both floes aren't too thick
-                =#
+            ninters = 0
+            # Find unique interactions that haven't already been calculated
+            for row in axes(floes.interactions[i], 1)
+                j = Int(floes.interactions[row, floeidx])
+                min_area = j > 0 ? min(floes.area[i], floes.area[j]) : floes.area[i] 
                 if (
+                    (j > i || j < 0) &&  # else checked in j's interactions
+                    1e-6 < floes.interactions[row, overlap]/min_area < 0.95 &&
+                    j !in interactions_list
+                )
+                    ninters += 1
+                    if ninters <= length(interactions_list)
+                        interactions_list[ninters] = j
+                    else
+                        push!(interactions_list, j)
+                    end
+                end     
+            end 
+            for j in interactions_list
+                if (  # if floe-floe interaction
                     j > 0 &&
                     isnothing(pieces_buffer[i]) &&
-                    isnothing(pieces_buffer[j]) &&
-                    floes.height[i] <= ridgeraft_settings.max_floe_raft_height &&
-                    floes.height[j] <= ridgeraft_settings.max_floe_raft_height
+                    isnothing(pieces_buffer[j])
                 )
-                    floe_floe_ridge!(
-                        floes,
-                        i,
-                        j,
-                        floe.interactions[i, overlap],
-                        pieces_buffer,
-                        ridgeraft_settings,
-                        simp_settings,
-                        consts,
-                        Δt,
+                    if (  # if both floes aren't too thick -> ridge
+                        ridge &&
+                        floes.height[i] <= ridgeraft_settings.max_floe_ridge_height &&
+                        floes.height[j] <= ridgeraft_settings.max_floe_ridge_height
                     )
-                #=
-                    Raft between floe and domain element (j < 0) if floe isn't
-                    broken and if the floe isn't too thick
-                =#
-                elseif (
-                    j < 0 &&
-                    isnothing(pieces_buffer[i]) &&
-                    floes.height[i] <= ridgeraft_settings.max_domain_raft_height
-                )
-                    floe_domain_raft!(
-                        LazyRow(floes, i),
-                        i,
-                        get_domain_element(domain, j),
-                        pieces_buffer,
-                        simp_settings,
-                        consts,
+                        floe_floe_ridge!(
+                            floes,
+                            i,
+                            j,
+                            floe.interactions[i, overlap],
+                            pieces_buffer,
+                            ridgeraft_settings,
+                            simp_settings,
+                            consts,
+                            Δt,
+                        )
+                    elseif ( # if both floes aren't too thick -> raft
+                        raft &&
+                        floes.height[i] <= ridgeraft_settings.max_floe_raft_height &&
+                        floes.height[j] <= ridgeraft_settings.max_floe_raft_height
                     )
-                end
+                        floe_floe_raft!(
+                            floes,
+                            i,
+                            j,
+                            floe.interactions[i, overlap],
+                            pieces_buffer,
+                            simp_settings,
+                            consts,
+                            Δt,
+                        )
+                    end
+                else  # if floe-domain interaction
+                    if (  # if floe isn't too thick -> ridge
+                        ridge &&
+                        floes.height[i] <= ridgeraft_settings.max_domain_ridge_height
+                    )
+                        floe_domain_ridge!(
+                            LazyRow(floes, i),
+                            i,
+                            get_domain_element(domain, j),
+                            pieces_buffer,
+                            simp_settings,
+                            consts,
+                        )
 
+                    elseif (  # if floe isn't too thick -> raft
+                        raft &&
+                        floes.height[i] <= ridgeraft_settings.max_domain_raft_height
+                    )
+                        floe_domain_raft!(
+                            LazyRow(floes, i),
+                            i,
+                            get_domain_element(domain, j),
+                            pieces_buffer,
+                            simp_settings,
+                            consts,
+                        )
+                    end
+                end
             end
         end
     end
-
     return
 end

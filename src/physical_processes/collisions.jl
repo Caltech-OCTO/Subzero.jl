@@ -930,7 +930,7 @@ function timestep_collisions!(
                 Threads.lock(spinlock) do
                     new_collision = !(id_pair in keys(collide_pairs))
                     if new_collision
-                            collide_pairs[id_pair] = ghost_id_pair
+                        collide_pairs[id_pair] = ghost_id_pair
                     end
                 end
                 # New collision or floe and ghost colliding with same floe - not a repeat collision

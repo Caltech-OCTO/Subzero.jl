@@ -316,6 +316,32 @@ correct constructor will be called with all other arguments.
 """
 RidgeRaftSettings(args...) = RidgeRaftSettings{Float64}(args...)
 
+
+@kwdef struct WeldSettings{FT<:AbstractFloat}
+    max_floe_area::FT
+    min_weld_area::FT
+    max_weld_area::FT 
+    welding_coeff::FT = 150
+end
+
+"""
+    WeldSettings(::Type{FT}, args...)
+
+A float type FT can be provided as the first argument of any WeldSettings
+constructor. A WeldSettings of type FT will be created by passing all other
+arguments to the correct constructor. 
+"""
+WeldSettings(::Type{FT}, args...) where {FT <: AbstractFloat} =
+    WeldSettings{FT}(args...)
+
+"""
+    WeldSettings(args...)
+
+If a type isn't specified, WeldSettings will be of type Float64 and the
+correct constructor will be called with all other arguments.
+"""
+WeldSettings(args...) = WeldSettings{Float64}(args...)
+
+
 # CORNERS::Bool = false           # If true, corners of floes can break
 # PACKING::Bool = false           # If true, floe packing is enabled
-# WELDING::Bool = false           # If true, floe welding is enabled
