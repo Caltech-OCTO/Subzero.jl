@@ -1,4 +1,4 @@
-using Plots, NCDatasets, MAT
+using Makie, CairoMakie, NCDatasets, MAT
 mat_path = "src/SubZero_MATLAB/Floes/"
 mat_files = readdir(mat_path)
 u_mat = Float64[]
