@@ -1,3 +1,5 @@
+# Needs to stop using Plots if used again
+
 f = jldopen("output/voronoi/fresh_start_2246.jld2", "r")
 
 u_arr = Vector{Float64}()
