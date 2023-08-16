@@ -1,6 +1,13 @@
-using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero, ProfileView
+using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero
 import LibGEOS as LG
 
+
+Subzero.plot_sim(
+    "output/simple_strait/floes.jld2",
+    "output/simple_strait/initial_state.jld2",
+    20,
+    "output/simple_strait/simple_strait.mp4",
+)
 # User Inputs
 const FT = Float64
 const Lx = 1e5
@@ -45,7 +52,7 @@ coupling_settings = CouplingSettings(
 # Floe creation
 floe_arr = initialize_floe_field(
     FT,
-    50,
+    200,
     [0.7],
     domain,
     hmean,
@@ -81,8 +88,8 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 3000,
-    verbose = false,
+    nΔt = 20000,
+    verbose = true,
     coupling_settings = coupling_settings,
     fracture_settings = fracture_settings,
     writers = writers,
@@ -92,6 +99,9 @@ simulation = Simulation(
 run_time!(simulation)
 #ProfileView.@profview run!(simulation)
 
-Subzero.create_sim_gif("output/simple_strait/floes.jld2", 
-                       "output/simple_strait/initial_state.jld2",
-                       "output/simple_strait/simple_strait.gif")
+Subzero.plot_sim(
+    "output/simple_strait/floes.jld2",
+    "output/simple_strait/initial_state.jld2",
+    Δt,
+    "output/simple_strait/simple_strait.mp4",
+)
