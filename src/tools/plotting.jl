@@ -170,8 +170,8 @@ function plot_sim(
         coordplot!(domain.topography.coords, color = :lightgrey)
     end
     # Create movie
-    record(fig, output_fn, timesteps, framerate = 20) do time
-        ax.title = prettytime(parse(Float64, time) * Δt)
+    record(fig, output_fn, timesteps; framerate = 20) do time
+        ax.title = Subzero.prettytime(parse(Float64, time) * Δt)
         new_coords = file["coords"][time]
         floes[] = new_coords
     end

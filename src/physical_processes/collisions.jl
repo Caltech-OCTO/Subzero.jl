@@ -916,16 +916,18 @@ function timestep_collisions!(
                 floes.rmax[i],
                 floes.rmax[j],
             )
-                # Never seen any combo of these floes/ghosts
-                new_collision = false
-                Threads.lock(spinlock) do
-                    new_collision = !(id_pair in keys(collide_pairs))
-                    if new_collision
-                            collide_pairs[id_pair] = ghost_id_pair
-                    end
+                # Add floes/ghosts to collision list if they didn't exist before
+                (g1, g2) = Threads.lock(spinlock) do
+                    get!(collide_pairs, id_pair, ghost_id_pair)
                 end
-                # New collision or floe and ghost colliding with same floe - not a repeat collision
-                if new_collision || (ghost_id_pair[1] == collide_pairs[id_pair][1]) ⊻ (ghost_id_pair[2] == collide_pairs[id_pair][2])
+                #=
+                    New collision or floe and ghost colliding with same floe ->
+                    not a repeat collision
+                =#
+                if (
+                    (ghost_id_pair[1] == g1) && (ghost_id_pair[2] == g2) ||
+                    (ghost_id_pair[1] == g1) ⊻ (ghost_id_pair[2] == g2)
+                )
                     floe_floe_interaction!(
                         LazyRow(floes, i),
                         i,
