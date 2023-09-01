@@ -867,16 +867,24 @@ function calc_torque!(
 ) where {FT<:AbstractFloat}
     inters = floe.interactions
     ni = floe.num_inters
-    if floe.num_inters > 0
-        dir = [inters[1:ni, xpoint] .- floe.centroid[1] inters[1:ni, ypoint] .- floe.centroid[2] zeros(FT, ni)]
-        frc = [inters[1:ni, xforce] inters[1:ni, yforce] zeros(FT, ni)]
-        for i in 1:ni
-            idir = vec(dir[i, :])
-            ifrc = vec(frc[i, :])
-            itorque = cross(idir, ifrc)
-            floe.interactions[i, torque] = itorque[3]
-        end
+    for i in 1:floe.num_inters
+        xp = inters[i, xpoint] .- floe.centroid[1]
+        yp = inters[i, ypoint] .- floe.centroid[2]
+        xf = inters[i, xforce]
+        yf = inters[i, yforce]
+        # cross product of direction and force where third element of both is 0
+        floe.interactions[i, torque] = xp * yf - yp * xf
     end
+    # if floe.num_inters > 0
+    #     dir = [inters[1:ni, xpoint] .- floe.centroid[1] inters[1:ni, ypoint] .- floe.centroid[2] zeros(FT, ni)]
+    #     frc = [inters[1:ni, xforce] inters[1:ni, yforce] zeros(FT, ni)]
+    #     for i in 1:ni
+    #         idir = vec(dir[i, :])
+    #         ifrc = vec(frc[i, :])
+    #         itorque = cross(idir, ifrc)
+    #         floe.interactions[i, torque] = itorque[3]
+    #     end
+    # end
     return
 end
 
