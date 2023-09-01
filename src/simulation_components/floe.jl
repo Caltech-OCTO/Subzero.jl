@@ -136,6 +136,7 @@ Singular sea ice floe with fields describing current state.
     collision_force::Matrix{FT} = zeros(1, 2)
     collision_trq::FT = 0.0
     interactions::Matrix{FT} = zeros(0, 7)
+    num_inters::Int = 0
     stress::Matrix{FT} = zeros(2, 2)
     stress_history::StressCircularBuffer{FT} = StressCircularBuffer(1000)
     strain::Matrix{FT} = zeros(2, 2)

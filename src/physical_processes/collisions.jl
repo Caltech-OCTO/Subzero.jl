@@ -337,7 +337,6 @@ function floe_floe_interaction!(
     i,
     jfloe,
     j,
-    total_inters,
     consts,
     Δt,
     max_overlap::FT,
@@ -390,24 +389,24 @@ function floe_floe_interaction!(
                 )
                 # Calculate total forces and update ifloe's interactions
                 forces = normal_forces .+ friction_forces
-                inter_spots = size(ifloe.interactions, 1) - total_inters
+                inter_spots = size(ifloe.interactions, 1) - ifloe.num_inters
                 @views for i in 1:np
                     if forces[i, 1] != 0 || forces[i, 2] != 0
-                        total_inters += 1
+                        ifloe.num_inters += 1
                         if inter_spots < 1
                             ifloe.interactions = vcat(
                                 ifloe.interactions,
-                                fill(nothing, (np - i, 7))
+                                zeros(FT, np - i + 1 , 7)
                             )
                             inter_spots += np - i
                         end
-                        ifloe.interactions[total_inters, floeidx] = j
-                        ifloe.interactions[total_inters, xforce:yforce] .=
+                        ifloe.interactions[ifloe.num_inters, floeidx] = j
+                        ifloe.interactions[ifloe.num_inters, xforce:yforce] .=
                             forces[i, :]
-                        ifloe.interactions[total_inters, xpoint:ypoint] .=
+                        ifloe.interactions[ifloe.num_inters, xpoint:ypoint] .=
                             fpoints[i, :]
-                        ifloe.interactions[total_inters, torque] = nothing
-                        ifloe.interactions[total_inters, overlap] = overlaps[i]
+                        ifloe.interactions[ifloe.num_inters, torque] = FT(0)
+                        ifloe.interactions[ifloe.num_inters, overlap] = overlaps[i]
                         inter_spots -= 1
                     end
                 end
@@ -424,7 +423,7 @@ function floe_floe_interaction!(
             end
         end
     end
-    return total_inters
+    return
 end
 
 """
@@ -447,7 +446,6 @@ Output:
 function floe_domain_element_interaction!(
     floe,
     boundary::OpenBoundary,
-    total_inters,
     consts,
     Δt,
     max_overlap,
@@ -458,7 +456,7 @@ function floe_domain_element_interaction!(
     if LG.area(LG.intersection(floe_poly, bounds_poly)) > 0
         floe.status.tag = remove
     end
-    return total_inters
+    return
 end
 
 """
@@ -479,12 +477,11 @@ Output:
 function floe_domain_element_interaction!(
     floe,
     ::PeriodicBoundary,
-    total_inters,
     consts,
     Δt,
     max_overlap,
 )
-    return total_inters
+    return
 end
 
 """
@@ -628,7 +625,6 @@ function floe_domain_element_interaction!(
         CompressionBoundary,
         TopographyElement,
     },
-    total_inters,
     consts,
     Δt,
     max_overlap::FT,
@@ -674,24 +670,24 @@ function floe_domain_element_interaction!(
                 )
                 # Calculate total forces and update ifloe's interactions
                 forces = normal_forces .+ friction_forces
-                inter_spots = size(ifloe.interactions, 1) - total_inters
+                inter_spots = size(ifloe.interactions, 1) - ifloe.num_inters
                 @views for i in 1:np
                     if forces[i, 1] != 0 || forces[i, 2] != 0
-                        total_inters += 1
+                        ifloe.num_inters += 1
                         if inter_spots < 1
                             ifloe.interactions = vcat(
                                 ifloe.interactions,
-                                fill(nothing, (np - i, 7))
+                                zeros(FT, np - i + 1, 7)
                             )
                             inter_spots += np - i
                         end
-                        ifloe.interactions[total_inters, floeidx] = FT(Inf)
-                        ifloe.interactions[total_inters, xforce:yforce] .=
+                        ifloe.interactions[ifloe.num_inters, floeidx] = FT(Inf)
+                        ifloe.interactions[ifloe.num_inters, xforce:yforce] .=
                             forces[i, :]
-                        ifloe.interactions[total_inters, xpoint:ypoint] .=
+                        ifloe.interactions[ifloe.num_inters, xpoint:ypoint] .=
                             fpoints[i, :]
-                        ifloe.interactions[total_inters, torque] = nothing
-                        ifloe.interactions[total_inters, overlap] = overlaps[i]
+                        ifloe.interactions[ifloe.num_inters, torque] = FT(0)
+                        ifloe.interactions[ifloe.num_inters, overlap] = overlaps[i]
                         inter_spots -= 1
                     end
                 end
@@ -703,7 +699,7 @@ function floe_domain_element_interaction!(
             end
         end
     end
-    return total_inters
+    return
 end
 
 """
@@ -795,7 +791,6 @@ Outputs:
 function floe_domain_interaction!(
     floe,
     domain::Domain,
-    total_inters,
     consts,
     Δt,
     max_overlap::FT,
@@ -808,40 +803,36 @@ function floe_domain_interaction!(
     wbound = domain.west
 
     if centroid[2] + rmax > nbound.val
-        total_inters = floe_domain_element_interaction!(
+        floe_domain_element_interaction!(
             floe,
             nbound,
-            total_inters,
             consts,
             Δt,
             max_overlap,
         )
     end
     if centroid[2] - rmax < sbound.val
-        total_inters = floe_domain_element_interaction!(
+        floe_domain_element_interaction!(
             floe,
             sbound,
-            total_inters,
             consts,
             Δt,
             max_overlap,
         )
     end
     if centroid[1] + rmax > ebound.val
-        total_inters = floe_domain_element_interaction!(
+        floe_domain_element_interaction!(
             floe,
             ebound,
-            total_inters,
             consts,
             Δt,
             max_overlap,
         )
     end
     if centroid[1] - rmax < wbound.val
-        total_inters = floe_domain_element_interaction!(
+        floe_domain_element_interaction!(
             floe,
             wbound,
-            total_inters,
             consts,
             Δt,
             max_overlap,
@@ -850,17 +841,16 @@ function floe_domain_interaction!(
 
     for topo_element in domain.topography
         if sum((topo_element.centroid .- floe.centroid).^2) < (topo_element.rmax + floe.rmax)^2
-            total_inters = floe_domain_element_interaction!(
+            floe_domain_element_interaction!(
                 floe,
                 topo_element,
-                total_inters,
                 consts,
                 Δt,
                 max_overlap,
             )
         end
     end
-    return total_inters
+    return
 end
 
 """
@@ -876,10 +866,11 @@ function calc_torque!(
     floe::Union{LazyRow{<:Floe{FT}}, Floe{FT}},
 ) where {FT<:AbstractFloat}
     inters = floe.interactions
-    if !isempty(inters)
-        dir = [inters[:, xpoint] .- floe.centroid[1] inters[:, ypoint] .- floe.centroid[2] zeros(FT, size(inters, 1))]
-        frc = [inters[:, xforce] inters[:, yforce] zeros(FT, size(inters, 1))]
-        for i in axes(dir, 1)
+    ni = floe.num_inters
+    if floe.num_inters > 0
+        dir = [inters[1:ni, xpoint] .- floe.centroid[1] inters[1:ni, ypoint] .- floe.centroid[2] zeros(FT, ni)]
+        frc = [inters[1:ni, xforce] inters[1:ni, yforce] zeros(FT, ni)]
+        for i in 1:ni
             idir = vec(dir[i, :])
             ifrc = vec(frc[i, :])
             itorque = cross(idir, ifrc)
@@ -952,8 +943,7 @@ function timestep_collisions!(
         fill!(floes.collision_force[i], FT(0))
         floes.collision_trq[i] = FT(0.0)
         #floes.interactions[i] = zeros(FT, 0, 7)
-        floes.interactions[:, i] .= nothing
-        total_inters = 0
+        floes.num_inters[i] = 0
         for j in i+1:length(floes)
             id_pair, ghost_id_pair =
                 if floes.id[i] > floes.id[j]
@@ -980,12 +970,11 @@ function timestep_collisions!(
                     (ghost_id_pair[1] == g1) && (ghost_id_pair[2] == g2) ||
                     (ghost_id_pair[1] == g1) ⊻ (ghost_id_pair[2] == g2)
                 )
-                    total_inters = floe_floe_interaction!(
+                    floe_floe_interaction!(
                         LazyRow(floes, i),
                         i,
                         LazyRow(floes, j),
                         j,
-                        total_inters,
                         consts,
                         Δt,
                         collision_settings.floe_floe_max_overlap,
@@ -993,10 +982,9 @@ function timestep_collisions!(
                 end
             end
         end
-        total_inters = floe_domain_interaction!(
+        floe_domain_interaction!(
             LazyRow(floes, i),
             domain,
-            total_inters,
             consts,
             Δt,
             collision_settings.floe_domain_max_overlap,
@@ -1017,13 +1005,14 @@ function timestep_collisions!(
         i_inters = floes.interactions[i]
         if !isempty(i_inters)
             # Loop over each interaction with floe i
-            @views for inter_idx in axes(i_inters, 1)
+            for inter_idx in 1:floes.num_inters[i]
                 j = i_inters[inter_idx, floeidx]  # Index of floe to update
-                if !isnothing(j) && j <= length(floes) && j > i
+                if j <= length(floes) && j > i
                     jidx = Int(j)
                     j_inters = floes.interactions[jidx]
-                    slot = findfirst(isnothing, j_inters[:, floeidx])
-                    if isnothing(slot)
+                    floes.num_inters[jidx] += 1
+                    slot = floes.num_inters[jidx]
+                    if size(j_inters, 1) - slot < 1
                         floes.interactions[jidx] = vcat(
                             floes.interactions[jidx],
                             i_inters[inter_idx:inter_idx, :]
@@ -1037,7 +1026,7 @@ function timestep_collisions!(
                         j_inters[slot, yforce] = -i_inters[inter_idx, yforce]
                         j_inters[slot, xpoint:ypoint] .=
                             i_inters[inter_idx, xpoint:ypoint]
-                        j_inters[slot, torque] = nothing
+                        j_inters[slot, torque] = FT(0)
                         j_inters[slot, overlap] = i_inters[inter_idx, overlap]
                     end
                     floes.overarea[jidx] += i_inters[inter_idx, overlap]
@@ -1046,23 +1035,16 @@ function timestep_collisions!(
         end
     end
     # Calculate total on parents by summing interactions on parent and children
-    @views for i in range(1, n_init_floes)
+    for i in range(1, n_init_floes)
         if !isempty(floes.ghosts[i])
-            first_slot = findfirst(isnothing, floes.interactions[i][:, floeidx])
-            n_open_slots = size(floes.interactions[i], 1) - slot + 1
+            n_open_slots = size(floes.interactions[i], 1) - floes.num_inters[i]
             to_add = 0
             for g in floes.ghosts[i]
-                Δx = floes.centroid[g][1] - floes.centroid[i][1]
-                Δy = floes.centroid[g][2] - floes.centroid[i][2]
-                for k in axes(floes.interactions[g], 1)
-                    if !isnothing(floes.interactions[g][k, floeidx])
-                        to_add += 1
-                        floes.interactions[g][k, xpoint] -= Δx
-                        floes.interactions[g][k, ypoint] -= Δy
-                    else
-                        break  # all entries after will be nothing
-                    end
-                end
+                to_add += floes.num_inters[g]
+                floes.interactions[g][1:floes.num_inters[g], xpoint] .-=
+                    floes.centroid[g][1] - floes.centroid[i][1]
+                floes.interactions[g][1:floes.num_inters[g], ypoint] .-=
+                    floes.centroid[g][2] - floes.centroid[i][2]
             end
             to_add -= n_open_slots
             if to_add > 0
@@ -1071,15 +1053,13 @@ function timestep_collisions!(
                     zeros(FT, to_add, 7)
                 )
             end
+            ni = floes.num_inters[i]
             for g in floes.ghosts[i]
-                last_inter = findfirst(
-                    isnothing,
-                    floes.interactions[g][:, floeidx],
-                ) - 1  # index of last valid element
-                floes.interactions[i][first_slot:(first_slot + last_inter), :] .=
-                    floes.interactions[g][1:last_inter, :]
+                floes.interactions[i][(ni + 1):(ni + floes.num_inters[g]), :] .=
+                    floes.interactions[g][1:floes.num_inters[g], :]
+                ni += floes.num_inters[g]
             end
-
+            floes.num_inters[i] = ni
         end
 
         # for g in floes.ghosts[i]
@@ -1088,10 +1068,16 @@ function timestep_collisions!(
         #     g_inters[:, ypoint] .-= (floes.centroid[g][2] - floes.centroid[i][2])
         #     floes.interactions[i] = [floes.interactions[i]; g_inters]
         # end
-        calc_torque!(LazyRow(floes, i)) # TODO -> make sure don't do nothing interactions
-        floes.collision_force[i][1] += sum(@view floes.interactions[i][:, xforce])
-        floes.collision_force[i][2] += sum(@view floes.interactions[i][:, yforce])
-        floes.collision_trq[i] += sum(@view floes.interactions[i][:, torque])
+        calc_torque!(LazyRow(floes, i))
+        floes.collision_force[i][1] += sum(
+            @view floes.interactions[i][1:floes.num_inters[i], xforce]
+        )
+        floes.collision_force[i][2] += sum(
+            @view floes.interactions[i][1:floes.num_inters[i], yforce]
+        )
+        floes.collision_trq[i] += sum(
+            @view floes.interactions[i][1:floes.num_inters[i], torque]
+        )
     end
     return
 end
