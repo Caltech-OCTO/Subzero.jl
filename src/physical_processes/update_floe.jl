@@ -239,17 +239,31 @@ Inputs:
 Outputs:
     Caculates stress on floe at current timestep from interactions
 """
-function calc_stress!(floe)
+function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}) where {FT}
     # Stress calcultions
     xi, yi = floe.centroid
     inters = floe.interactions
     # Calculates timestep stress
-    stress = fill(1/(2* floe.area * floe.height), 2, 2)
-    stress[1, 1] *= 2sum((inters[:, xpoint] .- xi) .* inters[:, xforce])
-    stress[1, 2] *= sum((inters[:, ypoint] .- yi) .* inters[:, xforce]) + 
-        sum(inters[:, yforce] .* (inters[:, xpoint] .- xi))
+    stress = fill(FT(0), 2, 2)
+    for i in 1:floe.num_inters
+        stress[1, 1] += (inters[i, xpoint] - xi) * inters[i, xforce]
+        stress[1, 2] += (inters[i, ypoint] - yi) * inters[i, xforce]
+        stress[2, 1] += (inters[i, xpoint] - xi) * inters[i, yforce]
+        stress[2, 2] += (inters[i, ypoint] - yi) * inters[i, yforce]
+    end
+    stress[1, 2] += stress[2, 1]
     stress[2, 1] = stress[1, 2]
-    stress[2, 2] *= 2sum((inters[:, ypoint] .- yi) .* inters[:, yforce])
+    stress[1, 2] *= 1/(2* floe.area * floe.height)
+    stress[2, 1] *= 1/(2* floe.area * floe.height)
+
+    stress[1, 1] *= 1/(floe.area * floe.height)
+    stress[2, 2] *= 1/(floe.area * floe.height)
+    # stress = fill(1/(2* floe.area * floe.height), 2, 2)
+    # stress[1, 1] *= 2sum((inters[:, xpoint] .- xi) .* inters[:, xforce])
+    # stress[1, 2] *= sum((inters[:, ypoint] .- yi) .* inters[:, xforce]) + 
+    #     sum(inters[:, yforce] .* (inters[:, xpoint] .- xi))
+    # stress[2, 1] = stress[1, 2]
+    # stress[2, 2] *= 2sum((inters[:, ypoint] .- yi) .* inters[:, yforce])
     # Add timestep stress to stress history
     push!(floe.stress_history, stress)
     # Average stress history to find floe's average stress
