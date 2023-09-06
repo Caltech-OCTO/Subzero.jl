@@ -1,5 +1,4 @@
-using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero
-import LibGEOS as LG
+using JLD2, Random, Statistics, Subzero
 
 # User Inputs
 const FT = Float64
@@ -72,6 +71,9 @@ simulation = Simulation(
 # Run simulation
 run!(simulation)
 
-Subzero.create_sim_gif("output/converge_diverge/floes.jld2", 
-                       "output/converge_diverge/initial_state.jld2",
-                       "output/converge_diverge/converge_diverge.gif")
+plot_sim(
+    "output/converge_diverge/floes.jld2",
+    "output/converge_diverge/initial_state.jld2",
+    20,
+    "output/converge_diverge/converge_diverge.mp4",
+)

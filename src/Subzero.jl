@@ -62,7 +62,8 @@ export
     IceStressCell,
     CellFloes,
     MonteCarloPointsGenerator,
-    SubGridPointsGenerator
+    SubGridPointsGenerator,
+    plot_sim
 
 import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG

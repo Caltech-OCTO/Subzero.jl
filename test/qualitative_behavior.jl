@@ -12,6 +12,7 @@ const Δgrid = 10000
 const hmean = 0.25
 const Δh = 0.0
 const nΔt = 4000
+const Δt = 10
 const newfloe_Δt = 500
 const coarse_nx = 10
 const coarse_ny = 10
@@ -126,7 +127,7 @@ writers1 = OutputWriters(
 simulation1 = Simulation(
     name = "sim1",
     model = model1,
-    Δt = 10,
+    Δt = Δt,
     nΔt = nΔt,
     collision_settings = collisions_off_settings,
     writers = writers1,
@@ -161,7 +162,7 @@ writers2 = OutputWriters(
 simulation2 = Simulation(
     name = "sim2",
     model = model2,
-    Δt = 10,
+    Δt = Δt,
     nΔt = nΔt,
     collision_settings = collisions_off_settings,
     writers = writers2,
@@ -198,7 +199,7 @@ writers3 = OutputWriters(
 simulation3 = Simulation(
     name = "sim3",
     model = model3,
-    Δt = 10,
+    Δt = Δt,
     nΔt = nΔt,
     writers = writers3,
     coupling_settings = CouplingSettings(coupling_on = false),
@@ -274,7 +275,7 @@ writers4 = OutputWriters(
 simulation4 = Simulation(
     name = "sim4",
     model = model4,
-    Δt = 10,
+    Δt = Δt,
     nΔt = nΔt,
     writers = writers4,
     coupling_settings = CouplingSettings(coupling_on = false),
@@ -323,7 +324,7 @@ writers5 = OutputWriters(
 simulation5 = Simulation(
     name = "sim5",
     model = model5,
-    Δt = 10,
+    Δt = Δt,
     nΔt = nΔt,
     writers = writers5,
     coupling_settings = CouplingSettings(coupling_on = false),
@@ -335,9 +336,10 @@ push!(sim_arr, simulation5)
 # Run the simulations
 for sim in sim_arr
     run!(sim)
-    Subzero.create_sim_gif(
+    plot_sim(
         joinpath("test/output", sim.name, "floes.jld2"),
         joinpath("test/output", sim.name, "initial_state.jld2"),
-        joinpath("test/output", sim.name, string(sim.name, ".gif")),
+        Δt,
+        joinpath("test/output", sim.name, string(sim.name, ".mp4")),
     )
 end

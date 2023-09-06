@@ -670,24 +670,24 @@ function floe_domain_element_interaction!(
                 )
                 # Calculate total forces and update ifloe's interactions
                 forces = normal_forces .+ friction_forces
-                inter_spots = size(ifloe.interactions, 1) - ifloe.num_inters
+                inter_spots = size(floe.interactions, 1) - floe.num_inters
                 @views for i in 1:np
                     if forces[i, 1] != 0 || forces[i, 2] != 0
-                        ifloe.num_inters += 1
+                        floe.num_inters += 1
                         if inter_spots < 1
-                            ifloe.interactions = vcat(
-                                ifloe.interactions,
+                            floe.interactions = vcat(
+                                floe.interactions,
                                 zeros(FT, np - i + 1, 7)
                             )
                             inter_spots += np - i
                         end
-                        ifloe.interactions[ifloe.num_inters, floeidx] = FT(Inf)
-                        ifloe.interactions[ifloe.num_inters, xforce:yforce] .=
+                        floe.interactions[floe.num_inters, floeidx] = FT(Inf)
+                        floe.interactions[floe.num_inters, xforce:yforce] .=
                             forces[i, :]
-                        ifloe.interactions[ifloe.num_inters, xpoint:ypoint] .=
+                        floe.interactions[floe.num_inters, xpoint:ypoint] .=
                             fpoints[i, :]
-                        ifloe.interactions[ifloe.num_inters, torque] = FT(0)
-                        ifloe.interactions[ifloe.num_inters, overlap] = overlaps[i]
+                        floe.interactions[floe.num_inters, torque] = FT(0)
+                        floe.interactions[floe.num_inters, overlap] = overlaps[i]
                         inter_spots -= 1
                     end
                 end

@@ -247,23 +247,13 @@ function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}) where {FT}
     stress = fill(FT(0), 2, 2)
     for i in 1:floe.num_inters
         stress[1, 1] += (inters[i, xpoint] - xi) * inters[i, xforce]
-        stress[1, 2] += (inters[i, ypoint] - yi) * inters[i, xforce]
-        stress[2, 1] += (inters[i, xpoint] - xi) * inters[i, yforce]
+        stress[1, 2] += (inters[i, ypoint] - yi) * inters[i, xforce] +
+            (inters[i, xpoint] - xi) * inters[i, yforce]
         stress[2, 2] += (inters[i, ypoint] - yi) * inters[i, yforce]
     end
-    stress[1, 2] += stress[2, 1]
+    stress[1, 2] *= FT(0.5)
     stress[2, 1] = stress[1, 2]
-    stress[1, 2] *= 1/(2* floe.area * floe.height)
-    stress[2, 1] *= 1/(2* floe.area * floe.height)
-
-    stress[1, 1] *= 1/(floe.area * floe.height)
-    stress[2, 2] *= 1/(floe.area * floe.height)
-    # stress = fill(1/(2* floe.area * floe.height), 2, 2)
-    # stress[1, 1] *= 2sum((inters[:, xpoint] .- xi) .* inters[:, xforce])
-    # stress[1, 2] *= sum((inters[:, ypoint] .- yi) .* inters[:, xforce]) + 
-    #     sum(inters[:, yforce] .* (inters[:, xpoint] .- xi))
-    # stress[2, 1] = stress[1, 2]
-    # stress[2, 2] *= 2sum((inters[:, ypoint] .- yi) .* inters[:, yforce])
+    stress .*= 1/(floe.area * floe.height)
     # Add timestep stress to stress history
     push!(floe.stress_history, stress)
     # Average stress history to find floe's average stress
@@ -291,46 +281,20 @@ function calc_strain!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}) where {FT}
         θ1 = atan(floe.coords[1][i][2], floe.coords[1][i][1])
         rad2 = sqrt(floe.coords[1][i + 1][1]^2 + floe.coords[1][i + 1][2]^2)
         θ2 = atan(floe.coords[1][i + 1][2], floe.coords[1][i + 1][1])
-        u1 = floe.ξ * rad1 * sin(θ1)
-        u2 = floe.ξ * rad2 * sin(θ2)
-        v1 = floe.ξ * rad1 * cos(θ1)
-        v2 = floe.ξ * rad2 * cos(θ2)
-        udiff = u1 - u2  # (floe.u - u2) - (floe.u - u1)
-        vdiff = v2 - v1  # (floe.v + v2) - (floe.v + u1)
+        u1 = floe.u - floe.ξ * rad1 * sin(θ1)
+        u2 = floe.u - floe.ξ * rad2 * sin(θ2)
+        v1 = floe.u + floe.ξ * rad1 * cos(θ1)
+        v2 = floe.u + floe.ξ * rad2 * cos(θ2)
+        udiff = u2 - u1
+        vdiff = v2 - v1
         floe.strain[1, 1] += udiff * ydiff
-        floe.strain[1, 2] += udiff * xdiff + vdiff .* ydiff
+        floe.strain[1, 2] += udiff * xdiff + vdiff * ydiff
         floe.strain[2, 2] += vdiff * xdiff
     end
     floe.strain[1, 2] *= FT(0.5)
     floe.strain[2, 1] = floe.strain[1, 2]
-    floe.strain .*= 1/(2floe.area)
+    floe.strain ./= 2floe.area
     translate!(floe.coords, floe.centroid[1], floe.centroid[2])
-    # xcoords, ycoords = separate_xy(floe.coords)
-    # translate!(floe.coords, floe.centroid[1], floe.centroid[2])
-    # # Find distance between each vertex
-    # if xcoords[1] != xcoords[end] && ycoords[1] != ycoords[end]
-    #     push!(xcoords, xcoords[1])
-    #     push!(ycoords, ycoords[1])
-    # end
-    # xcoords_diff = diff(xcoords)
-    # ycoords_diff = diff(ycoords)
-    # # u and v velocities of floes at each vertex
-    # ucoords = fill(floe.u, size(xcoords))
-    # vcoords = fill(floe.v, size(xcoords))
-    # for i in eachindex(ucoords)
-    #     rad = sqrt(xcoords[i]^2 + ycoords[i]^2)
-    #     θ = atan(ycoords[i], xcoords[i])
-    #     ucoords[i] -= floe.ξ * rad * sin(θ)
-    #     vcoords[i] += floe.ξ * rad * cos(θ)
-    # end
-    # ucoords_diff = diff(ucoords)
-    # vcoords_diff = diff(vcoords)
-    # fill!(floe.strain, 1/(2 * floe.area))
-    # floe.strain[1, 1] *= sum(ucoords_diff .* ycoords_diff) # dudx
-    # floe.strain[1, 2] *= 0.5(sum(ucoords_diff .* xcoords_diff) +
-    #     sum(vcoords_diff .* ycoords_diff)) # dudy + dvdx
-    # floe.strain[2, 1] = floe.strain[1, 2]
-    # floe.strain[2, 2] *= sum(vcoords_diff .* xcoords_diff) # dvdy
     return
 end
 

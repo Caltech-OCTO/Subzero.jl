@@ -1,5 +1,4 @@
-using JLD2, Random, Statistics, StructArrays, Subzero
-import LibGEOS as LG
+using JLD2, Random, Statistics, Subzero
 
 # User Inputs
 const FT = Float64
@@ -79,9 +78,7 @@ simulation = Simulation(
 )
 run_time!(simulation)
 
-#ProfileView.@profview run!(simulation)
- 
-Subzero.plot_sim(
+plot_sim(
     "output/shear_flow/floes.jld2",
     "output/shear_flow/initial_state.jld2",
     20,
