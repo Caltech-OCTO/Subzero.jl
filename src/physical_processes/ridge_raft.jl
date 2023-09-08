@@ -455,7 +455,6 @@ function timestep_ridging_rafting!(
     n_init_floes,
     domain,
     ridgeraft_settings::RidgeRaftSettings{FT},
-    pieces_buffer,
     simp_settings,
     consts,
     Δt,
