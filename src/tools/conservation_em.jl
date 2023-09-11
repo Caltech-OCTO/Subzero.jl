@@ -116,39 +116,37 @@ function plot_conservation(
     # Energy conservation
     total_energy = linear_energy .+ rotational_energy
     # Plot energy
-    plot(
-        [linear_energy rotational_energy total_energy],
-        title = "Total Kinetic Energy",
-        ylabel = "[N]",
-        label=["Linear energy" "Rotational energy" "Total energy"]
-    )
-    savefig(joinpath(dir, "total_energy_conservation.png"))
-
+    f = Figure(resolution = (1600, 1600))
+    ax = f[1, 1] = Axis(f)
+    lines!(linear_energy, label = "Linear")
+    lines!(rotational_energy, label = "Rotational")
+    lines!(total_energy, label = "Total")
+    ax.title = "Total Kinetic Energy"
+    ax.ylabel = "[N]"
+    f[1, 2] = Legend(f, ax, "Energy", framevisible = false)
     # Momentum conservation
-    # Plot momentum
-    plot(
-        [linear_x_momentum],
-        title = "X Momentum",
-        ylabel = "[N * s]",
-        label=["x"]
-    )
-    savefig(joinpath(dir, "momentum_x_conservation.png"))
-    plot(
-        [linear_y_momentum],
-        title = "Y Momentum",
-        ylabel = "[N * s]",
-        label=["y"]
-    )
-    savefig(joinpath(dir, "momentum_y_conservation.png"))
-
+    ax = f[2, 1] = Axis(f)
+    # Plot x momentum
+    lines!(linear_x_momentum)
+    ax.title = "Conservation of X Momentum"
+    ax.ylabel = "[N * s]"
+    # Plot y momentum
+    ax = f[3, 1] = Axis(f)
+    lines!(linear_y_momentum)
+    ax.title = "Convservation of Y Momentum"
+    ax.ylabel = "[N * s]"
+    # Plot angular momentum
     total_angular_momentum = angular_spin_momentum .+ angular_orbital_momentum
-    plot(
-        [angular_spin_momentum angular_orbital_momentum total_angular_momentum],
-        title = "Angular Momentum",
-        ylabel = "[N * s]",
-        label=["Spin momentum" "Orbital momentum" "Total angular momentum"]
-    )
-    savefig(joinpath(dir, "momentum_angular_conservation.png"))
+    ax = f[4, 1] = Axis(f)
+    lines!(angular_spin_momentum, label = "Spin")
+    lines!(angular_orbital_momentum, label = "Orbital")
+    lines!(total_angular_momentum, label = "Total")
+    ax.title = "Conservation of Angular Momentum"
+    ax.ylabel = "[N * s]"
+    ax.xlabel = "Timestep"
+    f[4, 2] = Legend(f, ax, "Angular Momentum", framevisible = false)
+    # Save image
+    save(joinpath(dir, "conservation.png"), f)
     return
 end
 
@@ -223,7 +221,7 @@ function check_energy_momentum_conservation_julia(
     end
     close(file)
     if plot
-        plot_conservation(
+        Subzero.plot_conservation(
             linear_energy,
             rotational_energy,
             linear_x_momentum,

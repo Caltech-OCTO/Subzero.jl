@@ -787,6 +787,20 @@ return [[[xmin, ymin], [xmin, ymax],
 end
 
 """
+grids_from_lines(xlines, ylines)
+
+Creates x-grid and y-grid. Assume xlines has length n and ylines has length m.
+xgrid is the grid's xline vector repeated m times as rows in a mxn array and
+ygrid is the yline vector repeated n times as columns in a mxn vector. xlines
+and ylines are typically either xg and yg or xc and yc.
+"""
+function grids_from_lines(xlines, ylines)
+    xgrid = repeat(reshape(xlines, 1, :), inner=(length(ylines),1))
+    ygrid = repeat(ylines, outer = (1, length(xlines)))
+    return xgrid, ygrid
+end
+
+"""
     calc_eulerian_data!(floes, topography, writer, istep)
 
 Calculate floe data averaged on grid defined by GridOutputWriter for current

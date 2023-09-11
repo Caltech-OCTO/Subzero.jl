@@ -1,5 +1,4 @@
-using JLD2, Random, SplitApplyCombine, Statistics, StructArrays, Subzero, ProfileView
-import LibGEOS as LG
+using JLD2, Random, Statistics, Subzero
 
 # User Inputs
 const FT = Float64
@@ -45,7 +44,7 @@ coupling_settings = CouplingSettings(
 # Floe creation
 floe_arr = initialize_floe_field(
     FT,
-    50,
+    75,
     [0.7],
     domain,
     hmean,
@@ -65,7 +64,7 @@ fracture_settings = FractureSettings(
         criteria = HiblerYieldCurve(floe_arr),
         Δt = 75,
         npieces = 3,
-        nhistory = 1000,
+        nhistory = 100,
         deform_on = false,
 )
 
@@ -81,8 +80,8 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 3000,
-    verbose = false,
+    nΔt = 5000,
+    verbose = true,
     coupling_settings = coupling_settings,
     fracture_settings = fracture_settings,
     writers = writers,
@@ -90,8 +89,10 @@ simulation = Simulation(
     
 # Run simulation
 run_time!(simulation)
-#ProfileView.@profview run!(simulation)
 
-Subzero.create_sim_gif("output/simple_strait/floes.jld2", 
-                       "output/simple_strait/initial_state.jld2",
-                       "output/simple_strait/simple_strait.gif")
+plot_sim(
+    "output/simple_strait/floes.jld2",
+    "output/simple_strait/initial_state.jld2",
+    Δt,
+    "output/simple_strait/simple_strait.mp4",
+)

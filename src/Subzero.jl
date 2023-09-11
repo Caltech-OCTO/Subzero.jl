@@ -62,12 +62,13 @@ export
     IceStressCell,
     CellFloes,
     MonteCarloPointsGenerator,
-    SubGridPointsGenerator
+    SubGridPointsGenerator,
+    plot_sim
 
 import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG
-using DataStructures, Dates, GeometryBasics, Interpolations, JLD2,
-    LinearAlgebra, Logging, Measures, NCDatasets, NetCDF, Plots,
+using CairoMakie, DataStructures, Dates, GeometryBasics, Interpolations, JLD2,
+    LinearAlgebra, Logging, Makie, Measures, NCDatasets, NetCDF,
     PolygonInbounds, Printf, Random, SplitApplyCombine, StaticArrays,
     Statistics, StructArrays, VoronoiCells
 

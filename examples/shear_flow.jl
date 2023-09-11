@@ -1,5 +1,4 @@
-using JLD2, Random, Statistics, StructArrays, Subzero, ProfileView
-import LibGEOS as LG
+using JLD2, Random, Statistics, Subzero
 
 # User Inputs
 const FT = Float64
@@ -63,7 +62,7 @@ consts = Constants(E = modulus)
 run_time!(simulation) =  @time run!(simulation)
 dir = "output/shear_flow"
 
-    # Output setup
+# Output setup
 initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
 floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
 writers = OutputWriters(initwriter, floewriter)
@@ -79,8 +78,9 @@ simulation = Simulation(
 )
 run_time!(simulation)
 
-#ProfileView.@profview run!(simulation)
- 
-Subzero.create_sim_gif("output/shear_flow/floes.jld2", 
-                       "output/shear_flow/initial_state.jld2",
-                       "output/shear_flow/shear_flow.gif")
+plot_sim(
+    "output/shear_flow/floes.jld2",
+    "output/shear_flow/initial_state.jld2",
+    20,
+    "output/shear_flow/shear_flow.mp4",
+)

@@ -64,7 +64,10 @@ simulation = Simulation(
     coupling_settings = CouplingSettings(two_way_coupling_on = true),
 )
 run_time!(simulation)
- 
-Subzero.create_sim_gif("output/uniform_flow/floes.jld2", 
-                       "output/uniform_flow/initial_state.jld2",
-                       "output/uniform_flow/uniform_flow.gif")
+
+Subzero.plot_sim(
+    "output/uniform_flow/floes.jld2",
+    "output/uniform_flow/initial_state.jld2",
+    20,
+    "output/uniform_flow/uniform_flow.mp4",
+)

@@ -21,15 +21,14 @@
 
         # Test Stress and Strain Calculations
         floe_dict = load(
-            "inputs/test_values.jld2"  # uses the first 2 element
+            "inputs/stress_strain.jld2"  # uses the first 2 element
         )
         stresses = [[-10.065, 36.171, 36.171, -117.458],
             [7.905, 21.913, 21.913, -422.242]]
         stress_histories = [[-4971.252, 17483.052, 17483.052, -57097.458],
             [4028.520, 9502.886, 9502.886, -205199.791]]
-        strains = [[-3.724, 0, 0, 0], [7.419, 0, 0,	-6.987]]
-        strain_multiplier = [1e28, 1e6]
-
+        strains = [[-0.0372, 0, 0, .9310], [7.419, 0, 0,	-6.987]]
+        strain_multiplier = [1e6, 1e6]
         for i in 1:2
             f = Floe(
                 floe_dict["coords"][i],
@@ -40,7 +39,8 @@
                 ξ = floe_dict["ξ"][i],
             )
             f.interactions = floe_dict["interactions"][i]
-            f.stress_history = floe_dict["stress_history"][i]
+            f.num_inters = size(f.interactions, 1)
+            push!(f.stress_history, floe_dict["last_stress"][i])
             stress = Subzero.calc_stress!(f)
             @test all(isapprox.(vec(f.stress), stresses[i], atol = 1e-3))
             @test all(isapprox.(
@@ -54,6 +54,7 @@
                 strains[i],
                 atol = 1e-3
             ))
+            @test f.coords == floe_dict["coords"][i]
         end
     end
     @testset "Replace floe" begin

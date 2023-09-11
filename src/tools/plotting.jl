@@ -3,142 +3,6 @@ Plotting functions for Subzero Simulation
 """
 
 """
-grids_from_lines(xlines, ylines)
-
-Creates x-grid and y-grid. Assume xlines has length n and ylines has length m.
-xgrid is the grid's xline vector repeated m times as rows in a mxn array and
-ygrid is the yline vector repeated n times as columns in a mxn vector. xlines
-and ylines are typically either xg and yg or xc and yc.
-"""
-function grids_from_lines(xlines, ylines)
-    xgrid = repeat(reshape(xlines, 1, :), inner=(length(ylines),1))
-    ygrid = repeat(ylines, outer = (1, length(xlines)))
-    return xgrid, ygrid
-end
-
-#------------------ Plotting from FloeWriter Files Post-Simulation ------------------#
-
-"""
-    setup_plot(domain_data::String, plot_size = (1500, 1200))
-
-Set up plot object using domain data from file. x and y limits based on domain
-and topograhy plotted in grey.
-Inputs:
-    domain_fn  <String> file path to JLD2 file holding domain struct information
-    plot_size  <Tuple{Int, Int}> size of output plot - default is (1500, 1200)
-    plot_ocn   <Boolean> boolean flag to plot the ocean arrows if true
-Outputs:
-    Plot with x and y xlim determed by domain and including all topography. 
-"""
-function setup_plot(init_pn::String, plot_size = (1500, 1500), plot_ocn = false)
-    # Open file to get needed values
-    file = jldopen(init_pn, "r")
-    g = file["sim"].model.grid
-    d = file["sim"].model.domain
-    o = file["sim"].model.ocean
-    
-    xmin = d.west.val/1000
-    xmax = d.east.val/1000
-    ymin = d.south.val/1000
-    ymax = d.north.val/1000
-
-    # Plot domain using file data
-    ratio = (ymax-ymin)/(xmax-xmin)
-    plt = Plots.plot(xlims = (xmin, xmax),
-                        ylims = (ymin, ymax),
-                        size = plot_size,
-                        aspect_ratio=ratio,
-                        xlabel = "[km]",
-                        ylabel = "[km]",
-                        xtickfontsize = 20,
-                        ytickfontsize = 20,
-                        xguidefontsize=25,
-                        yguidefontsize=25,
-                        margin = 10mm,
-                        )
-    if !isempty(d.topography)
-        topo_coords = separate_xy.(d.topography.coords)
-        plot!(
-            plt,
-            first.(topo_coords)./1000,
-            last.(topo_coords)./1000,
-            seriestype = [:shape,],
-            fill = :grey,
-            legend=false,
-        )
-    end
-    if plot_ocn
-        xg = g.x0:g.Δx:g.xf
-        yg = g.y0:g.Δy:g.yf
-        xgrid, ygrid = Subzero.grids_from_lines(xg, yg)
-        quiver!(
-            plt,
-            vec(xgrid ./ 1000),
-            vec(ygrid ./ 1000),
-            quiver=(
-                vec(o.u'),
-                vec(o.v'),
-            ),
-            color = :lightgrey,
-        )
-    end
-    JLD2.close(file)
-    return plt
-end
-
-"""
-    create_sim_gif(floes_pn, domain_fn, output_fn, plot_size = (1500, 1500))
-
-Create a gif of a simulation given a file with domain information and floe
-information from a floe output writer.
-Inputs:
-    floes_pn   <String> file path to file output by floe output writer that
-                    inclues coordinate and status fields
-    init_pn    <String> file path to JLD2 file holding domain struct information
-    output_fn  <String> file path to save gif
-    plot_size  <Tuple(Int, Int)> size of output gif in pixels - default
-                    (1500, 1500)
-    fps        <Int> frames per second
-    plot_ocn   <Boolean> boolean flag to plot the ocean arrows if true
-Outputs:
-    Saves simulation gif with floes and topography plotted.
-"""
-function create_sim_gif(
-    floe_pn,
-    init_pn,
-    output_fn;
-    plot_size = (1500, 1500),
-    fps = 15,
-    plot_ocn = false,
-)
-    # Get floe data
-    floe_data = jldopen(floe_pn, "r")
-    status = floe_data["status"]
-    coords = floe_data["coords"]
-    times = keys(coords)
-    # Plot floe data
-    anim = @animate for t in times
-        plt = setup_plot(init_pn, plot_size, plot_ocn)
-        verts = Subzero.separate_xy.(coords[t])
-        for i in eachindex(verts)
-            if status[t][i].tag != remove
-                plot!(
-                    plt,
-                    first(verts[i])./1000,
-                    last(verts[i])./1000,
-                    seriestype = [:shape,],
-                    fill = :lightblue,
-                    legend=false,
-                )
-            end
-        end
-    end
-    JLD2.close(floe_data)
-    gif(anim, output_fn, fps = fps)
-    return
-end
-
-"""
     prettytime(t)
 
 Turn time in seconds into units of minutes, hours, days, or years as appropriate
@@ -192,230 +56,203 @@ function get_curl(fldx,fldy,dx,dy)
     # fldx must be on the u-grid point and fldy on the v-grid
     # returns field on the omega grid
     nx,ny = size(fldx)
-    dvdx = zeros((ny,nx))
-    dudy = zeros((ny,nx))
+    dvdx = zeros(ny,nx)
+    dudy = zeros(ny,nx)
     dvdx[1:end-1,:] = diff(fldy,dims=1)/dx
     dudy[:,1:end-1] = diff(fldx,dims=2)/dy
     return (dvdx - dudy)
 end
 
 """
-    create_coupled_ro_sim_gif(
-        floe_pn,
-        init_pn,
-        surface_pn,
-        output_fn;
-        plot_size = (1500, 1500),
-        fps = 15,
-    )
+    calc_ro_field(ocean_fn)
 
-Plots floes over Oceananigans surface Ro = ξ/f.
+Calculate surface vorticity for ocean file.
 Inputs:
-    floes_pn    <String> file path to file output by floe output writer that
-                    inclues coordinate and status fields
-    init_pn     <String> file path to JLD2 file holding domain information
-    surface_pn  <String> file path to NetCDF file holding Oceananigans surface
-                    data
-    output_fn   <String> file path to save gif
-    plot_size   <Tuple(Int, Int)> size of output gif in pixels - default
-                    (1500, 1500)
-    fps         <Int> frames per second - default 15
-Output:
-    Saves gif to output_fn
+    ocean_fn    <String> filename for ocean NetCDF filename
+Outputs:
+    ro  <Array> 3D array where first two dimensions are ocean size (Nx, Ny) and the third
+            dimension is time over the simulation
+    xc  <Vector> x grid points for ro values
+    yc  <Vector> y grid points for ro values
 """
-function create_coupled_ro_sim_gif(
-    floe_pn,
-    init_pn,
-    surface_pn,
-    output_fn;
-    plot_size = (1500, 1500),
-    fps = 15,
-)
-    # Loading surface data
-    fname = surface_pn
-    xc = NetCDF.ncread(fname, "xC")
-    yc = NetCDF.ncread(fname, "yC")
-    Nx = length(xc)
-    Ny = length(yc)
-    usurf = NetCDF.ncread(fname, "u")[1:Nx,1:Ny,:,:]
-    vsurf = NetCDF.ncread(fname, "v")[1:Nx,1:Ny,:,:]
-    t = NetCDF.ncread(fname, "time")
-    nit = length(t)
+function calc_ro_field(ocean_fn)
+    xc = NetCDF.ncread(ocean_fn, "xC")
+    yc = NetCDF.ncread(ocean_fn, "yC")
     dx = xc[2] - xc[1]
     dy = yc[2] - yc[1]
+    Nx = length(xc)
+    Ny = length(yc)
+    usurf = NetCDF.ncread(ocean_fn, "u")[1:Nx,1:Ny,:,:]
+    vsurf = NetCDF.ncread(ocean_fn, "v")[1:Nx,1:Ny,:,:]
     omega = 2*π/(3600*24)
-    f = 2*omega*sin(70*π/180)
-
-    # Get floe data
-    floe_data = jldopen(floe_pn, "r")
-    status = floe_data["status"]
-    coords = floe_data["coords"]
-
-    # Plot floe data
-    plt = setup_plot(init_pn, plot_size)
-    times = keys(coords)
-    anim = @animate for i = 1:nit
-        ts = times[i]
-        # get floe coords at timestep
-        verts = Subzero.separate_xy.(coords[ts])
-        # calculate Ro for timestep
-        vort = get_curl(usurf[:,:,1,i],vsurf[:,:,1,i],dx,dy) # curl
-        Ro = vort/f
-        # Setup plot for timestep
-        plt = setup_plot(init_pn, plot_size)
-        # Plot ocean for timestep
-        contour!(
-            plt,
-            xc/1000,
-            yc/1000,
-            Ro,  # should be transposed 
-            xlabel="x [km]",
-            ylabel="y [km]",
-            title=prettytime(t[i]),
-            titlefontsize = 35,
-            linewidth = 0,
-            fill=true,
-            color=:balance,
-            clims=(-0.6, 0.6),
-            legend=false,
-            colorbar=true,
-            colorbar_title = "Ro = ζ/f",
-            colorbar_titlefontsize = 25,
-        )
-        # Plot floes for timestep
-        for j in eachindex(verts)
-            if status[ts][j].tag != remove
-                plot!(
-                    plt,
-                    first(verts[j])./1000,
-                    last(verts[j])./1000,
-                    seriestype = [:shape,],
-                    fill = :lightblue,
-                    legend=false,
-                )
-            end
-        end
+    f = f = 2*omega*sin(70*π/180)
+    nsteps = size(usurf, 4)
+    ro = zeros(Nx, Ny, nsteps)
+    @views for i in 1:nsteps
+        ro[:, :, i] .= get_curl(usurf[:,:,1,i], vsurf[:,:,1,i], dx,dy) ./ f
     end
-    JLD2.close(floe_data)
-    gif(anim, output_fn, fps = fps)
-    return
-end
-
-# using Makie, CairoMakie
-# Makie.@recipe(FloeScene) do scene
-#     Attributes(
-#         floecolor = :lightblue,
-#         oceancolor = :gray,
-#     )
-# end
-
-# function Makie.plot!(
-#     fs::FloeScene{
-#         <:Tuple{
-#             <:Real # timestep
-#             <:AbstractMatrix{<:Real},  # floe coordinates 2xn
-#             <:AbstractMatrix{<:Real},  # ocean x
-#             <:AbstractMatrix{<:Real},  # ocean y
-#             <:AbstractMatrix{<:Real},  # ocean x tracer/vector
-#             <:AbstractMatrix{<:Real},  # ocean y tracer/vector
-#         },
-#     },
-# )
-#     timestep = fs[1]
-#     floecoords = fs[2]
-
-#     points = Observable(Point2f[])
-#     function update_plot(timestep, floecoords)
-#         empty!(points[])
-#         for i in eachrow(floecoords)
-#             push!(points, Point2f(floecoords[i, 1], floecoords[i, 2]))
-#         end
-#     end
-#     Makie.Observables.onany(update_plot, timestep, floecoords)
-#     update_plot(timestep[], floecoords[])
-
-#     title!(fs, string(timestep))
-
-#     poly!(fs, points, color = fs.floecolor)
-
-#     return fs
-# end
-
-#------------ Plotting for Debugging During Simulation Run --------------#
-
-"""
-    setup_plot(model::Model)
-
-Plots grid lines, model domain, and model topology on a plot with a ratio
-determined by the grid coordinates. Used for plotting during simulation, mainly
-for debugging purposes. These qualities only need to be plotted/set once as
-they cannot change during the simulation.
-
-Inputs:
-    model <Model>
-Output:
-    plt <Plots.Plot> with gridlines and aspect ratio set and model domain and
-            topology plotted
-"""
-function setup_plot(model::Model)
-    # Plot Grid Lines and set image ratio
-    xmin = model.domain.west.val/1000
-    xmax = model.domain.east.val/1000
-    ymin = model.domain.south.val/1000
-    ymax = model.domain.north.val/1000
-
-    # Plot domain using file data
-    ratio = (ymax-ymin)/(xmax-xmin)
-    plt = Plots.plot(xlims = (xmin, xmax),
-                        ylims = (ymin, ymax),
-                        size = plot_size,
-                        aspect_ratio=ratio,
-                        xlabel = "[km]",
-                        ylabel = "[km]")
-
-    # Plot Topology
-    if !isempty(model.domain.topography)
-        topo_coords = model.domain.topography.coords
-        plot!(
-            plt,
-            [LG.Polygon([c[1] ./ 1000]) for c in topo_coords],
-            fill = :grey,
-        )
-    end
-    return plt
+    return ro, xc, yc
 end
 
 """
-    plot_sim(model, plt)
+    CoordPlot
 
-Plot ocean velocities and floes for current model time step using given plot.
-Used for plotting during simulation, mainly for debugging purposes. 
-    
-Inputs:
-        model   <Model>
-        plt     <Plots.plt>
-        time    <Int> model timestep
-Outputs:
-        Save new plot.
+Recipe for plotting list of PolyVecs that creates two new function coordplot and
+coordplot!
 """
-function plot_sim_timestep(model, plt, time)
-    # Plot Ocean Vector Field - also clears previous plot
-    xgrid, ygrid = Subzero.grids_from_lines(model.grid.xc, model.grid.xc)
-    plt_new = quiver(plt, vec(xgrid ./ 1000), vec(ygrid ./ 1000),
-            quiver=(vec(model.ocean.u), vec(model.ocean.v)), color = :lightgrey,
-            title = string("Time: ", round(time/6, digits = 2), " minutes"))
-
-    # Plot Floes --> only plot "active" floes
-    floe_coords = model.floes.coords
-    floe_status = model.floes.status
-    plot!(
-        plt_new,
-        [LG.Polygon(
-            [floe_coords[i][1] ./ 1000]
-        ) for i in eachindex(floe_coords) if floe_status[i].tag != remove],
-        fill = :lightblue,
+@recipe(CoordPlot, coord_list) do scene
+    Attributes(
+        color = :lightblue,    # floe fill color (could give transparent color)
+        strokecolor = :black,  # outline color of floes
+        strokewidth = 1,       # width of floe outline
     )
-          
-    # Save plot
-    Plots.savefig(plt_new, "figs/collisions/plot_$time.png")
+end
+
+"""
+    Makie.plot!(coordplot)
+
+Defines coordplot and coordplot! for plotting lists of PolyVecs.
+"""
+function Makie.plot!(coordplot::CoordPlot{<:Tuple{<:Vector{<:PolyVec}}})
+    coord_list = coordplot[1]
+    poly_list = @lift([[Point2f(verts) for verts in c[1]] for c in $coord_list])
+    Makie.poly!(
+        coordplot,
+        poly_list,
+        color = coordplot[:color],
+        strokecolor = coordplot[:strokecolor],
+        strokewidth = coordplot[:strokewidth],    
+    )
+    coordplot
+end
+
+"""
+    plot_sim(
+        floe_fn,
+        initial_state_fn,
+        title,
+        Δt,
+        output_fn
+    )
+
+Basic plotting of sim as an example of how to create video. Does not have
+underlying ocean.
+Inputs:
+    floe_fn           <String> Subzero floe outputwriter output file
+    initial_state_fn  <String> Subzero initial state writer output file
+    title             <String> plot title
+    Δt                <Int> length of timestep in seconds
+    output_fn         <String> output filename (should be .mp4)
+Output:
+    Saves video as output_fn
+"""
+function plot_sim(
+    floe_fn,
+    initial_state_fn,
+    Δt,
+    output_fn,
+)
+    # Open files
+    file = jldopen(floe_fn)
+    domain = load(initial_state_fn)["sim"].model.domain
+    timesteps = keys(file["centroid"])
+    # Set up observables
+    floes = Observable(file["coords"][timesteps[1]])
+    # Plot floes
+    fig, ax, _ = coordplot(floes)
+    # Set axis limits and names
+    xlims!(domain.west.val, domain.east.val)
+    ylims!(domain.south.val, domain.north.val)
+    ax.xlabel =  "Meters"
+    ax.ylabel = "Meters"
+    # Plot topography
+    if !isempty(domain.topography)
+        coordplot!(domain.topography.coords, color = :lightgrey)
+    end
+    # Create movie
+    record(fig, output_fn, timesteps; framerate = 20) do time
+        ax.title = Subzero.prettytime(parse(Float64, time) * Δt)
+        new_coords = file["coords"][time]
+        floes[] = new_coords
+    end
+    close(file)
+end
+
+
+"""
+    plot_sim_with_ocean_field(
+        floe_fn,
+        initial_state_fn,
+        Δt,
+        ocean_fn,
+        ocean_func,
+        output_fn,
+    )
+
+Basic plotting of sim as an example of how to create video. Does not have
+underlying ocean.
+Inputs:
+    floe_fn           <String> Subzero floe outputwriter output file
+    initial_state_fn  <String> Subzero initial state writer output file
+    Δt                <Int> length of timestep in seconds
+    ocean_fn          <String> Oceananigans output surface.nc file
+    ocean_func        <Function> function that takes in ocean_fn and returns a
+                        Nx by Ny by timesteps surface field for plotting as well
+                        as xc and yc fields (see calc_ro_field for example)
+    colorbar_title    <String> name for colorbar associated with ocean_func vals
+    output_fn         <String> output filename (should be .mp4)
+Output:
+    Saves video as output_fn.
+"""
+function plot_sim_with_ocean_field(
+    floe_fn,
+    initial_state_fn,
+    Δt,
+    ocean_fn,
+    ocean_func,
+    colorbar_title,
+    output_fn,
+)
+    # Open files
+    file = jldopen(floe_fn)
+    domain = load(initial_state_fn)["sim"].model.domain
+    timesteps = keys(file["centroid"])
+    ocean_data, xc, yc = ocean_func(ocean_fn)
+    # Set up observables needed for plotting
+    floes = Observable(file["coords"][timesteps[1]])
+    ocean_vals = Observable(@view ocean_data[:, :, 1])
+    min_ocn_val, max_ocn_val = extrema(ocean_data)
+    fig = Figure()
+    # Plot ocean
+    ax, hm = heatmap(
+        fig[1, 1],
+        xc,
+        yc,
+        ocean_vals,
+        colormap = :RdBu_9,
+        colorrange = (min_ocn_val, max_ocn_val)
+    )
+    # Add axis limits and titles
+    xlims!(domain.west.val, domain.east.val)
+    ylims!(domain.south.val, domain.north.val)
+    ax.xlabel =  "Meters"
+    ax.ylabel = "Meters"
+    # Add colorbar
+    Colorbar(fig[1, 2], hm, label = colorbar_title)
+    # Plot floes
+    coordplot!(fig[1, 1], floes)
+    # Plot topography
+    if !isempty(domain.topography)
+        coordplot!(fig[1, 1], domain.topography.coords, color = :lightgrey)
+    end
+
+    # Create movie
+    record(fig, output_fn, 1:length(timesteps), framerate = 20) do i
+        time = timesteps[i]
+        ax.title = prettytime(parse(Float64, time) * Δt)
+        new_coords = file["coords"][time]
+        ocean_vals[] = @view ocean_data[:, :, i]
+        floes[] = new_coords
+    end
+    close(file)
 end
