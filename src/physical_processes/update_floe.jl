@@ -322,7 +322,7 @@ function timestep_floe_properties!(
         cforce = floes.collision_force[i]
         ctrq = floes.collision_trq[i]
         # Update stress
-        if !isempty(floes.interactions[i])
+        if floes.num_inters[i] > 0
             calc_stress!(LazyRow(floes, i))
         end
         # Ensure no extreem values due to model instability

@@ -251,6 +251,7 @@
         # Test floe overlapping >75% with collision boundary -> but max overlap is now 1
         Subzero.floe_domain_interaction!(efloe_large, domain, consts, Δt, 1.0)
         @test !isempty(efloe_large.interactions)
+        @test efloe_large.num_inters > 0
         # Test floe passing through open boundary is killed
         Subzero.floe_domain_interaction!(wfloe, domain, consts, Δt, max_overlap)
         @test wfloe.status.tag == Subzero.remove

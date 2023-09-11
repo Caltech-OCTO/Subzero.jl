@@ -3,7 +3,7 @@ Structs and functions used to define floes and floe fields within Subzero
 """
 
 """
-Enum to index into floe interactions field with more intuituve names
+Enum for differnt floe status
 """
 @enum StatusTag begin
     active = 1

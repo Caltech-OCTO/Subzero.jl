@@ -524,7 +524,8 @@ function fracture_floes!(
     Threads.@threads for i in 1:nfloes2frac
         # Deform floe around largest impact site
         if fracture_settings.deform_on
-            inters = floes.interactions[frac_idx[i]]
+            fidx = frac_idx[i]
+            inters = floes.interactions[fidx][1:floes.num_inters[fidx], :]
             inters = inters[.!(isinf.(inters[:, floeidx])), :]
             if !isempty(inters)
                 _, max_inters_idx = findmax(inters[:, overlap])
