@@ -156,6 +156,7 @@
             -148920620521.112,
             6795329.38154967,
         ]')
+        frac_deform_floe.num_inters = 1
         frac_deform_floe.p_dudt = 0.11
         frac_floe.stress = frac_stress
         no_frac_small.stress = frac_stress
