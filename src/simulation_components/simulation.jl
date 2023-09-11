@@ -141,8 +141,6 @@ function timestep_sim!(sim, tstep)
             sim.Δt,
             sim.simp_settings.max_floe_height,
         )
-
-        # TODO: Remove parent ids ?
         # Fracture floes
         if sim.fracture_settings.fractures_on && mod(tstep, sim.fracture_settings.Δt) == 0
             max_floe_id =
