@@ -37,15 +37,9 @@ function add_floe_volume!(
     floe.mass += vol * consts.ρi
     moment_tmp = floe.moment
     floe.moment *= floe.height/init_height
-    # Update velocities and accelerations to conserve momentum
-    conserve_momentum_combination!(
-        mass_tmp,
-        moment_tmp,
-        floe.centroid[1],
-        floe.centroid[2],
-        Δt,
-        floe,
-    )
+    # TODO: Make sure to update ghosts / parents
+    # TODO: Update velocities and accelerations to conserve momentum
+    return
 end
 
 """
@@ -77,19 +71,23 @@ function remove_floe_overlap!(
     consts,
     rng,  
 ) where {FT <: AbstractFloat}
+    # TODO: Make sure to update ghosts / parents
     # Find new floe shape
     new_floe_poly = LG.difference(
         LG.Polygon(shrinking_floe.coords),
         LG.Polygon(growing_floe_coords),
     )
     new_floe_area = LG.area(new_floe_poly)
+    transfer_vol = (shrinking_floe.area - new_floe_area) * shrinking_floe.height
     regions = get_polygons(new_floe_poly)
+    nregions = length(regions)
     # Update floe and create new floes from ridging
-    for i in eachindex(regions)
+    for i in 1:nregions
         new_coords = find_poly_coords(regions[i])::PolyVec{FT}
         new_poly = LG.Polygon(rmholes(new_coords))
-        new_mass = LG.area(new_poly) / new_floe_area *
-            (shrinking_floe.mass - vol * consts.ρi)
+        mass_diff =  (shrinking_floe.mass - transfer_vol * consts.ρi)
+        new_mass = (LG.area(new_poly) / new_floe_area) *
+            (shrinking_floe.mass - transfer_vol * consts.ρi)
         mass_tmp = shrinking_floe.mass
         moment_tmp = shrinking_floe.moment
         x_tmp, y_tmp = shrinking_floe.centroid
@@ -99,42 +97,26 @@ function remove_floe_overlap!(
                 shrinking_floe,
                 new_poly,
                 new_mass,
+                coupling_settings,
                 consts,
-                coupling_settings.mc_n,
                 rng,
             )
-            # Update velocities and accelerations to conserve momentum
-            conserve_momentum_combination!(
-                mass_tmp,
-                moment_tmp,
-                x_tmp,
-                y_tmp,
-                Δt,
-                keep_floe,
-            )
+            # TODO: Update velocities and accelerations to conserve momentum
         else  # Create new floes if floe was split into multiple pieces
-            buffer_idx = (i - 1) * shrinking_floeidx
-            pieces_buffer[buffer_idx] = deepcopy_floe(shrinking_floe)
+            push!(pieces_buffer, deepcopy_floe(shrinking_floe))
             # Update floe based on new shape
             replace_floe!(
-                LazyRow(pieces_buffer, buffer_idx),
+                LazyRow(pieces_buffer, length(pieces_buffer)),
                 new_poly,
                 new_mass,
+                coupling_settings,
                 consts,
-                coupling_settings.mc_n,
                 rng,
             )
-            # Update velocities and accelerations to conserve momentum
-            conserve_momentum_combination!(
-                mass_tmp,
-                moment_tmp,
-                x_tmp,
-                y_tmp,
-                Δt,
-                LazyRow(pieces_buffer, buffer_idx),
-            )
+        # TODO: Update velocities and accelerations to conserve momentum
         end
     end
+    return transfer_vol, nregions > 1  # broken if true
 end
 
 """
@@ -163,38 +145,33 @@ Outputs:
     Updates floe1 and floe2 and returns any new floes created by ridging
 """
 function floe_floe_ridge!(
-    floes,
+    floes::StructArray{<:Floe{FT}},
     idx1,
     idx2,
-    overlap_area,
     pieces_buffer,
+    broken,
     ridgeraft_settings,
+    coupling_settings,
     simp_settings,
     consts,
     Δt,
-)
+    rng,
+) where {FT}
     # Heights of floes determine which floe subsumes shared area
-    f1_h = floe1.height >= ridgeraft_settings.min_ridge_height
-    f2_h = floe2.height >= ridgeraft_settings.min_ridge_height
-
-    extra_floes = if(
-        (f1_h && f2_h && rand() >= 1/(1 + (floe1.height/floe2.height))) ||
+    f1_h = floes.height[idx1] >= ridgeraft_settings.min_ridge_height
+    f2_h = floes.height[idx2] >= ridgeraft_settings.min_ridge_height
+    vol = FT(0)
+    broke = false
+    if(
+        (f1_h && f2_h && rand() >= 1/(1 + (floes.height[idx1]/floes.height[idx2]))) ||
         (f1_h && !f2_h)
     )
         #=
-        Either both floes are over max height and we randomly pick floe 1 to
-        "subsume" the extra area, or only floe 1 is over max height and it
+        Either both floes are over min height and we randomly pick floe 1 to
+        "subsume" the extra area, or only floe 1 is over min height and it
         gets the extra area
         =#
-        vol = overlap_area * floe2.height
-        add_floe_volume!(
-            LazyRow(floes, idx1),
-            vol,
-            simp_settings,
-            consts,
-            Δt,
-        )
-        extra_floes = remove_floe_overlap!(
+        vol, broke = remove_floe_overlap!(
             LazyRow(floes, idx2),
             idx2,
             floes.coords[idx1],
@@ -204,21 +181,21 @@ function floe_floe_ridge!(
             consts,
             rng,  
         )
+        broken[idx2] = broke
+        add_floe_volume!(
+            LazyRow(floes, idx1),
+            vol,
+            simp_settings,
+            consts,
+            Δt,
+        )
     elseif (f1_h && f2_h) ||  (!f1_h && f2_h)
         #=
         Either both floes are over max height and we randomly pick floe 2 to
         "subsumes" the extra area, or only floe 2 is over max height and it
         gets the extra area
         =#
-        vol = overlap_area * floe1.height
-        add_floe_volume!(
-            LazyRow(floes, idx2),
-            vol,
-            simp_settings,
-            consts,
-            Δt,
-        )
-        extra_floes = remove_floe_overlap!(
+        vol, broke = remove_floe_overlap!(
             LazyRow(floes, idx1),
             idx1,
             floes.coords[idx2],
@@ -228,7 +205,14 @@ function floe_floe_ridge!(
             consts,
             rng,  
         )
-        return extra_floes
+        broken[idx2] = broke
+        add_floe_volume!(
+            LazyRow(floes, idx2),
+            vol,
+            simp_settings,
+            consts,
+            Δt,
+        )
     end
     return nothing
 end
@@ -253,59 +237,31 @@ Outputs:
     they are returned, else nothing.
 """
 function floe_domain_ridge!(
-    floe1::Union{Floe, LazyRow{Floe}},
-    floe1_idx,
+    floe::Union{Floe, LazyRow{Floe}},
+    idx,
     domain_element::Union{
         CollisionBoundary,
         CompressionBoundary,
         TopographyElement,
     },
     pieces_buffer,
+    broken,
+    coupling_settings,
     simp_settings,
     consts,
+    rng,
 )
-    # Calculate new floe shape and area/volume lost
-    ridged_floe = LG.difference(
-        LG.Polygon(floe1.coords),
-        LG.Polygon(domain_element.coords)    
+    _, broken[idx] = remove_floe_overlap!(
+        floe,
+        idx,
+        domain_element.coords,
+        vol,
+        pieces_buffer,
+        coupling_settings,
+        consts,
+        rng,  
     )
-    ridged_area = LG.area(ridged_floe)
-    vol1 = ridged_area * floe1.height
-    # Ridge floe if area is large enough, else reduce area so it will be removed
-    if ridged_area > simp_settings.min_floe_area  # boundary subsumes overlap
-        extra_floes = remove_floe_overlap!(
-            floe1,
-            floe1_idx,
-            domain_element.coords,
-            vol1,
-            pieces_buffer,
-            coupling_settings,
-            consts,
-            rng,  
-        )
-        return extra_floes
-    else  # remaining floe is too small, decrease area/mass to remove
-        floe1.area = ridged_area
-        floe1.mass = ridged_area * floe1.height * consts.ρi
-        # do I need to do more so that this doesn't get used in other sections?
-        # maybe we do need dissolved tag...
-        return nothing
-    end
     return nothing
-end
-
-function floe_domain_raft_ridge!(
-    floe1,
-    floe1_idx,
-    domain_element::Union{
-        PeriodicBoundary,
-        OpenBoundary,
-    },
-    pieces_buffer,
-    simp_settings,
-    consts,
-)
-    return
 end
 
 """
@@ -332,28 +288,22 @@ Outputs:
     Updates floe1 and floe2 and returns any new floes created by rafting
 """
 function floe_floe_raft!(
-    floes,
+    floes::StructArray{<:Floe{FT}},
     idx1,
     idx2,
-    overlap_area,
     pieces_buffer,
+    broken,
+    coupling_settings,
     simp_settings,
     consts,
     Δt,
-)
+    rng,
+) where {FT}
     # Based on height ratio, pick which floe subsumes shares area
-    if rand(1) >= 1/(1 + (floe1.height/floe2.height))  # Floe 1 subsumes
-        vol = overlap_area * floe2.height
-        # Add extra area/volume to floe 1
-        add_floe_volume!(
-            LazyRow(floes, idx1),
-            vol,
-            simp_settings,
-            consts,
-            Δt,
-        )
+    vol = FT(0)
+    if rand(rng) >= 1/(1 + (floes.height[idx1]/floes.height[idx2]))  # Floe 1 subsumes
         # Change shape of floe 2
-        extra_floes = remove_floe_overlap!(
+        vol, broken[idx2] = remove_floe_overlap!(
             LazyRow(floes, idx2),
             idx2,
             floes.coords[idx1],
@@ -363,19 +313,17 @@ function floe_floe_raft!(
             consts,
             rng,  
         )
-        return extra_floes 
-    else  # Floe 2 subsumes
-        vol = overlap_area * floe1.height
-        # Add extra area/volume to floe 2
+        # Add extra area/volume to floe 1
         add_floe_volume!(
-            LazyRow(floes, idx2),
+            LazyRow(floes, idx1),
             vol,
             simp_settings,
             consts,
             Δt,
         )
+    else  # Floe 2 subsumes
         # Change shape of floe 1
-        extra_floes = remove_floe_overlap!(
+        vol, broken[idx1] = remove_floe_overlap!(
             LazyRow(floes, idx1),
             idx1,
             floes.coords[idx2],
@@ -385,13 +333,20 @@ function floe_floe_raft!(
             consts,
             rng,  
         )
-        return extra_floes
+        # Add extra area/volume to floe 2
+        add_floe_volume!(
+            LazyRow(floes, idx2),
+            vol,
+            simp_settings,
+            consts,
+            Δt,
+        )
     end
     return nothing
 end
 
 """
-    floe_domain_raft(
+    floe_domain_raft!(
         floe1::Union{Floe, LazyRow{Floe}},
         domain_element::AbstractDomainElement,
         simp_settings,
@@ -409,20 +364,26 @@ Outputs:
     floe1 is updated with new shape. If any new floes are created by rafting
     they are returned, else nothing.
 """
-floe_domain_raft(
+floe_domain_raft!(
     floe1::Union{Floe, LazyRow{Floe}},
     idx1,
     domain_element::AbstractDomainElement,
     pieces_buffer,
+    broken,
+    coupling_settings,
     simp_settings,
     consts,
+    rng,
 ) = floe_domain_ridge!(
     floe1,
     idx1,
     domain_element,
     pieces_buffer,
+    broken,
+    coupling_settings,
     simp_settings,
     consts,
+    rng,
 )
 
 """
@@ -455,13 +416,16 @@ function timestep_ridging_rafting!(
     n_init_floes,
     domain,
     ridgeraft_settings::RidgeRaftSettings{FT},
+    coupling_settings,
     simp_settings,
     consts,
     Δt,
+    rng = Xoshiro(),
 ) where {FT <: AbstractFloat}
-    ninters = 0
+    broken = fill(false, n_init_floes)
+    pieces_list = Floe{FT}[]
     interactions_list = zeros(Int, size(floes.interactions[1], 1))
-    for i in 1:n_init_floes  # TODO: this shouldn't include ghost floes! --> easier once we get rid of ghost floes
+    for i in 1:n_init_floes
         #=
             Floe is active in sim, hasn't broken, interacted with other floes,
             isn't too thick, and meets probability check to ridge or raft
@@ -473,18 +437,20 @@ function timestep_ridging_rafting!(
         if (
             (ridge || raft) &&
             floes.status[i].tag == active &&
-            isnothing(pieces_buffer[i]) &&
-            !isempty(floes.interactions[i])
+            !broken[i] &&
+            floes.num_inters[i] > 0
         )
             ninters = 0
             # Find unique interactions that haven't already been calculated
-            for row in axes(floes.interactions[i], 1)
-                j = Int(floes.interactions[row, floeidx])
-                min_area = j > 0 ? min(floes.area[i], floes.area[j]) : floes.area[i] 
+            for row in 1:floes.num_inters[i]
+                j = Int(floes.interactions[i][row, floeidx])
+                min_area = j > 0 ?
+                    min(floes.area[i], floes.area[j]) :  # floe-floe interaction
+                    floes.area[i] # floe-domain interaction
                 if (
                     (j > i || j < 0) &&  # else checked in j's interactions
-                    1e-6 < floes.interactions[row, overlap]/min_area < 0.95 &&
-                    j !in interactions_list
+                    1e-6 < floes.interactions[i][row, overlap]/min_area < 0.95 &&
+                    !broken[j] && !(j in interactions_list)
                 )
                     ninters += 1
                     if ninters <= length(interactions_list)
@@ -494,12 +460,10 @@ function timestep_ridging_rafting!(
                     end
                 end     
             end 
-            for j in interactions_list
-                if (  # if floe-floe interaction
-                    j > 0 &&
-                    isnothing(pieces_buffer[i]) &&
-                    isnothing(pieces_buffer[j])
-                )
+            for k in 1:ninters
+                # if floe-floe interaction
+                j = interactions_list[k]
+                if j > 0 && !broken[i] && !broken[j]
                     if (  # if both floes aren't too thick -> ridge
                         ridge &&
                         floes.height[i] <= ridgeraft_settings.max_floe_ridge_height &&
@@ -509,12 +473,14 @@ function timestep_ridging_rafting!(
                             floes,
                             i,
                             j,
-                            floe.interactions[i, overlap],
-                            pieces_buffer,
+                            pieces_list,
+                            broken,
                             ridgeraft_settings,
+                            coupling_settings,
                             simp_settings,
                             consts,
                             Δt,
+                            rng,
                         )
                     elseif ( # if both floes aren't too thick -> raft
                         raft &&
@@ -525,14 +491,16 @@ function timestep_ridging_rafting!(
                             floes,
                             i,
                             j,
-                            floe.interactions[i, overlap],
-                            pieces_buffer,
+                            pieces_list,
+                            broken,
+                            coupling_settings,
                             simp_settings,
                             consts,
                             Δt,
+                            rng,
                         )
                     end
-                else  # if floe-domain interaction
+                elseif j < 0 && !broken[i]  # if floe-domain interaction
                     if (  # if floe isn't too thick -> ridge
                         ridge &&
                         floes.height[i] <= ridgeraft_settings.max_domain_ridge_height
@@ -541,9 +509,12 @@ function timestep_ridging_rafting!(
                             LazyRow(floes, i),
                             i,
                             get_domain_element(domain, j),
-                            pieces_buffer,
+                            pieces_list,
+                            broken,
+                            coupling_settings,
                             simp_settings,
                             consts,
+                            rng,
                         )
 
                     elseif (  # if floe isn't too thick -> raft
@@ -554,9 +525,12 @@ function timestep_ridging_rafting!(
                             LazyRow(floes, i),
                             i,
                             get_domain_element(domain, j),
-                            pieces_buffer,
+                            pieces_list,
+                            broken,
+                            coupling_settings,
                             simp_settings,
                             consts,
+                            rng,
                         )
                     end
                 end

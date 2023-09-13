@@ -1,66 +1,42 @@
 using JLD2, Random, Statistics, Subzero, BenchmarkTools, StructArrays, SplitApplyCombine
 import LibGEOS as LG
 
-
-Δt = 10
-Lx = 1e5
-Ly = 1e5
-collision_settings = CollisionSettings()
 grid = RegRectilinearGrid(
-    (-Lx, Lx),
-    (-Lx, Lx),
-    1e4,
-    1e4,
+           (0, 2e5),
+           (0, 2e5),
+           1e4,
+           1e4,
+       )
+domain = Subzero.Domain(
+           CollisionBoundary(North, grid),
+           CollisionBoundary(South, grid),
+           CollisionBoundary(East, grid),
+           CollisionBoundary(West, grid),
 )
-double_periodic_domain = Domain(
-    PeriodicBoundary(North, grid),
-    PeriodicBoundary(South, grid),
-    PeriodicBoundary(East, grid),
-    PeriodicBoundary(West, grid),
+consts = Constants()
+coords = [[[[0.1e4, 0.1e4], [0.1e4, 2e4], [2e4, 2e4], [2e4, 0.1e4], [0.1e4, 0.1e4]]], [[[1.9e4, 1.9e4], [1.9e4, 4e4], [4e4, 4e4], [4e4, 1.9e4], [1.9e4, 1.9e4]]]]
+floes = initialize_floe_field(
+                  Float64,
+                  coords,
+                  domain,
+                  1.0,
+                  0.0,
 )
-# Parent-parent collison (parents are touching)
-coords1 = splitdims(vcat([5*Lx/8 5*Lx/8 3*Lx/4 3*Lx/4].+1000, [3*Ly/4 5*Ly/4 5*Ly/4 3*Ly/4]))
-coords2 = splitdims(vcat(-[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000], -[7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8]))
-
-floe_arr = StructArray(Floe([c], 0.5, 0.0) for c in [coords1, coords2])
-for i in eachindex(floe_arr)
-    floe_arr.id[i] = Float64(i)
-end
-trans_arr = StructArray([
-    Floe(
-        Subzero.translate([coords1],
-        0.0, -2Ly),
-        0.5,
-        0.0,
-    ),
-    Floe(
-        Subzero.translate([coords2], 2Lx, 0.0),
-        0.5,
-        0.0,
-    ),
-])
-for i in eachindex(trans_arr)
-    trans_arr.id[i] = i
-end
-spinlock = Threads.SpinLock()
 Subzero.timestep_collisions!(
-    trans_arr,
+    floes,
     2,
-    double_periodic_domain,
-    Subzero.Constants(),
-    Δt,
-    collision_settings,
-    spinlock,
+    domain,
+    consts,
+    10,
+    CollisionSettings(floe_floe_max_overlap = 0.99),
+    Threads.SpinLock(),
 )
-add_ghosts!(floe_arr, double_periodic_domain)
-Subzero.timestep_collisions!(
-    floe_arr,
-    2,
-    double_periodic_domain,
-    Subzero.Constants(),
-    Δt,
-    collision_settings,
-    spinlock,
+Subzero.timestep_ridging_rafting!(floes, 2, domain,
+    Subzero.RidgeRaftSettings(ridge_probability = 1.0, raft_probability = 0.0),
+    Subzero.CouplingSettings(),
+    SimplificationSettings(),
+    consts,
+    10,
 )
 
 

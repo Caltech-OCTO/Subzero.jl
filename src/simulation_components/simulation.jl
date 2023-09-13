@@ -90,7 +90,6 @@ Outputs:
 """
 function timestep_sim!(sim, tstep)
     sim.verbose && mod(tstep, 50) == 0 && println(tstep, " timesteps")
-    pieces_buffer = Vector{Union{nothing, PolyVec{FT}}}(nothing, length(floes) * 2)
     if !isempty(sim.model.floes)
         max_floe_id = maximum(sim.model.floes.id)
         # Need to lock some operations when multi-threading

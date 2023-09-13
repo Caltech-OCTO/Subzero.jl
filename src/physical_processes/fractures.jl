@@ -502,7 +502,7 @@ Outputs:
     Floe pieces added to floe array and original fractured floes removed.
 """
 function fracture_floes!(
-    floes::StructArray{Floe{FT}},
+    floes::StructArray{<:Floe{FT}},
     max_floe_id,
     rng,
     fracture_settings,
@@ -525,11 +525,19 @@ function fracture_floes!(
         # Deform floe around largest impact site
         if fracture_settings.deform_on
             fidx = frac_idx[i]
-            inters = floes.interactions[fidx][1:floes.num_inters[fidx], :]
-            inters = inters[.!(isinf.(inters[:, floeidx])), :]
-            if !isempty(inters)
-                _, max_inters_idx = findmax(inters[:, overlap])
-                deforming_inter = inters[max_inters_idx, :]
+            max_overlap = FT(0)
+            max_overlap_idx = 0
+            for i in 1:floes.num_inters[fidx]
+                if (
+                    floes.interactions[fidx][i, floeidx] > 0 &&
+                    max_overlap < inters[i, overlap]
+                )
+                    max_overlap = inters[i, overlap]
+                    max_overlap_idx = i
+                end
+            end
+            if max_overlap > 0
+                deforming_inter = inters[max_overlap_idx, :]
                 deforming_floe_idx = Int(deforming_inter[floeidx])
                 if deforming_floe_idx <= length(floes)
                     deform_floe!(

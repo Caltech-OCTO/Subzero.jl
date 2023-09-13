@@ -624,7 +624,7 @@ function floe_domain_element_interaction!(
         CompressionBoundary,
         TopographyElement,
     },
-    element_idx,
+    elem_idx,
     consts,
     Δt,
     max_overlap::FT,
@@ -670,7 +670,7 @@ function floe_domain_element_interaction!(
                 )
                 # Calculate total forces and update ifloe's interactions
                 forces = normal_forces .+ friction_forces
-                add_interactions!(np, floe, FT(Inf), forces, fpoints, overlaps)
+                add_interactions!(np, floe, elem_idx, forces, fpoints, overlaps)
             end
         end
     end

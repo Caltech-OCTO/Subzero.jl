@@ -318,10 +318,13 @@ RidgeRaftSettings(args...) = RidgeRaftSettings{Float64}(args...)
 
 
 @kwdef struct WeldSettings{FT<:AbstractFloat}
-    max_floe_area::FT
+    max_welded_floe_area::FT
     min_weld_area::FT
     max_weld_area::FT 
     welding_coeff::FT = 150
+    Δts::Vector{FT} = [0]
+    Nxs::Vector{FT} = [1]
+    Nys::Vector{FT} = [1]
 end
 
 """
