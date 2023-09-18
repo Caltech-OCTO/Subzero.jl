@@ -530,14 +530,14 @@ function fracture_floes!(
             for i in 1:floes.num_inters[fidx]
                 if (
                     floes.interactions[fidx][i, floeidx] > 0 &&
-                    max_overlap < inters[i, overlap]
+                    max_overlap < floes.interactions[fidx][i, overlap]
                 )
-                    max_overlap = inters[i, overlap]
+                    max_overlap = floes.interactions[fidx][i, overlap]
                     max_overlap_idx = i
                 end
             end
             if max_overlap > 0
-                deforming_inter = inters[max_overlap_idx, :]
+                deforming_inter = floes.interactions[max_overlap_idx, :]
                 deforming_floe_idx = Int(deforming_inter[floeidx])
                 if deforming_floe_idx <= length(floes)
                     deform_floe!(

@@ -73,6 +73,7 @@ The user can also define settings for each physical process.
     collision_settings::CollisionSettings{FT} = CollisionSettings()
     fracture_settings::FractureSettings{CT} = FractureSettings()
     simp_settings::SimplificationSettings{FT} = SimplificationSettings()
+    ridgeraft_settings::RidgeRaftSettings{FT} = RidgeRaftSettings()
     # Output Writers -----------------------------------------------------------
     writers::OT = OutputWriters()
 end
@@ -114,20 +115,24 @@ function timestep_sim!(sim, tstep)
             )
         end
 
+        pieces_list = StructArray{Floe{Float64}}(undef, 0)
         # Ridge and raft floes that meet overlap conditions
         if (
             sim.ridgeraft_settings.ridge_raft_on &&
             mod(tstep, sim.ridgeraft_settings.Δt) == 0
         )
-            timestep_ridging_rafting!(
+            max_floe_id = timestep_ridging_rafting!(
                 sim.model.floes,
+                pieces_list,
                 n_init_floes,
                 sim.model.domain,
+                max_floe_id,
                 sim.ridgeraft_settings,
-                pieces_buffer,
+                sim.coupling_settings,
                 sim.simp_settings,
                 sim.consts,
                 sim.Δt,
+                sim.rng,
             )
         end
 
@@ -139,6 +144,9 @@ function timestep_sim!(sim, tstep)
             )
         end
         empty!.(sim.model.floes.ghosts) 
+
+        # Add new pieces to the end of floe list
+        append!(sim.model.floes, pieces_list)
 
         # Physical processes without ghost floes
         # Effects of ocean and atmosphere on ice and visa versa

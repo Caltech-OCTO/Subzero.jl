@@ -1,44 +1,125 @@
-using JLD2, Random, Statistics, Subzero, BenchmarkTools, StructArrays, SplitApplyCombine
+using JLD2, Random, Statistics, Subzero, BenchmarkTools, StructArrays, SplitApplyCombine, Test
 import LibGEOS as LG
 
+function setup_floes_with_inters(coords, domain, consts,
+    collision_settings, lock,  Δx = nothing, Δy = nothing,
+)
+    floes = initialize_floe_field(
+        Float64,
+        coords,
+        domain,
+        1.0,
+        0.0,
+    )
+    if !isnothing(Δx)
+        for i in eachindex(Δx)
+            Subzero.translate!(floes.coords[i], Δx[i], Δy[i])
+            floes.centroid[i][1] += Δx[i]
+            floes.centroid[i][2] += Δy[i]
+        end
+    end
+    add_ghosts!(floes, domain)
+    Subzero.timestep_collisions!(  # Add interactions
+        floes,
+        length(floes),
+        domain,
+        consts,
+        10,
+        collision_settings, 
+        lock,
+    )
+    return floes
+end
+function update_height(floes, i, new_height, consts)
+    floes.height[i] = new_height
+    floes.mass[i] = floes.area[i] * floes.height[i] * consts.ρi
+    floes.moment[i] = Subzero.calc_moment_inertia(
+        floes.coords[i],
+        floes.centroid[i],
+        floes.height[i],
+        ρi = consts.ρi,
+    )
+end
+
 grid = RegRectilinearGrid(
-           (0, 2e5),
-           (0, 2e5),
-           1e4,
-           1e4,
-       )
-domain = Subzero.Domain(
-           CollisionBoundary(North, grid),
-           CollisionBoundary(South, grid),
-           CollisionBoundary(East, grid),
-           CollisionBoundary(West, grid),
+    (0, 1e5),
+    (0, 1e5),
+    1e4,
+    1e4,
 )
+topo_coords = [[[5e4, 5e4], [5e4, 7e4], [7e4, 7e4], [7e4, 5e4], [5e4, 5e4]]]
+collision_domain = Subzero.Domain(
+    CollisionBoundary(North, grid),
+    CollisionBoundary(South, grid),
+    CollisionBoundary(East, grid),
+    CollisionBoundary(West, grid),
+    initialize_topography_field([topo_coords])
+)
+periodic_domain = Subzero.Domain(
+    PeriodicBoundary(North, grid),
+    PeriodicBoundary(South, grid),
+    PeriodicBoundary(East, grid),
+    PeriodicBoundary(West, grid),
+)
+
 consts = Constants()
-coords = [[[[0.1e4, 0.1e4], [0.1e4, 2e4], [2e4, 2e4], [2e4, 0.1e4], [0.1e4, 0.1e4]]], [[[1.9e4, 1.9e4], [1.9e4, 4e4], [4e4, 4e4], [4e4, 1.9e4], [1.9e4, 1.9e4]]]]
-floes = initialize_floe_field(
-                  Float64,
-                  coords,
-                  domain,
-                  1.0,
-                  0.0,
+coupling_settings = CouplingSettings()
+simp_settings = SimplificationSettings()
+collision_settings = CollisionSettings(floe_floe_max_overlap = 0.99) # don't fuse
+lock = Threads.SpinLock()
+
+ridge_settings = Subzero.RidgeRaftSettings(
+    ridge_probability = 1.0,  # no ridging
+    raft_probability = 0.0,  # no rafting
 )
-Subzero.timestep_collisions!(
+# first floe overlaps with both other floes, and it will break when ridged with floe 2
+
+coords = [
+    [[[8e4, 0.75e4], [10e4, 2.75e4], [10.5e4, 2.75e4], [8.5e4, 0.75e4], [8e4, 0.75e4]]],
+    [[[9e4, 0.1e4], [9e4, 2.25e4], [9.5e4, 2.25e4], [9.5e4, 0.1e4], [9e4, 0.1e4]]],
+    [[[0.1e4, 0.1e4], [0.1e4, 2.25e4], [2.25e4, 2.25e4], [2.25e4, 0.1e4], [0.1e4, 0.1e4]]],
+]
+base_floes = setup_floes_with_inters(coords, periodic_domain, consts,
+    collision_settings, lock
+)
+floes = deepcopy(base_floes)
+update_height(floes, 1, 0.1, consts)
+update_height(floes, 4, 0.1, consts)  # ghost of floe 1
+total_mass = sum(floes.mass[1:3])
+h1, h2, h3, h4 = floes.height
+area1, area2, area3, area4 = floes.area
+cent1, cent2, cent3, cent4 = floes.centroid
+pieces_list = StructArray{Floe{Float64}}(undef, 0)
+max_id = Subzero.timestep_ridging_rafting!(
     floes,
-    2,
-    domain,
-    consts,
-    10,
-    CollisionSettings(floe_floe_max_overlap = 0.99),
-    Threads.SpinLock(),
-)
-Subzero.timestep_ridging_rafting!(floes, 2, domain,
-    Subzero.RidgeRaftSettings(ridge_probability = 1.0, raft_probability = 0.0),
-    Subzero.CouplingSettings(),
-    SimplificationSettings(),
+    pieces_list,
+    3,
+    collision_domain,
+    maximum(floes.id),
+    ridge_settings,
+    coupling_settings,
+    simp_settings,
     consts,
     10,
 )
 
+# Ridging with domain
+ridge_settings = Subzero.RidgeRaftSettings(
+    ridge_probability = 1.0,  # force ridging
+    raft_probability = 0.0,
+)
+update_height(floes, 1, 1.0, consts)  # floe1 will ridge onto floe 2
+total_mass = sum(floes.mass)
+Subzero.timestep_ridging_rafting!(
+    floes,
+    1,
+    domain,
+    ridge_settings,
+    coupling_settings,
+    simp_settings,
+    consts,
+    10,
+)
 
 # User Inputs
 const FT = Float64

@@ -642,13 +642,13 @@ end
 
 function get_domain_element(domain, idx)
     if idx == -1
-        return domain.North
+        return domain.north
     elseif idx == -2
-        return domain.South
+        return domain.south
     elseif idx == -3
-        return domain.East
+        return domain.east
     elseif idx == -4
-        return domain.West
+        return domain.west
     else
         topo_idx = -(idx + 4)
         return LazyRow(domain.topography, topo_idx)
