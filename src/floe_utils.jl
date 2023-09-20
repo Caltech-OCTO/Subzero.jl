@@ -787,7 +787,7 @@ Outputs:
         two line segments.
 """
 function intersect_lines(l1::PolyVec{FT}, l2) where {FT}
-    points = Set{Tuple{FT, FT}}()
+    points = Vector{Tuple{FT, FT}}()
     for i in 1:(length(l1[1]) - 1)
          # First line represented as a1x + b1y = c1
          x11 = l1[1][i][1]
@@ -813,17 +813,157 @@ function intersect_lines(l1::PolyVec{FT}, l2) where {FT}
             if determinant != 0
                 x = (b2*c1 - b1*c2)/determinant
                 y = (a1*c2 - a2*c1)/determinant
+                p = (x, y)
                 # Make sure intersection is on given line segments
                 if min(x11, x12) <= x <= max(x11, x12) &&
                     min(x21, x22) <= x <= max(x21, x22) &&
                     min(y11, y12) <= y <= max(y11, y12) &&
-                    min(y21, y22) <= y <= max(y21, y22)
-                    push!(points, (x, y))
+                    min(y21, y22) <= y <= max(y21, y22) &&
+                    !(p in points)
+                    push!(points, p)
                 end
             end
         end
     end
     return points
+end
+
+"""
+    which_vertices_match_points(ipoints, coords)
+
+Find which vertices in coords match given points
+Inputs:
+    points <Vector{Tuple{Float, Float} or Vector{Vector{Float}}}> points to
+                match to vertices within polygon
+    coords  <PolVec> polygon coordinates
+Output:
+    Vector{Int} indices of points in polygon that match the intersection points
+Note: 
+    If last coordinate is a repeat of first coordinate, last coordinate index is
+    NOT recorded.
+"""
+function which_vertices_match_points(points, coords::PolyVec{FT}) where {FT}
+    idxs = Vector{Int}()
+    npoints = length(points)
+    if points[1] == points[end]
+        npoints -= 1
+    end
+    @views for i in 1:npoints  # find which vertex matches point
+        min_dist = FT(Inf)
+        min_vert = 1
+        for j in eachindex(coords[1])
+            dist = sqrt(
+                (coords[1][j][1] - points[i][1])^2 +
+                (coords[1][j][2] - points[i][2])^2,
+            )
+            if dist < min_dist
+                min_dist = dist
+                min_vert = j
+            end
+        end
+        if min_dist < 1
+            push!(idxs, min_vert)
+        end
+    end
+    return sort!(idxs)
+end
+
+euclidian_dist(c, idx2, idx1) = sqrt(
+    (c[1][idx2][1] - c[1][idx1][1])^2 +
+    (c[1][idx2][2] - c[1][idx1][2])^2 
+)
+"""
+    check_for_edge_mid(c, start, stop, shared_idx, shared_dist, running_dist)
+
+Check if indices from start to stop index of given coords includes midpoint
+given the shared distance and return midpoint if it exists in given range.
+Inputs:
+    c               <PolyVec> floe coordinates
+    start           <Int> index of shared_index list to start search from
+    stop            <Int> index of shared_index list to stop search at
+    shared_idx      <Vector{Int}> list of indices of c used to calculate midpoint
+    shared_dist     <Float> total length of edges considered from shared_idx
+    running_dist    <Float> total length of edges traveled along in midpoint
+                        search so far
+Outputs:
+    mid_x           <Float> x-coordinate of midpoint, Inf if midpoint not in
+                        given range
+    mid_y           <Float> y-coordinate of midpoint, Inf if midpoint not in
+                        given range
+    running_dist    <Float> sum of distances travelled along shared edges
+"""
+function check_for_edge_mid(c, start, stop, shared_idx, shared_dist,
+    running_dist::FT,
+) where FT
+    mid_x = FT(Inf)
+    mid_y = FT(Inf)
+    for i in start:(stop-1)
+        # Indices of c that are endpoints of current edge
+        idx1 = shared_idx[i]
+        idx2 = shared_idx[i + 1]
+        # Lenght of edge
+        edge_dist = euclidian_dist(c, idx2, idx1)
+        # if midpoint is on current edge
+        if running_dist + edge_dist >= shared_dist / 2
+            frac = ((shared_dist / 2) - running_dist) / edge_dist
+            mid_x = c[1][idx1][1] + (c[1][idx2][1] - c[1][idx1][1]) * frac
+            mid_y = c[1][idx1][2] + (c[1][idx2][2] - c[1][idx1][2]) * frac
+            break
+        else  # move on to the next edge
+            running_dist += edge_dist
+        end
+    end
+    return mid_x, mid_y, running_dist
+end
+
+"""
+    find_shared_edges_midpoint(c1, c2)
+
+Find "midpoint" of shared polygon edges by distance
+Inputs:
+    c1      <PolVec> polygon coordinates for floe 1
+    c2      <PolVec> polygon coordinates for floe 2
+Outputs:
+    mid_x   <Float> x-coordinate of midpoint
+    mid_y   <Float> y-coordinate of midpoint
+"""
+function find_shared_edges_midpoint(c1::PolyVec{FT}, c2) where {FT}
+    # Find points shared between both polygons
+    shared_idx = which_vertices_match_points(
+        c1[1],
+        c2,
+    )
+    if shared_idx[1] == 1
+         # due to repeated first point/last point
+        push!(shared_idx, length(c2[1]))
+    end
+    shared_dist = FT(0)
+    gap_idx = 1
+    # Determine total length of edges that are shared between the two floes
+    nshared_points = length(shared_idx)
+    for i in 1:(nshared_points - 1)
+        idx1 = shared_idx[i]
+        idx2 = shared_idx[i + 1]
+        if idx2 - idx1 == 1
+            shared_dist += euclidian_dist(c2, idx2, idx1)
+        elseif shared_dist > 0
+            gap_idx = i + 1
+            # Add distance wrapping around from last index to first
+            shared_dist += euclidian_dist(c2, shared_idx[end], shared_idx[1])
+        end
+    end
+    # Determine mid-point of shared edges by distance
+    running_dist = FT(0)
+    mid_x, mid_y, running_dist = check_for_edge_mid(c2, gap_idx, nshared_points,
+        shared_idx, shared_dist, running_dist,
+    )
+    # Note that this assumes first and last point are the same 
+    if isinf(mid_x)
+        mid_x, mid_y, running_dist = check_for_edge_mid(c2, 1, gap_idx - 1,
+            shared_idx, shared_dist, running_dist,
+        )
+    end
+    return mid_x, mid_y
 end
 
 """

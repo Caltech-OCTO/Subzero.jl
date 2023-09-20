@@ -115,7 +115,7 @@ function timestep_sim!(sim, tstep)
             )
         end
 
-        pieces_list = StructArray{Floe{Float64}}(undef, 0)
+        pieces_buffer = StructArray{Floe{Float64}}(undef, 0)
         # Ridge and raft floes that meet overlap conditions
         if (
             sim.ridgeraft_settings.ridge_raft_on &&
@@ -123,7 +123,7 @@ function timestep_sim!(sim, tstep)
         )
             max_floe_id = timestep_ridging_rafting!(
                 sim.model.floes,
-                pieces_list,
+                pieces_buffer,
                 n_init_floes,
                 sim.model.domain,
                 max_floe_id,
@@ -146,7 +146,7 @@ function timestep_sim!(sim, tstep)
         empty!.(sim.model.floes.ghosts) 
 
         # Add new pieces to the end of floe list
-        append!(sim.model.floes, pieces_list)
+        append!(sim.model.floes, pieces_buffer)
 
         # Physical processes without ghost floes
         # Effects of ocean and atmosphere on ice and visa versa

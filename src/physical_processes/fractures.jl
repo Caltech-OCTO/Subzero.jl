@@ -370,7 +370,7 @@ function deform_floe!(
                 consts,
                 rng,
             )
-            conserve_momentum_combination!(
+            conserve_momentum_change_floe_shape!(
                 floe.mass,
                 moment_tmp,
                 x_tmp,
@@ -464,7 +464,7 @@ function split_floe(
     end
 
     # Conserve momentum and update strain
-    conserve_momentum_fracture!(
+    conserve_momentum_fracture_floe!(
         floe,
         new_floes,
         Δt,
@@ -537,7 +537,7 @@ function fracture_floes!(
                 end
             end
             if max_overlap > 0
-                deforming_inter = floes.interactions[max_overlap_idx, :]
+                deforming_inter = floes.interactions[fidx][max_overlap_idx, :]
                 deforming_floe_idx = Int(deforming_inter[floeidx])
                 if deforming_floe_idx <= length(floes)
                     deform_floe!(

@@ -4,7 +4,8 @@ Functions needed for ridging and rafting between floes and boundaries.
 
 """
     add_floe_volume!(
-        floe,
+        floes,
+        idx,
         vol,
         simp_settings,
         consts,
@@ -12,10 +13,11 @@ Functions needed for ridging and rafting between floes and boundaries.
     )
 Add volume to existing floe and update fields that depend on the volume.
 Inputs:
-    floe            <Union{Floe, LazyRow{Floe}}> floe to add volume to
+    floes           <StructArray{Frloe}> list of floes
+    idx             <Int> index of floe to add volume to 
     vol             <AbstractFloat> volume to add to floe
     simp_settings   <SimplificationSettings> simulation simplification settings
-    consts          <Constants>  simulation's constants
+    consts          <Constants> simulation's constants
     Δt              <Int> length of timestep in seconds
 Outputs:
     Nothing. Floe's fields are updated to reflect increase in volume.
@@ -46,15 +48,17 @@ function add_floe_volume!(
         floes.mass[gidx] = floes.mass[idx]
         floes.moment[gidx] = floes.moment[idx]
     end
-    # TODO: Update velocities and accelerations to conserve momentum
     return
 end
 
 """
     remove_floe_overlap!(
-        shrinking_floe,
-        growing_floe,
-        vol,
+        floes,
+        shrinking_idx,
+        growing_floe_coords,
+        pieces_buffer,
+        max_floe_id,
+        broken,
         coupling_settings,
         consts,
         rng,  
@@ -62,9 +66,14 @@ end
 
 Removes area/volume of overlap from floe that loses area during ridging/rafting
 Inputs:
-    shrinking_floe      <Union{Floe, LazyRow{Floe}}> floe that loses area
-    growing_floe        <Union{Floe, LazyRow{Floe}}> floe that subsumes area
-    vol                 <AbstractFloat> volume of area being removed
+    floes               <StructArray{Floe}> list of floes
+    shrinking_idx       <Int> index of floe that loses area
+    growing_floe_coords <PolyVec> coordinate of floe/domain that subsumes area
+    pieces_buffer       <StructArray{Floe}> list of new floe pieces caused by
+                            breakage of floes
+    max_floe_id         <Int> maximum floe ID before this ridging/rafting
+    broken              <Vector{Bool}> floe index is true if that floe has
+                            broken in a previous ridge/raft interaction
     coupling_settings   <CouplingSettings>  simulation's coupling settings
     consts              <Constants>  simulation constants
     rng                 <AbstractRNG> random number generator
@@ -173,31 +182,42 @@ function remove_floe_overlap!(
             pieces_buffer.id[buffer_length] = max_floe_id
         end
     end
-    return transfer_vol, max_floe_id
+    return transfer_vol, max_floe_id, nregions
 end
 
 """
     floe_floe_ridge!(
-        floe1,
+        floes,
+        idx1,
+        idx2,
         floe2,
         overlap_area,
         ridgeraft_settings,
         simp_settings,
         consts,
         Δt,
+        rng
     )
 Ridge two floes, updating both in-place and returning any new floes that
 resulting from the ridging event.
 Inputs:
-    floe1               <Union{Floe, LazyRow{Floe}}> floe 1 involved in ridging
-    floe2               <Union{Floe, LazyRow{Floe}}> floe 2 involved in ridging
-    overlap_area        <AbstractFloat> overlap area between floes
+    floes               <StructArray{Floe}> floe list
+    idx1                <Int> index of first floe
+    idx2                <Int> index of second floe
+    pieces_buffer       <StructArray{Floe}> list of new floe pieces caused by
+                            breakage of floes
+    max_floe_id         <Int> maximum floe ID before this ridging/rafting
+    broken              <Vector{Bool}> floe index is true if that floe has
+                            broken in a previous ridge/raft interaction
     ridgeraft_settings  <RidgeRaftSettings> simulation's settings for ridging
                             and rafting
+    coupling_settings   <CouplingSettings> simulation's settings for coupling
     simp_settings       <SimplificationSettings> simulation's simplification
                             settings
     consts              <Constants> simulation's constants
     Δt                  <Int> simulation timestep in seconds
+    rng                 <RandomNumberGenerator> simulation's random number
+                            generator
 Outputs:
     Updates floe1 and floe2 and returns any new floes created by ridging
 """
@@ -215,10 +235,16 @@ function floe_floe_ridge!(
     Δt,
     rng,
 ) where {FT}
+    # Inital floe values
+    m1, m2 = floes.mass[idx1], floes.mass[idx2]
+    I1, I2, = floes.moment[idx1], floes.moment[idx2]
+    x1, y1 = floes.centroid[idx1]
+    x2, y2 = floes.centroid[idx2]
     # Heights of floes determine which floe subsumes shared area
     f1_h = floes.height[idx1] >= ridgeraft_settings.min_ridge_height
     f2_h = floes.height[idx2] >= ridgeraft_settings.min_ridge_height
     vol = FT(0)
+    nregions = 1
     if(
         (f1_h && f2_h && rand() >= 1/(1 + (floes.height[idx1]/floes.height[idx2]))) ||
         (f1_h && !f2_h)
@@ -228,7 +254,7 @@ function floe_floe_ridge!(
         "subsume" the extra area, or only floe 1 is over min height and it
         gets the extra area
         =#
-        vol, max_floe_id = remove_floe_overlap!(
+        vol, max_floe_id, nregions = remove_floe_overlap!(
             floes,
             idx2,
             floes.coords[idx1],
@@ -253,7 +279,7 @@ function floe_floe_ridge!(
         "subsumes" the extra area, or only floe 2 is over max height and it
         gets the extra area
         =#
-        vol, max_floe_id = remove_floe_overlap!(
+        vol, max_floe_id, nregions = remove_floe_overlap!(
             floes,
             idx1,
             floes.coords[idx2],
@@ -273,24 +299,57 @@ function floe_floe_ridge!(
             Δt,
         )
     end
+    if floes.mass[idx1] != m1 || floes.mass[idx2] != m2
+        first_slot = length(pieces_buffer) - nregions + 2
+        if nregions < 2
+            conserve_momentum_transfer_mass!( floes, idx1, idx2, m1, m2, I1, I2,
+                x1, x2, y1, y2, Δt,
+            )
+        else  # floe broke, ghost floes
+            conserve_momentum_transfer_mass!( floes, idx1, idx2, m1, m2, I1, I2,
+                x1, x2, y1, y2, Δt, pieces_buffer, first_slot,
+            )
+        end
+        if !broken[idx1]
+            update_ghost_timestep_vals!(floes, idx1)
+        end
+        if !broken[idx2]
+            update_ghost_timestep_vals!(floes, idx2)
+        end
+    end
     return max_floe_id
 end
 
 """
     floe_domain_ridge!(
-        floe1,
+        floes,
+        idx,
         domain_element,
-        simp_settings,
+        pieces_buffer,
+        max_floe_id,
+        broken,
+        coupling_settings,
         consts,
+        Δt,
+        rng,
     )
 
 Ridge a floe against a boundary or a topography element and return any excess
 floes created by the ridging.
 Inputs:
-    floe1           <Union{Floe, LazyRow{Floe}}> floe ridging
-    domain_element  <AbstractDomainElement> boundary or topography element
-    simp_settings   <SimplificationSettings> simulation simplification settings
-    consts          <Constants> simulation constants
+    floes               <StructArray{Floe}> floe list
+    idx1                <Int> index of first floe
+    domain_element      <AbstractDomainElement> boundary or topography element
+    pieces_buffer       <StructArray{Floe}> list of new floe pieces caused by
+                            breakage of floes
+    max_floe_id         <Int> maximum floe ID before this ridging/rafting
+    broken              <Vector{Bool}> floe index is true if that floe has
+                            broken in a previous ridge/raft interaction
+    coupling_settings   <CouplingSettings> simulation's settings for coupling
+    consts              <Constants> simulation's constants
+    Δt                  <Int> simulation timestep in seconds
+    rng                 <RandomNumberGenerator> simulation's random number
+                            generator
 Outputs:
     floe1 is updated with new shape. If any new floes are created by ridging
     they are returned, else nothing.
@@ -303,11 +362,16 @@ function floe_domain_ridge!(
     max_floe_id,
     broken,
     coupling_settings,
-    simp_settings,
     consts,
+    Δt,
     rng,
 )
-    _, max_floe_id = remove_floe_overlap!(
+    # Record previous values for momentum conservation
+    mass_tmp = floes.mass[idx]
+    moment_tmp = floes.moment[idx]
+    x_tmp, y_tmp = floes.centroid[idx]
+    # Ridge floe with domain element
+    _, max_floe_id, _ = remove_floe_overlap!(
         floes,
         idx,
         domain_element.coords,
@@ -318,29 +382,51 @@ function floe_domain_ridge!(
         consts,
         rng,  
     )
+    # Update floe velocities to conserve momentum as domain element has no
+    # momentum, but floe now has less mass if ridge was successful
+    conserve_momentum_change_floe_shape!(
+        mass_tmp,
+        moment_tmp,
+        x_tmp,
+        y_tmp,
+        Δt,
+        LazyRow(floes, idx),
+    )   
     return max_floe_id
 end
 
 """
     floe_floe_raft!(
-        floe1::F,
-        floe2::F,
-        overlap_area,
-        simp_settings,
+        floes,
+        idx1,
+        idx2,
+        pieces_buffer,
+        max_floe_id,
+        broken,
+        coupling_settings,
         consts,
         Δt,
+        rng,
     )
 
 Raft two floes, updating both in-place and returning any new floes that
 resulting from the rafting event.
 Inputs:
-    floe1               <Union{Floe, LazyRow{Floe}}> floe 1 involved in rafting
-    floe2               <Union{Floe, LazyRow{Floe}}> floe 2 involved in rafting
-    overlap_area        <AbstractFloat> overlap area between floes
+    floes               <StructArray{Floe}> floe list
+    idx1                <Int> index of first floe
+    idx2                <Int> index of second floe
+    pieces_buffer       <StructArray{Floe}> list of new floe pieces caused by
+                            breakage of floes
+    max_floe_id         <Int> maximum floe ID before this ridging/rafting
+    broken              <Vector{Bool}> floe index is true if that floe has
+                            broken in a previous ridge/raft interaction
+    coupling_settings   <CouplingSettings> simulation's settings for coupling
     simp_settings       <SimplificationSettings> simulation's simplification
                             settings
     consts              <Constants> simulation's constants
     Δt                  <Int> simulation timestep in seconds
+    rng                 <RandomNumberGenerator> simulation's random number
+                            generator
 Outputs:
     Updates floe1 and floe2 and returns any new floes created by rafting
 """
@@ -357,11 +443,16 @@ function floe_floe_raft!(
     Δt,
     rng,
 ) where {FT}
+    # Inital floe values
+    m1, m2 = floes.mass[idx1], floes.mass[idx2]
+    I1, I2, = floes.moment[idx1], floes.moment[idx2]
+    x1, y1 = floes.centroid[idx1]
+    x2, y2 = floes.centroid[idx2]
     # Based on height ratio, pick which floe subsumes shares area
     vol = FT(0)
     if rand(rng) >= 1/(1 + (floes.height[idx1]/floes.height[idx2]))  # Floe 1 subsumes
         # Change shape of floe 2
-        vol, max_floe_id = remove_floe_overlap!(
+        vol, max_floe_id, nregions = remove_floe_overlap!(
             floes,
             idx2,
             floes.coords[idx1],
@@ -383,7 +474,7 @@ function floe_floe_raft!(
         )
     else  # Floe 2 subsumes
         # Change shape of floe 1
-        vol, max_floe_id = remove_floe_overlap!(
+        vol, max_floe_id, nregions = remove_floe_overlap!(
             floes,
             idx1,
             floes.coords[idx2],
@@ -404,24 +495,58 @@ function floe_floe_raft!(
             Δt,
         )
     end
+    if floes.mass[idx1] != m1 || floes.mass[idx2] != m2
+        first_slot = length(pieces_buffer) - nregions + 2
+        if nregions < 2
+            conserve_momentum_transfer_mass!(floes, idx1, idx2, m1, m2, I1, I2,
+                x1, x2, y1, y2, Δt,
+            )
+        else  # floe broke, ghost floes
+            conserve_momentum_transfer_mass!( floes, idx1, idx2, m1, m2, I1, I2,
+                x1, x2, y1, y2, Δt, pieces_buffer, first_slot,
+            )
+        end
+        if !broken[idx1]
+            update_ghost_timestep_vals!(floes, idx1)
+        end
+        if !broken[idx2]
+            update_ghost_timestep_vals!(floes, idx2)
+        end
+    end
     return max_floe_id
 end
 
 """
     floe_domain_raft!(
-        floe1::Union{Floe, LazyRow{Floe}},
-        domain_element::AbstractDomainElement,
+        floes,
+        idx1,
+        domain_element,
+        pieces_buffer,
+        max_floe_id,
+        broken,
+        coupling_settings,
         simp_settings,
         consts,
+        Δt
+        rng,
     )
 
 Raft a floe against a boundary or a topography element and return any excess
 floes created by the rafting. This is equivalent to ridging.
 Inputs:
-    floe1           <Union{Floe, LazyRow{Floe}}> floe rafting
-    domain_element  <AbstractDomainElement> boundary or topography element
-    simp_settings   <SimplificationSettings> simulation simplification settings
-    consts          <Constants> simulation constants
+    floes               <StructArray{Floe}> floe list
+    idx1                <Int> index of first floe
+    domain_element      <AbstractDomainElement> boundary or topography element
+    pieces_buffer       <StructArray{Floe}> list of new floe pieces caused by
+                            breakage of floes
+    max_floe_id         <Int> maximum floe ID before this ridging/rafting
+    broken              <Vector{Bool}> floe index is true if that floe has
+                            broken in a previous ridge/raft interaction
+    coupling_settings   <CouplingSettings> simulation's settings for coupling
+    consts              <Constants> simulation's constants
+    Δt                  <Int> simulation timestep in seconds
+    rng                 <RandomNumberGenerator> simulation's random number
+                            generator
 Outputs:
     floe1 is updated with new shape. If any new floes are created by rafting
     they are returned, else nothing.
@@ -434,8 +559,8 @@ floe_domain_raft!(
     max_floe_id,
     broken,
     coupling_settings,
-    simp_settings,
     consts,
+    Δt,
     rng,
 ) = floe_domain_ridge!(
     floes,
@@ -445,8 +570,8 @@ floe_domain_raft!(
     max_floe_id,
     broken,
     coupling_settings,
-    simp_settings,
     consts,
+    Δt,
     rng,
 )
 
@@ -464,20 +589,24 @@ floe_domain_raft!(
 Ridge and raft floes that meet probability and height criteria.
 Inputs:
     floes               <StructArray{Floe}> simulation's list of floes
+    pieces_buffer       <StructArray{Floe}> list of new floe pieces caused by
+                            breakage of floes
     n_init_floes        <Int> number of floes prior to adding ghosts
     domain              <Domain> simulation's domain
+    max_floe_id         <Int> maximum floe ID before this ridging/rafting
     ridgeraft_settings  <RidgeRaftSettings> ridge/raft settings
-    pieces_buffer       <Vector{Nothing, ???}> buffer to hold extra floe pieces
+    coupling_settings   <CouplingSettings> coupling settings
     simp_settings       <SimplificationSettings> simplification settings
     consts              <Consts> simulation's constants
     Δt                  <Int> length of timestep in seconds
+    rng                 <RandomNumberGenerator> simulation's rng
 Outputs:
     Updates floes post ridging and rafting and adds any new pieces to the pieces
     buffer to be made into new floes.
 """
 function timestep_ridging_rafting!(
     floes,
-    pieces_list,
+    pieces_buffer,
     n_init_floes,
     domain,
     max_floe_id,
@@ -538,7 +667,7 @@ function timestep_ridging_rafting!(
                             floes,
                             i,
                             j,
-                            pieces_list,
+                            pieces_buffer,
                             max_floe_id,
                             broken,
                             ridgeraft_settings,
@@ -557,7 +686,7 @@ function timestep_ridging_rafting!(
                             floes,
                             i,
                             j,
-                            pieces_list,
+                            pieces_buffer,
                             max_floe_id,
                             broken,
                             coupling_settings,
@@ -576,12 +705,12 @@ function timestep_ridging_rafting!(
                             floes,
                             i,
                             get_domain_element(domain, j),
-                            pieces_list,
+                            pieces_buffer,
                             max_floe_id,
                             broken,
                             coupling_settings,
-                            simp_settings,
                             consts,
+                            Δt,
                             rng,
                         )
 
@@ -593,12 +722,12 @@ function timestep_ridging_rafting!(
                             floes,
                             i,
                             get_domain_element(domain, j),
-                            pieces_list,
+                            pieces_buffer,
                             max_floe_id,
                             broken,
                             coupling_settings,
-                            simp_settings,
                             consts,
+                            Δt,
                             rng,
                         )
                     end

@@ -203,6 +203,48 @@
         Set{Tuple{Float64, Float64}}(),
     )
 
+    # ------------------------- Test finding shared points ---------------------
+    two_shared_v = [
+        [[[0.0, 0.0], [0.0, 20.0], [20.0, 20.0], [20.0, 0.0], [0.0, 0.0]]],
+        [[[20.0, 0.0], [20.0, 20.0], [40.0, 20.0], [40.0, 0.0], [20.0, 0.0]]]
+    ]
+    @test Subzero.which_vertices_match_points(
+        two_shared_v[1][1],
+        two_shared_v[2],
+    ) == [1, 2]
+    three_shared_v = [
+        [[[0.0, 0.0], [0.0, 20.0], [20.0, 20.0], [20.0, 10.0], [20.0, 0.0], [0.0, 0.0]]],
+        [[[40.0, 20.0], [40.0, 0.0], [20.0, 0.0], [20.0, 10.0], [20.0, 20.0], [40.0, 20.0]]]
+    ]
+    @test Subzero.which_vertices_match_points(
+        three_shared_v[1][1],
+        three_shared_v[2],
+    ) == [3, 4, 5]
+    four_shared_v = [
+        [[[0.0, 0.0], [0.0, 20.0], [20.0, 20.0], [20.0, 18.0], [20.0, 15.0], [20.0, 0.0], [0.0, 0.0]]],
+        [[[20.0, 18.0], [20.0, 20.0], [40.0, 20.0], [40.0, 0.0], [20.0, 0.0], [20.0, 15.0], [20.0, 18.0]]]
+    ]
+    @test Subzero.which_vertices_match_points(
+        four_shared_v[1][1],
+        four_shared_v[2],
+    ) == [1, 2, 5, 6]
+
+    triange_shared_v = [
+        [[[0.0, 0.0], [0.0, 20.0], [20.0, 20.0], [5.0, 5.0], [0.0, 0.0]]],
+        [[[0.0, 0.0], [5.0, 5.0], [20.0, 20.0], [20.0, 0.0], [0.0, 0.0]]]
+    ]
+    @test Subzero.which_vertices_match_points(
+        triange_shared_v[1][1],
+        triange_shared_v[2],
+    ) == [1, 2, 3]
+
+    squares_midpoint = (20.0, 10.0)
+    triangle_midpoint = (10.0, 10.0)
+    @test Subzero.find_shared_edges_midpoint(two_shared_v[1], two_shared_v[2]) == squares_midpoint
+    @test Subzero.find_shared_edges_midpoint(three_shared_v[1], three_shared_v[2]) == squares_midpoint
+    @test Subzero.find_shared_edges_midpoint(four_shared_v[1], four_shared_v[2]) == squares_midpoint
+    @test Subzero.find_shared_edges_midpoint(triange_shared_v[1], triange_shared_v[2]) == triangle_midpoint
+
     # -------------- Test cutting polygon through horizontal line --------------
     # Cut a hexagon through the line y = -1
     poly_coords = [[

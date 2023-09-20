@@ -213,7 +213,13 @@
         new_floes = Subzero.split_floe(
             floes[1],
             Xoshiro(3),
-            frac_settings,
+            FractureSettings(
+                fractures_on = true,
+                npieces = 2,
+                criteria = HiblerYieldCurve(floes),
+                Δt = 75,
+                deform_on = true,
+            ),
             CouplingSettings(),
             Constants(),
             10,

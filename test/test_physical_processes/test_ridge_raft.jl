@@ -59,6 +59,36 @@ using LibGEOS
         moment1, moment2 = floes.moment
         height1, height2 = floes.height
         cent1, cent2 = floes.centroid
+        # initial momentum
+        x_momentum_init, y_momentum_init = Subzero.calc_linear_momentum(
+            floes.u,
+            floes.v,
+            floes.mass,
+        )
+        spin_momentum_init, angular_momentum_init = Subzero.calc_angular_momentum(
+            floes.u,
+            floes.v,
+            floes.mass,
+            floes.ξ,
+            floes.moment,
+            first.(floes.centroid),
+            last.(floes.centroid),
+        )
+        p_x_momentum_init, p_y_momentum_init = Subzero.calc_linear_momentum(
+            floes.p_dxdt,
+            floes.p_dydt,
+            floes.mass,
+        )
+        p_spin_momentum_init, p_angular_momentum_init = Subzero.calc_angular_momentum(
+            floes.p_dxdt,
+            floes.p_dydt,
+            floes.mass,
+            floes.p_dαdt,
+            floes.moment,
+            first.(floes.centroid) .* floes.p_dxdt,
+            last.(floes.centroid) .* floes.p_dydt,
+        )
+        # Ridge and raft floes
         Subzero.timestep_ridging_rafting!(
             floes,
             StructArray{Floe{Float64}}(undef, 0),
@@ -95,6 +125,48 @@ using LibGEOS
             @test moment1 == floes.moment[1] && moment2 == floes.moment[2]
             @test cent1 == floes.centroid[1] && cent2 == floes.centroid[2]
         end
+        x_momentum_after, y_momentum_after = Subzero.calc_linear_momentum(
+            floes.u,
+            floes.v,
+            floes.mass,
+        )
+        spin_momentum_after, angular_momentum_after = Subzero.calc_angular_momentum(
+            floes.u,
+            floes.v,
+            floes.mass,
+            floes.ξ,
+            floes.moment,
+            first.(floes.centroid),
+            last.(floes.centroid),
+        )
+        p_x_momentum_after, p_y_momentum_after = Subzero.calc_linear_momentum(
+            floes.p_dxdt,
+            floes.p_dydt,
+            floes.mass,
+        )
+        p_spin_momentum_after, p_angular_momentum_after = Subzero.calc_angular_momentum(
+            floes.p_dxdt,
+            floes.p_dydt,
+            floes.mass,
+            floes.p_dαdt,
+            floes.moment,
+            first.(floes.centroid) .* floes.p_dxdt,
+            last.(floes.centroid) .* floes.p_dydt,
+        )
+        @test isapprox(x_momentum_init, x_momentum_after, atol = 1e-10)
+        @test isapprox(y_momentum_init, y_momentum_after, atol = 1e-10)
+        @test isapprox(p_x_momentum_init, p_x_momentum_after, atol = 1e-10)
+        @test isapprox(p_y_momentum_init, p_y_momentum_after, atol = 1e-10)
+        @test isapprox(
+            spin_momentum_init + angular_momentum_init,
+            spin_momentum_after + angular_momentum_after,
+            atol = 1e-10,
+        )
+        @test isapprox(
+            p_spin_momentum_init + p_angular_momentum_init,
+            p_spin_momentum_after + p_angular_momentum_after,
+            atol = 1e-10,
+        )
     end
     function test_floe_domain_rr_scenario(rr_settings, does_raft, floes,
         domain, boundary_poly, topo_poly, bounds_overlap_area, topo_overlap_area,
@@ -186,10 +258,6 @@ using LibGEOS
         @test floes.centroid[1] .- floes.centroid[3] == cent1 .- cent3
     end
 
-    function test_breakage_rr_scenarios()
-
-
-    end
     # Setup for tests
     grid = RegRectilinearGrid(
            (0, 1e5),

@@ -1,6 +1,52 @@
 using JLD2, Random, Statistics, Subzero, BenchmarkTools, StructArrays, SplitApplyCombine, Test
 import LibGEOS as LG
 
+square_coords = [[
+    [0.0, 0.0],
+    [0.0, 20.0],
+    [20.0, 20.0],
+    [20.0, 0.0],
+    [0.0, 0.0],
+]]
+triangle_coords = [[
+    [0.0, 0.0],
+    [10.0, 20.0],
+    [20.0, 0.0],
+    [0.0, 0.0],
+]]
+sqr_floe = Floe(
+    square_coords,
+    0.5,
+    0.0,
+    u = 0.1,
+    v = 0.25,
+    ξ = -0.5,
+)
+sqr_floe.p_dxdt = 0.11
+sqr_floe.p_dydt = 0.22
+sqr_floe.p_dαdt = -0.45
+
+tri_floe = Floe(
+    triangle_coords,
+    0.5,
+    0.0,
+    u = 0.1,
+    v = 0.25,
+    ξ = -0.5,
+)
+tri_floe.p_dxdt = 0.11
+tri_floe.p_dydt = 0.22
+tri_floe.p_dαdt = -0.45
+
+Subzero.conserve_momentum_change_floe_shape!(
+    sqr_floe.mass,
+    sqr_floe.moment,
+    sqr_floe.centroid[1],
+    sqr_floe.centroid[2],
+    10,
+    tri_floe,
+)
+
 function setup_floes_with_inters(coords, domain, consts,
     collision_settings, lock,  Δx = nothing, Δy = nothing,
 )

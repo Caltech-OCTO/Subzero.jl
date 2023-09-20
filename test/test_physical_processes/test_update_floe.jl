@@ -158,7 +158,7 @@
             [sqr_floe.centroid[1]],
             [sqr_floe.centroid[2]],
         )
-        Subzero.conserve_momentum_combination!(
+        Subzero.conserve_momentum_change_floe_shape!(
             sqr_floe.mass,
             sqr_floe.moment,
             sqr_floe.centroid[1],
@@ -276,7 +276,7 @@
             Constants(),
             Xoshiro(1)
         )
-        Subzero.conserve_momentum_combination!(
+        Subzero.conserve_momentum_change_floe_shape!(
             mass1,
             moment1,
             x1,
@@ -416,7 +416,7 @@
                 0.0,
             )
         ])
-        Subzero.conserve_momentum_fracture!(
+        Subzero.conserve_momentum_fracture_floe!(
             initial_floe,
             new_floes,
             10,
@@ -482,7 +482,7 @@
                 0.0,
             )
         ])
-        Subzero.conserve_momentum_fracture!(
+        Subzero.conserve_momentum_fracture_floe!(
             initial_floe,
             new_floes,
             10,
