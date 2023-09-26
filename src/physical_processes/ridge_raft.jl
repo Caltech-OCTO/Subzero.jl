@@ -244,7 +244,10 @@ function floe_floe_ridge!(
     f1_h = floes.height[idx1] >= ridgeraft_settings.min_ridge_height
     f2_h = floes.height[idx2] >= ridgeraft_settings.min_ridge_height
     vol = FT(0)
-    nregions = 1
+    nregions = 0
+    # Determine which floe transfers mass and which gains mass
+    gain_mass_idx = 0
+    lose_mass_idx = 0 
     if(
         (f1_h && f2_h && rand() >= 1/(1 + (floes.height[idx1]/floes.height[idx2]))) ||
         (f1_h && !f2_h)
@@ -254,35 +257,22 @@ function floe_floe_ridge!(
         "subsume" the extra area, or only floe 1 is over min height and it
         gets the extra area
         =#
-        vol, max_floe_id, nregions = remove_floe_overlap!(
-            floes,
-            idx2,
-            floes.coords[idx1],
-            pieces_buffer,
-            max_floe_id,
-            broken,
-            coupling_settings,
-            consts,
-            rng,  
-        )
-        add_floe_volume!(
-            floes,
-            idx1,
-            vol,
-            simp_settings,
-            consts,
-            Δt,
-        )
+        gain_mass_idx = idx1
+        lose_mass_idx = idx2
     elseif (f1_h && f2_h) ||  (!f1_h && f2_h)
         #=
         Either both floes are over max height and we randomly pick floe 2 to
         "subsumes" the extra area, or only floe 2 is over max height and it
         gets the extra area
         =#
+        gain_mass_idx = idx2
+        lose_mass_idx = idx1
+    end
+    if gain_mass_idx > 0 && lose_mass_idx > 0
         vol, max_floe_id, nregions = remove_floe_overlap!(
             floes,
-            idx1,
-            floes.coords[idx2],
+            lose_mass_idx,
+            floes.coords[gain_mass_idx],
             pieces_buffer,
             max_floe_id,
             broken,
@@ -292,29 +282,28 @@ function floe_floe_ridge!(
         )
         add_floe_volume!(
             floes,
-            idx2,
+            gain_mass_idx,
             vol,
             simp_settings,
             consts,
             Δt,
         )
-    end
-    if floes.mass[idx1] != m1 || floes.mass[idx2] != m2
+        # Conserve momentum
         first_slot = length(pieces_buffer) - nregions + 2
         if nregions < 2
-            conserve_momentum_transfer_mass!( floes, idx1, idx2, m1, m2, I1, I2,
-                x1, x2, y1, y2, Δt,
+            conserve_momentum_transfer_mass!(floes, lose_mass_idx, gain_mass_idx,
+                m1, m2, I1, I2, x1, x2, y1, y2, Δt,
             )
         else  # floe broke, ghost floes
-            conserve_momentum_transfer_mass!( floes, idx1, idx2, m1, m2, I1, I2,
-                x1, x2, y1, y2, Δt, pieces_buffer, first_slot,
+            conserve_momentum_transfer_mass!(floes, lose_mass_idx, gain_mass_idx,
+                m1, m2, I1, I2, x1, x2, y1, y2, Δt, pieces_buffer, first_slot,
             )
         end
-        if !broken[idx1]
-            update_ghost_timestep_vals!(floes, idx1)
+        if !broken[lose_mass_idx]
+            update_ghost_timestep_vals!(floes, lose_mass_idx)
         end
-        if !broken[idx2]
-            update_ghost_timestep_vals!(floes, idx2)
+        if !broken[gain_mass_idx]
+            update_ghost_timestep_vals!(floes, gain_mass_idx)
         end
     end
     return max_floe_id
@@ -448,69 +437,54 @@ function floe_floe_raft!(
     I1, I2, = floes.moment[idx1], floes.moment[idx2]
     x1, y1 = floes.centroid[idx1]
     x2, y2 = floes.centroid[idx2]
-    # Based on height ratio, pick which floe subsumes shares area
     vol = FT(0)
-    if rand(rng) >= 1/(1 + (floes.height[idx1]/floes.height[idx2]))  # Floe 1 subsumes
-        # Change shape of floe 2
-        vol, max_floe_id, nregions = remove_floe_overlap!(
-            floes,
-            idx2,
-            floes.coords[idx1],
-            pieces_buffer,
-            max_floe_id,
-            broken,
-            coupling_settings,
-            consts,
-            rng,  
-        )
-        # Add extra area/volume to floe 1
-        add_floe_volume!(
-            floes,
-            idx1,
-            vol,
-            simp_settings,
-            consts,
-            Δt,
-        )
-    else  # Floe 2 subsumes
-        # Change shape of floe 1
-        vol, max_floe_id, nregions = remove_floe_overlap!(
-            floes,
-            idx1,
-            floes.coords[idx2],
-            pieces_buffer,
-            max_floe_id,
-            broken,
-            coupling_settings,
-            consts,
-            rng,  
-        )
-        # Add extra area/volume to floe 2
-        add_floe_volume!(
-            floes,
-            idx2,
-            vol,
-            simp_settings,
-            consts,
-            Δt,
-        )
+    nregions = 0
+    # Based on height ratio, pick which floe subsumes shares area
+    # Default is floe 2 subsumes mass from floe 1
+    gain_mass_idx = idx2
+    lose_mass_idx = idx1
+    if rand(rng) >= 1/(1 + (floes.height[idx1]/floes.height[idx2]))
+        # Floe 1 subsumes mass from floe 2
+        gain_mass_idx = idx1
+        lose_mass_idx = idx2
     end
-    if floes.mass[idx1] != m1 || floes.mass[idx2] != m2
+    # Raft
+    vol, max_floe_id, nregions = remove_floe_overlap!(
+        floes,
+        lose_mass_idx,
+        floes.coords[gain_mass_idx],
+        pieces_buffer,
+        max_floe_id,
+        broken,
+        coupling_settings,
+        consts,
+        rng,  
+    )
+    # Add extra area/volume to floe 2
+    add_floe_volume!(
+        floes,
+        gain_mass_idx,
+        vol,
+        simp_settings,
+        consts,
+        Δt,
+    )
+    if nregions > 0
         first_slot = length(pieces_buffer) - nregions + 2
         if nregions < 2
-            conserve_momentum_transfer_mass!(floes, idx1, idx2, m1, m2, I1, I2,
-                x1, x2, y1, y2, Δt,
+            conserve_momentum_transfer_mass!(floes, lose_mass_idx, gain_mass_idx,
+                m1, m2, I1, I2, x1, x2, y1, y2, Δt,
             )
         else  # floe broke, ghost floes
-            conserve_momentum_transfer_mass!( floes, idx1, idx2, m1, m2, I1, I2,
-                x1, x2, y1, y2, Δt, pieces_buffer, first_slot,
+            conserve_momentum_transfer_mass!(floes, lose_mass_idx, gain_mass_idx,
+                m1, m2, I1, I2, x1, x2, y1, y2, Δt, pieces_buffer, first_slot,
             )
         end
-        if !broken[idx1]
-            update_ghost_timestep_vals!(floes, idx1)
+        if !broken[lose_mass_idx]
+            update_ghost_timestep_vals!(floes, lose_mass_idx)
         end
-        if !broken[idx2]
-            update_ghost_timestep_vals!(floes, idx2)
+        if !broken[gain_mass_idx]
+            update_ghost_timestep_vals!(floes, gain_mass_idx)
         end
     end
     return max_floe_id

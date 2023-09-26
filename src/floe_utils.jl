@@ -829,20 +829,26 @@ function intersect_lines(l1::PolyVec{FT}, l2) where {FT}
 end
 
 """
-    which_vertices_match_points(ipoints, coords)
+    which_vertices_match_points(ipoints, coords, atol)
 
 Find which vertices in coords match given points
 Inputs:
     points <Vector{Tuple{Float, Float} or Vector{Vector{Float}}}> points to
                 match to vertices within polygon
     coords  <PolVec> polygon coordinates
+    atol    <Float> distance vertex can be away from target point before being
+                classified as different points
 Output:
     Vector{Int} indices of points in polygon that match the intersection points
 Note: 
     If last coordinate is a repeat of first coordinate, last coordinate index is
     NOT recorded.
 """
-function which_vertices_match_points(points, coords::PolyVec{FT}) where {FT}
+function which_vertices_match_points(
+    points,
+    coords::PolyVec{FT},
+    atol = 1,
+) where {FT}
     idxs = Vector{Int}()
     npoints = length(points)
     if points[1] == points[end]
@@ -861,7 +867,7 @@ function which_vertices_match_points(points, coords::PolyVec{FT}) where {FT}
                 min_vert = j
             end
         end
-        if min_dist < 1
+        if min_dist < atol
             push!(idxs, min_vert)
         end
     end
@@ -872,6 +878,40 @@ euclidian_dist(c, idx2, idx1) = sqrt(
     (c[1][idx2][1] - c[1][idx1][1])^2 +
     (c[1][idx2][2] - c[1][idx1][2])^2 
 )
+
+function which_points_on_edges(points, coords)
+    idxs = Vector{Int}()
+    nedges = length(coords[1]) - 1
+    npoints = length(points)
+    if points[1] == points[end]
+        npoints -= 1
+    end
+    for i in 1:nedges
+        x1, y1 = coords[1][i]
+        x2, y2 = coords[1][i+1]
+        Δx_edge = x2 - x1
+        Δy_edge = y2 - y1
+        for j in 1:npoints
+            xp, yp = points[j]
+            Δx_point = xp - x1
+            Δy_point = yp - y1
+            if (
+                (Δx_edge == 0 && Δx_point == 0 && 0 < Δy_point / Δy_edge < 1) ||
+                (Δy_edge == 0 && Δy_point == 0 && 0 < Δx_point / Δx_edge < 1) ||
+                (Δx_point == 0 && Δy_point == 0) ||
+                ( # has the same slope and is between edge points
+                    Δy_edge/Δx_edge == Δy_point/Δx_point &&
+                    0 < Δx_point / Δx_edge < 1 && 0 < Δy_point / Δy_edge < 1
+                )
+            )
+                push!(idxs, j)
+            end
+        end
+    end
+    sort!(idxs)
+    return idxs
+end
+
 """
     check_for_edge_mid(c, start, stop, shared_idx, shared_dist, running_dist)
 
@@ -928,14 +968,14 @@ Outputs:
     mid_y   <Float> y-coordinate of midpoint
 """
 function find_shared_edges_midpoint(c1::PolyVec{FT}, c2) where {FT}
-    # Find points shared between both polygons
-    shared_idx = which_vertices_match_points(
+    # Find which points of c1 are on edges of c2
+    shared_idx = which_points_on_edges(
         c1[1],
         c2,
     )
     if shared_idx[1] == 1
          # due to repeated first point/last point
-        push!(shared_idx, length(c2[1]))
+        push!(shared_idx, length(c1[1]))
     end
     shared_dist = FT(0)
     gap_idx = 1
@@ -945,21 +985,21 @@ function find_shared_edges_midpoint(c1::PolyVec{FT}, c2) where {FT}
         idx1 = shared_idx[i]
         idx2 = shared_idx[i + 1]
         if idx2 - idx1 == 1
-            shared_dist += euclidian_dist(c2, idx2, idx1)
+            shared_dist += euclidian_dist(c1, idx2, idx1)
         elseif shared_dist > 0
             gap_idx = i + 1
             # Add distance wrapping around from last index to first
-            shared_dist += euclidian_dist(c2, shared_idx[end], shared_idx[1])
+            shared_dist += euclidian_dist(c1, shared_idx[end], shared_idx[1])
         end
     end
     # Determine mid-point of shared edges by distance
     running_dist = FT(0)
-    mid_x, mid_y, running_dist = check_for_edge_mid(c2, gap_idx, nshared_points,
+    mid_x, mid_y, running_dist = check_for_edge_mid(c1, gap_idx, nshared_points,
         shared_idx, shared_dist, running_dist,
     )
     # Note that this assumes first and last point are the same 
     if isinf(mid_x)
-        mid_x, mid_y, running_dist = check_for_edge_mid(c2, 1, gap_idx - 1,
+        mid_x, mid_y, running_dist = check_for_edge_mid(c1, 1, gap_idx - 1,
             shared_idx, shared_dist, running_dist,
         )
     end

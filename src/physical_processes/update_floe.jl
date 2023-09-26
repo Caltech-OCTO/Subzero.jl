@@ -180,6 +180,8 @@ end
 function update_new_rotation_conserve!(floe1, floe2, init_rot_momentum,
     init_p_rot_momentum, diff_orbital, diff_p_orbital, Δt,
 )
+    println(floe1.coords)
+    println(floe2.coords)
     # Find radius of each polygon to shared midpoint
     mid_x, mid_y = find_shared_edges_midpoint(floe1.coords, floe2.coords)
     rad1 = sqrt(
@@ -190,15 +192,10 @@ function update_new_rotation_conserve!(floe1, floe2, init_rot_momentum,
         (floe2.centroid[1] - mid_x)^2 +
         (floe2.centroid[2] - mid_y)^2
     )
-    println(rad1)
-    println(rad2)
     rad_ratio = rad1 / rad2
     # Determine ξ values so they are stationary at intersection point
     floe1.ξ = (diff_orbital + init_rot_momentum) /
         (floe1.moment - floe2.moment * rad_ratio)
-    # println(floe1.moment)
-    # println(floe2.moment)
-    # println(rad_ratio)
     floe2.ξ = -floe1.ξ * rad_ratio
     # Determine p_dαdt values so they are stationary at intersection point
     floe1.p_dαdt = (diff_p_orbital + init_p_rot_momentum) /
