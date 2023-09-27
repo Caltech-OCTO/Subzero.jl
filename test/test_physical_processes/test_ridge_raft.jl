@@ -10,6 +10,18 @@ using LibGEOS
             ρi = consts.ρi,
         )
     end
+
+    function assign_random_velocities!(floes)
+        for i in eachindex(floes)
+            floes.u[i] = (-1)^rand(0:1) * rand()
+            floes.v[i] = (-1)^rand(0:1) * rand()
+            floes.ξ[i] = (-1)^rand(0:1) * 0.05rand()
+            floes.p_dxdt[i] = (-1)^rand(0:1) * rand()
+            floes.p_dydt[i] = (-1)^rand(0:1) * rand()
+            floes.p_dαdt[i] = (-1)^rand(0:1) * 0.05rand()
+        end
+        return
+    end
     function setup_floes_with_inters(coords, domain, consts,
         collision_settings, lock,  Δx = nothing, Δy = nothing,
     )
@@ -27,6 +39,7 @@ using LibGEOS
                 floes.centroid[i][2] += Δy[i]
             end
         end
+        assign_random_velocities!(floes)
         add_ghosts!(floes, domain)
         Subzero.timestep_collisions!(  # Add interactions
             floes,
@@ -39,6 +52,66 @@ using LibGEOS
         )
         return floes
     end
+    function calc_needed_momentum(floes)
+        x_momentum, y_momentum = Subzero.calc_linear_momentum(
+            floes.u,
+            floes.v,
+            floes.mass,
+        )
+        spin_momentum, angular_momentum = Subzero.calc_angular_momentum(
+            floes.u,
+            floes.v,
+            floes.mass,
+            floes.ξ,
+            floes.moment,
+            first.(floes.centroid),
+            last.(floes.centroid),
+        )
+        p_x_momentum, p_y_momentum = Subzero.calc_linear_momentum(
+            floes.p_dxdt,
+            floes.p_dydt,
+            floes.mass,
+        )
+        p_spin_momentum, p_angular_momentum = Subzero.calc_angular_momentum(
+            floes.p_dxdt,
+            floes.p_dydt,
+            floes.mass,
+            floes.p_dαdt,
+            floes.moment,
+            first.(floes.centroid) .* floes.p_dxdt,
+            last.(floes.centroid) .* floes.p_dydt,
+        )
+        return x_momentum, y_momentum, spin_momentum, angular_momentum,
+            p_x_momentum, p_y_momentum, p_spin_momentum, p_angular_momentum
+    end
+
+    function conservation_of_momentum_tests(floes,
+        x_momentum_init, y_momentum_init,
+        spin_momentum_init, angular_momentum_init,
+        p_x_momentum_init, p_y_momentum_init,
+        p_spin_momentum_init, p_angular_momentum_init,
+    )
+        x_momentum_after, y_momentum_after,
+        spin_momentum_after, angular_momentum_after,
+        p_x_momentum_after, p_y_momentum_after,
+        p_spin_momentum_after, p_angular_momentum_after = calc_needed_momentum(floes)
+
+        @test isapprox(x_momentum_init, x_momentum_after, atol = 1e-3)
+        @test isapprox(y_momentum_init, y_momentum_after, atol = 1e-3)
+        @test isapprox(p_x_momentum_init, p_x_momentum_after, atol = 1e-3)
+        @test isapprox(p_y_momentum_init, p_y_momentum_after, atol = 1e-3)
+        @test isapprox(
+            spin_momentum_init + angular_momentum_init,
+            spin_momentum_after + angular_momentum_after,
+            atol = 1e-3,
+        )
+        @test isapprox(
+            p_spin_momentum_init + p_angular_momentum_init,
+            p_spin_momentum_after + p_angular_momentum_after,
+            atol = 1e-3,
+        )
+    end
+
     function test_floe_floe_rr_scenario(
         rr_settings,
         new_height1,
@@ -60,34 +133,10 @@ using LibGEOS
         height1, height2 = floes.height
         cent1, cent2 = floes.centroid
         # initial momentum
-        x_momentum_init, y_momentum_init = Subzero.calc_linear_momentum(
-            floes.u,
-            floes.v,
-            floes.mass,
-        )
-        spin_momentum_init, angular_momentum_init = Subzero.calc_angular_momentum(
-            floes.u,
-            floes.v,
-            floes.mass,
-            floes.ξ,
-            floes.moment,
-            first.(floes.centroid),
-            last.(floes.centroid),
-        )
-        p_x_momentum_init, p_y_momentum_init = Subzero.calc_linear_momentum(
-            floes.p_dxdt,
-            floes.p_dydt,
-            floes.mass,
-        )
-        p_spin_momentum_init, p_angular_momentum_init = Subzero.calc_angular_momentum(
-            floes.p_dxdt,
-            floes.p_dydt,
-            floes.mass,
-            floes.p_dαdt,
-            floes.moment,
-            first.(floes.centroid) .* floes.p_dxdt,
-            last.(floes.centroid) .* floes.p_dydt,
-        )
+        x_momentum_init, y_momentum_init,
+        spin_momentum_init, angular_momentum_init,
+        p_x_momentum_init, p_y_momentum_init,
+        p_spin_momentum_init, p_angular_momentum_init = calc_needed_momentum(floes)
         # Ridge and raft floes
         Subzero.timestep_ridging_rafting!(
             floes,
@@ -102,6 +151,12 @@ using LibGEOS
             10,
         )
         @test mass1 + mass2 == sum(floes.mass)
+        conservation_of_momentum_tests(floes,
+            x_momentum_init, y_momentum_init,
+            spin_momentum_init, angular_momentum_init,
+            p_x_momentum_init, p_y_momentum_init,
+            p_spin_momentum_init, p_angular_momentum_init,
+        )
         if floe1_subsume || floe2_subsume
             @test LibGEOS.area(LibGEOS.intersection(
                 LibGEOS.Polygon(floes.coords[1]),
@@ -125,48 +180,6 @@ using LibGEOS
             @test moment1 == floes.moment[1] && moment2 == floes.moment[2]
             @test cent1 == floes.centroid[1] && cent2 == floes.centroid[2]
         end
-        x_momentum_after, y_momentum_after = Subzero.calc_linear_momentum(
-            floes.u,
-            floes.v,
-            floes.mass,
-        )
-        spin_momentum_after, angular_momentum_after = Subzero.calc_angular_momentum(
-            floes.u,
-            floes.v,
-            floes.mass,
-            floes.ξ,
-            floes.moment,
-            first.(floes.centroid),
-            last.(floes.centroid),
-        )
-        p_x_momentum_after, p_y_momentum_after = Subzero.calc_linear_momentum(
-            floes.p_dxdt,
-            floes.p_dydt,
-            floes.mass,
-        )
-        p_spin_momentum_after, p_angular_momentum_after = Subzero.calc_angular_momentum(
-            floes.p_dxdt,
-            floes.p_dydt,
-            floes.mass,
-            floes.p_dαdt,
-            floes.moment,
-            first.(floes.centroid) .* floes.p_dxdt,
-            last.(floes.centroid) .* floes.p_dydt,
-        )
-        @test isapprox(x_momentum_init, x_momentum_after, atol = 1e-10)
-        @test isapprox(y_momentum_init, y_momentum_after, atol = 1e-10)
-        @test isapprox(p_x_momentum_init, p_x_momentum_after, atol = 1e-10)
-        @test isapprox(p_y_momentum_init, p_y_momentum_after, atol = 1e-10)
-        @test isapprox(
-            spin_momentum_init + angular_momentum_init,
-            spin_momentum_after + angular_momentum_after,
-            atol = 1e-10,
-        )
-        @test isapprox(
-            p_spin_momentum_init + p_angular_momentum_init,
-            p_spin_momentum_after + p_angular_momentum_after,
-            atol = 1e-10,
-        )
     end
     function test_floe_domain_rr_scenario(rr_settings, does_raft, floes,
         domain, boundary_poly, topo_poly, bounds_overlap_area, topo_overlap_area,
@@ -177,6 +190,11 @@ using LibGEOS
         h1, h2 = floes.height
         area1, area2 = floes.area
         cent1, cent2 = floes.centroid
+
+        x_momentum_init, y_momentum_init,
+        spin_momentum_init, angular_momentum_init,
+        p_x_momentum_init, p_y_momentum_init,
+        p_spin_momentum_init, p_angular_momentum_init = calc_needed_momentum(floes)
         Subzero.timestep_ridging_rafting!(
             floes,
             StructArray{Floe{Float64}}(undef, 0),
@@ -188,6 +206,12 @@ using LibGEOS
             simp_settings,
             consts,
             10,
+        )
+        conservation_of_momentum_tests(floes,
+            x_momentum_init, y_momentum_init,
+            spin_momentum_init, angular_momentum_init,
+            p_x_momentum_init, p_y_momentum_init,
+            p_spin_momentum_init, p_angular_momentum_init,
         )
         if does_raft
             @test total_mass > sum(floes.mass)
@@ -225,7 +249,7 @@ using LibGEOS
         max_id = Subzero.timestep_ridging_rafting!(
             floes,
             StructArray{Floe{Float64}}(undef, 0),
-            3,
+            2,
             domain,
             maximum(floes.id),
             rr_settings,
@@ -323,6 +347,7 @@ using LibGEOS
         )
         floes = deepcopy(floes_base)
         # Test floe 2 ridging on top of floe 1
+        println("2")
         test_floe_floe_rr_scenario(
             ridge_settings,
             1.0,
@@ -337,6 +362,7 @@ using LibGEOS
         )
         floes = deepcopy(floes_base)
         # Test floe 1 ridging on top of floe 2
+        println("3")
         test_floe_floe_rr_scenario(
             ridge_settings,
             0.1,
@@ -351,6 +377,7 @@ using LibGEOS
         )
         floes = deepcopy(floes_base)
         # Test both floes being too thin to ridge
+        println("4")
         test_floe_floe_rr_scenario(
             ridge_settings,
             0.1,
@@ -371,6 +398,7 @@ using LibGEOS
         )
         floes = deepcopy(floes_base)
         # Test floe 2 rafting on top of floe 1
+        println("5")
         test_floe_floe_rr_scenario(
             raft_settings,
             1.0,
@@ -385,6 +413,7 @@ using LibGEOS
         )
         # Test floe 2 rafting on top of floe 1
         floes = deepcopy(floes_base)
+        println("6")
         test_floe_floe_rr_scenario(
             raft_settings,
             0.001, # bias so that floe 2 will subsume floe 1

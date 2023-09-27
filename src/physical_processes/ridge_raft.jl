@@ -235,11 +235,6 @@ function floe_floe_ridge!(
     Δt,
     rng,
 ) where {FT}
-    # Inital floe values
-    m1, m2 = floes.mass[idx1], floes.mass[idx2]
-    I1, I2, = floes.moment[idx1], floes.moment[idx2]
-    x1, y1 = floes.centroid[idx1]
-    x2, y2 = floes.centroid[idx2]
     # Heights of floes determine which floe subsumes shared area
     f1_h = floes.height[idx1] >= ridgeraft_settings.min_ridge_height
     f2_h = floes.height[idx2] >= ridgeraft_settings.min_ridge_height
@@ -269,6 +264,12 @@ function floe_floe_ridge!(
         lose_mass_idx = idx1
     end
     if gain_mass_idx > 0 && lose_mass_idx > 0
+        # Inital floe values
+        ml, mg = floes.mass[lose_mass_idx], floes.mass[gain_mass_idx]
+        Il, Ig, = floes.moment[lose_mass_idx], floes.moment[gain_mass_idx]
+        xl, yl = floes.centroid[lose_mass_idx]
+        xg, yg = floes.centroid[gain_mass_idx]
+        # Ridge
         vol, max_floe_id, nregions = remove_floe_overlap!(
             floes,
             lose_mass_idx,
@@ -292,11 +293,11 @@ function floe_floe_ridge!(
         first_slot = length(pieces_buffer) - nregions + 2
         if nregions < 2
             conserve_momentum_transfer_mass!(floes, lose_mass_idx, gain_mass_idx,
-                m1, m2, I1, I2, x1, x2, y1, y2, Δt,
+                ml, mg, Il, Ig, xl, xg, yl, yg, Δt,
             )
         else  # floe broke, ghost floes
             conserve_momentum_transfer_mass!(floes, lose_mass_idx, gain_mass_idx,
-                m1, m2, I1, I2, x1, x2, y1, y2, Δt, pieces_buffer, first_slot,
+                ml, mg, Il, Ig, xl, xg, yl, yg, Δt, pieces_buffer, first_slot,
             )
         end
         if !broken[lose_mass_idx]
@@ -432,11 +433,6 @@ function floe_floe_raft!(
     Δt,
     rng,
 ) where {FT}
-    # Inital floe values
-    m1, m2 = floes.mass[idx1], floes.mass[idx2]
-    I1, I2, = floes.moment[idx1], floes.moment[idx2]
-    x1, y1 = floes.centroid[idx1]
-    x2, y2 = floes.centroid[idx2]
     vol = FT(0)
     nregions = 0
     # Based on height ratio, pick which floe subsumes shares area
@@ -448,6 +444,11 @@ function floe_floe_raft!(
         gain_mass_idx = idx1
         lose_mass_idx = idx2
     end
+    # Inital floe values
+    ml, mg = floes.mass[lose_mass_idx], floes.mass[gain_mass_idx]
+    Il, Ig, = floes.moment[lose_mass_idx], floes.moment[gain_mass_idx]
+    xl, yl = floes.centroid[lose_mass_idx]
+    xg, yg = floes.centroid[gain_mass_idx]
     # Raft
     vol, max_floe_id, nregions = remove_floe_overlap!(
         floes,
@@ -473,11 +474,11 @@ function floe_floe_raft!(
         first_slot = length(pieces_buffer) - nregions + 2
         if nregions < 2
             conserve_momentum_transfer_mass!(floes, lose_mass_idx, gain_mass_idx,
-                m1, m2, I1, I2, x1, x2, y1, y2, Δt,
+                ml, mg, Il, Ig, xl, xg, yl, yg, Δt,
             )
         else  # floe broke, ghost floes
             conserve_momentum_transfer_mass!(floes, lose_mass_idx, gain_mass_idx,
-                m1, m2, I1, I2, x1, x2, y1, y2, Δt, pieces_buffer, first_slot,
+                ml, mg, Il, Ig, xl, xg, yl, yg, Δt, pieces_buffer, first_slot,
             )
         end
         if !broken[lose_mass_idx]
@@ -593,7 +594,7 @@ function timestep_ridging_rafting!(
 ) where {FT <: AbstractFloat}
     broken = fill(false, length(floes))
     interactions_list = zeros(Int, size(floes.interactions[1], 1))
-    for i in 1:n_init_floes
+    for i in eachindex(floes)
         #=
             Floe is active in sim, hasn't broken, interacted with other floes,
             isn't too thick, and meets probability check to ridge or raft
@@ -615,10 +616,40 @@ function timestep_ridging_rafting!(
                 min_area = j > 0 ?
                     min(floes.area[i], floes.area[j]) :  # floe-floe interaction
                     floes.area[i] # floe-domain interaction
-                if (
-                    ((j > i  && !broken[j]) || j < 0) &&
-                    1e-6 < floes.interactions[i][row, overlap]/min_area < 0.95 &&
-                    !(j in interactions_list)
+
+                # floes/domain overlap (not ghost interaction copied to parent)
+                valid_interaction = false
+                if i < j && !broken[j]
+                    valid_interaction |= potential_interaction(
+                        floes.centroid[i], floes.centroid[j],
+                        floes.rmax[i], floes.rmax[j],
+                    )
+                elseif j == -1
+                    valid_interaction |=
+                        abs(floes.centroid[i][2] - domain.north.val) <
+                        floes.rmax[i]
+                elseif j == -2
+                    valid_interaction |=
+                        abs(floes.centroid[i][2] - domain.south.val) <
+                        floes.rmax[i]
+                elseif j == -3
+                    valid_interaction |=
+                        abs(floes.centroid[i][1] - domain.east.val) <
+                        floes.rmax[i]
+                elseif j == -4
+                    valid_interaction |=
+                        abs(floes.centroid[i][1] - domain.west.val) <
+                        floes.rmax[i]
+                elseif j < 0
+                    valid_interaction |= potential_interaction(
+                        floes.centroid[i],
+                        domain.topography.centroid[-(j + 4)],
+                        floes.rmax[i],
+                        domain.topography.rmax[-(j + 4)],
+                    )
+                end
+                if (valid_interaction && !(j in interactions_list) &&
+                    1e-6 < floes.interactions[i][row, overlap]/min_area < 0.95
                 )
                     ninters += 1
                     if ninters <= length(interactions_list)

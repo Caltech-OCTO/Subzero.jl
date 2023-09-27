@@ -1,12 +1,6 @@
 using JLD2, Random, Statistics, Subzero, BenchmarkTools, StructArrays, SplitApplyCombine, Test
 import LibGEOS as LG
 
-A = [[[-1000.0, 1000.0], [-1000.0, 20000.0], [18000.0, 20000.0], [18000.0, 18000.0], [20000.0, 18000.0], [20000.0, 1000.0], [-1000.0, 1000.0]]]
-B = [[[18000.0, 20000.0], [18000.0, 40000.0], [40000.0, 40000.0], [40000.0, 18000.0], [20000.0, 18000.0], [20000.0, 20000.0], [18000.0, 20000.0]]]
-
-Subzero.find_shared_edges_midpoint(A, B)
-
-
 function setup_floes_with_inters(coords, domain, consts,
     collision_settings, lock,  Δx = nothing, Δy = nothing,
 )
@@ -81,26 +75,25 @@ ridge_settings = Subzero.RidgeRaftSettings(
 # first floe overlaps with both other floes, and it will break when ridged with floe 2
 
 coords = [
-    [[[8e4, 0.75e4], [10e4, 2.75e4], [10.5e4, 2.75e4], [8.5e4, 0.75e4], [8e4, 0.75e4]]],
-    [[[9e4, 0.1e4], [9e4, 2.25e4], [9.5e4, 2.25e4], [9.5e4, 0.1e4], [9e4, 0.1e4]]],
-    [[[0.1e4, 0.1e4], [0.1e4, 2.25e4], [2.25e4, 2.25e4], [2.25e4, 0.1e4], [0.1e4, 0.1e4]]],
+    [[[0.1e4, 0.1e4], [0.1e4, 2e4], [2e4, 2e4], [2e4, 0.1e4], [0.1e4, 0.1e4]]],
+    [[[1.8e4, 1.8e4], [1.8e4, 4e4], [4e4, 4e4], [4e4, 1.8e4], [1.8e4, 1.8e4]]],
 ]
-base_floes = setup_floes_with_inters(coords, periodic_domain, consts,
-    collision_settings, lock
+floes_base = setup_floes_with_inters(coords, collision_domain, consts,
+    collision_settings, lock,
 )
-floes = deepcopy(base_floes)
-update_height(floes, 1, 0.1, consts)
-update_height(floes, 4, 0.1, consts)  # ghost of floe 1
-total_mass = sum(floes.mass[1:3])
-h1, h2, h3, h4 = floes.height
-area1, area2, area3, area4 = floes.area
-cent1, cent2, cent3, cent4 = floes.centroid
+floes = deepcopy(floes_base)
+update_height(floes, 1, 0.1, consts)  # floe 1 will ridge onto floe 2
+update_height(floes, 2, 0.1, consts)
+total_mass = floes.mass[1] + floes.mass[2]
+h1, h2 = floes.height
+area1, area2 = floes.area
+cent1, cent2 = floes.centroid
 pieces_list = StructArray{Floe{Float64}}(undef, 0)
 max_id = Subzero.timestep_ridging_rafting!(
     floes,
     pieces_list,
-    3,
-    collision_domain,
+    2,
+    periodic_domain,
     maximum(floes.id),
     ridge_settings,
     coupling_settings,
@@ -111,8 +104,8 @@ max_id = Subzero.timestep_ridging_rafting!(
 
 # Ridging with domain
 ridge_settings = Subzero.RidgeRaftSettings(
-    ridge_probability = 1.0,  # force ridging
-    raft_probability = 0.0,
+            ridge_probability = 1.0,  # force ridging
+            raft_probability = 0.0,
 )
 update_height(floes, 1, 1.0, consts)  # floe1 will ridge onto floe 2
 total_mass = sum(floes.mass)

@@ -180,8 +180,6 @@ end
 function update_new_rotation_conserve!(floe1, floe2, init_rot_momentum,
     init_p_rot_momentum, diff_orbital, diff_p_orbital, Δt,
 )
-    println(floe1.coords)
-    println(floe2.coords)
     # Find radius of each polygon to shared midpoint
     mid_x, mid_y = find_shared_edges_midpoint(floe1.coords, floe2.coords)
     rad1 = sqrt(
@@ -288,11 +286,14 @@ function conserve_momentum_transfer_mass!(
     pieces_list = nothing, pieces_idx = 0,
 )
     # Conserve linear - assume resultant floes have same linear velocity
-    tot_mass = floes.mass[idx1] + floes.mass[idx2]
-    if !isnothing(pieces_list)
-        tot_mass += sum(pieces_list.mass)
-    end
+    tot_mass = m1 + m2
+    println(m1)
+    println(m2)
+    println(floes.u[idx1])
+    println(floes.u[idx2])
+    println(sum(floes.mass))
     new_u = (m1 * floes.u[idx1] + m2 * floes.u[idx2]) / tot_mass
+    println(new_u)
     new_v = (m1 * floes.v[idx1] + m2 * floes.v[idx2]) / tot_mass
     new_p_dxdt = (m1 * floes.p_dxdt[idx1] + m2 * floes.p_dxdt[idx2]) / tot_mass
     new_p_dydt = (m1 * floes.p_dydt[idx1] + m2 * floes.p_dydt[idx2]) / tot_mass
