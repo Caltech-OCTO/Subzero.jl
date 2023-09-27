@@ -287,13 +287,7 @@ function conserve_momentum_transfer_mass!(
 )
     # Conserve linear - assume resultant floes have same linear velocity
     tot_mass = m1 + m2
-    println(m1)
-    println(m2)
-    println(floes.u[idx1])
-    println(floes.u[idx2])
-    println(sum(floes.mass))
     new_u = (m1 * floes.u[idx1] + m2 * floes.u[idx2]) / tot_mass
-    println(new_u)
     new_v = (m1 * floes.v[idx1] + m2 * floes.v[idx2]) / tot_mass
     new_p_dxdt = (m1 * floes.p_dxdt[idx1] + m2 * floes.p_dxdt[idx2]) / tot_mass
     new_p_dydt = (m1 * floes.p_dydt[idx1] + m2 * floes.p_dydt[idx2]) / tot_mass
