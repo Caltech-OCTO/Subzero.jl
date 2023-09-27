@@ -246,8 +246,8 @@ function conserve_momentum_fracture_floe!(
                 y_init * init_floe.u
             )
             diff_p_orbital = init_floe.mass * ( # initial previous orbital velocity
-                x_init * init_floe.p_dydt -
-                y_init * init_floe.p_dxdt
+                (x_init - Δt * init_floe.p_dxdt) * init_floe.p_dydt -
+                (y_init - Δt * init_floe.p_dydt) * init_floe.p_dxdt
             )
             for i in eachindex(new_floes)
                 diff_orbital -= new_floes.mass[i] * (
@@ -255,8 +255,8 @@ function conserve_momentum_fracture_floe!(
                     new_floes.centroid[i][2] * new_floes.u[i]
                 )
                 diff_p_orbital -= new_floes.mass[i] * (
-                    new_floes.centroid[i][1] * new_floes.p_dydt[i] -
-                    new_floes.centroid[i][2] * new_floes.p_dxdt[i]
+                    (new_floes.centroid[i][1] - Δt * new_floes.p_dxdt[i]) * new_floes.p_dydt[i] -
+                    (new_floes.centroid[i][2] - Δt * new_floes.p_dydt[i]) * new_floes.p_dxdt[i]
                 )
             end
             update_new_rotation_conserve!(
@@ -299,8 +299,15 @@ function conserve_momentum_transfer_mass!(
         diff_orbital = m1 * (x1 * floes.v[idx1] - y1 * floes.u[idx1]) +
             m2 * (x2 * floes.v[idx2] - y2 * floes.u[idx2])
         # initial previous orbital momentum
-        diff_p_orbital = m1 * (x1 * floes.p_dydt[idx1] - y1 * floes.p_dxdt[idx1]) +
-            m2 * (x2 * floes.p_dydt[idx2] - y2 * floes.p_dxdt[idx2])
+        diff_p_orbital =
+            m1 * (
+                (x1 - Δt * floes.p_dxdt[idx1]) * floes.p_dydt[idx1] -
+                (y1 - Δt * floes.p_dydt[idx1]) * floes.p_dxdt[idx1]
+            ) +
+            m2 * (
+                (x2 - Δt * floes.p_dxdt[idx2]) * floes.p_dydt[idx2] -
+                (y2 - Δt * floes.p_dydt[idx2]) * floes.p_dxdt[idx2]
+            )
         # subtract orbital momentum from new shapes
         diff_orbital -= 
             floes.mass[idx1] * (
@@ -313,12 +320,12 @@ function conserve_momentum_transfer_mass!(
             )
         diff_p_orbital -=
             floes.mass[idx1] * (
-                floes.centroid[idx1][1] * new_p_dydt -
-                floes.centroid[idx1][2] * new_p_dxdt
+                (floes.centroid[idx1][1] - Δt * new_p_dxdt) * new_p_dydt -
+                (floes.centroid[idx1][2] - Δt * new_p_dydt) * new_p_dxdt
             ) +
             floes.mass[idx2] * (
-                floes.centroid[idx2][1] * new_p_dydt -
-                floes.centroid[idx2][2] * new_p_dxdt
+                (floes.centroid[idx2][1] - Δt * new_p_dxdt) * new_p_dydt -
+                (floes.centroid[idx2][2] - Δt * new_p_dydt) * new_p_dxdt
             )
 
         update_new_rotation_conserve!(
