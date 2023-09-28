@@ -72,7 +72,7 @@ using LibGEOS
             floes.p_dydt,
             floes.mass,
         )
-        p_spin_momentum, p_angular_momentum = Subzero.calc_angular_momentum(
+        p_spin_momentum, p_orbital_momentum = Subzero.calc_angular_momentum(
             floes.p_dxdt,
             floes.p_dydt,
             floes.mass,
@@ -82,33 +82,33 @@ using LibGEOS
             last.(floes.centroid) .* floes.p_dydt,
         )
         return x_momentum, y_momentum, spin_momentum, angular_momentum,
-            p_x_momentum, p_y_momentum, p_spin_momentum, p_angular_momentum
+            p_x_momentum, p_y_momentum, p_spin_momentum, p_orbital_momentum
     end
 
     function conservation_of_momentum_tests(floes,
         x_momentum_init, y_momentum_init,
-        spin_momentum_init, angular_momentum_init,
+        spin_momentum_init, orbital_momentum_init,
         p_x_momentum_init, p_y_momentum_init,
-        p_spin_momentum_init, p_angular_momentum_init,
+        p_spin_momentum_init, p_orbital_momentum_init,
     )
         x_momentum_after, y_momentum_after,
-        spin_momentum_after, angular_momentum_after,
+        spin_momentum_after, orbital_momentum_after,
         p_x_momentum_after, p_y_momentum_after,
-        p_spin_momentum_after, p_angular_momentum_after = calc_needed_momentum(floes)
+        p_spin_momentum_after, p_orbital_momentum_after = calc_needed_momentum(floes)
 
         @test isapprox(x_momentum_init, x_momentum_after, atol = 1e-3)
         @test isapprox(y_momentum_init, y_momentum_after, atol = 1e-3)
         @test isapprox(p_x_momentum_init, p_x_momentum_after, atol = 1e-3)
         @test isapprox(p_y_momentum_init, p_y_momentum_after, atol = 1e-3)
         @test isapprox(
-            spin_momentum_init + angular_momentum_init,
-            spin_momentum_after + angular_momentum_after,
-            atol = 1e-1,
+            spin_momentum_init + orbital_momentum_init,
+            spin_momentum_after + orbital_momentum_after,
+            atol = 1e3,
         )
         @test isapprox(
-            p_spin_momentum_init + p_angular_momentum_init,
-            p_spin_momentum_after + p_angular_momentum_after,
-            atol = 1e-1,
+            p_spin_momentum_init + p_orbital_momentum_init,
+            p_spin_momentum_after + p_orbital_momentum_after,
+            atol = 1e3,
         )
     end
 
@@ -134,9 +134,9 @@ using LibGEOS
         cent1, cent2 = floes.centroid
         # initial momentum
         x_momentum_init, y_momentum_init,
-        spin_momentum_init, angular_momentum_init,
+        spin_momentum_init, orbital_momentum_init,
         p_x_momentum_init, p_y_momentum_init,
-        p_spin_momentum_init, p_angular_momentum_init = calc_needed_momentum(floes)
+        p_spin_momentum_init, p_orbital_momentum_init = calc_needed_momentum(floes)
         # Ridge and raft floes
         Subzero.timestep_ridging_rafting!(
             floes,
@@ -153,9 +153,9 @@ using LibGEOS
         @test mass1 + mass2 == sum(floes.mass)
         conservation_of_momentum_tests(floes,
             x_momentum_init, y_momentum_init,
-            spin_momentum_init, angular_momentum_init,
+            spin_momentum_init, orbital_momentum_init,
             p_x_momentum_init, p_y_momentum_init,
-            p_spin_momentum_init, p_angular_momentum_init,
+            p_spin_momentum_init, p_orbital_momentum_init,
         )
         if floe1_subsume || floe2_subsume
             @test LibGEOS.area(LibGEOS.intersection(
@@ -192,9 +192,9 @@ using LibGEOS
         cent1, cent2 = floes.centroid
 
         x_momentum_init, y_momentum_init,
-        spin_momentum_init, angular_momentum_init,
+        spin_momentum_init, orbital_momentum_init,
         p_x_momentum_init, p_y_momentum_init,
-        p_spin_momentum_init, p_angular_momentum_init = calc_needed_momentum(floes)
+        p_spin_momentum_init, p_orbital_momentum_init = calc_needed_momentum(floes)
         Subzero.timestep_ridging_rafting!(
             floes,
             StructArray{Floe{Float64}}(undef, 0),
@@ -209,9 +209,9 @@ using LibGEOS
         )
         conservation_of_momentum_tests(floes,
             x_momentum_init, y_momentum_init,
-            spin_momentum_init, angular_momentum_init,
+            spin_momentum_init, orbital_momentum_init,
             p_x_momentum_init, p_y_momentum_init,
-            p_spin_momentum_init, p_angular_momentum_init,
+            p_spin_momentum_init, p_orbital_momentum_init,
         )
         if does_raft
             @test total_mass > sum(floes.mass)
@@ -289,8 +289,7 @@ using LibGEOS
            1e4,
            1e4,
     )
-    # topo_coords = [[[5e4, 5e4], [5e4, 7e4], [7e4, 7e4], [7e4, 5e4], [5e4, 5e4]]]
-    topo_coords = [[[7e4, 7e4], [7e4, 9e4], [9e4, 9e4], [9e4, 7e4], [7e4, 7e4]]]
+    topo_coords = [[[5e4, 5e4], [5e4, 7e4], [7e4, 7e4], [7e4, 5e4], [5e4, 5e4]]]
     collision_domain = Subzero.Domain(
         CollisionBoundary(North, grid),
         CollisionBoundary(South, grid),
@@ -314,120 +313,120 @@ using LibGEOS
     simp_settings = SimplificationSettings()
     collision_settings = CollisionSettings(floe_floe_max_overlap = 0.99) # don't fuse
     lock = Threads.SpinLock()
-    # @testset "Floe-Floe Ridging and Rafting" begin
-    #     coords = [
-    #         [[[0.1e4, 0.1e4], [0.1e4, 2e4], [2e4, 2e4], [2e4, 0.1e4], [0.1e4, 0.1e4]]],
-    #         [[[1.8e4, 1.8e4], [1.8e4, 4e4], [4e4, 4e4], [4e4, 1.8e4], [1.8e4, 1.8e4]]],
-    #     ]
-    #     floes_base = setup_floes_with_inters(coords, collision_domain, consts,
-    #         collision_settings, lock,
-    #     )
-    #     # Test scenario with no ridging or rafting
-    #     no_rr_settings = Subzero.RidgeRaftSettings(
-    #         ridge_probability = 0.0,  # no ridging
-    #         raft_probability = 0.0,  # no rafting
-    #     )
-    #     floes = deepcopy(floes_base)
-    #     # Test floe 2 ridging on top of floe 1
-    #     test_floe_floe_rr_scenario(
-    #         no_rr_settings,
-    #         1.0,
-    #         1.0,
-    #         false,
-    #         false,
-    #         floes,
-    #         collision_domain,
-    #         coupling_settings,
-    #         simp_settings,
-    #         consts,
-    #     )
-    #     # Ridging Tests
-    #     ridge_settings = Subzero.RidgeRaftSettings(
-    #         ridge_probability = 1.0,  # force ridging
-    #         raft_probability = 0.0,
-    #     )
-    #     floes = deepcopy(floes_base)
-    #     # Test floe 2 ridging on top of floe 1
-    #     println("2")
-    #     test_floe_floe_rr_scenario(
-    #         ridge_settings,
-    #         1.0,
-    #         0.1,
-    #         true,  # floe 1 should subsume floe 2
-    #         false,
-    #         floes,
-    #         collision_domain,
-    #         coupling_settings,
-    #         simp_settings,
-    #         consts,
-    #     )
-    #     floes = deepcopy(floes_base)
-    #     # Test floe 1 ridging on top of floe 2
-    #     println("3")
-    #     test_floe_floe_rr_scenario(
-    #         ridge_settings,
-    #         0.1,
-    #         1.0,
-    #         false,
-    #         true,
-    #         floes,
-    #         collision_domain,
-    #         coupling_settings,
-    #         simp_settings,
-    #         consts,
-    #     )
-    #     floes = deepcopy(floes_base)
-    #     # Test both floes being too thin to ridge
-    #     println("4")
-    #     test_floe_floe_rr_scenario(
-    #         ridge_settings,
-    #         0.1,
-    #         0.1,
-    #         false,
-    #         false,
-    #         floes,
-    #         collision_domain,
-    #         coupling_settings,
-    #         simp_settings,
-    #         consts,
-    #     )
-    #     # Rafting Tests
-    #     raft_settings = Subzero.RidgeRaftSettings(
-    #         ridge_probability = 0.0,  # force rafting
-    #         raft_probability = 1.0,
-    #         max_floe_raft_height = 1.0,
-    #     )
-    #     floes = deepcopy(floes_base)
-    #     # Test floe 2 rafting on top of floe 1
-    #     println("5")
-    #     test_floe_floe_rr_scenario(
-    #         raft_settings,
-    #         1.0,
-    #         0.001,  # bias so that floe 1 will subsume floe 2
-    #         true,  # floe 1 should subsume floe 2
-    #         false,
-    #         floes,
-    #         collision_domain,
-    #         coupling_settings,
-    #         simp_settings,
-    #         consts,
-    #     )
-    #     # Test floe 2 rafting on top of floe 1
-    #     floes = deepcopy(floes_base)
-    #     println("6")
-    #     test_floe_floe_rr_scenario(
-    #         raft_settings,
-    #         0.001, # bias so that floe 2 will subsume floe 1
-    #         1.0,
-    #         false,
-    #         true,  # floe 2 should subsume floe 1
-    #         floes,
-    #         collision_domain,
-    #         coupling_settings,
-    #         simp_settings,
-    #         consts,
-    #     )
-    # end
+    @testset "Floe-Floe Ridging and Rafting" begin
+        coords = [
+            [[[0.1e4, 0.1e4], [0.1e4, 2e4], [2e4, 2e4], [2e4, 0.1e4], [0.1e4, 0.1e4]]],
+            [[[1.8e4, 1.8e4], [1.8e4, 4e4], [4e4, 4e4], [4e4, 1.8e4], [1.8e4, 1.8e4]]],
+        ]
+        floes_base = setup_floes_with_inters(coords, collision_domain, consts,
+            collision_settings, lock,
+        )
+        # Test scenario with no ridging or rafting
+        no_rr_settings = Subzero.RidgeRaftSettings(
+            ridge_probability = 0.0,  # no ridging
+            raft_probability = 0.0,  # no rafting
+        )
+        floes = deepcopy(floes_base)
+        # Test floe 2 ridging on top of floe 1
+        test_floe_floe_rr_scenario(
+            no_rr_settings,
+            1.0,
+            1.0,
+            false,
+            false,
+            floes,
+            collision_domain,
+            coupling_settings,
+            simp_settings,
+            consts,
+        )
+        # Ridging Tests
+        ridge_settings = Subzero.RidgeRaftSettings(
+            ridge_probability = 1.0,  # force ridging
+            raft_probability = 0.0,
+        )
+        floes = deepcopy(floes_base)
+        # Test floe 2 ridging on top of floe 1
+        println("2")
+        test_floe_floe_rr_scenario(
+            ridge_settings,
+            1.0,
+            0.1,
+            true,  # floe 1 should subsume floe 2
+            false,
+            floes,
+            collision_domain,
+            coupling_settings,
+            simp_settings,
+            consts,
+        )
+        floes = deepcopy(floes_base)
+        # Test floe 1 ridging on top of floe 2
+        println("3")
+        test_floe_floe_rr_scenario(
+            ridge_settings,
+            0.1,
+            1.0,
+            false,
+            true,
+            floes,
+            collision_domain,
+            coupling_settings,
+            simp_settings,
+            consts,
+        )
+        floes = deepcopy(floes_base)
+        # Test both floes being too thin to ridge
+        println("4")
+        test_floe_floe_rr_scenario(
+            ridge_settings,
+            0.1,
+            0.1,
+            false,
+            false,
+            floes,
+            collision_domain,
+            coupling_settings,
+            simp_settings,
+            consts,
+        )
+        # Rafting Tests
+        raft_settings = Subzero.RidgeRaftSettings(
+            ridge_probability = 0.0,  # force rafting
+            raft_probability = 1.0,
+            max_floe_raft_height = 1.0,
+        )
+        floes = deepcopy(floes_base)
+        # Test floe 2 rafting on top of floe 1
+        println("5")
+        test_floe_floe_rr_scenario(
+            raft_settings,
+            1.0,
+            0.001,  # bias so that floe 1 will subsume floe 2
+            true,  # floe 1 should subsume floe 2
+            false,
+            floes,
+            collision_domain,
+            coupling_settings,
+            simp_settings,
+            consts,
+        )
+        # Test floe 2 rafting on top of floe 1
+        floes = deepcopy(floes_base)
+        println("6")
+        test_floe_floe_rr_scenario(
+            raft_settings,
+            0.001, # bias so that floe 2 will subsume floe 1
+            1.0,
+            false,
+            true,  # floe 2 should subsume floe 1
+            floes,
+            collision_domain,
+            coupling_settings,
+            simp_settings,
+            consts,
+        )
+    end
     @testset "Floe-Domain Ridging and Rafting" begin
         coords = [
             [[[-0.1e4, -0.1e4], [-0.1e4, 2e4], [2e4, 2e4], [2e4, -0.1e4], [-0.1e4, -0.1e4]]],

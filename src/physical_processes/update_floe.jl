@@ -112,15 +112,9 @@ function conserve_momentum_change_floe_shape!(
     combine_floe = nothing,
 )   
     println("Here!")
-    println(mass_tmp)
-    println(moment_tmp)
-    println(x_tmp)
-    println(y_tmp)
-    println(keep_floe.ξ)
-    println(keep_floe.p_dαdt)
-    println(keep_floe.mass)
-    println(keep_floe.moment)
-    println(keep_floe.centroid)
+    println(moment_tmp * keep_floe.p_dαdt + mass_tmp * (
+        (x_tmp - 10 * keep_floe.p_dudt) * keep_floe.p_dydt - (y_tmp - 10 * keep_floe.p_dvdt)))
+    
     # Calculate linear velocities to conserve linear momentum
     new_u = keep_floe.u * mass_tmp
     new_v = keep_floe.v * mass_tmp
@@ -167,8 +161,6 @@ function conserve_momentum_change_floe_shape!(
     new_dαdt -= keep_floe.mass * (p_x * new_dydt - p_y * new_dxdt)
     new_ξ /= keep_floe.moment
     new_dαdt /= keep_floe.moment
-    println(new_ξ)
-    println(new_dαdt)
 
     # Set new values
     keep_floe.u = new_u
@@ -181,6 +173,10 @@ function conserve_momentum_change_floe_shape!(
     keep_floe.p_dudt = (keep_floe.u - keep_floe.p_dxdt) / Δt
     keep_floe.p_dvdt = (keep_floe.v - keep_floe.p_dydt) / Δt
     keep_floe.p_dξdt = (keep_floe.ξ - keep_floe.p_dαdt) / Δt
+
+    println(keep_floe.moment * keep_floe.p_dαdt + keep_floe.mass * (
+        (keep_floe.centroid[1] - 10 * keep_floe.p_dudt) * keep_floe.p_dydt - (keep_floe.centroid[2]  - 10 * keep_floe.p_dvdt)))
+    
     return
 end
 
