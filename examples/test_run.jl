@@ -55,6 +55,14 @@ collision_domain = Subzero.Domain(
     CollisionBoundary(West, grid),
     initialize_topography_field([topo_coords])
 )
+# bounds_overlap_area = LibGEOS.area(LibGEOS.intersection(
+#     LibGEOS.Polygon(floes_base.coords[1]),
+#     boundary_poly,
+# ))
+# topo_overlap_area = LibGEOS.area(LibGEOS.intersection(
+#     LibGEOS.Polygon(floes_base.coords[2]),
+#     topo_poly,
+# ))
 periodic_domain = Subzero.Domain(
     PeriodicBoundary(North, grid),
     PeriodicBoundary(South, grid),
@@ -72,12 +80,16 @@ ridge_settings = Subzero.RidgeRaftSettings(
     ridge_probability = 1.0,  # no ridging
     raft_probability = 0.0,  # no rafting
 )
+rafting_settings = Subzero.RidgeRaftSettings(
+    ridge_probability = 0.0,  # force ridging
+    raft_probability = 1.0,
+)
 # first floe overlaps with both other floes, and it will break when ridged with floe 2
 
 coords = [
-    [[[0.1e4, 0.1e4], [0.1e4, 2e4], [2e4, 2e4], [2e4, 0.1e4], [0.1e4, 0.1e4]]],
-    [[[1.8e4, 1.8e4], [1.8e4, 4e4], [4e4, 4e4], [4e4, 1.8e4], [1.8e4, 1.8e4]]],
-]
+        [[[-0.1e4, -0.1e4], [-0.1e4, 2e4], [2e4, 2e4], [2e4, -0.1e4], [-0.1e4, -0.1e4]]],
+        [[[3e4, 3e4], [3e4, 5e4], [5e4, 5e4], [5e4, 3e4], [3e4, 3e4]]]
+    ]
 floes_base = setup_floes_with_inters(coords, collision_domain, consts,
     collision_settings, lock,
 )
@@ -89,13 +101,14 @@ h1, h2 = floes.height
 area1, area2 = floes.area
 cent1, cent2 = floes.centroid
 pieces_list = StructArray{Floe{Float64}}(undef, 0)
+
 max_id = Subzero.timestep_ridging_rafting!(
     floes,
     pieces_list,
     2,
-    periodic_domain,
+    collision_domain,
     maximum(floes.id),
-    ridge_settings,
+    rafting_settings,
     coupling_settings,
     simp_settings,
     consts,

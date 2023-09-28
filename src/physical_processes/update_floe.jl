@@ -111,6 +111,16 @@ function conserve_momentum_change_floe_shape!(
     keep_floe,
     combine_floe = nothing,
 )   
+    println("Here!")
+    println(mass_tmp)
+    println(moment_tmp)
+    println(x_tmp)
+    println(y_tmp)
+    println(keep_floe.ξ)
+    println(keep_floe.p_dαdt)
+    println(keep_floe.mass)
+    println(keep_floe.moment)
+    println(keep_floe.centroid)
     # Calculate linear velocities to conserve linear momentum
     new_u = keep_floe.u * mass_tmp
     new_v = keep_floe.v * mass_tmp
@@ -157,6 +167,8 @@ function conserve_momentum_change_floe_shape!(
     new_dαdt -= keep_floe.mass * (p_x * new_dydt - p_y * new_dxdt)
     new_ξ /= keep_floe.moment
     new_dαdt /= keep_floe.moment
+    println(new_ξ)
+    println(new_dαdt)
 
     # Set new values
     keep_floe.u = new_u
@@ -191,13 +203,13 @@ function update_new_rotation_conserve!(floe1, floe2, init_rot_momentum,
         (floe2.centroid[2] - mid_y)^2
     )
     rad_ratio = rad1 / rad2
-    # Determine ξ values so they are stationary at intersection point
+    # Determine ξ values so they are stationary at midpoint of shared edges
     floe1.ξ = (diff_orbital + init_rot_momentum) /
-        (floe1.moment - floe2.moment * rad_ratio)
+        (floe1.moment - (floe2.moment * rad_ratio))
     floe2.ξ = -floe1.ξ * rad_ratio
     # Determine p_dαdt values so they are stationary at intersection point
     floe1.p_dαdt = (diff_p_orbital + init_p_rot_momentum) /
-        (floe1.moment - floe2.moment * rad_ratio)
+        (floe1.moment - (floe2.moment * rad_ratio))
     floe2.p_dαdt = -floe1.p_dαdt * rad_ratio
     # Calculate previous rotational accelerations
     floe1.p_dξdt = (floe1.ξ - floe1.p_dαdt) / Δt
@@ -309,7 +321,7 @@ function conserve_momentum_transfer_mass!(
                 (y2 - Δt * floes.p_dydt[idx2]) * floes.p_dxdt[idx2]
             )
         # subtract orbital momentum from new shapes
-        diff_orbital -= 
+        diff_orbital -= (
             floes.mass[idx1] * (
                 floes.centroid[idx1][1] * new_v -
                 floes.centroid[idx1][2] * new_u
@@ -318,7 +330,8 @@ function conserve_momentum_transfer_mass!(
                 floes.centroid[idx2][1] * new_v -
                 floes.centroid[idx2][2] * new_u
             )
-        diff_p_orbital -=
+        )
+        diff_p_orbital -= (
             floes.mass[idx1] * (
                 (floes.centroid[idx1][1] - Δt * new_p_dxdt) * new_p_dydt -
                 (floes.centroid[idx1][2] - Δt * new_p_dydt) * new_p_dxdt
@@ -327,7 +340,7 @@ function conserve_momentum_transfer_mass!(
                 (floes.centroid[idx2][1] - Δt * new_p_dxdt) * new_p_dydt -
                 (floes.centroid[idx2][2] - Δt * new_p_dydt) * new_p_dxdt
             )
-
+        ) 
         update_new_rotation_conserve!(
             LazyRow(floes, idx1),
             LazyRow(floes, idx2),
