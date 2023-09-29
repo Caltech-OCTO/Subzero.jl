@@ -110,11 +110,7 @@ function conserve_momentum_change_floe_shape!(
     Δt,
     keep_floe,
     combine_floe = nothing,
-)   
-    println("Here!")
-    println(moment_tmp * keep_floe.p_dαdt + mass_tmp * (
-        (x_tmp - 10 * keep_floe.p_dudt) * keep_floe.p_dydt - (y_tmp - 10 * keep_floe.p_dvdt)))
-    
+)
     # Calculate linear velocities to conserve linear momentum
     new_u = keep_floe.u * mass_tmp
     new_v = keep_floe.v * mass_tmp
@@ -173,10 +169,6 @@ function conserve_momentum_change_floe_shape!(
     keep_floe.p_dudt = (keep_floe.u - keep_floe.p_dxdt) / Δt
     keep_floe.p_dvdt = (keep_floe.v - keep_floe.p_dydt) / Δt
     keep_floe.p_dξdt = (keep_floe.ξ - keep_floe.p_dαdt) / Δt
-
-    println(keep_floe.moment * keep_floe.p_dαdt + keep_floe.mass * (
-        (keep_floe.centroid[1] - 10 * keep_floe.p_dudt) * keep_floe.p_dydt - (keep_floe.centroid[2]  - 10 * keep_floe.p_dvdt)))
-    
     return
 end
 
@@ -186,7 +178,7 @@ end
     )
 """
 function update_new_rotation_conserve!(floe1, floe2, init_rot_momentum,
-    init_p_rot_momentum, diff_orbital, diff_p_orbital, Δt,
+    init_p_rot_momentum, diff_orbital, diff_p_orbital, Δt, c1, c2,
 )
     # Find radius of each polygon to shared midpoint
     mid_x, mid_y = find_shared_edges_midpoint(floe1.coords, floe2.coords)
@@ -199,6 +191,7 @@ function update_new_rotation_conserve!(floe1, floe2, init_rot_momentum,
         (floe2.centroid[2] - mid_y)^2
     )
     rad_ratio = rad1 / rad2
+    @assert !isnan(rad_ratio) "$rad1 $rad2 $mid_x $mid_y $(floe1.coords) $(floe2.coords) $c1 $c2"
     # Determine ξ values so they are stationary at midpoint of shared edges
     floe1.ξ = (diff_orbital + init_rot_momentum) /
         (floe1.moment - (floe2.moment * rad_ratio))
@@ -275,6 +268,7 @@ function conserve_momentum_fracture_floe!(
                 diff_orbital,
                 diff_p_orbital,
                 Δt,
+                nothing, nothing,
             )
         else
             # MATLAB uses assumptions -> doesn't conserve rotational momentum
@@ -290,7 +284,7 @@ end
 
 """
 function conserve_momentum_transfer_mass!(
-    floes, idx1, idx2, m1, m2, I1, I2, x1, x2, y1, y2, Δt,
+    floes, idx1, idx2, m1, m2, I1, I2, x1, x2, y1, y2, Δt, c1, c2,
     pieces_list = nothing, pieces_idx = 0,
 )
     # Conserve linear - assume resultant floes have same linear velocity
@@ -345,6 +339,8 @@ function conserve_momentum_transfer_mass!(
             diff_orbital,
             diff_p_orbital,
             Δt,
+            c1,
+            c2,
         )
     else
         # MATLAB uses assumptions -> doesn't conserve rotational momentum
@@ -370,22 +366,22 @@ function conserve_momentum_transfer_mass!(
 end
 
 function update_ghost_timestep_vals!(floes, idx)
-    parent_idx = floes.id[idx]
+    parent_idx = idx
     if floes.ghost_id[idx] != 0
         parent_idx = findfirst(x -> x == floes.id[idx], floes.id)
     end
     for gidx in floes.ghosts[parent_idx]
-        floes.u[gidx] = floes.u[idx]
-        floes.v[gidx] = floes.v[idx]
-        floes.ξ[gidx] = floes.ξ[idx]
-        floes.p_dxdt[gidx] = floes.p_dxdt[idx]
-        floes.p_dydt[gidx] = floes.p_dydt[idx]
-        floes.p_dudt[gidx] = floes.p_dudt[idx]
-        floes.p_dvdt[gidx] = floes.p_dvdt[idx]
-        floes.p_dαdt[gidx] = floes.p_dαdt[idx]
-        floes.p_dξdt[gidx] = floes.p_dξdt[idx]
+        floes.u[gidx] = floes.u[parent_idx]
+        floes.v[gidx] = floes.v[parent_idx]
+        floes.ξ[gidx] = floes.ξ[parent_idx]
+        floes.p_dxdt[gidx] = floes.p_dxdt[parent_idx]
+        floes.p_dydt[gidx] = floes.p_dydt[parent_idx]
+        floes.p_dudt[gidx] = floes.p_dudt[parent_idx]
+        floes.p_dvdt[gidx] = floes.p_dvdt[parent_idx]
+        floes.p_dαdt[gidx] = floes.p_dαdt[parent_idx]
+        floes.p_dξdt[gidx] = floes.p_dξdt[parent_idx]
     end
-
+    return
 end
 
 """

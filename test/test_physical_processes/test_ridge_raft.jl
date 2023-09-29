@@ -78,8 +78,8 @@ using LibGEOS
             floes.mass,
             floes.p_dαdt,
             floes.moment,
-            first.(floes.centroid) .* floes.p_dxdt,
-            last.(floes.centroid) .* floes.p_dydt,
+            first.(floes.centroid) .- 10floes.p_dxdt,
+            last.(floes.centroid) .- 10floes.p_dydt,
         )
         return x_momentum, y_momentum, spin_momentum, angular_momentum,
             p_x_momentum, p_y_momentum, p_spin_momentum, p_orbital_momentum
@@ -95,21 +95,17 @@ using LibGEOS
         spin_momentum_after, orbital_momentum_after,
         p_x_momentum_after, p_y_momentum_after,
         p_spin_momentum_after, p_orbital_momentum_after = calc_needed_momentum(floes)
-
-        @test isapprox(x_momentum_init, x_momentum_after, atol = 1e-3)
-        @test isapprox(y_momentum_init, y_momentum_after, atol = 1e-3)
-        @test isapprox(p_x_momentum_init, p_x_momentum_after, atol = 1e-3)
-        @test isapprox(p_y_momentum_init, p_y_momentum_after, atol = 1e-3)
-        @test isapprox(
-            spin_momentum_init + orbital_momentum_init,
-            spin_momentum_after + orbital_momentum_after,
-            atol = 1e3,
-        )
-        @test isapprox(
-            p_spin_momentum_init + p_orbital_momentum_init,
-            p_spin_momentum_after + p_orbital_momentum_after,
-            atol = 1e3,
-        )
+        
+        @test abs((x_momentum_init - x_momentum_after) / x_momentum_init) < 1e-3
+        @test abs((y_momentum_init - y_momentum_after) / y_momentum_init) < 1e-3
+        @test abs((p_x_momentum_init - p_x_momentum_after) / p_x_momentum_init) < 1e-3
+        @test abs((p_y_momentum_init - p_y_momentum_after) / p_y_momentum_init) < 1e-3
+        init_angular = spin_momentum_init + orbital_momentum_init
+        after_angular = spin_momentum_after + orbital_momentum_after
+        @test abs((init_angular - after_angular) / init_angular) < 1e-3
+        p_init_angular = p_spin_momentum_init + p_orbital_momentum_init
+        p_after_angular = p_spin_momentum_after + p_orbital_momentum_after
+        @test abs((p_init_angular - p_after_angular) / p_init_angular) < 1e-3
     end
 
     function test_floe_floe_rr_scenario(
@@ -347,7 +343,6 @@ using LibGEOS
         )
         floes = deepcopy(floes_base)
         # Test floe 2 ridging on top of floe 1
-        println("2")
         test_floe_floe_rr_scenario(
             ridge_settings,
             1.0,
@@ -362,7 +357,6 @@ using LibGEOS
         )
         floes = deepcopy(floes_base)
         # Test floe 1 ridging on top of floe 2
-        println("3")
         test_floe_floe_rr_scenario(
             ridge_settings,
             0.1,
@@ -377,7 +371,6 @@ using LibGEOS
         )
         floes = deepcopy(floes_base)
         # Test both floes being too thin to ridge
-        println("4")
         test_floe_floe_rr_scenario(
             ridge_settings,
             0.1,
@@ -398,7 +391,6 @@ using LibGEOS
         )
         floes = deepcopy(floes_base)
         # Test floe 2 rafting on top of floe 1
-        println("5")
         test_floe_floe_rr_scenario(
             raft_settings,
             1.0,
@@ -413,7 +405,6 @@ using LibGEOS
         )
         # Test floe 2 rafting on top of floe 1
         floes = deepcopy(floes_base)
-        println("6")
         test_floe_floe_rr_scenario(
             raft_settings,
             0.001, # bias so that floe 2 will subsume floe 1
@@ -445,7 +436,6 @@ using LibGEOS
         ))
         # Ridging with domain
         floes = deepcopy(floes_base)
-        println("1")
         ridge_settings = Subzero.RidgeRaftSettings(
             ridge_probability = 1.0,  # force ridging
             raft_probability = 0.0,
@@ -455,7 +445,6 @@ using LibGEOS
             0.1, 0.1, coupling_settings, simp_settings, consts,
         )
         # Not ridging with domain
-        println("2")
         floes = deepcopy(floes_base)
         test_floe_domain_rr_scenario(ridge_settings, false, floes, collision_domain,
             boundary_poly, topo_poly, bounds_overlap_area, topo_overlap_area, 
@@ -467,14 +456,12 @@ using LibGEOS
             ridge_probability = 0.0,  # force ridging
             raft_probability = 1.0,
         )
-        println("3")
         test_floe_domain_rr_scenario(rafting_settings, true, floes, collision_domain,
             boundary_poly, topo_poly, bounds_overlap_area, topo_overlap_area, 
             0.1, 0.1, coupling_settings, simp_settings, consts,
         )
         # Not rafting with domain   
         floes = deepcopy(floes_base)
-        println("4")
         test_floe_domain_rr_scenario(rafting_settings, false, floes, collision_domain,
             boundary_poly, topo_poly, bounds_overlap_area, topo_overlap_area, 
             0.3, 0.3, coupling_settings, simp_settings, consts,

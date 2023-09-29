@@ -56,6 +56,7 @@ export
     FractureSettings,
     CouplingSettings,
     SimplificationSettings,
+    RidgeRaftSettings,
     PolyVec,
     OutputWriters,
     check_energy_momentum_conservation_julia,

@@ -70,6 +70,7 @@ function smooth_floes!(
     topo_coords = topography.coords
     for i in eachindex(floes)
         if length(floes.coords[i][1]) > simp_settings.max_vertices
+            println(floes.coords[i])
             poly = LG.simplify(LG.Polygon(floes.coords[i]), simp_settings.tol)
             if !isempty(topo_coords)
                 poly = LG.difference(poly, LG.MultiPolygon(topo_coords))
@@ -203,6 +204,14 @@ function fuse_two_floes!(
             keep_floe.stress * mass_tmp .+
             remove_floe.stress * remove_floe.mass
         )
+        if size(keep_floe.stress_history.cb) != size(remove_floe.stress_history.cb)
+            println(keep_floe.id)
+            println(keep_floe.ghost_id)
+            println(remove_floe.id)
+            println(remove_floe.ghost_id)
+            println(size(keep_floe.stress_history.cb))
+            println(size(remove_floe.stress_history.cb))
+        end
         keep_floe.stress_history.cb .= (1/keep_floe.mass) * (
             keep_floe.stress_history.cb * mass_tmp .+
             remove_floe.stress_history.cb * remove_floe.mass

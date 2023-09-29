@@ -417,6 +417,7 @@ function split_floe(
     # Generate voronoi tesselation in floe's bounding box
     scale_fac = fill(2floe.rmax, 2)
     trans_vec = [floe.centroid[1] - floe.rmax, floe.centroid[2] - floe.rmax]
+    @assert floe.coords[1][1] == floe.coords[1][end] "$(floe.coords)"
     pieces = generate_voronoi_coords(
         fracture_settings.npieces,
         scale_fac,
@@ -553,6 +554,9 @@ function fracture_floes!(
             end
         end
         # Split flie into pieces
+
+        @assert floes.coords[frac_idx[i]][1][1] == floes.coords[frac_idx[i]][1][end] "pre split: $(floes.coords[i][1])"
+
         new_floes = split_floe(
             LazyRow(floes, frac_idx[i]),
             rng,

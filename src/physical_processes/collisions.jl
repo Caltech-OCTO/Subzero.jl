@@ -349,6 +349,8 @@ function floe_floe_interaction!(
     Δt,
     max_overlap::FT,
 ) where {FT<:AbstractFloat}
+    @assert ifloe.coords[1][1] == ifloe.coords[1][end] "$(ifloe.coords)"
+    @assert jfloe.coords[1][1] == jfloe.coords[1][end] "$(jfloe.coords)"
     inter_regions = intersect_coords(ifloe.coords, jfloe.coords)
     region_areas = Vector{FT}(undef, length(inter_regions))
     total_area = FT(0)

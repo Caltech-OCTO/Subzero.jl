@@ -879,7 +879,7 @@ euclidian_dist(c, idx2, idx1) = sqrt(
     (c[1][idx2][2] - c[1][idx1][2])^2 
 )
 
-function which_points_on_edges(points, coords)
+function which_points_on_edges(points, coords; atol = 1e-1)
     idxs = Vector{Int}()
     nedges = length(coords[1]) - 1
     npoints = length(points)
@@ -895,15 +895,25 @@ function which_points_on_edges(points, coords)
             xp, yp = points[j]
             Δx_point = xp - x1
             Δy_point = yp - y1
-            if (
-                (Δx_edge == 0 && Δx_point == 0 && 0 < Δy_point / Δy_edge < 1) ||
-                (Δy_edge == 0 && Δy_point == 0 && 0 < Δx_point / Δx_edge < 1) ||
-                (Δx_point == 0 && Δy_point == 0) ||
+            if (!(j in idxs) && (
+                (  # vertical edge
+                    isapprox(Δx_edge, 0, atol = atol) &&
+                    isapprox(Δx_point, 0, atol = atol) &&
+                    0 < Δy_point / Δy_edge < 1
+                ) ||
+                (  # horizontal edge
+                    isapprox(Δy_edge, 0, atol = atol) &&
+                    isapprox(Δy_point, 0, atol = atol)
+                    && 0 < Δx_point / Δx_edge < 1) ||
+                (  # point is a vertex
+                    isapprox(Δx_point, 0, atol = atol) &&
+                    isapprox(Δy_point, 0, atol = atol)
+                ) ||
                 ( # has the same slope and is between edge points
-                    Δy_edge/Δx_edge == Δy_point/Δx_point &&
+                    isapprox(Δy_edge/Δx_edge, Δy_point/Δx_point, atol = atol) &&
                     0 < Δx_point / Δx_edge < 1 && 0 < Δy_point / Δy_edge < 1
                 )
-            )
+            ))
                 push!(idxs, j)
             end
         end
@@ -967,11 +977,12 @@ Outputs:
     mid_x   <Float> x-coordinate of midpoint
     mid_y   <Float> y-coordinate of midpoint
 """
-function find_shared_edges_midpoint(c1::PolyVec{FT}, c2) where {FT}
+function find_shared_edges_midpoint(c1::PolyVec{FT}, c2; atol = 1e-1) where {FT}
     # Find which points of c1 are on edges of c2
     shared_idx = which_points_on_edges(
         c1[1],
-        c2,
+        c2;
+        atol,
     )
     if shared_idx[1] == 1
          # due to repeated first point/last point
