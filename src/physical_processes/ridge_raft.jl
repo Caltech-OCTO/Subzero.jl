@@ -103,7 +103,9 @@ function remove_floe_overlap!(
     new_floe_area = LG.area(new_floe_poly)
     transfer_area = (floes.area[shrinking_idx] - new_floe_area)
     transfer_vol = FT(0)
+    println("in ridge")
     if transfer_area > 0.01 * floes.area[shrinking_idx]#ridgeraft_settings.min_overlap 
+        println("actually ridged")
         transfer_vol = transfer_area * floes.height[shrinking_idx]
         new_floe_mass =  (floes.mass[shrinking_idx] - transfer_vol * consts.ρi)
         # Reset shrinking index to parent floe and determine floe shift

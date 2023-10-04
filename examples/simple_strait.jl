@@ -40,14 +40,6 @@ coupling_settings = CouplingSettings(
     subfloe_point_generator = SubGridPointsGenerator(grid, 2),
     two_way_coupling_on = true,
 )
-fracture_settings = FractureSettings(
-        fractures_on = true,
-        criteria = HiblerYieldCurve(floe_arr),
-        Δt = 75,
-        npieces = 3,
-        nhistory = 100,
-        deform_on = false,
-)
 
 # Floe creation
 floe_arr = initialize_floe_field(
@@ -59,7 +51,15 @@ floe_arr = initialize_floe_field(
     Δh,
     rng = Xoshiro(3),
     coupling_settings = coupling_settings,
-    fracture_settings = fracture_settings,
+)
+
+fracture_settings = FractureSettings(
+        fractures_on = true,
+        criteria = HiblerYieldCurve(floe_arr),
+        Δt = 75,
+        npieces = 3,
+        nhistory = 1000,
+        deform_on = false,
 )
 
 # Model creation
