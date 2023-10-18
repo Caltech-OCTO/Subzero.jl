@@ -103,9 +103,6 @@ function timestep_sim!(sim, tstep)
         write_data!(sim, tstep)  # Horribly type unstable
         
         # Collisions
-        for i in eachindex(sim.model.floes)
-            @assert sim.model.floes.coords[i][1][1] == sim.model.floes.coords[i][1][end] "start: $(sim.model.floes.coords[i][1])"
-        end
         if sim.collision_settings.collisions_on
             timestep_collisions!(
                 sim.model.floes,
@@ -117,9 +114,6 @@ function timestep_sim!(sim, tstep)
                 spinlock,
             )
         end
-        for i in eachindex(sim.model.floes)
-            @assert sim.model.floes.coords[i][1][1] == sim.model.floes.coords[i][1][end] "post collision: $(sim.model.floes.coords[i][1])"
-        end
         pieces_buffer = StructArray{Floe{Float64}}(undef, 0)
         # Ridge and raft floes that meet overlap conditions
         if (
@@ -129,7 +123,6 @@ function timestep_sim!(sim, tstep)
             max_floe_id = timestep_ridging_rafting!(
                 sim.model.floes,
                 pieces_buffer,
-                n_init_floes,
                 sim.model.domain,
                 max_floe_id,
                 sim.coupling_settings,
@@ -139,9 +132,6 @@ function timestep_sim!(sim, tstep)
                 sim.Δt,
                 sim.rng,
             )
-        end
-        for i in eachindex(sim.model.floes)
-            @assert sim.model.floes.coords[i][1][1] == sim.model.floes.coords[i][1][end] "post raft: $(sim.model.floes.coords[i][1])"
         end
         # Remove the ghost floes - only used for collisions
         for i in reverse(n_init_floes+1:length(sim.model.floes))
@@ -189,9 +179,6 @@ function timestep_sim!(sim, tstep)
                     sim.consts,
                     sim.Δt,
                 )
-        end
-        for i in eachindex(sim.model.floes)
-            @assert sim.model.floes.coords[i][1][1] == sim.model.floes.coords[i][1][end] "post frac: $(sim.model.floes.coords[i][1])"
         end
 
         # What happens if floe tried to fuse with ghost floe?? 

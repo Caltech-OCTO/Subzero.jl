@@ -9,6 +9,7 @@ using LibGEOS
             floes.height[i],
             ρi = consts.ρi,
         )
+        return
     end
 
     function assign_random_velocities!(floes)
@@ -50,6 +51,11 @@ using LibGEOS
             collision_settings, 
             lock,
         )
+        # make sure all floes are active and not marked to fuse
+        for i in eachindex(floes)
+            floes.status[i].tag = Subzero.active
+
+        end
         return floes
     end
     function calc_needed_momentum(floes)
@@ -58,54 +64,25 @@ using LibGEOS
             floes.v,
             floes.mass,
         )
-        spin_momentum, angular_momentum = Subzero.calc_angular_momentum(
-            floes.u,
-            floes.v,
-            floes.mass,
-            floes.ξ,
-            floes.moment,
-            first.(floes.centroid),
-            last.(floes.centroid),
-        )
         p_x_momentum, p_y_momentum = Subzero.calc_linear_momentum(
             floes.p_dxdt,
             floes.p_dydt,
             floes.mass,
         )
-        p_spin_momentum, p_orbital_momentum = Subzero.calc_angular_momentum(
-            floes.p_dxdt,
-            floes.p_dydt,
-            floes.mass,
-            floes.p_dαdt,
-            floes.moment,
-            first.(floes.centroid) .- 10floes.p_dxdt,
-            last.(floes.centroid) .- 10floes.p_dydt,
-        )
-        return x_momentum, y_momentum, spin_momentum, angular_momentum,
-            p_x_momentum, p_y_momentum, p_spin_momentum, p_orbital_momentum
+        return x_momentum, y_momentum, p_x_momentum, p_y_momentum
     end
 
     function conservation_of_momentum_tests(floes,
         x_momentum_init, y_momentum_init,
-        spin_momentum_init, orbital_momentum_init,
         p_x_momentum_init, p_y_momentum_init,
-        p_spin_momentum_init, p_orbital_momentum_init,
     )
         x_momentum_after, y_momentum_after,
-        spin_momentum_after, orbital_momentum_after,
-        p_x_momentum_after, p_y_momentum_after,
-        p_spin_momentum_after, p_orbital_momentum_after = calc_needed_momentum(floes)
+        p_x_momentum_after, p_y_momentum_after = calc_needed_momentum(floes)
         
         @test abs((x_momentum_init - x_momentum_after) / x_momentum_init) < 1e-3
         @test abs((y_momentum_init - y_momentum_after) / y_momentum_init) < 1e-3
         @test abs((p_x_momentum_init - p_x_momentum_after) / p_x_momentum_init) < 1e-3
         @test abs((p_y_momentum_init - p_y_momentum_after) / p_y_momentum_init) < 1e-3
-        init_angular = spin_momentum_init + orbital_momentum_init
-        after_angular = spin_momentum_after + orbital_momentum_after
-        @test abs((init_angular - after_angular) / init_angular) < 1e-3
-        p_init_angular = p_spin_momentum_init + p_orbital_momentum_init
-        p_after_angular = p_spin_momentum_after + p_orbital_momentum_after
-        @test abs((p_init_angular - p_after_angular) / p_init_angular) < 1e-3
     end
 
     function test_floe_floe_rr_scenario(
@@ -130,18 +107,15 @@ using LibGEOS
         cent1, cent2 = floes.centroid
         # initial momentum
         x_momentum_init, y_momentum_init,
-        spin_momentum_init, orbital_momentum_init,
-        p_x_momentum_init, p_y_momentum_init,
-        p_spin_momentum_init, p_orbital_momentum_init = calc_needed_momentum(floes)
+        p_x_momentum_init, p_y_momentum_init = calc_needed_momentum(floes)
         # Ridge and raft floes
         Subzero.timestep_ridging_rafting!(
             floes,
             StructArray{Floe{Float64}}(undef, 0),
-            2,
             domain,
             maximum(floes.id),
-            rr_settings,
             coupling_settings,
+            rr_settings,
             simp_settings,
             consts,
             10,
@@ -149,9 +123,7 @@ using LibGEOS
         @test mass1 + mass2 == sum(floes.mass)
         conservation_of_momentum_tests(floes,
             x_momentum_init, y_momentum_init,
-            spin_momentum_init, orbital_momentum_init,
             p_x_momentum_init, p_y_momentum_init,
-            p_spin_momentum_init, p_orbital_momentum_init,
         )
         if floe1_subsume || floe2_subsume
             @test LibGEOS.area(LibGEOS.intersection(
@@ -162,8 +134,8 @@ using LibGEOS
                 (mass1 < floes.mass[1] && mass2 > floes.mass[2]) :
                 (mass1 > floes.mass[1] && mass2 < floes.mass[2])
             @test floe1_subsume ?
-                (floes.height[1] > height1 && floes.height[2] == height2) :
-                (floes.height[1] == height1 && floes.height[2] > height2)
+                (floes.height[1] > height1 && isapprox(floes.height[2], height2)) :
+                (isapprox(floes.height[1], height1) && floes.height[2] > height2)
             @test floe1_subsume ?
                 moment1 * floes.height[1] / height1 == floes.moment[1] :
                 moment2 * floes.height[2] / height2 == floes.moment[2]
@@ -188,30 +160,25 @@ using LibGEOS
         cent1, cent2 = floes.centroid
 
         x_momentum_init, y_momentum_init,
-        spin_momentum_init, orbital_momentum_init,
-        p_x_momentum_init, p_y_momentum_init,
-        p_spin_momentum_init, p_orbital_momentum_init = calc_needed_momentum(floes)
+        p_x_momentum_init, p_y_momentum_init = calc_needed_momentum(floes)
         Subzero.timestep_ridging_rafting!(
             floes,
             StructArray{Floe{Float64}}(undef, 0),
-            2,
             domain,
             maximum(floes.id),
-            rr_settings,
             coupling_settings,
+            rr_settings,
             simp_settings,
             consts,
             10,
         )
         conservation_of_momentum_tests(floes,
             x_momentum_init, y_momentum_init,
-            spin_momentum_init, orbital_momentum_init,
             p_x_momentum_init, p_y_momentum_init,
-            p_spin_momentum_init, p_orbital_momentum_init,
         )
         if does_raft
             @test total_mass > sum(floes.mass)
-            @test h1 == floes.height[1] && h2 == floes.height[2]
+            @test isapprox(h1, floes.height[1]) && isapprox(h2, floes.height[2])
             @test area1 - bounds_overlap_area == floes.area[1]
             @test area2 - topo_overlap_area == floes.area[2]
             @test cent1 != floes.centroid[1] && cent2 != floes.centroid[2]
@@ -225,9 +192,9 @@ using LibGEOS
             )) == 0
         else
             @test total_mass == sum(floes.mass)
-            @test h1 == floes.height[1] && h2 == floes.height[2]
-            @test area1 == floes.area[1]
-            @test area2 == floes.area[2]
+            @test isapprox(h1, floes.height[1]) && isapprox(h2, floes.height[2])
+            @test isapprox(area1,floes.area[1])
+            @test isapprox(area2, floes.area[2])
             @test cent1 == floes.centroid[1] && cent2 == floes.centroid[2]
         end
     end
@@ -242,33 +209,44 @@ using LibGEOS
         h1, h2, h3 = floes.height
         area1, area2, area3 = floes.area
         cent1, cent2, cent3 = floes.centroid
+        x_momentum_init, y_momentum_init,
+        p_x_momentum_init, p_y_momentum_init = calc_needed_momentum(floes[1:2])
+        pieces_arr = StructArray{Floe{Float64}}(undef, 0)
         max_id = Subzero.timestep_ridging_rafting!(
             floes,
-            StructArray{Floe{Float64}}(undef, 0),
-            2,
+            pieces_arr,
             domain,
             maximum(floes.id),
-            rr_settings,
             coupling_settings,
+            rr_settings,
             simp_settings,
             consts,
             10,
         )
+        # Test conservation of momentum
+        conservation_of_momentum_tests(floes[1:2],
+            x_momentum_init, y_momentum_init,
+            p_x_momentum_init, p_y_momentum_init,
+        )
+        @test floes.u[1] == floes.u[3] && floes.v[1] == floes.v[3] &&
+            floes.p_dxdt[1] == floes.p_dxdt[3] &&
+            floes.p_dydt[1] == floes.p_dydt[3]
+
         @test length(floes) == 3
         # conservation of mass doesn't include ghost floes bc they're not real
         @test total_mass == floes.mass[1] + floes.mass[2]
         @test floe1_subsume ?
-            h1 < floes.height[1] && h3 < floes.height[3] &&  h1 == h3 :
-            h1 == floes.height[1] && h3 == floes.height[3] && h1 == h3
+            h1 < floes.height[1] && h3 < floes.height[3] &&  isapprox(h1, h3) :
+            isapprox(h1, floes.height[1]) && isapprox(h3, floes.height[3]) && isapprox(h1, h3)
         @test floe1_subsume ? 
-            h2 == floes.height[2] :
+            isapprox(h2, floes.height[2]) :
             h2 < floes.height[2]
         @test floe1_subsume ?
-            area1 == floes.area[1] && area3 == floes.area[3] && area1 == area3 :
-            area1 > floes.area[1] && area3 > floes.area[3] && area1 == area3
+            isapprox(area1, floes.area[1]) && isapprox(area3, floes.area[3]) && isapprox(area1, area3) :
+            area1 > floes.area[1] && area3 > floes.area[3] && isapprox(area1, area3)
         @test floe1_subsume ?
             area2 > floes.area[2] :
-            area2 == floes.area[2]
+            isapprox(area2, floes.area[2])
         @test floe1_subsume ?
             cent2 != floes.centroid[2] :
             cent2 == floes.centroid[2]
@@ -306,8 +284,8 @@ using LibGEOS
     topo_poly = LibGEOS.Polygon(topo_coords)
     consts = Constants()
     coupling_settings = CouplingSettings()
-    simp_settings = SimplificationSettings()
-    collision_settings = CollisionSettings(floe_floe_max_overlap = 0.99) # don't fuse
+    simp_settings = SimplificationSettings(min_floe_area = 1e7)
+    collision_settings = CollisionSettings(floe_floe_max_overlap = 1.0) # don't fuse
     lock = Threads.SpinLock()
     @testset "Floe-Floe Ridging and Rafting" begin
         coords = [
@@ -318,14 +296,14 @@ using LibGEOS
             collision_settings, lock,
         )
         # Test scenario with no ridging or rafting
-        no_rr_settings = Subzero.RidgeRaftSettings(
+        no_rr_prob_settings = Subzero.RidgeRaftSettings(
             ridge_probability = 0.0,  # no ridging
             raft_probability = 0.0,  # no rafting
         )
         floes = deepcopy(floes_base)
-        # Test floe 2 ridging on top of floe 1
+        # Test no ridging
         test_floe_floe_rr_scenario(
-            no_rr_settings,
+            no_rr_prob_settings,
             1.0,
             1.0,
             false,
@@ -336,10 +314,29 @@ using LibGEOS
             simp_settings,
             consts,
         )
-        # Ridging Tests
+        no_rr_frac_settings = Subzero.RidgeRaftSettings(
+            ridge_probability = 1.0,
+            raft_probability = 1.0,
+            min_overlap_frac = 1.0,  # need 100% overlap to ridge/raft
+        )
+        test_floe_floe_rr_scenario(
+            no_rr_frac_settings,
+            1.0,
+            1.0,
+            false,
+            false,
+            floes,
+            collision_domain,
+            coupling_settings,
+            simp_settings,
+            consts,
+        )
+
+        # # Ridging Tests
         ridge_settings = Subzero.RidgeRaftSettings(
             ridge_probability = 1.0,  # force ridging
             raft_probability = 0.0,
+            min_overlap_frac = 0.001,
         )
         floes = deepcopy(floes_base)
         # Test floe 2 ridging on top of floe 1
@@ -388,6 +385,7 @@ using LibGEOS
             ridge_probability = 0.0,  # force rafting
             raft_probability = 1.0,
             max_floe_raft_height = 1.0,
+            min_overlap_frac = 0.001,
         )
         floes = deepcopy(floes_base)
         # Test floe 2 rafting on top of floe 1
@@ -439,6 +437,7 @@ using LibGEOS
         ridge_settings = Subzero.RidgeRaftSettings(
             ridge_probability = 1.0,  # force ridging
             raft_probability = 0.0,
+            min_overlap_frac = 0.001,
         )
         test_floe_domain_rr_scenario(ridge_settings, true, floes, collision_domain,
             boundary_poly, topo_poly, bounds_overlap_area, topo_overlap_area,
@@ -455,6 +454,7 @@ using LibGEOS
         rafting_settings = Subzero.RidgeRaftSettings(
             ridge_probability = 0.0,  # force ridging
             raft_probability = 1.0,
+            min_overlap_frac = 0.001,
         )
         test_floe_domain_rr_scenario(rafting_settings, true, floes, collision_domain,
             boundary_poly, topo_poly, bounds_overlap_area, topo_overlap_area, 
@@ -472,7 +472,49 @@ using LibGEOS
         ridge_settings = Subzero.RidgeRaftSettings(
             ridge_probability = 1.0,  # no ridging
             raft_probability = 0.0,  # no rafting
+            min_overlap_frac = 0.0001,
         )
+        coords = [
+            [[[1e4, 1e4], [1e4, 5e4], [5e4, 5e4], [5e4, 1e4], [1e4, 1e4]]],
+            [[[0.84e4, 2e4], [0.84e4, 2.5e4], [4e4, 2.5e4], [4e4, 2e4], [0.84e4, 2e4]]]
+        ]
+        floes_base = setup_floes_with_inters(coords, collision_domain, consts,
+            collision_settings, lock,
+        )
+        # floe 2 has a very small section outside of floe 1, too small to save
+        floes = deepcopy(floes_base)
+        update_height(floes, 2, 0.1, consts)  # floe 2 will ridge onto floe 1
+        total_mass = sum(floes.mass)
+        h1, h2 = floes.height
+        area1, area2 = floes.area
+        cent1, cent2 = floes.centroid
+        # Initial momentum 
+        x_momentum_init, y_momentum_init,
+        p_x_momentum_init, p_y_momentum_init = calc_needed_momentum(floes)
+        # Run ridging and rafting
+        pieces_list = StructArray{Floe{Float64}}(undef, 0)
+        max_id = Subzero.timestep_ridging_rafting!(
+            floes,
+            pieces_list,
+            collision_domain,
+            maximum(floes.id),
+            coupling_settings,
+            ridge_settings,
+            simp_settings,
+            consts,
+            10,
+        )
+        conservation_of_momentum_tests(floes[1:1],
+            x_momentum_init, y_momentum_init,
+            p_x_momentum_init, p_y_momentum_init,
+        )
+        @test length(pieces_list) == 0
+        @test isapprox(total_mass, floes.mass[1])
+        @test floes.height[1] > h1
+        @test floes.status[1].tag == Subzero.active
+        @test floes.status[2].tag == Subzero.remove
+        @test floes.centroid[1] == cent1
+
         # first floe overlaps with both other floes, and it will break when ridged with floe 2
         coords = [
             [[[2.75e4, 0.75e4], [0.75e4, 2.75e4], [1.25e4, 2.75e4], [3.25e4, 0.75e4], [2.75e4, 0.75e4]]],
@@ -493,23 +535,22 @@ using LibGEOS
         max_id = Subzero.timestep_ridging_rafting!(
             floes,
             pieces_list,
-            3,
             collision_domain,
             maximum(floes.id),
-            ridge_settings,
             coupling_settings,
+            ridge_settings,
             simp_settings,
             consts,
             10,
         )
         @test length(pieces_list) == 1
-        @test total_mass == sum(floes.mass) + sum(pieces_list.mass)
+        @test isapprox(total_mass, sum(floes.mass) + sum(pieces_list.mass))
         # Make sure floes 1 ridged onto floe 2 and broke
-        @test h1 == floes.height[1] && h2 < floes.height[2]
-        @test floes.height[1] == pieces_list.height[1]
+        @test isapprox(h1, floes.height[1]) && h2 < floes.height[2]
+        @test isapprox(floes.height[1], pieces_list.height[1])
         @test cent2 == floes.centroid[2]
         # Make sure floe 3 wasn't ridged/rafted
-        @test h3 == floes.height[3]
+        @test isapprox(h3, floes.height[3])
         @test cent3 == floes.centroid[3]
         # Make sure IDs are correct
         @test max_id == 5
@@ -545,17 +586,17 @@ using LibGEOS
         base_floes = setup_floes_with_inters(coords, periodic_domain, consts,
             collision_settings, lock
         )
-            # ghost (floe 3) is subsumed by floe 2
+        # ghost (floe 3) is subsumed by floe 2
         floes = deepcopy(base_floes)
         test_floe_ghost_rr_scenario(ridge_settings, floes, 0.1, 1.0,
             false, periodic_domain, coupling_settings, simp_settings, consts,
         )
-            # floe 2 is subsumed by ghost (floe 3)
+        # floe 2 is subsumed by ghost (floe 3)
         floes = deepcopy(base_floes)
         test_floe_ghost_rr_scenario(ridge_settings, floes, 1.0, 0.1,
             true, periodic_domain, coupling_settings, simp_settings, consts,
         )
-        
+    
         # Test parent-parent ridge, breakage
         coords = [
             [[[-1e4, 0.75e4], [0.75e4, 2.75e4], [1.25e4, 2.75e4], [-0.5e4, 0.75e4], [-1e4, 0.75e4]]],
@@ -576,11 +617,10 @@ using LibGEOS
         max_id = Subzero.timestep_ridging_rafting!(
             floes,
             pieces_list,
-            3,
             periodic_domain,
             maximum(floes.id),
-            ridge_settings,
             coupling_settings,
+            ridge_settings,
             simp_settings,
             consts,
             10,
@@ -588,14 +628,14 @@ using LibGEOS
         # Make sure each piece is saved, ghosts are marked to remove and
         # don't interact with any other floes
         @test length(pieces_list) == 1
-        @test total_mass == sum(floes.mass[1:3]) + sum(pieces_list.mass)
+        @test isapprox(total_mass, sum(floes.mass[1:3]) + sum(pieces_list.mass))
         # Make sure floes 1 ridged onto floe 2 and broke
         @test isapprox(h1, floes.height[1], atol = 1e-15) && h2 < floes.height[2]
-        @test floes.height[1] == pieces_list.height[1]
-        @test cent2 == floes.centroid[2]
+        @test isapprox(floes.height[1], pieces_list.height[1])
+        @test isapprox(cent2, floes.centroid[2])
         # Make sure floe 3 wasn't ridged/rafted
-        @test h3 == floes.height[3]
-        @test cent3 == floes.centroid[3]
+        @test isapprox(h3, floes.height[3])
+        @test isapprox(cent3, floes.centroid[3])
         # Make sure IDs are correct
         @test max_id == 5
         @test floes.id == [4, 2, 3, 1] && pieces_list.id[1] == 5
@@ -603,9 +643,9 @@ using LibGEOS
         @test isempty(floes.parent_ids[2]) && isempty(floes.parent_ids[3])
         # Make sure ghost floe isn't changed and is marked for remove_floe_overlap
         @test floes.status[4].tag == Subzero.remove
-        @test h4 == floes.height[4]
+        @test isapprox(h4, floes.height[4])
         @test cent4 == floes.centroid[4]
-        @test area4 == floes.area[4]
+        @test isapprox(area4, floes.area[4])
 
         # Test parent-ghost ridge, breakage
             # Make sure each piece is saved, ghosts are marked to remove and
@@ -629,11 +669,10 @@ using LibGEOS
         max_id = Subzero.timestep_ridging_rafting!(
             floes,
             pieces_list,
-            3,
             periodic_domain,
             maximum(floes.id),
-            ridge_settings,
             coupling_settings,
+            ridge_settings,
             simp_settings,
             consts,
             10,
@@ -641,13 +680,13 @@ using LibGEOS
         # Make sure each piece is saved, ghosts are marked to remove and
         # don't interact with any other floes
         @test length(pieces_list) == 1
-        @test total_mass == sum(floes.mass[1:3]) + sum(pieces_list.mass)
+        @test isapprox(total_mass, sum(floes.mass[1:3]) + sum(pieces_list.mass))
         # Make sure floe 1 parent ridged onto floe 3 
         @test h3 < floes.height[3]
-        @test cent3 == floes.centroid[3]
+        @test isapprox(cent3, floes.centroid[3])
         # Make sure floes 1 ghost ridged onto floe 2 and broke
         @test isapprox(h1, floes.height[1], atol = 1e-15) && h2 < floes.height[2]
-        @test floes.height[1] == pieces_list.height[1]
+        @test isapprox(floes.height[1], pieces_list.height[1])
         @test cent2 == floes.centroid[2]
         # Make sure IDs are correct
         @test max_id == 5

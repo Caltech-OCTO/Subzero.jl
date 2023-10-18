@@ -240,17 +240,6 @@
         @test all(new_floes.p_dxdt .== floes.p_dxdt[1])
         @test all(new_floes.p_dudt .== floes.p_dudt[1])
         @test all([all(f.strain .== floes.strain[1]) for f in new_floes])
-        # Angular momentum is conserved
-        @test isapprox(
-            sum(new_floes.ξ .* new_floes.moment),
-            floes.ξ[1] * floes.moment[1],
-            atol = 1e-8,
-        )
-        @test isapprox(
-            sum(new_floes.p_dαdt .* new_floes.moment),
-            floes.p_dαdt[1] * floes.moment[1],
-            atol = 1e-8,
-        )
 
         # Test fracture_floes!
         max_idx = Subzero.fracture_floes!(

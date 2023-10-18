@@ -9,7 +9,6 @@ Functions needed for ridging and rafting between floes and boundaries.
         vol,
         simp_settings,
         consts,
-        Δt,
     )
 Add volume to existing floe and update fields that depend on the volume.
 Inputs:
@@ -18,7 +17,6 @@ Inputs:
     vol             <AbstractFloat> volume to add to floe
     simp_settings   <SimplificationSettings> simulation simplification settings
     consts          <Constants> simulation's constants
-    Δt              <Int> length of timestep in seconds
 Outputs:
     Nothing. Floe's fields are updated to reflect increase in volume.
 """
@@ -28,12 +26,7 @@ function add_floe_volume!(
     vol,
     simp_settings,
     consts,
-    Δt,
 )
-    # Find parent floe (could be current floe, or current floe could be ghost)
-    if floes.ghost_id[idx] != 0
-        idx = findfirst(x -> x == floes.id[idx], floes.id)
-    end
     # Update floe height, mass, and moment of intertia due to volume change
     init_height = floes.height[idx]
     floes.height[idx] += vol/floes.area[idx]
@@ -54,8 +47,8 @@ end
 """
     remove_floe_overlap!(
         floes,
-        shrinking_idx,
-        growing_floe_coords,
+        shrink_idx,
+        grow_floe_coords,
         pieces_buffer,
         max_floe_id,
         broken,
@@ -68,130 +61,152 @@ end
 Removes area/volume of overlap from floe that loses area during ridging/rafting
 Inputs:
     floes               <StructArray{Floe}> list of floes
-    shrinking_idx       <Int> index of floe that loses area
-    growing_floe_coords <PolyVec> coordinate of floe/domain that subsumes area
+    shrink_idx       <Int> index of floe that loses area
+    grow_floe_coords <PolyVec> coordinate of floe/domain that subsumes area
     pieces_buffer       <StructArray{Floe}> list of new floe pieces caused by
                             breakage of floes
     max_floe_id         <Int> maximum floe ID before this ridging/rafting
     broken              <Vector{Bool}> floe index is true if that floe has
                             broken in a previous ridge/raft interaction
     coupling_settings   <CouplingSettings>  simulation's coupling settings
-    ridgeraft_settings  <RidgeRaftSettings> simukation's ridge/raft settings
+    ridgeraft_settings  <RidgeRaftSettings> simulation's ridge/raft settings
+    simp_settings       <SimplificationSettings> simulation's simplification
+                            settings
     consts              <Constants>  simulation constants
     rng                 <AbstractRNG> random number generator
+Outputs:
+    transfer_vol    <Float> total volume to transfer away from floe
+    max_floe_id     <Int> maximum floe id of floe created during overlap removal
+    floe_num        <Int> total number of floes created from origianl floe ->
+                        one if floe doesn't break, more otherwise
 """
 function remove_floe_overlap!(
     floes::StructArray{<:Floe{FT}},
-    shrinking_idx,
-    growing_floe_coords,
+    shrink_idx,
+    shrink_parent_idx,
+    grow_floe_coords,
     pieces_buffer,
     max_floe_id,
     broken,
     coupling_settings,
     ridgeraft_settings,
+    simp_settings,
     consts,
     rng,  
 ) where {FT <: AbstractFloat}
     # Find new floe shape and regions
     new_floe_poly = LG.difference(
-        LG.Polygon(floes.coords[shrinking_idx]),
-        LG.Polygon(growing_floe_coords),
+        LG.Polygon(floes.coords[shrink_idx]),
+        LG.Polygon(grow_floe_coords),
     )
-    regions = get_polygons(new_floe_poly)
-    nregions = length(regions)
-    # Calculate changes in mass / area
-    new_floe_area = LG.area(new_floe_poly)
-    transfer_area = (floes.area[shrinking_idx] - new_floe_area)
+    new_floe_poly = LG.simplify(new_floe_poly, simp_settings.tol)
+    total_area = LG.area(new_floe_poly)
+    floe_num = 0  # How many new floes have been created from the regions
+    # Changes in area / volume
+    transfer_area = floes.area[shrink_idx] - total_area
     transfer_vol = FT(0)
-    println("in ridge")
-    if transfer_area > 0.01 * floes.area[shrinking_idx]#ridgeraft_settings.min_overlap 
-        println("actually ridged")
-        transfer_vol = transfer_area * floes.height[shrinking_idx]
-        new_floe_mass =  (floes.mass[shrinking_idx] - transfer_vol * consts.ρi)
+    # If the transfer area is sufficent, create new floes
+    if transfer_area > ridgeraft_settings.min_overlap_frac * floes.area[shrink_idx]
+        transfer_vol = floes.area[shrink_idx] * floes.height[shrink_idx]
+        # Find regions
+        regions = get_polygons(new_floe_poly)
+        nregions = length(regions)
         # Reset shrinking index to parent floe and determine floe shift
-        parent_Δx = FT(0)
-        parent_Δy = FT(0)
-        if floes.ghost_id[shrinking_idx] != 0
-            parent_idx = findfirst(x -> x == floes.id[shrinking_idx], floes.id)
-            parent_Δx = floes.centroid[parent_idx][1] - floes.centroid[shrinking_idx][1]
-            parent_Δy = floes.centroid[parent_idx][2] - floes.centroid[shrinking_idx][2]
-            shrinking_idx = parent_idx
-        end
-        parent_centroid = floes.centroid[shrinking_idx]
+        parent_Δx = floes.centroid[shrink_parent_idx][1] -
+            floes.centroid[shrink_idx][1]
+        parent_Δy = floes.centroid[shrink_parent_idx][2] -
+            floes.centroid[shrink_idx][2]
+        parent_centroid = floes.centroid[shrink_parent_idx]
         # Update existing floes/ghosts regions
-        for i in 1:nregions
-            new_coords = find_poly_coords(regions[i])::PolyVec{FT}
-            translate!(  # shift region coords to parent floe location
-                new_coords,
-                parent_Δx,
-                parent_Δy,
-            )
-            rmholes!(new_coords)  # remove holes in floe
-            new_poly = LG.Polygon(new_coords)  # parent floes new region polygon
-            new_mass = (LG.area(new_poly) / new_floe_area) * new_floe_mass
-            buffer_length = length(pieces_buffer)
-            if i == 1
-                replace_floe!(  # replace parent floe
-                    LazyRow(floes, shrinking_idx),
-                    new_poly,
-                    new_mass,
-                    coupling_settings,
-                    consts,
-                    rng,
+        for region in regions
+            region_area = LG.area(region)
+            # Region is big enought to be a floe
+            if region_area > simp_settings.min_floe_area
+                floe_num += 1
+                new_coords = find_poly_coords(region)::PolyVec{FT}
+                translate!(  # shift region coords to parent floe location
+                    new_coords,
+                    parent_Δx,
+                    parent_Δy,
                 )
-                if nregions == 1
-                    # if floe doesn't break, propograte changes to ghosts
-                    for gidx in floes.ghosts[shrinking_idx]  # update any ghosts
-                        # find shift to ghost floe location
-                        g_Δx = floes.centroid[gidx][1] - parent_centroid[1]
-                        g_Δy = floes.centroid[gidx][2] - parent_centroid[2]
-                        # replace ghost floe
-                        replace_floe!(
-                            LazyRow(floes, gidx),
-                            new_poly,
-                            new_mass,
-                            coupling_settings,
-                            consts,
-                            rng,
+                rmholes!(new_coords)  # remove holes in floe
+                new_poly = LG.Polygon(new_coords)  # parent floe new region poly
+                new_vol = region_area * floes.height[shrink_idx]
+                transfer_vol -= new_vol
+                buffer_length = length(pieces_buffer)
+                # If this is the first region created, replace original floe
+                if floe_num == 1
+                    replace_floe!(  # replace parent floe
+                        LazyRow(floes, shrink_parent_idx),
+                        new_poly,
+                        new_vol * consts.ρi,
+                        coupling_settings,
+                        consts,
+                        rng,
+                    )
+                    if nregions == 1
+                        # if floe doesn't break, propograte changes to ghosts
+                        for gidx in floes.ghosts[shrink_parent_idx]
+                            # find shift to ghost floe location
+                            g_Δx = floes.centroid[gidx][1] - parent_centroid[1]
+                            g_Δy = floes.centroid[gidx][2] - parent_centroid[2]
+                            # replace ghost floe
+                            replace_floe!(
+                                LazyRow(floes, gidx),
+                                new_poly,
+                                new_vol * consts.ρi,
+                                coupling_settings,
+                                consts,
+                                rng,
+                            )
+                            # shift ghost floe
+                            translate!(floes.coords[gidx], g_Δx, g_Δy)
+                            floes.centroid[gidx][1] += g_Δx
+                            floes.centroid[gidx][1] += g_Δy
+                        end
+                    else
+                        # if floe breaks, mark floe and ghosts as broken
+                        broken[shrink_parent_idx] = true
+                        for gidx in floes.ghosts[shrink_parent_idx]
+                            broken[gidx] = true
+                            floes.status[gidx].tag = remove
+                        end
+                        # Update floe identifiers
+                        empty!(floes.ghosts[shrink_parent_idx])
+                        push!(
+                            floes.parent_ids[shrink_parent_idx],
+                            floes.id[shrink_parent_idx],
                         )
-                        # shift ghost floe
-                        translate!(floes.coords[gidx], g_Δx, g_Δy)
-                        floes.centroid[gidx][1] += g_Δx
-                        floes.centroid[gidx][1] += g_Δy
+                        max_floe_id += 1
+                        floes.id[shrink_parent_idx] = max_floe_id
                     end
-                else
-                    # if floe breaks, mark floe and ghosts as broken
-                    broken[shrinking_idx] = true
-                    for gidx in floes.ghosts[shrinking_idx]
-                        broken[gidx] = true
-                        floes.status[gidx].tag = remove
-                    end
-                    # Update floe identifiers
-                    empty!(floes.ghosts[shrinking_idx])
-                    push!(floes.parent_ids[shrinking_idx], floes.id[shrinking_idx])
+                else  # >1 region, so floe must break and add pieces to buffer
+                    push!(
+                        pieces_buffer,
+                        deepcopy_floe(LazyRow(floes, shrink_parent_idx))
+                    )
+                    buffer_length += 1
+                    replace_floe!(
+                        LazyRow(pieces_buffer, buffer_length),
+                        new_poly,
+                        new_vol * consts.ρi,
+                        coupling_settings,
+                        consts,
+                        rng,
+                    )
                     max_floe_id += 1
-                    floes.id[shrinking_idx] = max_floe_id
+                    pieces_buffer.id[buffer_length] = max_floe_id
                 end
-            else  # >1 region, so floe must break and add pieces to buffer
-                push!(
-                    pieces_buffer,
-                    deepcopy_floe(LazyRow(floes, shrinking_idx))
-                )
-                buffer_length += 1
-                replace_floe!(
-                    LazyRow(pieces_buffer, buffer_length),
-                    new_poly,
-                    new_mass,
-                    coupling_settings,
-                    consts,
-                    rng,
-                )
-                max_floe_id += 1
-                pieces_buffer.id[buffer_length] = max_floe_id
             end
         end
+        if floe_num == 0 
+            #= If all regions were too small, mark floe for removal and transfer
+                all mass to ridging floe
+            =#
+            floes.status[shrink_parent_idx].tag = remove
+        end
     end
-    return transfer_vol, max_floe_id, nregions
+    return transfer_vol, max_floe_id, floe_num
 end
 
 """
@@ -273,58 +288,73 @@ function floe_floe_ridge!(
         lose_mass_idx = idx1
     end
     if gain_mass_idx > 0 && lose_mass_idx > 0
+        # Find parent indices of gain_mass_idx and lose_mass_idx
+        lose_parent_idx = lose_mass_idx
+        gain_parent_idx = gain_mass_idx
+        if floes.ghost_id[lose_mass_idx] != 0
+            lose_parent_idx = findfirst(x -> x == floes.id[lose_mass_idx], floes.id)
+        end
+        if floes.ghost_id[gain_mass_idx] != 0
+            gain_parent_idx = findfirst(x -> x == floes.id[gain_mass_idx], floes.id)
+        end
         # Inital floe values
         ml, mg = floes.mass[lose_mass_idx], floes.mass[gain_mass_idx]
         Il, Ig, = floes.moment[lose_mass_idx], floes.moment[gain_mass_idx]
         xl, yl = floes.centroid[lose_mass_idx]
         xg, yg = floes.centroid[gain_mass_idx]
-        # TODO: remove from debugging
-        cl, cg = deepcopy(floes.coords[lose_mass_idx]), deepcopy(floes.coords[gain_mass_idx])
         # Ridge
         vol, max_floe_id, nregions = remove_floe_overlap!(
             floes,
             lose_mass_idx,
+            lose_parent_idx,
             floes.coords[gain_mass_idx],
             pieces_buffer,
             max_floe_id,
             broken,
             coupling_settings,
             ridgeraft_settings,
+            simp_settings,
             consts,
             rng,  
         )
-        if vol > 0 && nregions > 0
+        if vol > 0
             add_floe_volume!(
                 floes,
-                gain_mass_idx,
+                gain_parent_idx,
                 vol,
                 simp_settings,
                 consts,
-                Δt,
             )
             # Conserve momentum
             first_slot = length(pieces_buffer) - nregions + 2
-            if nregions < 2
-                conserve_momentum_transfer_mass!(floes, lose_mass_idx, gain_mass_idx,
-                    ml, mg, Il, Ig, xl, xg, yl, yg, Δt, cl, cg,
+            if nregions < 1
+                conserve_momentum_change_floe_shape!(
+                    mg, Ig, xg, yg, Δt,
+                    LazyRow(floes, gain_mass_idx),
+                    LazyRow(floes, lose_mass_idx),
+                )
+            elseif nregions == 1
+                conserve_momentum_transfer_mass!(floes,
+                    lose_mass_idx, gain_mass_idx,
+                    ml, mg, Δt,
                 )
             else  # floe broke, ghost floes
-                conserve_momentum_transfer_mass!(floes, lose_mass_idx, gain_mass_idx,
-                    ml, mg, Il, Ig, xl, xg, yl, yg, Δt, cl, cg, pieces_buffer, first_slot,
+                conserve_momentum_transfer_mass!(floes,
+                    lose_mass_idx, gain_mass_idx,
+                    ml, mg, Δt,
+                    pieces_buffer, first_slot,
                 )
             end
             if !broken[lose_mass_idx]
-                update_ghost_timestep_vals!(floes, lose_mass_idx)
+                update_ghost_timestep_vals!(
+                    floes, lose_mass_idx, lose_parent_idx,
+                )
             end
             if !broken[gain_mass_idx]
-                update_ghost_timestep_vals!(floes, gain_mass_idx)
+                update_ghost_timestep_vals!(
+                    floes, gain_mass_idx, gain_parent_idx,
+                )
             end
-            @assert !isnan(floes.u[lose_mass_idx]) && !isnan(floes.u[gain_mass_idx]) &&
-            !isnan(floes.v[lose_mass_idx]) && !isnan(floes.v[gain_mass_idx]) &&
-            !isnan(floes.ξ[lose_mass_idx]) && !isnan(floes.ξ[gain_mass_idx]) &&
-            !isnan(floes.p_dxdt[lose_mass_idx]) && !isnan(floes.p_dxdt[gain_mass_idx]) &&
-            !isnan(floes.p_dydt[lose_mass_idx]) && !isnan(floes.p_dydt[gain_mass_idx]) &&
-            !isnan(floes.p_dαdt[lose_mass_idx]) && !isnan(floes.p_dαdt[gain_mass_idx]) " post conserve $lose_mass_idx  $gain_mass_idx $(floes.u[lose_mass_idx]) $(floes.u[gain_mass_idx]) $(floes.v[lose_mass_idx]) $(floes.v[gain_mass_idx]) $(floes.ξ[lose_mass_idx]) $(floes.ξ[gain_mass_idx])"
         end
     end
     return max_floe_id
@@ -339,6 +369,8 @@ end
         max_floe_id,
         broken,
         coupling_settings,
+        ridgeraft_settings,
+        simp_settings,
         consts,
         Δt,
         rng,
@@ -357,13 +389,14 @@ Inputs:
                             broken in a previous ridge/raft interaction
     coupling_settings   <CouplingSettings> simulation's settings for coupling
     ridgeraft_settings  <RidgeRaftSettings> simulation's settings for ridge/raft
+    simp_settings       <SimplificationSettings> simulation's settings for
+                            simplification
     consts              <Constants> simulation's constants
     Δt                  <Int> simulation timestep in seconds
     rng                 <RandomNumberGenerator> simulation's random number
                             generator
 Outputs:
-    floe1 is updated with new shape. If any new floes are created by ridging
-    they are returned, else nothing.
+    floe1 is updated with new shape. Return maximum floe id of floes created
 """
 function floe_domain_ridge!(
     floes,
@@ -374,38 +407,51 @@ function floe_domain_ridge!(
     broken,
     coupling_settings,
     ridgeraft_settings,
+    simp_settings,
     consts,
     Δt,
     rng,
 )
+    # Find parent idx
+    parent_idx = idx
+    if floes.ghost_id[idx] != 0
+        parent_idx = findfirst(x -> x == floes.id[idx], floes.id)
+    end
     # Record previous values for momentum conservation
     mass_tmp = floes.mass[idx]
     moment_tmp = floes.moment[idx]
     x_tmp, y_tmp = floes.centroid[idx]
     # Ridge floe with domain element
-    vol, max_floe_id, _ = remove_floe_overlap!(
+    vol, max_floe_id, nregions = remove_floe_overlap!(
         floes,
         idx,
+        parent_idx,
         domain_element.coords,
         pieces_buffer,
         max_floe_id,
         broken,
         coupling_settings,
         ridgeraft_settings,
+        simp_settings,
         consts,
         rng,  
     )
-    if vol > 0
+    if vol > 0 && nregions > 0
         # Update floe velocities to conserve momentum as domain element has no
         # momentum, but floe now has less mass if ridge was successful
-        conserve_momentum_change_floe_shape!(
-            mass_tmp,
-            moment_tmp,
-            x_tmp,
-            y_tmp,
-            Δt,
-            LazyRow(floes, idx),
-        )   
+        if nregions == 1
+            conserve_momentum_change_floe_shape!(
+                mass_tmp,
+                moment_tmp,
+                x_tmp,
+                y_tmp,
+                Δt,
+                LazyRow(floes, idx),
+            )
+        end
+        if !broken[idx]
+            update_ghost_timestep_vals!(floes, idx, parent_idx)
+        end
     end
     return max_floe_id
 end
@@ -473,23 +519,32 @@ function floe_floe_raft!(
         gain_mass_idx = idx1
         lose_mass_idx = idx2
     end
+    # Find parents
+    lose_parent_idx = lose_mass_idx
+    gain_parent_idx = gain_mass_idx
+    if floes.ghost_id[lose_parent_idx] != 0
+        lose_parent_idx = findfirst(x -> x == floes.id[lose_mass_idx], floes.id)
+    end
+    if floes.ghost_id[gain_mass_idx] != 0
+        gain_parent_idx = findfirst(x -> x == floes.id[gain_mass_idx], floes.id)
+    end
     # Inital floe values
     ml, mg = floes.mass[lose_mass_idx], floes.mass[gain_mass_idx]
     Il, Ig, = floes.moment[lose_mass_idx], floes.moment[gain_mass_idx]
     xl, yl = floes.centroid[lose_mass_idx]
     xg, yg = floes.centroid[gain_mass_idx]
-    # TODO remove post debugging
-    cl, cg = floes.coords[lose_mass_idx], floes.coords[gain_mass_idx]
     # Raft
     vol, max_floe_id, nregions = remove_floe_overlap!(
         floes,
         lose_mass_idx,
+        lose_parent_idx,
         floes.coords[gain_mass_idx],
         pieces_buffer,
         max_floe_id,
         broken,
         coupling_settings,
         ridgeraft_settings,
+        simp_settings,
         consts,
         rng,  
     )
@@ -497,27 +552,35 @@ function floe_floe_raft!(
         # Add extra area/volume to floe 2
         add_floe_volume!(
             floes,
-            gain_mass_idx,
+            gain_parent_idx,
             vol,
             simp_settings,
             consts,
-            Δt,
         )
         first_slot = length(pieces_buffer) - nregions + 2
-        if nregions < 2
-            conserve_momentum_transfer_mass!(floes, lose_mass_idx, gain_mass_idx,
-                ml, mg, Il, Ig, xl, xg, yl, yg, Δt, cl, cg,
+        if nregions == 0
+            conserve_momentum_change_floe_shape!(
+                mg, Ig, xg, yg, Δt,
+                LazyRow(floes, gain_mass_idx),
+                LazyRow(floes, lose_mass_idx),
+            )
+        elseif nregions == 1
+            conserve_momentum_transfer_mass!(floes,
+                lose_mass_idx, gain_mass_idx,
+                ml, mg, Δt,
             )
         else  # floe broke, ghost floes
-            conserve_momentum_transfer_mass!(floes, lose_mass_idx, gain_mass_idx,
-                ml, mg, Il, Ig, xl, xg, yl, yg, Δt, cl, cg, pieces_buffer, first_slot,
+            conserve_momentum_transfer_mass!(floes,
+                lose_mass_idx, gain_mass_idx,
+                ml, mg, Δt,
+                pieces_buffer, first_slot,
             )
         end
         if !broken[lose_mass_idx]
-            update_ghost_timestep_vals!(floes, lose_mass_idx)
+            update_ghost_timestep_vals!(floes, lose_mass_idx, lose_parent_idx)
         end
         if !broken[gain_mass_idx]
-            update_ghost_timestep_vals!(floes, gain_mass_idx)
+            update_ghost_timestep_vals!(floes, gain_mass_idx, gain_parent_idx)
         end
     end
     return max_floe_id
@@ -551,6 +614,8 @@ Inputs:
     broken              <Vector{Bool}> floe index is true if that floe has
                             broken in a previous ridge/raft interaction
     coupling_settings   <CouplingSettings> simulation's settings for coupling
+    ridgeraft_settings  <RidgeRaftSettings> ridge/raft settings
+    simp_settings       <SimplificationSettings> simplification settings
     consts              <Constants> simulation's constants
     Δt                  <Int> simulation timestep in seconds
     rng                 <RandomNumberGenerator> simulation's random number
@@ -568,6 +633,7 @@ floe_domain_raft!(
     broken,
     coupling_settings,
     ridgeraft_settings,
+    simp_settings,
     consts,
     Δt,
     rng,
@@ -580,6 +646,7 @@ floe_domain_raft!(
     broken,
     coupling_settings,
     ridgeraft_settings,
+    simp_settings,
     consts,
     Δt,
     rng,
@@ -601,7 +668,6 @@ Inputs:
     floes               <StructArray{Floe}> simulation's list of floes
     pieces_buffer       <StructArray{Floe}> list of new floe pieces caused by
                             breakage of floes
-    n_init_floes        <Int> number of floes prior to adding ghosts
     domain              <Domain> simulation's domain
     max_floe_id         <Int> maximum floe ID before this ridging/rafting
     coupling_settings   <CouplingSettings> coupling settings
@@ -617,7 +683,6 @@ Outputs:
 function timestep_ridging_rafting!(
     floes,
     pieces_buffer,
-    n_init_floes,
     domain,
     max_floe_id,
     coupling_settings,
@@ -654,7 +719,7 @@ function timestep_ridging_rafting!(
 
                 # floes/domain overlap (not ghost interaction copied to parent)
                 valid_interaction = false
-                if i < j && !broken[j]
+                if i < j && !broken[j] && floes.status[j].tag == active
                     valid_interaction |= potential_interaction(
                         floes.centroid[i], floes.centroid[j],
                         floes.rmax[i], floes.rmax[j],
@@ -751,6 +816,7 @@ function timestep_ridging_rafting!(
                             broken,
                             coupling_settings,
                             ridgeraft_settings,
+                            simp_settings,
                             consts,
                             Δt,
                             rng,
@@ -769,6 +835,7 @@ function timestep_ridging_rafting!(
                             broken,
                             coupling_settings,
                             ridgeraft_settings,
+                            simp_settings,
                             consts,
                             Δt,
                             rng,

@@ -267,7 +267,7 @@ function rotate_radians!(coords::PolyVec, α)
             coords[i][j][2] = sin(α)*x + cos(α)*y
         end
     end
-
+    return
 end
 
 """
@@ -874,11 +874,27 @@ function which_vertices_match_points(
     return sort!(idxs)
 end
 
+"""
+euclidian_dist(c, idx2, idx1)
+
+Calculate euclidean distance between two points within given coordinates
+"""
 euclidian_dist(c, idx2, idx1) = sqrt(
     (c[1][idx2][1] - c[1][idx1][1])^2 +
     (c[1][idx2][2] - c[1][idx1][2])^2 
 )
 
+"""
+    which_points_on_edges(points, coords; atol = 1e-1)
+
+Find which points are on the coordinates of the given polygon.
+Inputs:
+    points <Vector{Tuple{Float, Float} or Vector{Vector{Float}}}> points to
+        match to edges within polygon
+    coords  <PolVec> polygon coordinates
+    atol    <Float> distance target point can be from an edge before being
+                classified as not on the edge
+"""
 function which_points_on_edges(points, coords; atol = 1e-1)
     idxs = Vector{Int}()
     nedges = length(coords[1]) - 1

@@ -290,7 +290,7 @@ Settings needed for ridging and rafting within the model.
     Δt::Int = 0
     ridge_probability::FT = 0.95
     raft_probability::FT = 0.95
-    min_overlap::FT = 500
+    min_overlap_frac::FT = 0.01
     min_ridge_height::FT = 0.2
     max_floe_ridge_height::FT = 5.0
     max_domain_ridge_height::FT = 1.25

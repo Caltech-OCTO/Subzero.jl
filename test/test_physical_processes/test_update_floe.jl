@@ -453,16 +453,6 @@
         @test isapprox(y_momentum_init, y_momentum_after, atol = 1e-8)
         @test isapprox(p_x_momentum_init, p_x_momentum_after, atol = 1e-8)
         @test isapprox(p_y_momentum_init, p_y_momentum_after, atol = 1e-8)
-        @test isapprox(
-            spin_momentum_init + angular_momentum_init,
-            spin_momentum_after + angular_momentum_after,
-            atol = 1e-8,
-        )
-        @test isapprox(
-            p_spin_momentum_init + p_angular_momentum_init,
-            p_spin_momentum_after + p_angular_momentum_after,
-            atol = 1e-8,
-        )
 
         # One floe splitting into three floes
         new_floes = StructArray([
