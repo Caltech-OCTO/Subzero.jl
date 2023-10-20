@@ -57,7 +57,8 @@ writers = OutputWriters(initwriter, floewriter)
 # Simulation settings 
 ridgeraft_settings = RidgeRaftSettings(
     ridge_raft_on = true,
-    Δt = 150
+    Δt = 150,
+    domain_gain_probability = 0.5
 )
 coupling_settings = CouplingSettings(two_way_coupling_on = true)
 

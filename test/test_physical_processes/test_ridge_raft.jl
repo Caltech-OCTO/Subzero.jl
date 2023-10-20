@@ -607,13 +607,14 @@ using LibGEOS
         coords = [
             [[[3e4, -0.2e4], [3e4, 0.2e4], [5e4, -0.1e4], [8e4, 0.2e4], [8e4, -0.2e4], [3e4, -0.2e4]]]
         ]
-        base_floes = setup_floes_with_inters(coords, periodic_domain, consts,
+        base_floes = setup_floes_with_inters(coords, collision_domain, consts,
             collision_settings, lock
         )
+        floes = deepcopy(base_floes)
         total_mass = sum(floes.mass)
-        h1 = floes.height
-        area1  = floes.area
-        cent1 = floes.centroid
+        h1 = floes.height[1]
+        area1  = floes.area[1]
+        cent1 = floes.centroid[1]
         pieces_list = StructArray{Floe{Float64}}(undef, 0)
         max_id = Subzero.timestep_ridging_rafting!(
             floes,
@@ -630,7 +631,8 @@ using LibGEOS
         @test isapprox(total_mass, sum(floes.mass) + sum(pieces_list.mass))
         # Make sure floe ridged onto domain bounary and broke
         @test h1 < floes.height[1]
-        @test isapprox(floes.height[1], pieces_list.height[1])
+        @test h1 < pieces_list.height[1]
+        @test pieces_list.height[1] > floes.height[1]
         @test cent1 != floes.centroid[1]
         # Make sure IDs are correct
         @test max_id == 3

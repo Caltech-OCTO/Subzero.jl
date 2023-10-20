@@ -77,7 +77,7 @@ ridge_settings = Subzero.RidgeRaftSettings(
 coords = [
     [[[3e4, -0.2e4], [3e4, 0.2e4], [5e4, -0.1e4], [8e4, 0.2e4], [8e4, -0.2e4], [3e4, -0.2e4]]]
 ]
-base_floes = setup_floes_with_inters(coords, periodic_domain, consts,
+base_floes = setup_floes_with_inters(coords, collision_domain, consts,
     collision_settings, lock
 )
 no_rr_frac_settings = Subzero.RidgeRaftSettings(
@@ -97,7 +97,6 @@ floes = deepcopy(base_floes)
 # update_height(floes, 1, 0.1, consts)
 # update_height(floes, 3, 0.1, consts)
 floes.status[1].tag = Subzero.active
-floes.status[2].tag = Subzero.active
 # total_mass = floes.mass[1] + floes.mass[2]
 # h1, h2 = floes.height
 # area1, area2 = floes.area

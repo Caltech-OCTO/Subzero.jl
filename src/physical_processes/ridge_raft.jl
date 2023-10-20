@@ -460,8 +460,8 @@ function floe_domain_ridge!(
                 else
                     region_frac = pieces_buffer.area[current_slot] / tot_area
                     add_floe_volume!(
-                        floes,
-                        idx,
+                        pieces_buffer,
+                        current_slot,
                         vol * region_frac,
                         simp_settings,
                         consts,
