@@ -149,7 +149,7 @@ using LibGEOS
             @test cent1 == floes.centroid[1] && cent2 == floes.centroid[2]
         end
     end
-    function test_floe_domain_rr_scenario(rr_settings, does_raft, floes,
+    function test_floe_domain_rr_scenario(rr_settings, does_raft, lose_mass, floes,
         domain, boundary_poly, topo_poly, bounds_overlap_area, topo_overlap_area,
         height1, height2, coupling_settings, simp_settings, consts)
         update_height(floes, 1, height1, consts)
@@ -177,8 +177,13 @@ using LibGEOS
             p_x_momentum_init, p_y_momentum_init,
         )
         if does_raft
-            @test total_mass > sum(floes.mass)
-            @test isapprox(h1, floes.height[1]) && isapprox(h2, floes.height[2])
+            if lose_mass
+                @test total_mass > sum(floes.mass)
+                @test isapprox(h1, floes.height[1]) && isapprox(h2, floes.height[2])
+            else
+                @test total_mass == sum(floes.mass)
+                @test h1 < floes.height[1] && h2 < floes.height[2]
+            end
             @test area1 - bounds_overlap_area == floes.area[1]
             @test area2 - topo_overlap_area == floes.area[2]
             @test cent1 != floes.centroid[1] && cent2 != floes.centroid[2]
@@ -439,15 +444,15 @@ using LibGEOS
             raft_probability = 0.0,
             min_overlap_frac = 0.001,
         )
-        test_floe_domain_rr_scenario(ridge_settings, true, floes, collision_domain,
-            boundary_poly, topo_poly, bounds_overlap_area, topo_overlap_area,
-            0.1, 0.1, coupling_settings, simp_settings, consts,
+        test_floe_domain_rr_scenario(ridge_settings, true, true, floes,
+            collision_domain, boundary_poly, topo_poly, bounds_overlap_area,
+            topo_overlap_area,  0.1, 0.1, coupling_settings, simp_settings, consts,
         )
         # Not ridging with domain
         floes = deepcopy(floes_base)
-        test_floe_domain_rr_scenario(ridge_settings, false, floes, collision_domain,
-            boundary_poly, topo_poly, bounds_overlap_area, topo_overlap_area, 
-            2.0, 2.0, coupling_settings, simp_settings, consts,
+        test_floe_domain_rr_scenario(ridge_settings, false, true, floes,
+            collision_domain, boundary_poly, topo_poly, bounds_overlap_area,
+            topo_overlap_area, 2.0, 2.0, coupling_settings, simp_settings, consts,
         )
         # Rafting with domain
         floes = deepcopy(floes_base)
@@ -456,16 +461,50 @@ using LibGEOS
             raft_probability = 1.0,
             min_overlap_frac = 0.001,
         )
-        test_floe_domain_rr_scenario(rafting_settings, true, floes, collision_domain,
-            boundary_poly, topo_poly, bounds_overlap_area, topo_overlap_area, 
-            0.1, 0.1, coupling_settings, simp_settings, consts,
+        test_floe_domain_rr_scenario(rafting_settings, true, true, floes,
+            collision_domain, boundary_poly, topo_poly, bounds_overlap_area,
+            topo_overlap_area, 0.1, 0.1, coupling_settings, simp_settings, consts,
         )
         # Not rafting with domain   
         floes = deepcopy(floes_base)
-        test_floe_domain_rr_scenario(rafting_settings, false, floes, collision_domain,
-            boundary_poly, topo_poly, bounds_overlap_area, topo_overlap_area, 
-            0.3, 0.3, coupling_settings, simp_settings, consts,
+        test_floe_domain_rr_scenario(rafting_settings, false, true, floes,
+            collision_domain, boundary_poly, topo_poly, bounds_overlap_area,
+            topo_overlap_area, 0.3, 0.3, coupling_settings, simp_settings, consts,
         )
+
+        # Ridging with domain where floe keeps mass
+        ridge_keep_mass_settings = Subzero.RidgeRaftSettings(
+            ridge_probability = 1.0,  # force ridging
+            raft_probability = 0.0,
+            min_overlap_frac = 0.001,
+            domain_gain_probability = 0.0,
+        )
+        floes = deepcopy(floes_base)
+        test_floe_domain_rr_scenario(ridge_keep_mass_settings, true, false,
+            floes, collision_domain, boundary_poly, topo_poly, bounds_overlap_area,
+            topo_overlap_area, 1.0, 1.0, coupling_settings, simp_settings, consts,
+        )
+
+        coords = [[[[-0.1e4, 0.1e4], [-0.1e4, 9.9e4], [0.1e4, 9.9e4], [0.1e4, 0.1e4], [-0.1e4, 0.1e4]]]]
+        floes_base = setup_floes_with_inters(coords, collision_domain, consts,
+            collision_settings, lock,
+        )
+        # Ridging with domain with small aspect ratio -> no piece saved
+        floes = deepcopy(floes_base)
+        pieces_list = StructArray{Floe{Float64}}(undef, 0)
+        max_id = Subzero.timestep_ridging_rafting!(
+            floes,
+            pieces_list,
+            collision_domain,
+            maximum(floes.id),
+            coupling_settings,
+            ridge_settings,
+            simp_settings,
+            consts,
+            10,
+        )
+        @test floes.status[1].tag == Subzero.remove
+        @test isempty(pieces_list)
     end
 
     @testset "Special Ridge Raft Cases" begin
@@ -558,6 +597,46 @@ using LibGEOS
         @test floes.parent_ids[1] == [1] && pieces_list.parent_ids[1] == [1]
         @test isempty(floes.parent_ids[2]) && isempty(floes.parent_ids[3])
 
+        # Floe breaking on boundary and keeping mass
+        ridge_keep_mass_settings = Subzero.RidgeRaftSettings(
+            ridge_probability = 1.0,  # force ridging
+            raft_probability = 0.0,
+            min_overlap_frac = 0.001,
+            domain_gain_probability = 0.0,
+        )
+        coords = [
+            [[[3e4, -0.2e4], [3e4, 0.2e4], [5e4, -0.1e4], [8e4, 0.2e4], [8e4, -0.2e4], [3e4, -0.2e4]]]
+        ]
+        base_floes = setup_floes_with_inters(coords, periodic_domain, consts,
+            collision_settings, lock
+        )
+        total_mass = sum(floes.mass)
+        h1 = floes.height
+        area1  = floes.area
+        cent1 = floes.centroid
+        pieces_list = StructArray{Floe{Float64}}(undef, 0)
+        max_id = Subzero.timestep_ridging_rafting!(
+            floes,
+            pieces_list,
+            collision_domain,
+            maximum(floes.id),
+            coupling_settings,
+            ridge_keep_mass_settings,
+            simp_settings,
+            consts,
+            10,
+        )
+        @test length(pieces_list) == 1
+        @test isapprox(total_mass, sum(floes.mass) + sum(pieces_list.mass))
+        # Make sure floe ridged onto domain bounary and broke
+        @test h1 < floes.height[1]
+        @test isapprox(floes.height[1], pieces_list.height[1])
+        @test cent1 != floes.centroid[1]
+        # Make sure IDs are correct
+        @test max_id == 3
+        @test floes.id == [2] && pieces_list.id[1] == 3
+        @test floes.parent_ids[1] == [1] && pieces_list.parent_ids[1] == [1]
+
         # Test parent ridging -> update ghost floes
         coords = [
             [[[-0.1e4, 0.1e4], [-0.1e4, 2e4], [2e4, 2e4], [2e4, 0.1e4], [-0.1e4, 0.1e4]]],
@@ -566,6 +645,8 @@ using LibGEOS
         base_floes = setup_floes_with_inters(coords, periodic_domain, consts,
             collision_settings, lock
         )
+        floes = deepcopy(base_floes)
+
         # Test parent-parent ridge, no breakage and update ghost
             # parent with ghost is subsumed by floe 2
         floes = deepcopy(base_floes)
@@ -577,7 +658,6 @@ using LibGEOS
         test_floe_ghost_rr_scenario(ridge_settings, floes, 1.0, 0.1,
             true, periodic_domain, coupling_settings, simp_settings, consts,
         )
-
         # Test parent-ghost ridge, no breakage and update parents
         coords = [
             [[[-0.1e4, 0.1e4], [-0.1e4, 2e4], [2e4, 2e4], [2e4, 0.1e4], [-0.1e4, 0.1e4]]],

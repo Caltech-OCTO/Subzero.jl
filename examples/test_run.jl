@@ -75,19 +75,24 @@ ridge_settings = Subzero.RidgeRaftSettings(
     min_overlap_frac = 0.0001,
 )
 coords = [
-    [[[0.1e4, 0.1e4], [0.1e4, 2e4], [2e4, 2e4], [2e4, 0.1e4], [0.1e4, 0.1e4]]],
-    [[[1.8e4, 1.8e4], [1.8e4, 4e4], [4e4, 4e4], [4e4, 1.8e4], [1.8e4, 1.8e4]]],
+    [[[3e4, -0.2e4], [3e4, 0.2e4], [5e4, -0.1e4], [8e4, 0.2e4], [8e4, -0.2e4], [3e4, -0.2e4]]]
 ]
-floes_base = setup_floes_with_inters(coords, collision_domain, consts,
-    collision_settings, lock,
+base_floes = setup_floes_with_inters(coords, periodic_domain, consts,
+    collision_settings, lock
 )
 no_rr_frac_settings = Subzero.RidgeRaftSettings(
     ridge_probability = 1.0,
     raft_probability = 1.0,
     min_overlap_frac = 1.0,  # need 100% overlap to ridge/raft
 )
+ridge_keep_mass_settings = Subzero.RidgeRaftSettings(
+    ridge_probability = 1.0,  # force ridging
+    raft_probability = 0.0,
+    min_overlap_frac = 0.001,
+    domain_gain_probability = 0.0,
+)
 
-floes = deepcopy(floes_base)
+floes = deepcopy(base_floes)
 #update_height(floes, 1, 1.0, consts)  # floe 1 will ridge onto floe 2
 # update_height(floes, 1, 0.1, consts)
 # update_height(floes, 3, 0.1, consts)
@@ -105,29 +110,13 @@ max_id = Subzero.timestep_ridging_rafting!(
     collision_domain,
     maximum(floes.id),
     coupling_settings,
-    no_rr_frac_settings,
+    ridge_keep_mass_settings,
     simp_settings,
     consts,
     10,
 )
 
-# Ridging with domain
-ridge_settings = Subzero.RidgeRaftSettings(
-            ridge_probability = 1.0,  # force ridging
-            raft_probability = 0.0,
-)
-update_height(floes, 1, 1.0, consts)  # floe1 will ridge onto floe 2
-total_mass = sum(floes.mass)
-Subzero.timestep_ridging_rafting!(
-    floes,
-    1,
-    domain,
-    ridge_settings,
-    coupling_settings,
-    simp_settings,
-    consts,
-    10,
-)
+
 
 # User Inputs
 const FT = Float64

@@ -182,15 +182,19 @@ function generate_subfloe_points(
     mc_x = zeros(FT, point_generator.npoints)
     mc_y = zeros(FT, point_generator.npoints)
     mc_in = fill(false, point_generator.npoints)
+    # Find bounding box
+    xmin, xmax, ymin, ymax = polyvec_extrema(coords)
+    Δx = xmax - xmin
+    Δy = ymax - ymin
     while err > point_generator.err
         if count > 10
             err = 0.0
             status.tag = remove
         else
-            mc_x .= rmax * (2rand(rng, FT, Int(point_generator.npoints)) .- 1)
-            mc_y .= rmax * (2rand(rng, FT, Int(point_generator.npoints)) .- 1)
+            mc_x .= xmin .+ Δx * rand(rng, FT, point_generator.npoints)
+            mc_y .= ymin .+ Δy * rand(rng, FT, point_generator.npoints)
             mc_in .= points_in_poly(hcat(mc_x, mc_y), coords)
-            err = abs(sum(mc_in)/point_generator.npoints * 4rmax^2 - area)/area
+            err = abs(sum(mc_in)/point_generator.npoints * (Δx * Δy) - area)/area
             count += 1
         end
     end

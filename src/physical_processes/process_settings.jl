@@ -221,7 +221,8 @@ end
 Settings needed for simplification within the model.
 Floes below the min_floe_area and below min_floe_height will be removed from the
 simulation every timestep. Floes above max_floe_height will not be able to gain
-height. If smooth_vertices_on is true then floe's with more vertices than
+height. Floes with aspect ratio less than min_aspect_ratio will be removed.
+If smooth_vertices_on is true then floe's with more vertices than
 max_vertices will be simplified every Δt_smooth timesteps.
 
 A reasonable formula for minimum floe area is the following:
@@ -231,6 +232,7 @@ min_floe_area = 4(grid.xg[end] - grid.xg[1]) * (grid.yg[end] - grid.yg[1]) / 1e4
     min_floe_area::FT = 1e6
     min_floe_height::FT = 0.1
     max_floe_height::FT = 10.0
+    min_aspect_ratio::FT = 0.05
     smooth_vertices_on::Bool = true
     max_vertices::Int = 30
     tol::FT = 100.0  # Douglas–Peucker algorithm tolerance in (m)
@@ -240,6 +242,7 @@ min_floe_area = 4(grid.xg[end] - grid.xg[1]) * (grid.yg[end] - grid.yg[1]) / 1e4
         min_floe_area,
         min_floe_height,
         max_floe_height,
+        min_aspect_ratio,
         smooth_vertices_on,
         max_vertices,
         tol,
@@ -250,10 +253,23 @@ min_floe_area = 4(grid.xg[end] - grid.xg[1]) * (grid.yg[end] - grid.yg[1]) / 1e4
                 timesteps. Turning floe simplification off."
             smooth_vertices_on = false
         end
+        if min_aspect_ratio > 1
+            @warn "Floes can't have an aspect ratio greater than 1. Setting \
+            max_aspect_ratio to 1. However, this means only with equal x and y \
+            maximum extents can exist. It is suggested this is set much lower \
+            (e.g. 0.05)."
+            min_aspect_ratio = FT(1)
+        elseif min_aspect_ratio < 0
+            @warn "Floes can't have an aspect ratio less than 0. Setting \
+            max_aspect_ratio to 0. This means that floes of any aspect ratio \
+            can exist throughout the simulation."
+            min_aspect_ratio = FT(0)
+        end
         new{FT}(
             min_floe_area,
             min_floe_height,
             max_floe_height,
+            min_aspect_ratio,
             smooth_vertices_on,
             max_vertices,
             tol,
@@ -283,7 +299,23 @@ SimplificationSettings(args...) = SimplificationSettings{Float64}(args...)
 """
     RidgeRaftSettings
 
-Settings needed for ridging and rafting within the model.
+Settings needed for ridging and rafting within the model. These have the
+following meanings:
+- ridge_probability: the probability a floe ridges with another floe/domain if
+    it meets all other criteria
+- raft_probability: the probability a floe rafts with another floe/domain if it
+    meets all other criteria
+- min_overlap_frac: the minimum overlap area fraction between a floe and another
+    floe/domain for that floe to ridge or raft
+- min_ridge_height: the minimum floe height to ridge with a floe/domain
+- max_floe_ridge_height: the maximum floe height to ridge with another
+    floe
+- max_domain_rdige_height: maximum floe height to ridge with a domain element
+- max_floe_raft_height: maximum floe height to raft with another floe
+- max_domain_raft_height: maximum floe height to raft with a domain element
+- domain_gain_probability: the probalility that a floe that rafts with a domain
+    element keeps all of its mass (0) or if that mass is removed and lost to the
+    domain element (1).
 """
 @kwdef struct RidgeRaftSettings{FT<:AbstractFloat}
     ridge_raft_on::Bool = false
@@ -296,6 +328,76 @@ Settings needed for ridging and rafting within the model.
     max_domain_ridge_height::FT = 1.25
     max_floe_raft_height::FT = 0.25
     max_domain_raft_height::FT = 0.25
+    domain_gain_probability::FT = 1.0
+
+    function RidgeRaftSettings{FT}(
+        ridge_raft_on,
+        Δt,
+        ridge_probability,
+        raft_probability,
+        min_overlap_frac,
+        min_ridge_height,
+        max_floe_ridge_height,
+        max_domain_ridge_height,
+        max_floe_raft_height,
+        max_domain_raft_height,
+        domain_gain_probability,
+    ) where {FT<:AbstractFloat}
+        if ridge_raft_on && Δt < 0
+            @warn "Ridging and rafting can't occur on a multiple of negative \
+                timesteps. Turning ridging and rafting off."
+            ridge_raft_on = false
+        end
+        if ridge_probability > 1
+            @warn "Floes can't have a greater ridge probability than 1. \
+            Setting ridge probability to 1."
+            ridge_probability = FT(1)
+        elseif ridge_probability < 0
+            @warn "Floes can't have a smaller ridge probability than 1. \
+            Setting ridge probability to 0."
+            ridge_probability = FT(0)
+        end
+        if raft_probability > 1
+            @warn "Floes can't have a greater raft probability than 1. \
+            Setting ridge probability to 1."
+            raft_probability = FT(1)
+        elseif raft_probability < 0
+            @warn "Floes can't have a smaller raft probability than 1. \
+            Setting ridge probability to 0."
+            raft_probability = FT(0)
+        end
+        if min_overlap_frac > 1
+            @warn "Floes can't overlap more than 100%, so min_overlap_frac \
+            can't exceed 1. Setting min_overlap_frac to 1."
+            min_overlap_frac = FT(1)
+        elseif min_overlap_frac < 0
+            @warn "Floes can't overlap less than 0%, so min_overlap_frac \
+            can't be less than 0. Setting min_overlap_frac to 0."
+            min_overlap_frac = FT(0)
+        end
+        if domain_gain_probability > 1
+            @warn "Floes can't have a greater domain_gain_probability than 1. \
+            Setting domain_gain_probability to 1."
+            domain_gain_probability = FT(1)
+        elseif domain_gain_probability < 0
+            @warn "Floes can't have a smaller domain_gain_probability than 0. \
+            Setting domain_gain_probability to 0."
+            domain_gain_probability = FT(0)
+        end
+        new{FT}(
+            ridge_raft_on,
+            Δt,
+            ridge_probability,
+            raft_probability,
+            min_overlap_frac,
+            min_ridge_height,
+            max_floe_ridge_height,
+            max_domain_ridge_height,
+            max_floe_raft_height,
+            max_domain_raft_height,
+            domain_gain_probability,
+        )
+    end
 end
 
 """

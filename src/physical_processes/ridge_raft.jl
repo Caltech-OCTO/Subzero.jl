@@ -120,10 +120,17 @@ function remove_floe_overlap!(
         # Update existing floes/ghosts regions
         for region in regions
             region_area = LG.area(region)
-            # Region is big enought to be a floe
-            if region_area > simp_settings.min_floe_area
+            new_coords = find_poly_coords(region)::PolyVec{FT}
+            xmin, xmax, ymin, ymax = polyvec_extrema(new_coords)
+            Δx = xmax - xmin
+            Δy = ymax - ymin
+
+            # Region is big enought to be a floe and has okay aspect ratio
+            if (
+                region_area > simp_settings.min_floe_area &&
+                (Δx > Δy ? Δy/Δx : Δx/Δy) > simp_settings.min_aspect_ratio
+            )
                 floe_num += 1
-                new_coords = find_poly_coords(region)::PolyVec{FT}
                 translate!(  # shift region coords to parent floe location
                     new_coords,
                     parent_Δx,
@@ -268,7 +275,7 @@ function floe_floe_ridge!(
     gain_mass_idx = 0
     lose_mass_idx = 0 
     if(
-        (f1_h && f2_h && rand() >= 1/(1 + (floes.height[idx1]/floes.height[idx2]))) ||
+        (f1_h && f2_h && rand(rng, FT) >= 1/(1 + (floes.height[idx1]/floes.height[idx2]))) ||
         (f1_h && !f2_h)
     )
         #=
@@ -299,8 +306,7 @@ function floe_floe_ridge!(
         end
         # Inital floe values
         ml, mg = floes.mass[lose_mass_idx], floes.mass[gain_mass_idx]
-        Il, Ig, = floes.moment[lose_mass_idx], floes.moment[gain_mass_idx]
-        xl, yl = floes.centroid[lose_mass_idx]
+        Ig = floes.moment[gain_mass_idx]
         xg, yg = floes.centroid[gain_mass_idx]
         # Ridge
         vol, max_floe_id, nregions = remove_floe_overlap!(
@@ -399,7 +405,7 @@ Outputs:
     floe1 is updated with new shape. Return maximum floe id of floes created
 """
 function floe_domain_ridge!(
-    floes,
+    floes::StructArray{<:Floe{FT}},
     idx,
     domain_element::Union{<:AbstractDomainElement, LazyRow{<:AbstractDomainElement}},
     pieces_buffer,
@@ -411,7 +417,7 @@ function floe_domain_ridge!(
     consts,
     Δt,
     rng,
-)
+) where {FT}
     # Find parent idx
     parent_idx = idx
     if floes.ghost_id[idx] != 0
@@ -437,6 +443,33 @@ function floe_domain_ridge!(
         rng,  
     )
     if vol > 0 && nregions > 0
+        # Determine if extra volume should be added to floe or to the domain
+        if rand(rng, FT) > ridgeraft_settings.domain_gain_probability
+            current_slot = length(pieces_buffer) - nregions + 2
+            tot_area = floes.area[idx] + sum(pieces_buffer.area[current_slot:end])
+            for i in 1:nregions
+                if i == 1
+                    region_frac = floes.area[idx] / tot_area
+                    add_floe_volume!(
+                        floes,
+                        idx,
+                        vol * region_frac,
+                        simp_settings,
+                        consts,
+                    )
+                else
+                    region_frac = pieces_buffer.area[current_slot] / tot_area
+                    add_floe_volume!(
+                        floes,
+                        idx,
+                        vol * region_frac,
+                        simp_settings,
+                        consts,
+                    )
+                    current_slot += 1
+                end
+            end
+        end
         # Update floe velocities to conserve momentum as domain element has no
         # momentum, but floe now has less mass if ridge was successful
         if nregions == 1
@@ -514,7 +547,7 @@ function floe_floe_raft!(
     # Default is floe 2 subsumes mass from floe 1
     gain_mass_idx = idx2
     lose_mass_idx = idx1
-    if rand(rng) >= 1/(1 + (floes.height[idx1]/floes.height[idx2]))
+    if rand(rng, FT) >= 1/(1 + (floes.height[idx1]/floes.height[idx2]))
         # Floe 1 subsumes mass from floe 2
         gain_mass_idx = idx1
         lose_mass_idx = idx2
@@ -530,8 +563,7 @@ function floe_floe_raft!(
     end
     # Inital floe values
     ml, mg = floes.mass[lose_mass_idx], floes.mass[gain_mass_idx]
-    Il, Ig, = floes.moment[lose_mass_idx], floes.moment[gain_mass_idx]
-    xl, yl = floes.centroid[lose_mass_idx]
+    Ig = floes.moment[gain_mass_idx]
     xg, yg = floes.centroid[gain_mass_idx]
     # Raft
     vol, max_floe_id, nregions = remove_floe_overlap!(
@@ -700,9 +732,9 @@ function timestep_ridging_rafting!(
             isn't too thick, and meets probability check to ridge or raft
         =#
         ridge = floes.height[i] <= ridgeraft_settings.max_floe_ridge_height &&
-            rand() <= ridgeraft_settings.ridge_probability
+            rand(rng, FT) <= ridgeraft_settings.ridge_probability
         raft = floes.height[i] <= ridgeraft_settings.max_floe_raft_height &&
-            rand() <= ridgeraft_settings.raft_probability
+            rand(rng, FT) <= ridgeraft_settings.raft_probability
         if (
             (ridge || raft) &&
             floes.status[i].tag == active &&

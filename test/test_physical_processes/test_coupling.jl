@@ -28,7 +28,9 @@
         in_on = inpoly2(hcat(mc_x, mc_y), hcat(xo, yo))
         mc_in = in_on[:, 1] .|  in_on[:, 2]
         @test all(mc_in)
-        @test abs(sum(mc_in)/1000 * 4 * rmax^2 - area)/area < 0.1
+        xmin, xmax = extrema(xo)
+        ymin, ymax = extrema(yo)
+        @test abs(sum(mc_in)/1000 * (xmax - xmin) * (ymax - ymin) - area)/area < 0.1
         @test status.tag == Subzero.active
         # Test that random number generator is working
         mc_x2, mc_y2, status2 = Subzero.generate_subfloe_points(

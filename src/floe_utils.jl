@@ -115,6 +115,37 @@ intersect_coords(c1, c2) = intersect_polys(
     LG.Polygon(c2),
 )::Vector{LG.Polygon}
 
+
+"""
+    polyvec_extrema(coords)
+
+Finds extremal x and y values for given coordiantes, defining a tight bounding
+box. 
+Inputs:
+    coords <PolyVec>
+Outputs: xmin, xmax, ymin, ymax
+"""
+function polyvec_extrema(coords::PolyVec{FT}) where FT
+    xmin = ymin = FT(Inf)
+    xmax = ymax = FT(-Inf)
+    for i in eachindex(coords[1])
+        x, y = coords[1][i]
+        if x < xmin
+            xmin = x
+        end
+        if x > xmax
+            xmax = x
+        end
+        if y < ymin
+            ymin = y
+        end
+        if y > ymax
+            ymax = y
+        end
+    end
+    return xmin, xmax, ymin, ymax
+end
+
 """
     deepcopy_floe(floe::LazyRow{Floe{FT}})
 
