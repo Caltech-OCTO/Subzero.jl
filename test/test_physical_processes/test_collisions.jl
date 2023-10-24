@@ -225,7 +225,7 @@
 
         # Test floe overlapping slightly with collision boundary
         Subzero.floe_domain_interaction!(efloe_small, domain, consts, Δt, max_overlap)
-        @test efloe_small.interactions[1, floeidx] == Inf
+        @test efloe_small.interactions[1, floeidx] == -3
         @test isapprox(efloe_small.interactions[1, xforce], -311304795.629, atol = 1e-3)
         @test isapprox(efloe_small.interactions[1, yforce], -23618874.648, atol = 1e-3)
         @test isapprox(efloe_small.interactions[1, overlap], 1704545.454, atol = 1e-3)
@@ -233,6 +233,8 @@
         @test isapprox(efloe_small.interactions[1, ypoint], 21060.606, atol = 1e-3)
 
         Subzero.floe_domain_interaction!(cfloe, domain, consts, Δt, max_overlap)
+        @test cfloe.interactions[1, floeidx] == -3
+        @test cfloe.interactions[2, floeidx] == -3
         @test isapprox(cfloe.interactions[1, xforce], -2876118708.17, atol = 1e-2)
         @test isapprox(cfloe.interactions[2, xforce], -5752237416.35, atol = 1e-2)
         @test isapprox(cfloe.interactions[1, yforce], 575223741.63, atol = 1e-2)
@@ -263,6 +265,7 @@
         Subzero.floe_domain_interaction!(tfloe, domain, consts, Δt, max_overlap)
         @test tfloe.interactions[1, xforce] < 0
         @test tfloe.interactions[1, yforce] < 0
+        @test tfloe.interactions[1, floeidx] == -5
 
         # Test floe hitting more than one wall at once -> different from Subzero
         collision_domain = Domain(

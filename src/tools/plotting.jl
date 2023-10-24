@@ -150,7 +150,7 @@ function plot_sim(
     floe_fn,
     initial_state_fn,
     Δt,
-    output_fn,
+    output_fn;
 )
     # Open files
     file = jldopen(floe_fn)

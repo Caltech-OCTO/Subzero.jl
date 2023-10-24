@@ -203,6 +203,105 @@
         Set{Tuple{Float64, Float64}}(),
     )
 
+    # ------------------------- Test finding shared points ---------------------
+    two_shared_v = [
+        [[[0.0, 0.0], [0.0, 20.0], [20.0, 20.0], [20.0, 0.0], [0.0, 0.0]]],
+        [[[20.0, 0.0], [20.0, 20.0], [40.0, 20.0], [40.0, 0.0], [20.0, 0.0]]]
+    ]
+    @test Subzero.which_vertices_match_points(
+        two_shared_v[1][1],
+        two_shared_v[2],
+    ) == [1, 2]
+
+    @test Subzero.which_points_on_edges(
+        two_shared_v[1][1],
+        two_shared_v[2],
+    ) == [3, 4]
+
+    three_shared_v = [
+        [[[0.0, 0.0], [0.0, 20.0], [20.0, 20.0], [20.0, 10.0], [20.0, 0.0], [0.0, 0.0]]],
+        [[[40.0, 20.0], [40.0, 0.0], [20.0, 0.0], [20.0, 10.0], [20.0, 20.0], [40.0, 20.0]]]
+    ]
+    @test Subzero.which_vertices_match_points(
+        three_shared_v[1][1],
+        three_shared_v[2],
+    ) == [3, 4, 5]
+
+    @test Subzero.which_points_on_edges(
+        three_shared_v[1][1],
+        three_shared_v[2],
+    ) == [3, 4, 5]
+
+    deleteat!(three_shared_v[2][1], 4)
+    @test Subzero.which_points_on_edges(
+        three_shared_v[1][1],
+        three_shared_v[2],
+    ) == [3, 4, 5]
+
+    four_shared_v = [
+        [[[0.0, 0.0], [0.0, 20.0], [20.0, 20.0], [20.0, 18.0], [20.0, 15.0], [20.0, 0.0], [0.0, 0.0]]],
+        [[[20.0, 18.0], [20.0, 20.0], [40.0, 20.0], [40.0, 0.0], [20.0, 0.0], [20.0, 15.0], [20.0, 18.0]]]
+    ]
+    @test Subzero.which_vertices_match_points(
+        four_shared_v[1][1],
+        four_shared_v[2],
+    ) == [1, 2, 5, 6]
+
+    offset_shared_v = [
+        [[[0.0, 0.0], [0.0, 20.0], [20.0, 20.0], [20.0, 0.0], [0.0, 0.0]]],
+        [[[5.0, 20.0], [5.0, 25.0], [25.0, 25.0], [25.0, 20.0], [10.0, 20.0], [5.0, 20.0]]]
+    ]
+    @test Subzero.which_points_on_edges(
+        offset_shared_v[1][1],
+        offset_shared_v[2],
+    ) == [3]
+    @test Subzero.which_points_on_edges(
+        offset_shared_v[2][1],
+        offset_shared_v[1],
+    ) == [1, 5]
+
+    triange_shared_v = [
+        [[[0.0, 0.0], [0.0, 20.0], [20.0, 20.0], [5.0, 5.0], [0.0, 0.0]]],
+        [[[0.0, 0.0], [5.0, 5.0], [20.0, 20.0], [20.0, 0.0], [0.0, 0.0]]]
+    ]
+    @test Subzero.which_vertices_match_points(
+        triange_shared_v[1][1],
+        triange_shared_v[2],
+    ) == [1, 2, 3]
+
+    @test Subzero.which_points_on_edges(
+        triange_shared_v[1][1],
+        triange_shared_v[2],
+    ) == [1, 3, 4]
+
+    deleteat!(triange_shared_v[2][1], 2)
+    @test Subzero.which_points_on_edges(
+        triange_shared_v[1][1],
+        triange_shared_v[2],
+    ) == [1, 3, 4]
+
+    squares_midpoint = (20.0, 10.0)
+    triangle_midpoint = (10.0, 10.0)
+    @test Subzero.find_shared_edges_midpoint(
+        two_shared_v[1],
+        two_shared_v[2],
+    ) == squares_midpoint
+    @test Subzero.find_shared_edges_midpoint(
+        three_shared_v[1],
+        three_shared_v[2],
+    ) == squares_midpoint
+    @test Subzero.find_shared_edges_midpoint(
+        four_shared_v[1],
+        four_shared_v[2],
+    ) == squares_midpoint
+    @test Subzero.find_shared_edges_midpoint(
+        triange_shared_v[1],
+        triange_shared_v[2],
+    ) == (10.0, 10.0)
+    @test Subzero.find_shared_edges_midpoint(
+        offset_shared_v[2],
+        offset_shared_v[1],
+    ) == (7.5, 20)
     # -------------- Test cutting polygon through horizontal line --------------
     # Cut a hexagon through the line y = -1
     poly_coords = [[

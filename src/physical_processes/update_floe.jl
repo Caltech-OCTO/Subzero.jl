@@ -71,14 +71,14 @@ function replace_floe!(
 end
 
 """
-    conserve_momentum_combination!(
+    conserve_momentum_change_floe_shape!(
         mass_tmp,
         moment_tmp,
         x_tmp,
         y_tmp,
         Δt,
         keep_floe,
-        remove_floe = nothing,
+        combine_floe = nothing,
     )
 Update current and previous velocity/acceleration fields to conserve momentum of
 a floe whose shape has been changed, given the previous mass, momentum, and
@@ -93,80 +93,151 @@ Inputs:
                     shape change
     Δt          <Int> timestep of simulation in seconds
     keep_floe   <Union{Floe, LazyRow{Floe}}> floe whose shape has been changed
-    remove_floe <Union{Floe, LazyRow{Floe}}> if keep_floe's shape has been
-                    changed due to an interaction with another floe, remove_floe
+    combine_floe <Union{Floe, LazyRow{Floe}}> if keep_floe's shape has been
+                    changed due to an interaction with another floe, combine_floe
                     is that floe - optional parameter
 Output:
     None. keep_floe's u, v, ξ, p_dxdt, p_dydt, p_dαdt, p_dudt, p_dvdt, and
     p_dξdt fields all updated to preserve momentum. 
 Note:
-    Function depends on conservation of mass. That is, if we do not have
-    remove_floe then mass_tmp must be equal to keep_floe, as the mass has not
-    changed, or if we have remove_floe then the sum of remove_floe's mass and
-    mass_tmp must be equal to keep_floe's mass.
+    Function does not depend on conservation of mass
 """
-function conserve_momentum_combination!(
+function conserve_momentum_change_floe_shape!(
     mass_tmp,
     moment_tmp,
     x_tmp,
     y_tmp,
     Δt,
     keep_floe,
-    remove_floe = nothing,
+    combine_floe = nothing,
 )
-    # Contributions from first floe in current timestep
-    keep_floe.ξ = keep_floe.ξ * moment_tmp +  # change in spin
-        mass_tmp * (  # change in orbital
-            keep_floe.v * (x_tmp - keep_floe.centroid[1]) +
-            keep_floe.u * (keep_floe.centroid[2] - y_tmp)
-        )
-    keep_floe.u = keep_floe.u * mass_tmp
-    keep_floe.v = keep_floe.v * mass_tmp
-    # Contributions from first floe in previous timestep
-    keep_floe.p_dαdt = keep_floe.p_dαdt * moment_tmp +  # change in spin
-        mass_tmp * (  # change in orbital
-            keep_floe.p_dydt * (x_tmp - keep_floe.centroid[1]) +
-            keep_floe.p_dxdt * (keep_floe.centroid[2] - y_tmp)
-        )
-    keep_floe.p_dxdt = keep_floe.p_dxdt * mass_tmp
-    keep_floe.p_dydt = keep_floe.p_dydt * mass_tmp
-
-    # Contributions from any other floes combining with first
-    if !isnothing(remove_floe)
-        # Current timestep
-        keep_floe.ξ += remove_floe.ξ * remove_floe.moment +
-            remove_floe.mass * (
-                remove_floe.v * (remove_floe.centroid[1] - keep_floe.centroid[1]) +
-                remove_floe.u * (keep_floe.centroid[2] - remove_floe.centroid[2])
-            )
-        keep_floe.u += remove_floe.u * remove_floe.mass
-        keep_floe.v += remove_floe.v * remove_floe.mass
-        # Previous timestep
-        keep_floe.p_dαdt += remove_floe.p_dαdt * remove_floe.moment +
-            remove_floe.mass * (
-                remove_floe.p_dydt * (remove_floe.centroid[1] - keep_floe.centroid[1]) +
-                remove_floe.p_dxdt * (keep_floe.centroid[2] - remove_floe.centroid[2])
-            )
-        keep_floe.p_dxdt += remove_floe.p_dxdt * remove_floe.mass
-        keep_floe.p_dydt += remove_floe.p_dydt * remove_floe.mass
+    # Calculate linear velocities to conserve linear momentum
+    new_u = keep_floe.u * mass_tmp
+    new_v = keep_floe.v * mass_tmp
+    new_dxdt = keep_floe.p_dxdt * mass_tmp
+    new_dydt = keep_floe.p_dydt * mass_tmp
+    if !isnothing(combine_floe)
+        new_u += combine_floe.u * combine_floe.mass
+        new_v += combine_floe.v * combine_floe.mass
+        new_dxdt += combine_floe.p_dxdt * combine_floe.mass
+        new_dydt += combine_floe.p_dydt * combine_floe.mass
     end
+    new_u /= keep_floe.mass
+    new_v /= keep_floe.mass
+    new_dxdt /= keep_floe.mass
+    new_dydt /= keep_floe.mass
+    # Calculate angular velocities to conserve rotational angular momentum
+    p_x = x_tmp - Δt * keep_floe.p_dxdt
+    p_y = y_tmp - Δt * keep_floe.p_dydt
+    new_ξ = keep_floe.ξ * moment_tmp +  # spin momentum + orbital momentum
+        mass_tmp * (x_tmp * keep_floe.v - y_tmp * keep_floe.u)
+    new_dαdt = keep_floe.p_dαdt * moment_tmp +
+        mass_tmp * (p_x * keep_floe.p_dydt - p_y * keep_floe.p_dxdt)
+    if !isnothing(combine_floe)
+        p_x = combine_floe.centroid[1] - Δt * combine_floe.p_dxdt
+        p_y = combine_floe.centroid[2] - Δt * combine_floe.p_dydt
+        new_ξ += combine_floe.ξ * combine_floe.moment +
+            combine_floe.mass * (
+                combine_floe.centroid[1] * combine_floe.v -
+                combine_floe.centroid[2] * combine_floe.u
+            )
+        new_dαdt += combine_floe.p_dαdt * combine_floe.moment +
+            combine_floe.mass * (
+                p_x * combine_floe.p_dydt -
+                p_y * combine_floe.p_dxdt
+            )
+    end
+    # Subtract new orbital velocity from total previous momentum
+    p_x = keep_floe.centroid[1] - Δt * new_dxdt
+    p_y = keep_floe.centroid[2] - Δt * new_dydt
+    new_ξ -= keep_floe.mass * (
+        keep_floe.centroid[1] * new_v -
+        keep_floe.centroid[2] * new_u
+    )
+    new_dαdt -= keep_floe.mass * (p_x * new_dydt - p_y * new_dxdt)
+    new_ξ /= keep_floe.moment
+    new_dαdt /= keep_floe.moment
 
-    # Average added values
-    keep_floe.ξ /= keep_floe.moment
-    keep_floe.u /= keep_floe.mass
-    keep_floe.v /= keep_floe.mass
-    keep_floe.p_dαdt /= keep_floe.moment
-    keep_floe.p_dxdt /= keep_floe.mass
-    keep_floe.p_dydt /= keep_floe.mass
+    # Set new values
+    keep_floe.u = new_u
+    keep_floe.v = new_v
+    keep_floe.ξ = new_ξ
+    keep_floe.p_dxdt = new_dxdt
+    keep_floe.p_dydt = new_dydt
+    keep_floe.p_dαdt = new_dαdt
     # Calculate previous accelerations
-    keep_floe.p_dξdt = (keep_floe.ξ - keep_floe.p_dαdt) / Δt
     keep_floe.p_dudt = (keep_floe.u - keep_floe.p_dxdt) / Δt
     keep_floe.p_dvdt = (keep_floe.v - keep_floe.p_dydt) / Δt
+    keep_floe.p_dξdt = (keep_floe.ξ - keep_floe.p_dαdt) / Δt
     return
 end
 
 """
-    conserve_momentum_fracture!(
+    update_new_rotation_conserve!(
+        x, y,
+        floe1, floe2,
+        init_rot_momentum, init_p_rot_momentum,
+        diff_orbital, diff_p_orbital,
+        Δt,
+    )
+
+Update rotational velocities of two floes whose shapes may have changed to
+maintain conservation of momentum given the floes' intial roational momentums
+and the change in orbital momentum between their original shape and new shapes.
+Additionally, both floes will have the same velocity at a given (x,y) point.
+Inputs:
+    x                   <Float> x-coordinate of point where floes share same
+                            rotational velocity
+    y                   <Float> y-coordinate of point where floes share same
+                            rotational velocity
+    floe1               <Union{Floe, LazyRow{Floe}}> first floe in pair
+    floe2               <Union{Floe, LazyRow{Floe}}> second floe in pair
+    init_rot_momentum   <Float> initial rotational momentum of floe 1 before
+                            shape change
+    init_p_rot_momentum <Float> initial rotational momentum of floe 2 before
+                            shape change
+    diff_orbital        <Float> change in floe 1's orbital velocity after shape
+                            change
+    diff_p_orbital      <Float> change in floe 1's orbital velocity after shape
+                            change
+    Δt                  <Int> length of timestep in seconds
+Output:
+    Nothing. Update both floes' rotational velocity, previous rotational
+    velocity, and rotational acceleration to conserve angular momentum.
+"""
+function update_new_rotation_conserve!(
+    x, y,
+    floe1, floe2,
+    init_rot_momentum, init_p_rot_momentum,
+    diff_orbital, diff_p_orbital,
+    Δt,
+)
+    # Find radius of each polygon to shared midpoint
+    #x, y = find_shared_edges_midpoint(floe1.coords, floe2.coords)
+    rad1 = sqrt(
+        (floe1.centroid[1] - x)^2 +
+        (floe1.centroid[2] - y)^2
+    )
+    rad2 = sqrt(
+        (floe2.centroid[1] - x)^2 +
+        (floe2.centroid[2] - y)^2
+    )
+    rad_ratio = rad1 / rad2
+    # Determine ξ values so they are stationary at midpoint of shared edges
+    floe1.ξ = (diff_orbital + init_rot_momentum) /
+        (floe1.moment - (floe2.moment * rad_ratio))
+    floe2.ξ = -floe1.ξ * rad_ratio
+    # Determine p_dαdt values so they are stationary at intersection point
+    floe1.p_dαdt = (diff_p_orbital + init_p_rot_momentum) /
+        (floe1.moment - (floe2.moment * rad_ratio))
+    floe2.p_dαdt = -floe1.p_dαdt * rad_ratio
+    # Calculate previous rotational accelerations
+    floe1.p_dξdt = (floe1.ξ - floe1.p_dαdt) / Δt
+    floe2.p_dξdt = (floe2.ξ - floe2.p_dαdt) / Δt
+end
+
+"""
+    conserve_momentum_fracture_floe!(
         init_floe,
         new_floes,
         Δt,
@@ -182,14 +253,14 @@ Inputs:
 Output:
     None. new_floes velocities and accelerations are updated for current and
     previous timestep to conserve momentum.
+Note: Depends on conservation of mass.
 """
-function conserve_momentum_fracture!(
+function conserve_momentum_fracture_floe!(
     init_floe,
-    new_floes,
+    new_floes::StructArray{<:Floe{FT}},
     Δt,
-)
+) where {FT}
     if !isempty(new_floes)
-        x_init, y_init = init_floe.centroid
         # conserve linear momentum by keeping linear velocities the same
         new_floes.u .= init_floe.u 
         new_floes.v .= init_floe.v
@@ -197,33 +268,117 @@ function conserve_momentum_fracture!(
         new_floes.p_dydt .= init_floe.p_dydt
         new_floes.p_dudt .= init_floe.p_dudt
         new_floes.p_dvdt .= init_floe.p_dvdt
-        # conserve rotational moment by offsetting change in orbital momentum
-        sum_moments = sum(new_floes.moment)
-        new_floes.ξ .= init_floe.moment * init_floe.ξ + # initial spin velocity
-            init_floe.mass * ( # initial orbital velocity
-                x_init * init_floe.v -
-                y_init * init_floe.u
-            )
-        new_floes.p_dαdt .= init_floe.moment * init_floe.p_dαdt + 
-            init_floe.mass * (
-                x_init * init_floe.p_dydt -
-                y_init * init_floe.p_dxdt
-            )
-        for i in eachindex(new_floes)
-            new_floes.ξ .-= new_floes.mass[i] * (
-                new_floes.centroid[i][1] * new_floes.v[i] -
-                new_floes.centroid[i][2] * new_floes.u[i]
-            )
-            new_floes.p_dαdt .-= new_floes.mass[i] * (
-                new_floes.centroid[i][1] * new_floes.p_dydt[i] -
-                new_floes.centroid[i][2] * new_floes.p_dxdt[i]
-            )
-        end
-        new_floes.ξ ./= sum_moments
-        new_floes.p_dαdt ./= sum_moments
-        # Calculate previous rotational acceleration
-        new_floes.p_dξdt .= (new_floes.ξ[1] - new_floes.p_dαdt[1]) / Δt
+        # Reset α with new coordinates
+        new_floes.α .= 0
+        # MATLAB uses assumptions -> doesn't conserve rotational momentum
+        new_floes.ξ .= init_floe.ξ
+        new_floes.p_dαdt .= 0
+        new_floes.p_dξdt .= init_floe.p_dξdt
     end
+end
+
+"""
+    conserve_momentum_transfer_mass!(
+        floes,
+        idx1, idx2,
+        m1, m2,
+        I1, I2,
+        x1, x2,
+        y1, y2,
+        Δt,
+        pieces_list = nothing,
+        pieces_idx = 0,
+    )
+
+Conserve linear momentum when mass is transfered from one floe to another floe.
+Inputs:
+    floes       <StructArray{Floes}> list of floes
+    idx1        <Int> index of first floe in floes list
+    idx2        <Int> index of second floe in floes list
+    m1          <Float> initial mass of first floe before mass transfer
+    m2          <Float> initial mass of second floe before mass transfer
+    Δt          <Int> timestep of simulation in seconds
+    pieces_list <Union{nothing, Vector{Floe}}> list of floes created from floes
+                    breaking during ridging and rafting
+    pieces_idx  <Int> start index of pieces included in conservation
+                    calculations within the pieces_list
+Outputs:
+    Nothing. Update floes' velocities and accelerations to conserve linear
+    momentum.
+"""
+function conserve_momentum_transfer_mass!(
+    floes,
+    idx1, idx2,
+    m1, m2,
+    Δt,
+    pieces_list = nothing,
+    pieces_idx = 0,
+)
+    # Conserve linear - assume resultant floes have same linear velocity
+    tot_mass = m1 + m2
+    new_u = (m1 * floes.u[idx1] + m2 * floes.u[idx2]) / tot_mass
+    new_v = (m1 * floes.v[idx1] + m2 * floes.v[idx2]) / tot_mass
+    new_p_dxdt = (m1 * floes.p_dxdt[idx1] + m2 * floes.p_dxdt[idx2]) / tot_mass
+    new_p_dydt = (m1 * floes.p_dydt[idx1] + m2 * floes.p_dydt[idx2]) / tot_mass
+    new_p_dudt = (floes.u[idx1] - floes.p_dxdt[idx1]) / Δt
+    new_p_dvdt = (floes.v[idx1] - floes.p_dydt[idx1]) / Δt
+    # MATLAB uses assumptions -> doesn't conserve rotational momentum
+    floes.p_dαdt[idx1] = 0
+    floes.p_dαdt[idx2] = 0
+    # Update pieces list of they exist
+    if !isnothing(pieces_list) && length(pieces_list) > 0
+        pieces_list.p_dαdt[pieces_idx:end] .= 0
+        pieces_list.u[pieces_idx:end] .= new_u
+        pieces_list.v[pieces_idx:end] .= new_v
+        pieces_list.p_dxdt[pieces_idx:end] .= new_p_dxdt
+        pieces_list.p_dydt[pieces_idx:end] .= new_p_dydt
+        pieces_list.p_dudt[pieces_idx:end] .= new_p_dudt
+        pieces_list.p_dvdt[pieces_idx:end] .= new_p_dvdt
+    end
+    # Update floes linear velocities and accelerations
+    floes.u[idx1], floes.u[idx2] = new_u, new_u
+    floes.v[idx1], floes.v[idx2] = new_v, new_v
+    floes.p_dxdt[idx1], floes.p_dxdt[idx2] = new_p_dxdt, new_p_dxdt
+    floes.p_dydt[idx1], floes.p_dydt[idx2] = new_p_dydt, new_p_dydt
+    floes.p_dudt[idx1], floes.p_dudt[idx2] = new_p_dudt, new_p_dudt
+    floes.p_dvdt[idx1], floes.p_dvdt[idx2] = new_p_dvdt, new_p_dvdt
+    return
+end
+
+"""
+    update_ghost_timestep_vals!(floes, idx, parent_idx)
+
+Update a parent floes and its ghosts to match velocities and accelerations at
+given index.
+Inputs:
+    floes       <StructArray{Floe}> list of floes in the simulation
+    idx         <Int> index of floe within floes list to copy to floe and ghosts
+    parent_idx  <Int> index of parent floe to update, along with its ghosts
+Outputs:
+    Nothing. Update floe values. 
+"""
+function update_ghost_timestep_vals!(floes, idx, parent_idx)
+    floes.u[parent_idx] = floes.u[idx]
+    floes.v[parent_idx] = floes.v[idx]
+    floes.ξ[parent_idx] = floes.ξ[idx]
+    floes.p_dxdt[parent_idx] = floes.p_dxdt[idx]
+    floes.p_dydt[parent_idx] = floes.p_dydt[idx]
+    floes.p_dudt[parent_idx] = floes.p_dudt[idx]
+    floes.p_dvdt[parent_idx] = floes.p_dvdt[idx]
+    floes.p_dαdt[parent_idx] = floes.p_dαdt[idx]
+    floes.p_dξdt[parent_idx] = floes.p_dξdt[idx]
+    for gidx in floes.ghosts[parent_idx]
+        floes.u[gidx] = floes.u[parent_idx]
+        floes.v[gidx] = floes.v[parent_idx]
+        floes.ξ[gidx] = floes.ξ[parent_idx]
+        floes.p_dxdt[gidx] = floes.p_dxdt[parent_idx]
+        floes.p_dydt[gidx] = floes.p_dydt[parent_idx]
+        floes.p_dudt[gidx] = floes.p_dudt[parent_idx]
+        floes.p_dvdt[gidx] = floes.p_dvdt[parent_idx]
+        floes.p_dαdt[gidx] = floes.p_dαdt[parent_idx]
+        floes.p_dξdt[gidx] = floes.p_dξdt[parent_idx]
+    end
+    return
 end
 
 """

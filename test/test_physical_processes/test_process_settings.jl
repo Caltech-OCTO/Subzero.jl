@@ -146,4 +146,29 @@
         neg_Δt_info = @test_logs (:warn, neg_Δt_str) SimplificationSettings(Δt_smooth = -20)
         @test !neg_Δt_info.smooth_vertices_on
     end
+
+    @testset "RidgeRaftSettings" begin
+        default_info = RidgeRaftSettings()
+        @test !default_info.ridge_raft_on &&
+            default_info.Δt == 0 &&
+            default_info.ridge_probability == 0.95 &&
+            default_info.raft_probability == 0.95 &&
+            default_info.min_overlap_frac == 0.01 &&
+            default_info.min_ridge_height == 0.2 &&
+            default_info.max_floe_ridge_height == 5.0 &&
+            default_info.max_domain_ridge_height == 1.25 &&
+            default_info.max_floe_raft_height == 0.25 &&
+            default_info.max_domain_raft_height == 0.25 &&
+            default_info.domain_gain_probability == 1.0
+            
+        neg_Δt_str = "Ridging and rafting can't occur on a multiple of negative \
+            timesteps. Turning ridging and rafting off."
+        neg_Δt_info = @test_logs (:warn, neg_Δt_str) RidgeRaftSettings(ridge_raft_on = true, Δt = -10)
+        @test !neg_Δt_info.ridge_raft_on
+
+        ridge_prob2_str = "Floes can't have a greater ridge probability than 1. \
+            Setting ridge probability to 1."
+        ridge_prob2_info = @test_logs (:warn, ridge_prob2_str) RidgeRaftSettings(ridge_raft_on = true, Δt = 100, ridge_probability = 2.0)
+        @test ridge_prob2_info.ridge_probability == 1.0
+    end
 end

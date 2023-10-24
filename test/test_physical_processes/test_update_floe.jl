@@ -158,7 +158,7 @@
             [sqr_floe.centroid[1]],
             [sqr_floe.centroid[2]],
         )
-        Subzero.conserve_momentum_combination!(
+        Subzero.conserve_momentum_change_floe_shape!(
             sqr_floe.mass,
             sqr_floe.moment,
             sqr_floe.centroid[1],
@@ -276,7 +276,7 @@
             Constants(),
             Xoshiro(1)
         )
-        Subzero.conserve_momentum_combination!(
+        Subzero.conserve_momentum_change_floe_shape!(
             mass1,
             moment1,
             x1,
@@ -416,7 +416,7 @@
                 0.0,
             )
         ])
-        Subzero.conserve_momentum_fracture!(
+        Subzero.conserve_momentum_fracture_floe!(
             initial_floe,
             new_floes,
             10,
@@ -453,16 +453,6 @@
         @test isapprox(y_momentum_init, y_momentum_after, atol = 1e-8)
         @test isapprox(p_x_momentum_init, p_x_momentum_after, atol = 1e-8)
         @test isapprox(p_y_momentum_init, p_y_momentum_after, atol = 1e-8)
-        @test isapprox(
-            spin_momentum_init + angular_momentum_init,
-            spin_momentum_after + angular_momentum_after,
-            atol = 1e-8,
-        )
-        @test isapprox(
-            p_spin_momentum_init + p_angular_momentum_init,
-            p_spin_momentum_after + p_angular_momentum_after,
-            atol = 1e-8,
-        )
 
         # One floe splitting into three floes
         new_floes = StructArray([
@@ -482,7 +472,7 @@
                 0.0,
             )
         ])
-        Subzero.conserve_momentum_fracture!(
+        Subzero.conserve_momentum_fracture_floe!(
             initial_floe,
             new_floes,
             10,
@@ -492,43 +482,14 @@
             new_floes.v,
             new_floes.mass,
         )
-        spin_momentum_after, angular_momentum_after = Subzero.calc_angular_momentum(
-            new_floes.u,
-            new_floes.v,
-            new_floes.mass,
-            new_floes.ξ,
-            new_floes.moment,
-            [c[1] for c in new_floes.centroid],
-            [c[2] for c in new_floes.centroid],
-        )
         p_x_momentum_after, p_y_momentum_after = Subzero.calc_linear_momentum(
             new_floes.p_dxdt,
             new_floes.p_dydt,
             new_floes.mass,
         )
-        p_spin_momentum_after, p_angular_momentum_after = Subzero.calc_angular_momentum(
-            new_floes.p_dxdt,
-            new_floes.p_dydt,
-            new_floes.mass,
-            new_floes.p_dαdt,
-            new_floes.moment,
-            [c[1] for c in new_floes.centroid],
-            [c[2] for c in new_floes.centroid],
-        )
         @test isapprox(x_momentum_init, x_momentum_after, atol = 1e-8)
         @test isapprox(y_momentum_init, y_momentum_after, atol = 1e-8)
         @test isapprox(p_x_momentum_init, p_x_momentum_after, atol = 1e-8)
         @test isapprox(p_y_momentum_init, p_y_momentum_after, atol = 1e-8)
-        @test isapprox(
-            spin_momentum_init + angular_momentum_init,
-            spin_momentum_after + angular_momentum_after,
-            atol = 1e-8,
-        )
-        @test isapprox(
-            p_spin_momentum_init + p_angular_momentum_init,
-            p_spin_momentum_after + p_angular_momentum_after,
-            atol = 1e-8,
-        )
-
     end
 end

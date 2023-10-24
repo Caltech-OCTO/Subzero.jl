@@ -11,6 +11,7 @@ using Test
     include("test_physical_processes/test_process_settings.jl")
     include("test_physical_processes/test_fractures.jl")
     include("test_physical_processes/test_simplification.jl")
+    include("test_physical_processes/test_ridge_raft.jl")
     include("test_floe.jl")
     include("test_floe_utils.jl")
     include("test_model.jl")

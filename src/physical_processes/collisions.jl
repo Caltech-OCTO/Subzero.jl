@@ -21,9 +21,8 @@ Inputs:
     region       <PolyVec{Float64}> coordiantes for one region of intersection
                     between the polygons
     area         <Float> area of region
-    ipoints      <Array{Float, N, 2}> Points of intersection between polygon 1
-                    and 2 where the first column is the x-coordinates and the
-                    second column is the y-coordinates
+    ipoints      <Vector{Tuple{Float, Float} or Vector{Vector{Float}}}> Points
+                    of intersection between polygon 1 and 2
     force_factor <Float> Spring constant equivalent for collisions
 Outputs:
         <Float> normal force of collision
@@ -39,32 +38,15 @@ function calc_normal_force(
 ) where {FT<:AbstractFloat}
     force_dir = zeros(FT, 2)
     coords = find_poly_coords(region)
-    n_ipoints = length(ipoints)
     # Identify which region coordinates are the intersection points (ipoints)
-    #verts = zeros(Int64, n_ipoints)
-    #dists = zeros(FT, n_ipoints)
-    p = Vector{Vector{FT}}()
-    @views for ip in ipoints
-        min_dist = FT(Inf)
-        min_vert = 1
-        for i in eachindex(coords[1])
-            dist = sqrt((coords[1][i][1] - ip[1])^2 + (coords[1][i][2] - ip[2])^2)
-            if dist < min_dist
-                min_dist = dist
-                min_vert = i
-            end
-        end
-        if min_dist < 1
-            push!(p, coords[1][min_vert])
-        end
-    end
+    p = which_vertices_match_points(ipoints, coords)
     m = length(p)
-
     # Calculate force direction
     Δl = FT(0)
     if m == 2  # Two intersection points
-        Δx = FT(p[2][1] - p[1][1])
-        Δy = FT(p[2][2] - p[1][2])
+        idx1, idx2 = p
+        Δx = FT(coords[1][idx2][1] - coords[1][idx1][1])
+        Δy = FT(coords[1][idx2][2] - coords[1][idx1][2])
         Δl = sqrt(Δx^2 + Δy^2)
         if Δl > 0.1  # should match our scale
             force_dir .= [-Δy/Δl; Δx/Δl]
@@ -441,6 +423,7 @@ Output:
 function floe_domain_element_interaction!(
     floe,
     boundary::OpenBoundary,
+    element_idx,
     consts,
     Δt,
     max_overlap,
@@ -458,6 +441,7 @@ end
     floe_domain_element_interaction!(
         floe,
         ::PeriodicBoundary,
+        element_idx,
         consts,
         Δt,
     )
@@ -472,6 +456,7 @@ Output:
 function floe_domain_element_interaction!(
     floe,
     ::PeriodicBoundary,
+    element_idx,
     consts,
     Δt,
     max_overlap,
@@ -589,6 +574,7 @@ end
     floe_domain_element_interaction!(
         floe,
         element,
+        element_idx,
         consts,
         Δt,
     )
@@ -620,6 +606,7 @@ function floe_domain_element_interaction!(
         CompressionBoundary,
         TopographyElement,
     },
+    elem_idx,
     consts,
     Δt,
     max_overlap::FT,
@@ -665,7 +652,7 @@ function floe_domain_element_interaction!(
                 )
                 # Calculate total forces and update ifloe's interactions
                 forces = normal_forces .+ friction_forces
-                add_interactions!(np, floe, FT(Inf), forces, fpoints, overlaps)
+                add_interactions!(np, floe, elem_idx, forces, fpoints, overlaps)
             end
         end
     end
@@ -776,6 +763,7 @@ function floe_domain_interaction!(
         floe_domain_element_interaction!(
             floe,
             nbound,
+            -1,
             consts,
             Δt,
             max_overlap,
@@ -785,6 +773,7 @@ function floe_domain_interaction!(
         floe_domain_element_interaction!(
             floe,
             sbound,
+            -2,
             consts,
             Δt,
             max_overlap,
@@ -794,6 +783,7 @@ function floe_domain_interaction!(
         floe_domain_element_interaction!(
             floe,
             ebound,
+            -3,
             consts,
             Δt,
             max_overlap,
@@ -803,17 +793,19 @@ function floe_domain_interaction!(
         floe_domain_element_interaction!(
             floe,
             wbound,
+            -4,
             consts,
             Δt,
             max_overlap,
         )
     end
 
-    for topo_element in domain.topography
+    for (i, topo_element) in enumerate(domain.topography)
         if sum((topo_element.centroid .- floe.centroid).^2) < (topo_element.rmax + floe.rmax)^2
             floe_domain_element_interaction!(
                 floe,
                 topo_element,
+                -(4 + i),
                 consts,
                 Δt,
                 max_overlap,

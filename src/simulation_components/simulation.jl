@@ -73,6 +73,7 @@ The user can also define settings for each physical process.
     collision_settings::CollisionSettings{FT} = CollisionSettings()
     fracture_settings::FractureSettings{CT} = FractureSettings()
     simp_settings::SimplificationSettings{FT} = SimplificationSettings()
+    ridgeraft_settings::RidgeRaftSettings{FT} = RidgeRaftSettings()
     # Output Writers -----------------------------------------------------------
     writers::OT = OutputWriters()
 end
@@ -113,7 +114,25 @@ function timestep_sim!(sim, tstep)
                 spinlock,
             )
         end
-
+        pieces_buffer = StructArray{Floe{Float64}}(undef, 0)
+        # Ridge and raft floes that meet overlap conditions
+        if (
+            sim.ridgeraft_settings.ridge_raft_on &&
+            mod(tstep, sim.ridgeraft_settings.Δt) == 0
+        )
+            max_floe_id = timestep_ridging_rafting!(
+                sim.model.floes,
+                pieces_buffer,
+                sim.model.domain,
+                max_floe_id,
+                sim.coupling_settings,
+                sim.ridgeraft_settings,
+                sim.simp_settings,
+                sim.consts,
+                sim.Δt,
+                sim.rng,
+            )
+        end
         # Remove the ghost floes - only used for collisions
         for i in reverse(n_init_floes+1:length(sim.model.floes))
             StructArrays.foreachfield(
@@ -121,11 +140,17 @@ function timestep_sim!(sim, tstep)
                     sim.model.floes,
             )
         end
-        empty!.(sim.model.floes.ghosts) 
+        empty!.(sim.model.floes.ghosts)
+
+        # Add new pieces to the end of floe list
+        append!(sim.model.floes, pieces_buffer)
 
         # Physical processes without ghost floes
         # Effects of ocean and atmosphere on ice and visa versa
-        if sim.coupling_settings.coupling_on && mod(tstep, sim.coupling_settings.Δt) == 0
+        if (
+            sim.coupling_settings.coupling_on &&
+            mod(tstep, sim.coupling_settings.Δt) == 0
+        )
             timestep_coupling!(
                 sim.model,
                 sim.Δt,
@@ -155,6 +180,8 @@ function timestep_sim!(sim, tstep)
                     sim.Δt,
                 )
         end
+
+        # What happens if floe tried to fuse with ghost floe?? 
         max_floe_id = 
             simplify_floes!(
                 sim.model,

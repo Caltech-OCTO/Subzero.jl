@@ -82,6 +82,14 @@ function get_polygons(geom)
     return polys::Vector{LG.Polygon}
 end
 
+function get_polygons(collection::LG.GeometryCollection)
+    polys =  Vector{LG.Polygon}()
+    for geom in LG.getGeometries(collection)
+        append!(polys, get_polygons(geom))
+    end
+    return polys
+end
+
 """
     intersect_polys(p1, p2)
 
@@ -114,6 +122,37 @@ intersect_coords(c1, c2) = intersect_polys(
     LG.Polygon(c1),
     LG.Polygon(c2),
 )::Vector{LG.Polygon}
+
+
+"""
+    polyvec_extrema(coords)
+
+Finds extremal x and y values for given coordiantes, defining a tight bounding
+box. 
+Inputs:
+    coords <PolyVec>
+Outputs: xmin, xmax, ymin, ymax
+"""
+function polyvec_extrema(coords::PolyVec{FT}) where FT
+    xmin = ymin = FT(Inf)
+    xmax = ymax = FT(-Inf)
+    for i in eachindex(coords[1])
+        x, y = coords[1][i]
+        if x < xmin
+            xmin = x
+        end
+        if x > xmax
+            xmax = x
+        end
+        if y < ymin
+            ymin = y
+        end
+        if y > ymax
+            ymax = y
+        end
+    end
+    return xmin, xmax, ymin, ymax
+end
 
 """
     deepcopy_floe(floe::LazyRow{Floe{FT}})
@@ -267,7 +306,7 @@ function rotate_radians!(coords::PolyVec, α)
             coords[i][j][2] = sin(α)*x + cos(α)*y
         end
     end
-
+    return
 end
 
 """
@@ -787,7 +826,7 @@ Outputs:
         two line segments.
 """
 function intersect_lines(l1::PolyVec{FT}, l2) where {FT}
-    points = Set{Tuple{FT, FT}}()
+    points = Vector{Tuple{FT, FT}}()
     for i in 1:(length(l1[1]) - 1)
          # First line represented as a1x + b1y = c1
          x11 = l1[1][i][1]
@@ -813,17 +852,224 @@ function intersect_lines(l1::PolyVec{FT}, l2) where {FT}
             if determinant != 0
                 x = (b2*c1 - b1*c2)/determinant
                 y = (a1*c2 - a2*c1)/determinant
+                p = (x, y)
                 # Make sure intersection is on given line segments
                 if min(x11, x12) <= x <= max(x11, x12) &&
                     min(x21, x22) <= x <= max(x21, x22) &&
                     min(y11, y12) <= y <= max(y11, y12) &&
-                    min(y21, y22) <= y <= max(y21, y22)
-                    push!(points, (x, y))
+                    min(y21, y22) <= y <= max(y21, y22) &&
+                    !(p in points)
+                    push!(points, p)
                 end
             end
         end
     end
     return points
+end
+
+"""
+    which_vertices_match_points(ipoints, coords, atol)
+
+Find which vertices in coords match given points
+Inputs:
+    points <Vector{Tuple{Float, Float} or Vector{Vector{Float}}}> points to
+                match to vertices within polygon
+    coords  <PolVec> polygon coordinates
+    atol    <Float> distance vertex can be away from target point before being
+                classified as different points
+Output:
+    Vector{Int} indices of points in polygon that match the intersection points
+Note: 
+    If last coordinate is a repeat of first coordinate, last coordinate index is
+    NOT recorded.
+"""
+function which_vertices_match_points(
+    points,
+    coords::PolyVec{FT},
+    atol = 1,
+) where {FT}
+    idxs = Vector{Int}()
+    npoints = length(points)
+    if points[1] == points[end]
+        npoints -= 1
+    end
+    @views for i in 1:npoints  # find which vertex matches point
+        min_dist = FT(Inf)
+        min_vert = 1
+        for j in eachindex(coords[1])
+            dist = sqrt(
+                (coords[1][j][1] - points[i][1])^2 +
+                (coords[1][j][2] - points[i][2])^2,
+            )
+            if dist < min_dist
+                min_dist = dist
+                min_vert = j
+            end
+        end
+        if min_dist < atol
+            push!(idxs, min_vert)
+        end
+    end
+    return sort!(idxs)
+end
+
+"""
+euclidian_dist(c, idx2, idx1)
+
+Calculate euclidean distance between two points within given coordinates
+"""
+euclidian_dist(c, idx2, idx1) = sqrt(
+    (c[1][idx2][1] - c[1][idx1][1])^2 +
+    (c[1][idx2][2] - c[1][idx1][2])^2 
+)
+
+"""
+    which_points_on_edges(points, coords; atol = 1e-1)
+
+Find which points are on the coordinates of the given polygon.
+Inputs:
+    points <Vector{Tuple{Float, Float} or Vector{Vector{Float}}}> points to
+        match to edges within polygon
+    coords  <PolVec> polygon coordinates
+    atol    <Float> distance target point can be from an edge before being
+                classified as not on the edge
+"""
+function which_points_on_edges(points, coords; atol = 1e-1)
+    idxs = Vector{Int}()
+    nedges = length(coords[1]) - 1
+    npoints = length(points)
+    if points[1] == points[end]
+        npoints -= 1
+    end
+    for i in 1:nedges
+        x1, y1 = coords[1][i]
+        x2, y2 = coords[1][i+1]
+        Δx_edge = x2 - x1
+        Δy_edge = y2 - y1
+        for j in 1:npoints
+            xp, yp = points[j]
+            Δx_point = xp - x1
+            Δy_point = yp - y1
+            if (!(j in idxs) && (
+                (  # vertical edge
+                    isapprox(Δx_edge, 0, atol = atol) &&
+                    isapprox(Δx_point, 0, atol = atol) &&
+                    0 < Δy_point / Δy_edge < 1
+                ) ||
+                (  # horizontal edge
+                    isapprox(Δy_edge, 0, atol = atol) &&
+                    isapprox(Δy_point, 0, atol = atol)
+                    && 0 < Δx_point / Δx_edge < 1) ||
+                (  # point is a vertex
+                    isapprox(Δx_point, 0, atol = atol) &&
+                    isapprox(Δy_point, 0, atol = atol)
+                ) ||
+                ( # has the same slope and is between edge points
+                    isapprox(Δy_edge/Δx_edge, Δy_point/Δx_point, atol = atol) &&
+                    0 < Δx_point / Δx_edge < 1 && 0 < Δy_point / Δy_edge < 1
+                )
+            ))
+                push!(idxs, j)
+            end
+        end
+    end
+    sort!(idxs)
+    return idxs
+end
+
+"""
+    check_for_edge_mid(c, start, stop, shared_idx, shared_dist, running_dist)
+
+Check if indices from start to stop index of given coords includes midpoint
+given the shared distance and return midpoint if it exists in given range.
+Inputs:
+    c               <PolyVec> floe coordinates
+    start           <Int> index of shared_index list to start search from
+    stop            <Int> index of shared_index list to stop search at
+    shared_idx      <Vector{Int}> list of indices of c used to calculate midpoint
+    shared_dist     <Float> total length of edges considered from shared_idx
+    running_dist    <Float> total length of edges traveled along in midpoint
+                        search so far
+Outputs:
+    mid_x           <Float> x-coordinate of midpoint, Inf if midpoint not in
+                        given range
+    mid_y           <Float> y-coordinate of midpoint, Inf if midpoint not in
+                        given range
+    running_dist    <Float> sum of distances travelled along shared edges
+"""
+function check_for_edge_mid(c, start, stop, shared_idx, shared_dist,
+    running_dist::FT,
+) where FT
+    mid_x = FT(Inf)
+    mid_y = FT(Inf)
+    for i in start:(stop-1)
+        # Indices of c that are endpoints of current edge
+        idx1 = shared_idx[i]
+        idx2 = shared_idx[i + 1]
+        # Lenght of edge
+        edge_dist = euclidian_dist(c, idx2, idx1)
+        # if midpoint is on current edge
+        if running_dist + edge_dist >= shared_dist / 2
+            frac = ((shared_dist / 2) - running_dist) / edge_dist
+            mid_x = c[1][idx1][1] + (c[1][idx2][1] - c[1][idx1][1]) * frac
+            mid_y = c[1][idx1][2] + (c[1][idx2][2] - c[1][idx1][2]) * frac
+            break
+        else  # move on to the next edge
+            running_dist += edge_dist
+        end
+    end
+    return mid_x, mid_y, running_dist
+end
+
+"""
+    find_shared_edges_midpoint(c1, c2)
+
+Find "midpoint" of shared polygon edges by distance
+Inputs:
+    c1      <PolVec> polygon coordinates for floe 1
+    c2      <PolVec> polygon coordinates for floe 2
+Outputs:
+    mid_x   <Float> x-coordinate of midpoint
+    mid_y   <Float> y-coordinate of midpoint
+"""
+function find_shared_edges_midpoint(c1::PolyVec{FT}, c2; atol = 1e-1) where {FT}
+    # Find which points of c1 are on edges of c2
+    shared_idx = which_points_on_edges(
+        c1[1],
+        c2;
+        atol,
+    )
+    if shared_idx[1] == 1
+         # due to repeated first point/last point
+        push!(shared_idx, length(c1[1]))
+    end
+    shared_dist = FT(0)
+    gap_idx = 1
+    # Determine total length of edges that are shared between the two floes
+    nshared_points = length(shared_idx)
+    for i in 1:(nshared_points - 1)
+        idx1 = shared_idx[i]
+        idx2 = shared_idx[i + 1]
+        if idx2 - idx1 == 1
+            shared_dist += euclidian_dist(c1, idx2, idx1)
+        elseif shared_dist > 0
+            gap_idx = i + 1
+            # Add distance wrapping around from last index to first
+            shared_dist += euclidian_dist(c1, shared_idx[end], shared_idx[1])
+        end
+    end
+    # Determine mid-point of shared edges by distance
+    running_dist = FT(0)
+    mid_x, mid_y, running_dist = check_for_edge_mid(c1, gap_idx, nshared_points,
+        shared_idx, shared_dist, running_dist,
+    )
+    # Note that this assumes first and last point are the same 
+    if isinf(mid_x)
+        mid_x, mid_y, running_dist = check_for_edge_mid(c1, 1, gap_idx - 1,
+            shared_idx, shared_dist, running_dist,
+        )
+    end
+    return mid_x, mid_y
 end
 
 """

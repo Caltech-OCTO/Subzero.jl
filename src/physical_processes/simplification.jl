@@ -94,7 +94,7 @@ function smooth_floes!(
                 rng,
             )
             # conserve momentum
-            conserve_momentum_combination!(
+            conserve_momentum_change_floe_shape!(
                 floes.mass[i],
                 moment_tmp,
                 x_tmp,
@@ -163,6 +163,8 @@ function fuse_two_floes!(
     rng,
 )
     # Create new polygon if they fuse
+    rmholes!(floe1.coords)
+    rmholes!(floe2.coords)
     poly1 = LG.Polygon(floe1.coords)::LG.Polygon
     poly2 = LG.Polygon(floe2.coords)::LG.Polygon
     new_poly_list = get_polygons(LG.union(poly1, poly2))::Vector{LG.Polygon}
@@ -189,7 +191,7 @@ function fuse_two_floes!(
             rng,
         )
         # conserve momentum
-        conserve_momentum_combination!(
+        conserve_momentum_change_floe_shape!(
             mass_tmp,
             moment_tmp,
             x_tmp,

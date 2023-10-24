@@ -29,7 +29,6 @@ VoronoiCells = "e3e34ffb-84e9-5012-9490-92c94d0c60a4"
 
 [compat]
 BenchmarkTools = "1"
-CairoMakie = "0.10"
 DataStructures = "0.18"
 GeometryBasics = "0.4"
 Interpolations = "0.14"
