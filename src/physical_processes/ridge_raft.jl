@@ -124,7 +124,6 @@ function remove_floe_overlap!(
             xmin, xmax, ymin, ymax = polyvec_extrema(new_coords)
             Δx = xmax - xmin
             Δy = ymax - ymin
-
             # Region is big enought to be a floe and has okay aspect ratio
             if (
                 region_area > simp_settings.min_floe_area &&

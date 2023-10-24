@@ -82,6 +82,14 @@ function get_polygons(geom)
     return polys::Vector{LG.Polygon}
 end
 
+function get_polygons(collection::LG.GeometryCollection)
+    polys =  Vector{LG.Polygon}()
+    for geom in LG.getGeometries(collection)
+        append!(polys, get_polygons(geom))
+    end
+    return polys
+end
+
 """
     intersect_polys(p1, p2)
 
