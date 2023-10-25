@@ -176,6 +176,7 @@ function fuse_two_floes!(
             else
                 floe2, floe1
             end
+        # mark smaller floe for removal
         remove_floe.status.tag = remove
         # record as value will change with replace
         mass_tmp = keep_floe.mass
