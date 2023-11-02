@@ -420,12 +420,41 @@ RidgeRaftSettings(args...) = RidgeRaftSettings{Float64}(args...)
 
 
 @kwdef struct WeldSettings{FT<:AbstractFloat}
-    min_weld_area::FT
-    max_weld_area::FT 
+    weld_on::Bool = false
+    Δts::Vector{FT} = Vector{Int}()
+    Nxs::Vector{FT} = Vector{Int}()
+    Nys::Vector{FT} = Vector{Int}()
+    min_weld_area::FT = 1e6
+    max_weld_area::FT = 2e9
     welding_coeff::FT = 150
-    Δts::Vector{FT} = [0]
-    Nxs::Vector{FT} = [1]
-    Nys::Vector{FT} = [1]
+    function WeldSettings{FT}(
+        weld_on,
+        Δts,
+        Nxs,
+        Nys,
+        min_weld_area,
+        max_weld_area,
+        welding_coeff,
+    ) where {FT<:AbstractFloat}
+        if weld_on && (isempty(Δts) || any(Δts .≤ 0))
+            @warn "Welding can't occur without any given timesteps or with
+            negative timesteps. Turning welding off."
+            weld_on = false
+        elseif any(Nxs .≤ 1) || any(Nys .≤ 1)
+            @warn "Can't split the grid into less than one row or column.
+            Turning welding off." 
+            weld_on = false
+        end
+        new{FT}(
+            weld_on,
+            Δts,
+            Nxs,
+            Nys,
+            min_weld_area,
+            max_weld_area,
+            welding_coeff,
+        )
+    end
 end
 
 """

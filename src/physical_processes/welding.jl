@@ -21,8 +21,7 @@ Outputs:
 """
 function bin_floe_centroids(floes, grid, Nx, Ny)
     # Find average number of floes per bin if floes were spread evenly
-    nfloes = length(floes)
-    floes_per_bin = ceil(Int, nfloes / Nx*Ny)
+    floes_per_bin = ceil(Int, length(floes) / (Nx * Ny))
     # Create bins with vectors of zeros
     floe_bins = [zeros(Int, floes_per_bin) for _ in 1:Nx, _ in 1:Ny]
     nfloes = zeros(Int, Nx, Ny)
@@ -41,7 +40,7 @@ function bin_floe_centroids(floes, grid, Nx, Ny)
         if nfloes[xidx, yidx] > floes_per_bin
             push!(floe_bins[xidx, yidx], i)
         else
-            floe_bins[xidx, yidx, nfloes[xidx, yidx]] = i
+            floe_bins[xidx, yidx][nfloes[xidx, yidx]] = i
         end
     end
     return floe_bins, nfloes
