@@ -204,8 +204,8 @@
             0.0,
         )
         max_id = Subzero.fuse_two_floes!(
-            f1,
             f3,
+            f1,
             Constants(),
             10,
             CouplingSettings(),
@@ -213,8 +213,6 @@
             3,
             Xoshiro(1),
         )
-        f1.id = 1
-        f2.id = 2
         @test f1.status.tag == Subzero.Subzero.remove
         @test f3.status.tag == Subzero.active
 
