@@ -54,7 +54,6 @@ using LibGEOS
         # make sure all floes are active and not marked to fuse
         for i in eachindex(floes)
             floes.status[i].tag = Subzero.active
-
         end
         return floes
     end

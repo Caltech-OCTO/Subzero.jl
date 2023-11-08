@@ -20,6 +20,7 @@ Outputs:
                     and represent a floe within the grid section.
 """
 function bin_floe_centroids(floes, grid, Nx, Ny)
+    @assert Nx > 0 && Ny > 0 "Can't bin centroids without bins."
     # Find average number of floes per bin if floes were spread evenly
     floes_per_bin = ceil(Int, length(floes) / (Nx * Ny))
     # Create bins with vectors of zeros
@@ -83,18 +84,18 @@ function timestep_welding!(
     floes,
     max_floe_id,
     grid,
-    Nx,
-    Ny,
     coupling_settings,
     weld_settings::WeldSettings{FT},
+    weld_idx,
     consts,
     Δt,
-    rng,
+    rng = Xoshiro(),
 ) where FT <: AbstractFloat
     # Seperate floes into groups based on centroid location in grid
+    Nx, Ny = weld_settings.Nxs[weld_idx], weld_settings.Nys[weld_idx]
     floe_bins, floes_per_bin = bin_floe_centroids(floes, grid, Nx, Ny)
     prefuse_max_floe_id = max_floe_id
-    for k in eachindex(floe_bins) # should be able to make this multi-threaded
+    for k in eachindex(floe_bins)
         bin = floe_bins[k]
         nfloes = floes_per_bin[k]
         weld_group = [(0, FT(0)) for _ in 1:nfloes]
@@ -123,8 +124,8 @@ function timestep_welding!(
                         )
                     )
                         # Find intersection area
-                        inter_area = LG.area(LG.intersect(
-                            LG.Polygon(floe.coords[i]),
+                        inter_area = LG.area(LG.intersection(
+                            LG.Polygon(floes.coords[i]),
                             LG.Polygon(floes.coords[j])
                         ))
                         # Probability two floes will weld
@@ -166,5 +167,5 @@ function timestep_welding!(
             end
         end
     end
-    return nothing
+    return
 end

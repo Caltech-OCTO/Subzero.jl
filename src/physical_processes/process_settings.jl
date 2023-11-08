@@ -297,10 +297,13 @@ the correct constructor will be called with all other arguments.
 SimplificationSettings(args...) = SimplificationSettings{Float64}(args...)
 
 """
-    RidgeRaftSettings
+    RidgeRaftSettings{FT <: AbstractFloat}
 
-Settings needed for ridging and rafting within the model. These have the
+Settings needed for ridging and rafting within the model. The fields have the
 following meanings:
+- ridge_raft_on: a boolean flag for if ridging and rafting should be turned on
+    in the simulation
+- Δt: multiple of timesteps during which ridging and rafting code will run
 - ridge_probability: the probability a floe ridges with another floe/domain if
     it meets all other criteria
 - raft_probability: the probability a floe rafts with another floe/domain if it
@@ -418,12 +421,32 @@ correct constructor will be called with all other arguments.
 """
 RidgeRaftSettings(args...) = RidgeRaftSettings{Float64}(args...)
 
+"""
+    WeldSettings{FT<:AbstractFloat}
 
+
+Settings needed for welding within the model. The fields have the following
+meanings:
+- weld_on: a boolean flag for if welding should be turned on in the simulation
+- Δts: a list of multiples of timesteps during which welding code will run,
+    welding will be run at multiples of all elements, each with domain split
+    into corresponding Nx and Ny values
+- Nxs: a list of number of x-directional bins to split the domain into at
+    corresponding timesteps
+- Nys: a list of number of x-directional bins to split the domain into at
+    corresponding timesteps
+- min_weld_area: minimum area a weld can create for two floes to weld
+- max_weld_area: maximum area a weld can create for two floes to weld
+- welding_coeff: non-dimensional parameter, multiplied by ratio of overlap
+    between two floes to original floe area to determin probability that a floe
+    will merge. The larger this is, the more likely floes are to weld.
+    Probability with 5% overlap is `welding_coeff * (0.05) > rand()`
+"""
 @kwdef struct WeldSettings{FT<:AbstractFloat}
     weld_on::Bool = false
-    Δts::Vector{FT} = Vector{Int}()
-    Nxs::Vector{FT} = Vector{Int}()
-    Nys::Vector{FT} = Vector{Int}()
+    Δts::Vector{Int} = Vector{Int}()
+    Nxs::Vector{Int} = Vector{Int}()
+    Nys::Vector{Int} = Vector{Int}()
     min_weld_area::FT = 1e6
     max_weld_area::FT = 2e9
     welding_coeff::FT = 150
@@ -437,12 +460,16 @@ RidgeRaftSettings(args...) = RidgeRaftSettings{Float64}(args...)
         welding_coeff,
     ) where {FT<:AbstractFloat}
         if weld_on && (isempty(Δts) || any(Δts .≤ 0))
-            @warn "Welding can't occur without any given timesteps or with
+            @warn "Welding can't occur without any given timesteps or with \
             negative timesteps. Turning welding off."
             weld_on = false
-        elseif any(Nxs .≤ 1) || any(Nys .≤ 1)
-            @warn "Can't split the grid into less than one row or column.
+        elseif any(Nxs .< 1) || any(Nys .< 1)
+            @warn "Can't split the grid into less than one row or column. \
             Turning welding off." 
+            weld_on = false
+        elseif !(length(Δts) == length(Nxs) == length(Nys))
+            @warn "Length of timestep multiple list (Δts) must match length of \
+            grid split lists Nxs and Nys. Turning welding off." 
             weld_on = false
         end
         new{FT}(
