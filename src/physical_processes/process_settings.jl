@@ -472,6 +472,11 @@ meanings:
             grid split lists Nxs and Nys. Turning welding off." 
             weld_on = false
         end
+        # Sort by largest to smallest timestep multiples
+        order = reverse!(sortperm(Δts))
+        Δts .= Δts[order]
+        Nxs .= Nxs[order]
+        Nys .= Nys[order]
         new{FT}(
             weld_on,
             Δts,

@@ -74,6 +74,7 @@ The user can also define settings for each physical process.
     fracture_settings::FractureSettings{CT} = FractureSettings()
     simp_settings::SimplificationSettings{FT} = SimplificationSettings()
     ridgeraft_settings::RidgeRaftSettings{FT} = RidgeRaftSettings()
+    weld_settings::WeldSettings{FT} = WeldSettings()
     # Output Writers -----------------------------------------------------------
     writers::OT = OutputWriters()
 end
@@ -179,6 +180,27 @@ function timestep_sim!(sim, tstep)
                     sim.consts,
                     sim.Δt,
                 )
+        end
+
+        # Weld floes
+        if sim.weld_settings.weld_on
+            weld_setting_idx = findfirst(
+                x -> mod(tstep, x) == 0,
+                sim.weld_settings.Δts
+            )
+            if !isnothing(weld_setting_idx)
+                max_floe_id = Subzero.timestep_welding!(
+                    sim.model.floes,
+                    max_floe_id,
+                    sim.model.grid,
+                    sim.model.domain,
+                    sim.coupling_settings,
+                    sim.weld_settings,
+                    weld_setting_idx,
+                    sim.consts,
+                    sim.Δt,
+                )
+            end
         end
 
         # What happens if floe tried to fuse with ghost floe?? 

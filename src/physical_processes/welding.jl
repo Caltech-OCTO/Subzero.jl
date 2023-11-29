@@ -1,10 +1,11 @@
 """
-    bin_floe_centroids(floes, grid, Nx, Ny)
+    bin_floe_centroids(floes, grid, domain, Nx, Ny)
 
 Split floe locations into a grid of Nx by Ny by floe centroid location
 Inputs:
     floes       <StructArray{Floe}> simulation's list of floes
     grid        <RegRectilinearGrid> simulation's grid
+    domain      <Domain> simulation's domain
     Nx          <Int> number of grid cells in the x-direction to split domain
                     into for welding groups
     Ny          <Int> number of grid cells in the y-direction to split domain
@@ -15,11 +16,11 @@ Outputs:
                     corresponding section of the grid. May also have elements of
                     value 0 if there are less than average number of floes in 
                     the section.
-    open_slots  <Maxtrix{Int}> Nx by Ny matrix where each element is the total
-                    number of indices within floe_bins[Nx, Ny] that are non-zeros
-                    and represent a floe within the grid section.
+    nfloes      <Maxtrix{Int}> Nx by Ny matrix where each element is the total
+                    number of indices within floe_bins[Nx, Ny] that are
+                    non-zeros and represent a floe within the grid section.
 """
-function bin_floe_centroids(floes, grid, Nx, Ny)
+function bin_floe_centroids(floes, grid, domain, Nx, Ny)
     @assert Nx > 0 && Ny > 0 "Can't bin centroids without bins."
     # Find average number of floes per bin if floes were spread evenly
     floes_per_bin = ceil(Int, length(floes) / (Nx * Ny))
@@ -32,10 +33,16 @@ function bin_floe_centroids(floes, grid, Nx, Ny)
     Δx = Lx / Nx
     Δy = Ly / Ny
     for i in eachindex(floes)
-        # Determine which bin floe is in
+        # Determine if centroid is within bounds
         xp, yp = floes.centroid[i]
-        xidx = floor(Int, (xp - grid.x0) / Δx) + 1
-        yidx = floor(Int, (yp - grid.y0) / Δy) + 1
+        !in_bounds(xp, yp, grid, domain.north, domain.east) && break
+        # Determine which grid bin centroid is in and shift based on boundary
+        xidx = grid_cell_index(xp, Δx, grid.x0)
+        xidx = (xp ≤ grid.x0) ? 1 : xidx
+        xidx = (xp ≥ grid.xf) ? Nx : xidx
+        yidx = grid_cell_index(yp, Δy, grid.y0)
+        yidx = (yp ≤ grid.y0) ? 1 : yidx
+        yidx = (yp ≥ grid.yf) ? Ny : yidx
         # Add floe to bin list
         nfloes[xidx, yidx] += 1
         if nfloes[xidx, yidx] > floes_per_bin
@@ -52,6 +59,7 @@ end
         floes,
         max_floe_id,
         grid,
+        domain,
         Nx,
         Ny,
         coupling_settings,
@@ -67,6 +75,7 @@ Inputs:
     floes               <StructArray{Floe}> simulation's list of floes
     max_floe_id         <Int> maximum floe ID before this welding
     grid                <RegRectilinearGrid> simulation's grid
+    domain              <Domain> simulation's domain
     Nx                  <Int> number of grid cells in the x-direction to split
                             domain into for welding groups
     Ny                  <Int> number of grid cells in the y-direction to split
@@ -84,6 +93,7 @@ function timestep_welding!(
     floes,
     max_floe_id,
     grid,
+    domain,
     coupling_settings,
     weld_settings::WeldSettings{FT},
     weld_idx,
@@ -93,9 +103,8 @@ function timestep_welding!(
 ) where FT <: AbstractFloat
     # Seperate floes into groups based on centroid location in grid
     Nx, Ny = weld_settings.Nxs[weld_idx], weld_settings.Nys[weld_idx]
-    floe_bins, floes_per_bin = bin_floe_centroids(floes, grid, Nx, Ny)
-    prefuse_max_floe_id = max_floe_id
-    for k in eachindex(floe_bins)
+    floe_bins, floes_per_bin = bin_floe_centroids(floes, grid, domain, Nx, Ny)
+    for k in eachindex(floe_bins)  # should be able to multithread
         bin = floe_bins[k]
         nfloes = floes_per_bin[k]
         weld_group = [(0, FT(0)) for _ in 1:nfloes]
@@ -113,7 +122,7 @@ function timestep_welding!(
                     if (
                         # don't re-check pairs, but check new floes from fusion
                         i != j &&
-                        (i < j || floes.id[j] > prefuse_max_floe_id) &&
+                        (i < j || floes.id[j] > max_floe_id) &&
                         floes.status[i].tag == active &&
                         floes.status[j].tag == active &&
                         floes.area[i] < weld_settings.max_weld_area &&
@@ -154,18 +163,26 @@ function timestep_welding!(
                 new_area = floes.area[i] + floes.area[j] - ij_inter_area
                 new_area > weld_settings.max_weld_area && break
                 # Weld floe i and j, replacing floe i with welded floe
-                max_floe_id = fuse_two_floes!(
+                fuse_two_floes!(
                     LazyRow(floes, i),
                     LazyRow(floes, j),
                     consts,
                     Δt,
                     coupling_settings,
                     max_floe_id,
-                    prefuse_max_floe_id,
                     rng,
                 )
+                # can't update to real value due to multi-threading - do below
+                floes.id[i] = -1
             end
         end
     end
-    return
+    # Update ids of floes outside of multithreading loop
+    for i in eachindex(floes)
+        if floes.id[i] == -1
+            max_floe_id += 1
+            floes.id[i] = max_floe_id
+        end
+    end
+    return max_floe_id
 end

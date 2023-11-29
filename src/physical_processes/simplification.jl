@@ -145,12 +145,13 @@ Inputs:
     remove_floe               <Union{Floe, LazyRow{Floe}}> second floe
     consts              <Constants> simulation's constants
     coupling_settings   <CouplingSettings> simulation's coupling settings
-    max_floe_id         <Int> maximum floe ID used yet in simulation
+    prefuse_max_floe_id <Int> maximum floe ID used yet in simulation
     rng                 <RNG> random number generator
 Outputs:
     If floes are not intersecting, no changes. If intersecing, the fused floe
     replaces the larger of the two floes and the smaller floe is marked for
-    removal. 
+    removal.
+    Note that the smaller floe's ID is NOT updated!
 """
 function fuse_two_floes!(
     keep_floe,
@@ -158,7 +159,6 @@ function fuse_two_floes!(
     consts,
     Δt,
     coupling_settings,
-    max_floe_id,
     prefuse_max_floe_id,
     rng,
 )
@@ -208,16 +208,14 @@ function fuse_two_floes!(
             keep_floe.stress_history.total * mass_tmp +
             remove_floe.stress_history.total * remove_floe.mass)
         # Update IDs
-        if keep_floe.id <= prefuse_max_floe_id
+        if 0 < keep_floe.id <= prefuse_max_floe_id
             push!(keep_floe.parent_ids, keep_floe.id)
         end
-        if remove_floe.id <= prefuse_max_floe_id
+        if 0 < remove_floe.id <= prefuse_max_floe_id
             push!(keep_floe.parent_ids, remove_floe.id)
         end
-        max_floe_id += 1
-        keep_floe.id = max_floe_id
     end
-    return max_floe_id
+    return
 end
 
 """
@@ -258,16 +256,17 @@ function fuse_floes!(
                 if floes.status[j].tag != remove
                     keep_idx, remove_idx = floes.area[i] < floes.area[j] ?
                         (j, i) : (i, j)
-                    max_floe_id = fuse_two_floes!(
+                    fuse_two_floes!(
                         LazyRow(floes, keep_idx),
                         LazyRow(floes, remove_idx),
                         consts,
                         Δt,
                         coupling_settings,
-                        max_floe_id,
                         prefuse_max_floe_id,
                         rng,
                     )
+                    max_floe_id += 1
+                    floes.id[keep_idx] = max_floe_id
                 end
             end
         end

@@ -196,5 +196,15 @@
             weld_on = true, Δts = [100],
             Nxs = [1], Nys = [1, 2],
         )
+        # Test sorting of timesteps
+        sorted_settings = WeldSettings(
+            weld_on = true,
+            Δts = [100, 400, 700],
+            Nxs = [1, 2, 3],
+            Nys = [4, 5, 6],
+        )
+        @test sorted_settings.Δts == [700, 400, 100]
+        @test sorted_settings.Nxs == [3, 2, 1]
+        @test sorted_settings.Nys == [6, 5, 4]
     end
 end

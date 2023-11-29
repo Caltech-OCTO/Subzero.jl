@@ -62,17 +62,15 @@
         Subzero.translate!(coords2, 20.0, 0.0)
         f1 = Floe(coords1, 0.5, 0.0)
         f2 = Floe(coords2, 0.5, 0.0)
-        max_id = Subzero.fuse_two_floes!(
+        Subzero.fuse_two_floes!(
             f1,
             f2,
             Subzero.Constants(),
             10,
             CouplingSettings(),
             2,
-            2,
             Xoshiro(1),
         )
-        @test max_id == 2
         @test f1.coords == coords1
         @test f2.coords == coords2
 
@@ -127,23 +125,20 @@
             [f1.centroid[2] - 10 * f1.p_dydt, f2.centroid[2] - 10 * f2.p_dydt],
         )
 
-        max_id = Subzero.fuse_two_floes!(
+        Subzero.fuse_two_floes!(
             f1,
             f2,
             Constants(),
             10,
             CouplingSettings(),
-            2,
             4,
             Xoshiro(1),
         )
-        @test max_id == 3
         @test f1.status.tag == Subzero.active
         @test f2.status.tag == Subzero.Subzero.remove
         @test f1.area == 170
         @test f1.mass == mass_tot  # conservation of mass
         @test f1.parent_ids == [1, 2]
-        @test f1.id == 3
         # conservation of momentum
         x_momentum_after, y_momentum_after = Subzero.calc_linear_momentum(
             [f1.u],
@@ -203,13 +198,12 @@
             0.55,
             0.0,
         )
-        max_id = Subzero.fuse_two_floes!(
+        Subzero.fuse_two_floes!(
             f3,
             f1,
             Constants(),
             10,
             CouplingSettings(),
-            3,
             3,
             Xoshiro(1),
         )
