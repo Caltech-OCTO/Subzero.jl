@@ -171,4 +171,40 @@
         ridge_prob2_info = @test_logs (:warn, ridge_prob2_str) RidgeRaftSettings(ridge_raft_on = true, Δt = 100, ridge_probability = 2.0)
         @test ridge_prob2_info.ridge_probability == 1.0
     end
+    @testset "WeldSettings" begin
+        default_info = WeldSettings()
+        @test !default_info.weld_on &&
+            isempty(default_info.Δts) &&
+            isempty(default_info.Nxs) &&
+            isempty(default_info.Nys) &&
+            default_info.min_weld_area == 1e6 &&
+            default_info.max_weld_area == 2e9 &&
+            default_info.welding_coeff == 150
+
+        no_Δts_str = "Welding can't occur without any given timesteps or with \
+            negative timesteps. Turning welding off."
+        @test_logs (:warn, no_Δts_str) WeldSettings(weld_on = true)
+        zero_split_str = "Can't split the grid into less than one row or column. \
+            Turning welding off."
+        @test_logs (:warn, zero_split_str) WeldSettings(
+            weld_on = true, Δts = [100],
+            Nxs = [1], Nys = [0],
+        )
+        length_wrong_str = "Length of timestep multiple list (Δts) must match \
+        length of grid split lists Nxs and Nys. Turning welding off." 
+        @test_logs (:warn, length_wrong_str) WeldSettings(
+            weld_on = true, Δts = [100],
+            Nxs = [1], Nys = [1, 2],
+        )
+        # Test sorting of timesteps
+        sorted_settings = WeldSettings(
+            weld_on = true,
+            Δts = [100, 400, 700],
+            Nxs = [1, 2, 3],
+            Nys = [4, 5, 6],
+        )
+        @test sorted_settings.Δts == [700, 400, 100]
+        @test sorted_settings.Nxs == [3, 2, 1]
+        @test sorted_settings.Nys == [6, 5, 4]
+    end
 end
