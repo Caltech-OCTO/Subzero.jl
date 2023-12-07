@@ -135,9 +135,7 @@
     @testset "SimplificationSettings" begin
         # Test defaults
         default_info = SimplificationSettings()
-        @test default_info.min_floe_area == 1e6 &&
-            default_info.max_floe_height == 10 &&
-            default_info.smooth_vertices_on &&
+        @test default_info.smooth_vertices_on &&
             default_info.max_vertices == 30 &&
             default_info.Δt_smooth == 20
         

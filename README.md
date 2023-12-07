@@ -5,7 +5,7 @@
 
 <!-- description -->
 <p align="center">
-  <strong>:ice_cube: Sea-ice model to explicitly simulate individual floe life cycles using complex discrete elements with time-evolving shapes. Easy to couple with Oceananigans for explorations of coupled ice-ocean dynamics. Ported from MATLAB to Julia. :ice_cube:</strong>
+  <strong> Sea-ice model to explicitly simulate individual floe life cycles using complex discrete elements with time-evolving shapes. Easy to couple with Oceananigans for explorations of coupled ice-ocean dynamics. Ported from MATLAB to Julia.</strong>
 </p>
 
 <!-- Information badges -->
@@ -63,7 +63,7 @@ which will add Subzero as a package.
 
 ## Running your first model:
 
-For detailed instructions on how to create different types of models and simulations, please see the [documentation.md file](https://github.com/Caltech-OCTO/Subzero.jl/blob/documentation/documentation.md). However, we will give a basic example here.
+For detailed instructions on how to create different types of models and simulations, please see the [documentation.md file](https://github.com/Caltech-OCTO/Subzero.jl/blob/main/documentation.md). However, we will give a basic example here.
 
 Let’s run a basic simulation with initially stationary floes pushed into a collision boundary by a uniform, zonally flowing ocean. In this simulation, collisions between floes are on by default and we will enable floe fracturing.  
 
@@ -85,27 +85,32 @@ domain = Domain(
   CollisionBoundary(West, grid),
 )
 # Create floes
+floe_settings = FloeSettings(nhistory = 100, min_floe_area = 1e5)
 floe_arr = initialize_floe_field(
-  0,  # number of floes
+  Float64,
+  100,  # number of floes
   [0.7],  # floe concentration
   domain,
   0.5,  # average floe height
-  0.05,  # floe height variability
+  0.05;  # floe height variability
+  floe_settings = floe_settings,
 ) 
 # Create model
 model = Model(grid, ocean, atmos, domain, floe_arr) 
-# Create simulation
+
+# Create settings
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area))) 
 consts = Constants(E = modulus) 
+
 fracture_settings = FractureSettings( 
   fractures_on = true,
   criteria = HiblerYieldCurve(floe_arr),
   Δt = 75,
   npieces = 3,
-  nhistory = 1000,
   deform_on = true, 
 )
-
+# Create output writers
+dir = "output/sim"
 initwriter = InitialStateOutputWriter(
     dir = dir,
     filename = "initial_state.jld2",
@@ -113,31 +118,41 @@ initwriter = InitialStateOutputWriter(
     )
 floewriter = FloeOutputWriter(
     100,
-    dir = "output/sim",
+    dir = dir,
     filename = "floes.jld2",
     overwrite = true,
 )
 writers = OutputWriters(initwriter, floewriter)
+# Create simulation
+Δt = 10
 simulation = Simulation( 
   model = model, 
   consts = consts, 
-  Δt = Δt, 
-  nΔt = 5000, 
-  verbose = true, 
-  fracture_settings,
+  Δt = Δt,     # 10 second timesteps 
+  nΔt = 10000,  # Run for 10000 timesteps
+  verbose = true; 
+  fracture_settings = fracture_settings,
   writers = writers,
 )
 # Run simulation
 run!(simulation)
+
+# Plot simulation
+plot_sim(
+    "output/sim/floes.jld2",
+    "output/sim/initial_state.jld2",
+    Δt,
+    "output/sim/example.mp4",
+)
 ``` 
 
-Check out our [documentation](https://github.com/Caltech-OCTO/Subzero.jl/blob/documentation/documentation.md) for more examples and explanations for the code above.
+Check out our [documentation](https://github.com/Caltech-OCTO/Subzero.jl/blob/main/documentation.md) for more examples and explanations for the code above.
 
 ## Citing:
 We still need to figure this out. Please reach out so we can discuss.
 
 ## Contributing:
-If you’re interested in helping develop Subzero, have found a bug, or have a new feature that you want implemented, please open an issue on the repository and we can talk about this.  We will be working on a contributers' guide for this in the future.
+If you’re interested in helping develop Subzero, have found a bug, or have a new feature that you want implemented, please open an issue on the repository and we can talk about this.  We will be working on a contributers' guide in the future.
 
 ## Movies:
 

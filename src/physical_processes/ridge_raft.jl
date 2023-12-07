@@ -7,16 +7,14 @@ Functions needed for ridging and rafting between floes and boundaries.
         floes,
         idx,
         vol,
-        simp_settings,
-        consts,
+        floe_settings,
     )
 Add volume to existing floe and update fields that depend on the volume.
 Inputs:
     floes           <StructArray{Frloe}> list of floes
     idx             <Int> index of floe to add volume to 
     vol             <AbstractFloat> volume to add to floe
-    simp_settings   <SimplificationSettings> simulation simplification settings
-    consts          <Constants> simulation's constants
+    floe_settings   <FloeSettings> simulation's settings for making floes
 Outputs:
     Nothing. Floe's fields are updated to reflect increase in volume.
 """
@@ -24,16 +22,15 @@ function add_floe_volume!(
     floes,
     idx,
     vol,
-    simp_settings,
-    consts,
+    floe_settings,
 )
     # Update floe height, mass, and moment of intertia due to volume change
     init_height = floes.height[idx]
     floes.height[idx] += vol/floes.area[idx]
-    if floes.height[idx] > simp_settings.max_floe_height
-        floes.height[idx] = simp_settings.max_floe_height
+    if floes.height[idx] > floe_settings.max_floe_height
+        floes.height[idx] = floe_settings.max_floe_height
     end
-    floes.mass[idx] += vol * consts.ρi
+    floes.mass[idx] += vol * floe_settings.ρi
     floes.moment[idx] *= floes.height[idx] / init_height
     # Update all ghost floes of parent
     for gidx in floes.ghosts[idx]
@@ -52,9 +49,8 @@ end
         pieces_buffer,
         max_floe_id,
         broken,
-        coupling_settings,
         ridgeraft_settings,
-        consts,
+        floe_settings,
         rng,  
     )
 
@@ -68,11 +64,10 @@ Inputs:
     max_floe_id         <Int> maximum floe ID before this ridging/rafting
     broken              <Vector{Bool}> floe index is true if that floe has
                             broken in a previous ridge/raft interaction
-    coupling_settings   <CouplingSettings>  simulation's coupling settings
     ridgeraft_settings  <RidgeRaftSettings> simulation's ridge/raft settings
+    floe_settings       <FloeSettings> simulation's settings for making floes
     simp_settings       <SimplificationSettings> simulation's simplification
                             settings
-    consts              <Constants>  simulation constants
     rng                 <AbstractRNG> random number generator
 Outputs:
     transfer_vol    <Float> total volume to transfer away from floe
@@ -88,10 +83,9 @@ function remove_floe_overlap!(
     pieces_buffer,
     max_floe_id,
     broken,
-    coupling_settings,
     ridgeraft_settings,
+    floe_settings,
     simp_settings,
-    consts,
     rng,  
 ) where {FT <: AbstractFloat}
     # Find new floe shape and regions
@@ -126,8 +120,8 @@ function remove_floe_overlap!(
             Δy = ymax - ymin
             # Region is big enought to be a floe and has okay aspect ratio
             if (
-                region_area > simp_settings.min_floe_area &&
-                (Δx > Δy ? Δy/Δx : Δx/Δy) > simp_settings.min_aspect_ratio
+                region_area > floe_settings.min_floe_area &&
+                (Δx > Δy ? Δy/Δx : Δx/Δy) > floe_settings.min_aspect_ratio
             )
                 floe_num += 1
                 translate!(  # shift region coords to parent floe location
@@ -145,9 +139,8 @@ function remove_floe_overlap!(
                     replace_floe!(  # replace parent floe
                         LazyRow(floes, shrink_parent_idx),
                         new_poly,
-                        new_vol * consts.ρi,
-                        coupling_settings,
-                        consts,
+                        new_vol * floe_settings.ρi,
+                        floe_settings,
                         rng,
                     )
                     if nregions == 1
@@ -160,9 +153,8 @@ function remove_floe_overlap!(
                             replace_floe!(
                                 LazyRow(floes, gidx),
                                 new_poly,
-                                new_vol * consts.ρi,
-                                coupling_settings,
-                                consts,
+                                new_vol * floe_settings.ρi,
+                                floe_settings,
                                 rng,
                             )
                             # shift ghost floe
@@ -195,9 +187,8 @@ function remove_floe_overlap!(
                     replace_floe!(
                         LazyRow(pieces_buffer, buffer_length),
                         new_poly,
-                        new_vol * consts.ρi,
-                        coupling_settings,
-                        consts,
+                        new_vol * floe_settings.ρi,
+                        floe_settings,
                         rng,
                     )
                     max_floe_id += 1
@@ -224,7 +215,6 @@ end
         overlap_area,
         ridgeraft_settings,
         simp_settings,
-        consts,
         Δt,
         rng
     )
@@ -241,10 +231,9 @@ Inputs:
                             broken in a previous ridge/raft interaction
     ridgeraft_settings  <RidgeRaftSettings> simulation's settings for ridging
                             and rafting
-    coupling_settings   <CouplingSettings> simulation's settings for coupling
+    floe_settings       <FloeSettings> simulation's settings for making floes
     simp_settings       <SimplificationSettings> simulation's simplification
                             settings
-    consts              <Constants> simulation's constants
     Δt                  <Int> simulation timestep in seconds
     rng                 <RandomNumberGenerator> simulation's random number
                             generator
@@ -259,9 +248,8 @@ function floe_floe_ridge!(
     max_floe_id,
     broken,
     ridgeraft_settings,
-    coupling_settings,
+    floe_settings,
     simp_settings,
-    consts,
     Δt,
     rng,
 ) where {FT}
@@ -316,10 +304,9 @@ function floe_floe_ridge!(
             pieces_buffer,
             max_floe_id,
             broken,
-            coupling_settings,
             ridgeraft_settings,
+            floe_settings,
             simp_settings,
-            consts,
             rng,  
         )
         if vol > 0
@@ -327,8 +314,7 @@ function floe_floe_ridge!(
                 floes,
                 gain_parent_idx,
                 vol,
-                simp_settings,
-                consts,
+                floe_settings,
             )
             # Conserve momentum
             first_slot = length(pieces_buffer) - nregions + 2
@@ -373,10 +359,9 @@ end
         pieces_buffer,
         max_floe_id,
         broken,
-        coupling_settings,
         ridgeraft_settings,
+        floe_settings,
         simp_settings,
-        consts,
         Δt,
         rng,
     )
@@ -392,11 +377,10 @@ Inputs:
     max_floe_id         <Int> maximum floe ID before this ridging/rafting
     broken              <Vector{Bool}> floe index is true if that floe has
                             broken in a previous ridge/raft interaction
-    coupling_settings   <CouplingSettings> simulation's settings for coupling
     ridgeraft_settings  <RidgeRaftSettings> simulation's settings for ridge/raft
+    floe_settings       <FloeSettings> simulation's settings for making floes
     simp_settings       <SimplificationSettings> simulation's settings for
                             simplification
-    consts              <Constants> simulation's constants
     Δt                  <Int> simulation timestep in seconds
     rng                 <RandomNumberGenerator> simulation's random number
                             generator
@@ -410,10 +394,9 @@ function floe_domain_ridge!(
     pieces_buffer,
     max_floe_id,
     broken,
-    coupling_settings,
     ridgeraft_settings,
+    floe_settings,
     simp_settings,
-    consts,
     Δt,
     rng,
 ) where {FT}
@@ -435,10 +418,9 @@ function floe_domain_ridge!(
         pieces_buffer,
         max_floe_id,
         broken,
-        coupling_settings,
         ridgeraft_settings,
+        floe_settings,
         simp_settings,
-        consts,
         rng,  
     )
     if vol > 0 && nregions > 0
@@ -453,8 +435,7 @@ function floe_domain_ridge!(
                         floes,
                         idx,
                         vol * region_frac,
-                        simp_settings,
-                        consts,
+                        floe_settings,
                     )
                 else
                     region_frac = pieces_buffer.area[current_slot] / tot_area
@@ -462,8 +443,7 @@ function floe_domain_ridge!(
                         pieces_buffer,
                         current_slot,
                         vol * region_frac,
-                        simp_settings,
-                        consts,
+                        floe_settings,
                     )
                     current_slot += 1
                 end
@@ -496,10 +476,9 @@ end
         pieces_buffer,
         max_floe_id,
         broken,
-        coupling_settings,
         ridgeraft_settings,
+        floe_settings,
         simp_settings,
-        consts,
         Δt,
         rng,
     )
@@ -515,11 +494,10 @@ Inputs:
     max_floe_id         <Int> maximum floe ID before this ridging/rafting
     broken              <Vector{Bool}> floe index is true if that floe has
                             broken in a previous ridge/raft interaction
-    coupling_settings   <CouplingSettings> simulation's settings for coupling
     ridgeraft_settings  <RidgeRaftSettings> simulation's ridge/raft settings
+    floe_settings       <FloeSettings> simultion's settings for making floes
     simp_settings       <SimplificationSettings> simulation's simplification
                             settings
-    consts              <Constants> simulation's constants
     Δt                  <Int> simulation timestep in seconds
     rng                 <RandomNumberGenerator> simulation's random number
                             generator
@@ -533,10 +511,9 @@ function floe_floe_raft!(
     pieces_buffer,
     max_floe_id,
     broken,
-    coupling_settings,
     ridgeraft_settings,
+    floe_settings,
     simp_settings,
-    consts,
     Δt,
     rng,
 ) where {FT}
@@ -573,10 +550,9 @@ function floe_floe_raft!(
         pieces_buffer,
         max_floe_id,
         broken,
-        coupling_settings,
         ridgeraft_settings,
+        floe_settings,
         simp_settings,
-        consts,
         rng,  
     )
     if vol > 0 && nregions > 0
@@ -585,8 +561,7 @@ function floe_floe_raft!(
             floes,
             gain_parent_idx,
             vol,
-            simp_settings,
-            consts,
+            floe_settings,
         )
         first_slot = length(pieces_buffer) - nregions + 2
         if nregions == 0
@@ -625,10 +600,9 @@ end
         pieces_buffer,
         max_floe_id,
         broken,
-        coupling_settings,
         ridgeraft_settings,
+        floe_settings,
         simp_settings,
-        consts,
         Δt
         rng,
     )
@@ -644,10 +618,9 @@ Inputs:
     max_floe_id         <Int> maximum floe ID before this ridging/rafting
     broken              <Vector{Bool}> floe index is true if that floe has
                             broken in a previous ridge/raft interaction
-    coupling_settings   <CouplingSettings> simulation's settings for coupling
     ridgeraft_settings  <RidgeRaftSettings> ridge/raft settings
+    floe_settings       <FloeSettings> simulation's settings for making floes
     simp_settings       <SimplificationSettings> simplification settings
-    consts              <Constants> simulation's constants
     Δt                  <Int> simulation timestep in seconds
     rng                 <RandomNumberGenerator> simulation's random number
                             generator
@@ -662,10 +635,9 @@ floe_domain_raft!(
     pieces_buffer,
     max_floe_id,
     broken,
-    coupling_settings,
     ridgeraft_settings,
+    floe_settings,
     simp_settings,
-    consts,
     Δt,
     rng,
 ) = floe_domain_ridge!(
@@ -675,10 +647,9 @@ floe_domain_raft!(
     pieces_buffer,
     max_floe_id,
     broken,
-    coupling_settings,
     ridgeraft_settings,
+    floe_settings,
     simp_settings,
-    consts,
     Δt,
     rng,
 )
@@ -686,12 +657,14 @@ floe_domain_raft!(
 """
     timestep_ridging_rafting!(
         floes,
-        domain,
-        ridgeraft_settings::RidgeRaftSettings{FT},
         pieces_buffer,
+        domain,
+        max_floe_id,
+        ridgeraft_settings::RidgeRaftSettings{FT},
+        floe_settings
         simp_settings,
-        consts,
         Δt,
+        rng,
     )
 
 Ridge and raft floes that meet probability and height criteria.
@@ -701,10 +674,9 @@ Inputs:
                             breakage of floes
     domain              <Domain> simulation's domain
     max_floe_id         <Int> maximum floe ID before this ridging/rafting
-    coupling_settings   <CouplingSettings> coupling settings
     ridgeraft_settings  <RidgeRaftSettings> ridge/raft settings
+    floe_settings       <FloeSettings> simulation's settings for making floes
     simp_settings       <SimplificationSettings> simplification settings
-    consts              <Consts> simulation's constants
     Δt                  <Int> length of timestep in seconds
     rng                 <RandomNumberGenerator> simulation's rng
 Outputs:
@@ -716,10 +688,9 @@ function timestep_ridging_rafting!(
     pieces_buffer,
     domain,
     max_floe_id,
-    coupling_settings,
     ridgeraft_settings::RidgeRaftSettings{FT},
+    floe_settings,
     simp_settings,
-    consts,
     Δt,
     rng = Xoshiro(),
 ) where {FT <: AbstractFloat}
@@ -807,9 +778,8 @@ function timestep_ridging_rafting!(
                             max_floe_id,
                             broken,
                             ridgeraft_settings,
-                            coupling_settings,
+                            floe_settings,
                             simp_settings,
-                            consts,
                             Δt,
                             rng,
                         )
@@ -825,10 +795,9 @@ function timestep_ridging_rafting!(
                             pieces_buffer,
                             max_floe_id,
                             broken,
-                            coupling_settings,
                             ridgeraft_settings,
+                            floe_settings,
                             simp_settings,
-                            consts,
                             Δt,
                             rng,
                         )
@@ -845,10 +814,9 @@ function timestep_ridging_rafting!(
                             pieces_buffer,
                             max_floe_id,
                             broken,
-                            coupling_settings,
                             ridgeraft_settings,
+                            floe_settings,
                             simp_settings,
-                            consts,
                             Δt,
                             rng,
                         )
@@ -864,10 +832,9 @@ function timestep_ridging_rafting!(
                             pieces_buffer,
                             max_floe_id,
                             broken,
-                            coupling_settings,
                             ridgeraft_settings,
+                            floe_settings,
                             simp_settings,
-                            consts,
                             Δt,
                             rng,
                         )

@@ -92,7 +92,7 @@ end
 
     # Two blocks crashing head on - no rotation
     rng = Xoshiro(1)
-    fracture_settings = FractureSettings(nhistory = 100)
+    floe_settings = FloeSettings(nhistory = 100)
     head_on_floes = initialize_floe_field(
         FT,
         [floe1, floe2],
@@ -100,7 +100,7 @@ end
         0.25,
         0.0,
         rng = rng,
-        fracture_settings = fracture_settings,
+        floe_settings = floe_settings,
     )
     head_on_floes.u[1] = 0.15
     head_on_floes.u[2] = -0.1
@@ -123,7 +123,7 @@ end
         0.25,
         0.0,
         rng = rng,
-        fracture_settings = fracture_settings,
+        floe_settings = floe_settings,
     )
     offset_floes.u[1] = 0.11
     offset_floes.u[2] = -0.1
@@ -145,7 +145,7 @@ end
         0.25,
         0.0,
         rng = rng,
-        fracture_settings = fracture_settings,
+        floe_settings = floe_settings,
     )
     rotating_floes.u[1] = 0.11
     rotating_floes.u[2] = -0.1

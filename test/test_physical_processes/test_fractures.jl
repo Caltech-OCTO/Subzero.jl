@@ -193,8 +193,7 @@
             floe1_copy,
             colliding_coords,
             deforming_forces,
-            CouplingSettings(),
-            Constants(),
+            FloeSettings(),
             10,
             Xoshiro(1),
         )
@@ -220,8 +219,7 @@
                 Δt = 75,
                 deform_on = true,
             ),
-            CouplingSettings(),
-            Constants(),
+            FloeSettings(),
             10,
         ) 
         # Test that the pieces all fit within original floe
@@ -247,9 +245,7 @@
             4,  # start with 4 floes
             Xoshiro(3),
             frac_settings,
-            CouplingSettings(),
-            SimplificationSettings(),
-            Constants(),
+            FloeSettings(),
             10,
         )
         @test max_idx == 10

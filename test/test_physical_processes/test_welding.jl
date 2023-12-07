@@ -145,6 +145,7 @@ end
         OpenBoundary(West, grid),
     )
     consts = Constants()
+    floe_settings = FloeSettings()
     coupling_settings = CouplingSettings()
     coords = [
         [[[0.0, 0.0], [0.0, 5e4], [6e4, 5e4], [6e4, 0.0], [0.0, 0.0]]],
@@ -175,10 +176,9 @@ end
         maximum(floes.id),
         grid,
         periodic_domain,
-        coupling_settings,
         weld_settings,
+        floe_settings,
         2, # second set in weld setting lists (Nx = 2, Ny = 2)
-        consts,
         10,  # Δt
     )
     @test max_floe_id == 3
@@ -195,10 +195,9 @@ end
         maximum(floes.id),
         grid,
         periodic_domain,
-        coupling_settings,
         weld_settings,
+        floe_settings,
         1, # first set in weld setting lists (Nx = 1, Ny = 2)
-        consts,
         10,  # Δt
     )
     @test max_floe_id == 4
@@ -220,10 +219,9 @@ end
         maximum(floes.id),
         grid,
         periodic_domain,
-        coupling_settings,
         weld_settings,
+        floe_settings,
         3, # third set in weld setting lists (Nx = 1, Ny = 1)
-        consts,
         10,  # Δt
     )
     @test max_floe_id == 4
@@ -244,7 +242,6 @@ end
         maximum(floes.id),
         grid,
         periodic_domain,
-        coupling_settings,
         WeldSettings(
             weld_on = true,
             Δts = [100],
@@ -253,8 +250,8 @@ end
             max_weld_area = 2.0e9,  # smaller than two largest floes
             welding_coeff = 1000  # will weld for sure
         ),
+        floe_settings,
         1, # first set in weld setting lists (Nx = 1, Ny = 1)
-        consts,
         10,  # Δt
     )
     @test max_floe_id == 3
@@ -271,7 +268,6 @@ end
         maximum(floes.id),
         grid,
         periodic_domain,
-        coupling_settings,
         WeldSettings(
             weld_on = true,
             Δts = [100],
@@ -280,8 +276,8 @@ end
             min_weld_area = 1e10,  # entire domain
             welding_coeff = 1000  # will weld for sure
         ),
+        floe_settings,
         1, # first set in weld setting lists (Nx = 1, Ny = 1)
-        consts,
         10,  # Δt
     )
     @test max_floe_id == 3
@@ -298,7 +294,6 @@ end
         maximum(floes.id),
         grid,
         periodic_domain,
-        coupling_settings,
         WeldSettings(
             weld_on = true,
             Δts = [100],
@@ -307,8 +302,8 @@ end
             max_weld_area = 5.1e9,  # smaller than all three floes together
             welding_coeff = 1000  # will weld for sure
         ),
+        floe_settings,
         1, # first set in weld setting lists (Nx = 1, Ny = 1)
-        consts,
         10,  # Δt
     )
     @test max_floe_id == 4

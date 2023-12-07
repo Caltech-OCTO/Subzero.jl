@@ -65,9 +65,8 @@
         Subzero.fuse_two_floes!(
             f1,
             f2,
-            Subzero.Constants(),
             10,
-            CouplingSettings(),
+            FloeSettings(),
             2,
             Xoshiro(1),
         )
@@ -128,9 +127,8 @@
         Subzero.fuse_two_floes!(
             f1,
             f2,
-            Constants(),
             10,
-            CouplingSettings(),
+            FloeSettings(),
             4,
             Xoshiro(1),
         )
@@ -201,9 +199,8 @@
         Subzero.fuse_two_floes!(
             f3,
             f1,
-            Constants(),
             10,
-            CouplingSettings(),
+            FloeSettings(),
             3,
             Xoshiro(1),
         )
@@ -258,7 +255,7 @@
             open_domain_no_topo,
             0.5,
             0.0;
-            simp_settings = SimplificationSettings(min_floe_area = 1e6),
+            floe_settings = FloeSettings(min_floe_area = 1e6),
             rng = Xoshiro(1),
         )
         floe_arr.status[1].tag = Subzero.fuse
@@ -273,9 +270,8 @@
         max_floe_id = Subzero.fuse_floes!(
             floe_arr,
             4,
-            CouplingSettings(),
+            FloeSettings(),
             10,
-            Constants(),
             Xoshiro(1),
         )
         floe3_area = floe_arr.area[3]
@@ -311,7 +307,7 @@
             open_domain_no_topo,
             0.5,
             0.0;
-            simp_settings = SimplificationSettings(min_floe_area = 1e6),
+            floe_settings = FloeSettings(min_floe_area = 1e6),
             rng = Xoshiro(1),
         )
         close(file)
@@ -360,8 +356,7 @@
             open_domain_no_topo.topography,
             SimplificationSettings(max_vertices = 50),
             CollisionSettings(),
-            CouplingSettings(),
-            Constants(),
+            FloeSettings(),
             10,
             Xoshiro(1),
         )
@@ -457,8 +452,7 @@
             open_domain_with_topo.topography,
             SimplificationSettings(max_vertices = 30),
             CollisionSettings(floe_floe_max_overlap = 0.05), # set low for test
-            CouplingSettings(),
-            Constants(),
+            FloeSettings(),
             10,
             Xoshiro(1),
         )
@@ -527,7 +521,7 @@
             open_domain_no_topo,
             0.5,
             0.0;
-            simp_settings = SimplificationSettings(min_floe_area = 1e6),
+            floe_settings = FloeSettings(min_floe_area = 1e6),
             rng = Xoshiro(1),
         )
         floe_arr.height[4] = 0.05
@@ -544,7 +538,7 @@
             grid,
             open_domain_no_topo,
             dissolved,
-            SimplificationSettings(
+            FloeSettings(
                 min_floe_area = 1e8,
             )
         )

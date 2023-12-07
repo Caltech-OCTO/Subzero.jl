@@ -193,9 +193,7 @@ Base.:(:)(a::InteractionFields, b::InteractionFields) = Int(a):Int(b)
         poly::LG.Polygon,
         hmean,
         Δh;
-        ρi = 920.0,
-        coupling_settings = CouplingSettings(),
-        fracture_settings = FractureSettings(),
+        floe_settings = FloeSettings(),
         rng = Xoshiro(),
         kwargs...
     )
@@ -205,10 +203,7 @@ Inputs:
     poly                <LibGEOS.Polygon> 
     hmean               <Real> mean height for floes
     Δh                  <Real> variability in height for floes
-    grid                <Grid> simulation grid
-    ρi                  <Real> ice density kg/m3 - default 920
-    coupling_settings   <CouplingSettings> simulation coupling settings
-    fracture_settings   <FractureSettings> simulation fracture settings        
+    floe_settings       <FloeSettings> settings needed to initialize floe        
     rng                 <RNG> random number generator to generate floe
                             attributes - default is Xoshiro256++ algorithm
     kwargs      Any other floe fields to set as keyword arguments
@@ -221,28 +216,33 @@ function Floe{FT}(
     poly::LG.Polygon,
     hmean,
     Δh;
-    ρi = 920.0,
-    coupling_settings = CouplingSettings(),
-    fracture_settings = FractureSettings(),
+    floe_settings = FloeSettings(),
     rng = Xoshiro(),
     kwargs...
 ) where {FT <: AbstractFloat}
     floe = rmholes(poly)
     # Floe physical properties
     centroid = find_poly_centroid(floe)
-    height = hmean + (-1)^rand(rng, 0:1) * rand(rng, FT) * Δh
+    height = clamp(
+        hmean + (-1)^rand(rng, 0:1) * rand(rng, FT) * Δh,
+        floe_settings.min_floe_height,
+        floe_settings.max_floe_height,
+    )
     area_tot = LG.area(floe)
-    mass = area_tot * height * ρi
+    mass = area_tot * height * floe_settings.ρi
     coords = find_poly_coords(floe)
     coords = [orient_coords(coords[1])]
-    moment = calc_moment_inertia(coords, centroid, height, ρi = ρi)
+    moment = calc_moment_inertia(
+        coords, centroid, height;
+        ρi = floe_settings.ρi,
+    )
     angles = calc_poly_angles(coords)
     translate!(coords, -centroid[1], -centroid[2])
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
     status = Status()
     # Generate Monte Carlo Points
     x_subfloe_points, y_subfloe_points, status = generate_subfloe_points(
-        coupling_settings.subfloe_point_generator,
+        floe_settings.subfloe_point_generator,
         coords,
         rmax,
         area_tot,
@@ -251,7 +251,7 @@ function Floe{FT}(
     )
     translate!(coords, centroid[1], centroid[2])
     # Generate Stress History
-    stress_history = StressCircularBuffer{FT}(fracture_settings.nhistory)
+    stress_history = StressCircularBuffer{FT}(floe_settings.nhistory)
     fill!(stress_history, zeros(FT, 2, 2))
 
     return Floe{FT}(;
@@ -288,9 +288,7 @@ Inputs:
     coords              <Vector{Vector{Vector{Float64}}}> floe coordinates
     hmean               <Real> mean height for floes
     Δh                  <Real> variability in height for floes
-    ρi                  <Real> ice density kg/m3 - default 920
-    coupling_settings   <CouplingSettings> simulation coupling settings
-    fracture_settings   <FractureSettings> simulation fracture settings  
+    floe_settings       <FloeSettings> settings needed to initialize floe
     rng                 <RNG> random number generator to generate random floe
                             attributes - default uses Xoshiro256++ algorithm
     kwargs              Any other floe fields to set as keyword arguments
@@ -303,9 +301,7 @@ Floe{FT}(
     coords::PolyVec,
     hmean,
     Δh;
-    ρi = 920.0,
-    coupling_settings = CouplingSettings(),
-    fracture_settings = FractureSettings(),
+    floe_settings = FloeSettings(),
     rng = Xoshiro(),
     kwargs...,
 ) where {FT <: AbstractFloat} =
@@ -318,9 +314,7 @@ Floe{FT}(
         ),
         hmean,
         Δh;
-        ρi = ρi,
-        coupling_settings = coupling_settings,
-        fracture_settings = fracture_settings,
+        floe_settings = floe_settings,
         rng = rng,
         kwargs...,
     ) 
@@ -331,12 +325,9 @@ Floe{FT}(
         floe_poly,
         hmean,
         Δh;
-        ρi = 920.0,
-        coupling_settings,
-        fracture_settings,
-        simp_settings
+        floe_settings,
         rng = Xoshiro(),
-        min_floe_area = 0,
+        kwargs...
     )
 
 Split a given polygon into regions and split around any holes before turning
@@ -349,13 +340,11 @@ Inputs:
     hmean               <AbstratFloat> average floe height
     Δh                  <AbstratFloat> height range - floes will range in height
                         from hmean - Δh to hmean + Δh
-    ρi                  <AbstratFloat> ice density
-    coupling_settings   <CouplingSettings> simulation coupling settings
-    fracture_settings   <FractureSettings> simulation fracture settings
-    simp_settings       <SimplificationSettings> simulation simplification
+    floe_settings       <FloeSettings> settings needed to initialize floe
                             settings
     rng                 <RNG> random number generator to generate random floe
                             attributes - default uses Xoshiro256++ algorithm
+    kwargs...           Any additional keywords to pass to floe constructor
 Output:
     <StructArray{Floe}> vector of floes making up input polygon(s) with area
         above given minimum floe area. Floe's with holes split around holes. 
@@ -365,10 +354,7 @@ function poly_to_floes(
     floe_poly,
     hmean,
     Δh;
-    ρi = 920.0,
-    coupling_settings = CouplingSettings(),
-    fracture_settings = FractureSettings(),
-    simp_settings = SimplificationSettings(min_floe_area = 0),
+    floe_settings = FloeSettings(min_floe_area = 0),
     rng = Xoshiro(),
     kwargs...
 ) where {FT <: AbstractFloat}
@@ -377,16 +363,14 @@ function poly_to_floes(
     while !isempty(regions)
         r = pop!(regions)
         a = LG.area(r)
-        if a >= simp_settings.min_floe_area && a > 0
+        if a >= floe_settings.min_floe_area && a > 0
             if !hashole(r)
                 floe = Floe(
                     FT,
                     r::LG.Polygon,
                     hmean,
                     Δh;
-                    ρi = ρi,
-                    coupling_settings = coupling_settings,
-                    fracture_settings = fracture_settings,
+                    floe_settings = floe_settings,
                     rng = rng,
                     kwargs...
                 )
@@ -417,10 +401,7 @@ initialize_floe_field(args...; kwargs...) =
         domain,
         hmean,
         Δh;
-        ρi,
-        coupling_settings,
-        fracture_settings,
-        simp_settings,
+        floe_settings,
         rng,
     )
 
@@ -432,13 +413,9 @@ Inputs:
     coords              <Vector{PolyVec}> list of polygon coords to make into floes
     domain              <Domain> model domain 
     hmean               <Float> average floe height
-    Δh                  <Float> height range - floes will range in height from hmean
-                            - Δh to hmean + Δh
-    ρi                  <Float> ice density (optional) - default is 920.0
-    coupling_settings   <CouplingSettings> simulation coupling settings
-    fracture_settings   <FractureSettings> simulation fracture settings
-    simp_settings       <SimplificationSettings> simulation simplification
-                            settings
+    Δh                  <Float> height range - floes will range in height from
+                            hmean ± Δh
+    floe_settings       <FloeSettings> settings needed to initialize floes
     rng                 <RNG> random number generator to generate random floe
                             attributes - default uses Xoshiro256++ algorithm
 Output:
@@ -451,10 +428,7 @@ function initialize_floe_field(
     domain,
     hmean,
     Δh;
-    ρi = 920.0,
-    coupling_settings = CouplingSettings(),
-    fracture_settings = FractureSettings(),
-    simp_settings = SimplificationSettings(min_floe_area = 0.0),
+    floe_settings = FloeSettings(min_floe_area = 0.0),
     rng = Xoshiro(),
 ) where {FT <: AbstractFloat}
     floe_arr = StructArray{Floe{FT}}(undef, 0)
@@ -473,17 +447,14 @@ function initialize_floe_field(
                 p,
                 hmean,
                 Δh;
-                ρi = ρi,
-                coupling_settings = coupling_settings,
-                fracture_settings = fracture_settings,
-                simp_settings = simp_settings,
+                floe_settings = floe_settings,
                 rng = rng,
             ),
         )
     end
     # Warn about floes with area less than minimum floe size
-    min_floe_area = simp_settings.min_floe_area > 0 ?
-        simp_settings.min_floe_area :
+    min_floe_area = floe_settings.min_floe_area > 0 ?
+        floe_settings.min_floe_area :
         FT(
             4 * (domain.east.val - domain.west.val) *
             (domain.north.val - domain.south.val) / 1e4
@@ -613,10 +584,7 @@ end
         domain,
         hmean,
         Δh;
-        ρi,
-        coupling_settings,
-        fracture_settings,
-        simp_settings,
+        floe_settings,
         rng,
     )
 
@@ -638,11 +606,7 @@ Inputs:
     hmean           <Float> average floe height
     Δh              <Float> height range - floes will range in height from
                         hmean - Δh to hmean + Δh
-    ρi              <Float> ice density (optional) - default is 920.0
-    coupling_settings   <CouplingSettings> simulation coupling settings
-    fracture_settings   <FractureSettings> simulation fracture settings
-    simp_settings       <SimplificationSettings> simulation simplification
-                            settings
+    floe_settings       <FloeSettings> settings needed to initialize floes
     rng                 <RNG> random number generator to generate random floe
                             attributes - default uses Xoshiro256++
 Output:
@@ -656,10 +620,7 @@ function initialize_floe_field(
     domain,
     hmean,
     Δh;
-    ρi = 920.0,
-    coupling_settings = CouplingSettings(),
-    fracture_settings = FractureSettings(),
-    simp_settings = SimplificationSettings(min_floe_area = 0.0),
+    floe_settings = FloeSettings(min_floe_area = 0.0),
     rng = Xoshiro(),
 ) where {FT <: AbstractFloat}
     floe_arr = StructArray{Floe{FT}}(undef, 0)
@@ -729,10 +690,7 @@ function initialize_floe_field(
                             floe_poly,
                             hmean,
                             Δh;
-                            ρi = ρi,
-                            coupling_settings = coupling_settings,
-                            fracture_settings = fracture_settings,
-                            simp_settings = simp_settings,
+                            floe_settings = floe_settings,
                             rng = rng,
                         )
                         append!(floe_arr, floes)

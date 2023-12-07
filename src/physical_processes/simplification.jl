@@ -37,8 +37,6 @@ end
         topography,
         simp_settings,
         collision_settings,
-        coupling_settings,
-        consts,
         Δt,
         rng,
     )
@@ -52,8 +50,6 @@ Inputs:
     simp_settings       <SimplificationSettings> simulation's simplification
                             settings
     collision_settings  <CollisionSettings> simulation's collision settings
-    coupling_settings   <CouplingSettings> simulation's coupling settings
-    consts              <Constants> simulation's constants
     Δt                  <Int> length of simulation timestep in seconds
     rng                 <RNG> random number generator for new monte carlo points
 """
@@ -62,8 +58,7 @@ function smooth_floes!(
     topography,
     simp_settings,
     collision_settings,
-    coupling_settings,
-    consts,
+    floe_settings,
     Δt,
     rng,
 ) where {FT <: AbstractFloat}
@@ -89,8 +84,7 @@ function smooth_floes!(
                 LazyRow(floes, i),
                 simp_poly,
                 floes.mass[i],
-                coupling_settings,
-                consts,
+                floe_settings,
                 rng,
             )
             # conserve momentum
@@ -132,19 +126,17 @@ end
     fuse_two_floes!(
         keep_floe,
         remove_floe,
-        consts,
         Δt,
-        coupling_settings,
+        floe_settings,
         max_floe_id,
         rng,
     )
 Fuses two floes together if they intersect and replaces the larger of the two
 floes with their union. Mass and momentum are conserved.
 Inputs:
-    keep_floe               <Union{Floe, LazyRow{Floe}}> first floe
-    remove_floe               <Union{Floe, LazyRow{Floe}}> second floe
-    consts              <Constants> simulation's constants
-    coupling_settings   <CouplingSettings> simulation's coupling settings
+    keep_floe           <Union{Floe, LazyRow{Floe}}> first floe
+    remove_floe         <Union{Floe, LazyRow{Floe}}> second floe
+    floe_settings       <FloeSettings> simulation's settings to make new floes
     prefuse_max_floe_id <Int> maximum floe ID used yet in simulation
     rng                 <RNG> random number generator
 Outputs:
@@ -156,9 +148,8 @@ Outputs:
 function fuse_two_floes!(
     keep_floe,
     remove_floe,
-    consts,
     Δt,
-    coupling_settings,
+    floe_settings,
     prefuse_max_floe_id,
     rng,
 )
@@ -181,8 +172,7 @@ function fuse_two_floes!(
             keep_floe,
             new_poly,
             keep_floe.mass + remove_floe.mass,
-            coupling_settings,
-            consts,
+            floe_settings,
             rng,
         )
         # conserve momentum
@@ -222,9 +212,8 @@ end
     fuse_floes!(
         floes,
         max_floe_id,
-        coupling_settings,
+        floe_settings,
         Δt,
-        consts,
         rng,
     )
 
@@ -232,9 +221,8 @@ Fuse all floes marked for fusion.
 Inputs:
     floes               <StructArray{Floe}> model's floes
     max_floe_id         <Int> maximum floe ID created yet
-    coupling_settings   <CouplingSettings>  simulation's coupling settings
+    floe_settings       <FloeSettings>  simulation's settings for making floes
     Δt                  <Int> simulation timestep in seconds
-    consts              <Constants> simulation's constants
     rng                 <RNG> random number generator
 Outputs:
     None. Fuses floes marked for fusion. Marks floes fused into another floe
@@ -243,9 +231,8 @@ Outputs:
 function fuse_floes!(
     floes,
     max_floe_id,
-    coupling_settings,
+    floe_settings,
     Δt,
-    consts,
     rng,
 )
     prefuse_max_floe_id = max_floe_id
@@ -259,9 +246,8 @@ function fuse_floes!(
                     fuse_two_floes!(
                         LazyRow(floes, keep_idx),
                         LazyRow(floes, remove_idx),
-                        consts,
                         Δt,
-                        coupling_settings,
+                        floe_settings,
                         prefuse_max_floe_id,
                         rng,
                     )
@@ -280,7 +266,7 @@ end
         grid,
         domain,
         dissolved,
-        simp_settings
+        floe_settings
     )
 
 Remove floes marked for removal and dissolve floes smaller than minimum floe
@@ -290,7 +276,7 @@ Inputs:
     grid            <AbstractGrid> model's grid
     domain          <Domain> model's domain
     dissolved       <Matrix{AbstractFloat}> ocean's dissolved field
-    simp_settings   <SimplificationSettings> simplification settings
+    floe_settings   <FloeSettings> simulation's settings for making floes
 Outputs:
     None. Removes floes that do not continue to the next timestep and reset all
     continuing floes status to active.
@@ -300,12 +286,12 @@ function remove_floes!(
     grid,
     domain,
     dissolved,
-    simp_settings
+    floe_settings,
 )
     for i in reverse(eachindex(floes))
         if floes.status[i].tag != remove && (
-            floes.area[i] < simp_settings.min_floe_area ||
-            floes.height[i] < simp_settings.min_floe_height
+            floes.area[i] < floe_settings.min_floe_area ||
+            floes.height[i] < floe_settings.min_floe_height
         )
             # Dissolve small/thin floes and add mass to ocean
             dissolve_floe!(
@@ -337,9 +323,8 @@ end
         model,
         simp_settings,
         collision_settings,
-        coupling_settings,
+        floe_settings,
         Δt,
-        consts,
         rng,
     )
 Simplify the floe list be smoothing vertices, fusing floes, dissolving floes,
@@ -350,9 +335,8 @@ Inputs:
     simp_settings       <SimplificationSettings> simulation's simplification
                             settings
     collision_settings  <CollisionSettings> simulation's collision settings
-    coupling_settings   <CouplingSettings>  simulation's coupling settings
+    floe_settings       <FloeSettings>  simulation's settings for making floes
     Δt                  <Int> simulation timestep in seconds
-    consts              <Constants> simulation's constants
     rng                 <RNG> random number generator
 Outputs:
     Updates floe list and removes floe that won't continue to the next timestep
@@ -362,9 +346,8 @@ function simplify_floes!(
     max_floe_id,
     simp_settings,
     collision_settings,
-    coupling_settings,
+    floe_settings,
     Δt,
-    consts,
     rng,
 )
     # Smooth coordinates to reduce total number of vertices
@@ -374,8 +357,7 @@ function simplify_floes!(
             model.domain.topography,
             simp_settings,
             collision_settings,
-            coupling_settings,
-            consts,
+            floe_settings,
             Δt,
             rng,
         )
@@ -384,9 +366,8 @@ function simplify_floes!(
     max_floe_id = fuse_floes!(
         model.floes,
         max_floe_id,
-        coupling_settings,
+        floe_settings,
         Δt,
-        consts,
         rng,
     )
 
@@ -396,7 +377,7 @@ function simplify_floes!(
         model.grid,
         model.domain,
         model.ocean.dissolved,
-        simp_settings
+        floe_settings,
     )
     return max_floe_id
 end

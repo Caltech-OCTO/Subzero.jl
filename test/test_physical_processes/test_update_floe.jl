@@ -23,11 +23,12 @@
         floe_dict = load(
             "inputs/stress_strain.jld2"  # uses the first 2 element
         )
+        floe_settings = FloeSettings(nhistory = 1000)
         stresses = [[-10.065, 36.171, 36.171, -117.458],
             [7.905, 21.913, 21.913, -422.242]]
         stress_histories = [[-4971.252, 17483.052, 17483.052, -57097.458],
             [4028.520, 9502.886, 9502.886, -205199.791]]
-        strains = [[-0.0372, 0, 0, .9310], [7.419, 0, 0,	-6.987]]
+        strains = [[-0.0372, 0, 0, .9310], [7.419, 0, 0, -6.987]]
         strain_multiplier = [1e6, 1e6]
         for i in 1:2
             f = Floe(
@@ -37,6 +38,7 @@
                 u = floe_dict["u"][i],
                 v = floe_dict["v"][i],
                 ξ = floe_dict["ξ"][i],
+                floe_settings = floe_settings,
             )
             f.interactions = floe_dict["interactions"][i]
             f.num_inters = size(f.interactions, 1)
@@ -79,8 +81,7 @@
             f1,
             tri_poly,
             f1.mass,
-            CouplingSettings(),
-            Constants(),
+            FloeSettings(),
             Xoshiro(1)
         )
         @test f1.centroid == Subzero.find_poly_centroid(tri_poly)
@@ -272,8 +273,7 @@
                 LG.Polygon(triangle_coords)
             ),
             sqr_floe.mass + tri_floe.mass,
-            CouplingSettings(),
-            Constants(),
+            FloeSettings(),
             Xoshiro(1)
         )
         Subzero.conserve_momentum_change_floe_shape!(
