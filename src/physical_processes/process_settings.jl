@@ -3,6 +3,103 @@ Types to hold parameters for simulation's physical process settings
 """
 
 """
+    FloeSettings
+
+Settings needed to create floes within the model.
+- ρi is the density of all floes within the model
+- min_floe_area is the minimum floe area within the model before removal
+- min_floe_height is the minimum floe height within the model before removal
+- max_floe_height is the maximum floe height within the model before the height
+    can't increase any further
+- min_aspect_ratio is the minimum ratio between the x-length and y-length of any
+    floe prior to removal
+- nhistory is how many timesteps of stress history to save within each floe
+- subfloe_point_generator is the method of subfloe point generation for each
+    floe within the model
+"""
+@kwdef struct FloeSettings{
+    FT <: AbstractFloat,
+    GT <: AbstractSubFloePointsGenerator,
+}
+    ρi::FT = 920.0
+    min_floe_area::FT = 1e6
+    min_floe_height::FT = 0.1
+    max_floe_height::FT = 10.0
+    min_aspect_ratio::FT = 0.05
+    nhistory::Int = 100
+    subfloe_point_generator::GT = MonteCarloPointsGenerator()
+
+    function FloeSettings{FT, GT}(
+        ρi,
+        min_floe_area,
+        min_floe_height,
+        max_floe_height,
+        min_aspect_ratio,
+        nhistory,
+        subfloe_point_generator,
+    ) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator}
+        if ρi < 0
+            @warn "Ice density can't be negative. Resetting to default values \
+            of 920."
+            ρi = FT(920)
+        end
+        if min_floe_area < 0
+            @warn "Floe area can't be negative. Resetting minimum floe area to \
+            0 m^2."
+            min_floe_area = FT(0)
+        end
+        if min_floe_height < 0
+            @warn "Floe height can't be negative. Resetting minimum floe area \
+            to 0,."
+            min_floe_height = FT(0)
+        end
+        if max_floe_height < 0
+            @warn "Floe height can't be negative. Resetting maximum floe area \
+            to default 10m."
+            min_floe_height = FT(0)
+        end
+        if min_aspect_ratio < 0 || min_aspect_ratio > 1
+            @warn "Aspect ratio must be between 0 and 1. Resetting to default \
+            0f 0.05."
+            min_aspect_ratio = FT(0.05)
+        end
+        if nhistory < 1
+            @warn "Need to save at least one timestep of stress history.
+            Resetting to default of 100."
+            nhistory = 100
+        end
+        new{FT, GT}(
+            ρi,
+            min_floe_area,
+            min_floe_height,
+            max_floe_height,
+            min_aspect_ratio,
+            nhistory,
+            subfloe_point_generator,
+        )
+    end
+
+    FloeSettings(
+        ρi::FT,
+        min_floe_area,
+        min_floe_height,
+        max_floe_height,
+        min_aspect_ratio,
+        nhistory,
+        subfloe_point_generator::GT,
+    ) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator} = 
+        FloeSettings{FT, GT}(
+            ρi,
+            min_floe_area,
+            min_floe_height,
+            max_floe_height,
+            min_aspect_ratio,
+            nhistory,
+            subfloe_point_generator,
+        )
+end
+
+"""
     CouplingSettings
 
 Settings needed for coupling within the model.
@@ -14,20 +111,18 @@ of monte carlo points to attempt to generage for each floe. If two_way_coupling_
 true then the simulation calculates the stress the ice/atmosphere put on the
 ocean. 
 """
-@kwdef struct CouplingSettings{GT <: AbstractSubFloePointsGenerator}
+@kwdef struct CouplingSettings
     coupling_on::Bool = true
     Δt::Int = 10
     Δd::Int = 1
-    subfloe_point_generator::GT = MonteCarloPointsGenerator()
     two_way_coupling_on::Bool = false
 
-    function CouplingSettings{GT}(
+    function CouplingSettings(
         coupling_on,
         Δt,
         Δd,
-        subfloe_point_generator,
         two_way_coupling_on,
-    ) where {GT <: AbstractSubFloePointsGenerator}
+    )
         if coupling_on && Δt < 0
             @warn "Coupling can't occur on a multiple of negative timesteps. \
                 Turning coupling off."
@@ -43,29 +138,13 @@ ocean.
                 with a buffer of less than 0 grid cells. Setting Δd = 0."
             Δd = 0
         end
-        new{GT}(
+        new(
             coupling_on,
             Δt,
             Δd,
-            subfloe_point_generator,
             two_way_coupling_on,
         )
     end
-
-    CouplingSettings(
-        coupling_on,
-        Δt,
-        Δd,
-        subfloe_point_generator::GT,
-        two_way_coupling_on,
-    ) where {GT <: AbstractSubFloePointsGenerator} = 
-        CouplingSettings{GT}(
-            coupling_on,
-            Δt,
-            Δd,
-            subfloe_point_generator::GT,
-            two_way_coupling_on,
-        )
 end
 
 """
@@ -128,8 +207,8 @@ A float type FT can be provided as the first argument of any CollisionSettings
 constructor. A CollisionSettings of type FT will be created by passing all
 other arguments to the correct constructor. 
 """
-CollisionSettings(::Type{FT}, args...) where {FT <: AbstractFloat} =
-    CollisionSettings{FT}(args...)
+CollisionSettings(::Type{FT}; kwargs...) where {FT <: AbstractFloat} =
+    CollisionSettings{FT}(;kwargs...)
 
 """
     CollisionSettings(args...)
@@ -149,9 +228,7 @@ to fracture. The Δt determines how many simulation timesteps between fracturing
 floes. If deform_on is true, then the floe will be deformed around floe
 primarily causing the fracture, identified by the largest overlap area on the
 most recent set of collisions. Npieces denotes how many pieces to try to split a
-fractured floe into - 3 is suggested value. nhistory is the number of previous
-stress values to hold in each floe's stress history field. The higher the
-number, the longer it will take for a floe to fracture.
+fractured floe into - 3 is suggested value.
 """
 @kwdef struct FractureSettings{CT<:AbstractFractureCriteria}
     fractures_on::Bool = false
@@ -159,7 +236,6 @@ number, the longer it will take for a floe to fracture.
     Δt::Int = 0
     deform_on::Bool = false
     npieces::Int = 3
-    nhistory::Int = 1000
 
     function FractureSettings{CT}(
         fractures_on,
@@ -167,7 +243,6 @@ number, the longer it will take for a floe to fracture.
         Δt,
         deform_on,
         npieces,
-        nhistory,
     ) where {CT <: AbstractFractureCriteria}
         if fractures_on
             if Δt < 0
@@ -189,12 +264,7 @@ number, the longer it will take for a floe to fracture.
                 deformation off."
             deform_on = false
         end
-        if nhistory < 1
-            @warn "Stress history must have at least one element. Setting \
-                nhistory = 1."
-            nhistory = 1
-        end
-        new{CT}(fractures_on, criteria, Δt, deform_on, npieces, nhistory)
+        new{CT}(fractures_on, criteria, Δt, deform_on, npieces)
     end
     FractureSettings(
         fractures_on,
@@ -202,7 +272,6 @@ number, the longer it will take for a floe to fracture.
         Δt,
         deform_on,
         npieces,
-        nhistory,
     ) where {CT <: AbstractFractureCriteria} = 
         FractureSettings{CT}(
             fractures_on,
@@ -210,7 +279,6 @@ number, the longer it will take for a floe to fracture.
             Δt,
             deform_on,
             npieces,
-            nhistory,
         )
 end
 
@@ -229,20 +297,12 @@ A reasonable formula for minimum floe area is the following:
 min_floe_area = 4(grid.xg[end] - grid.xg[1]) * (grid.yg[end] - grid.yg[1]) / 1e4
 """
 @kwdef struct SimplificationSettings{FT<:AbstractFloat}
-    min_floe_area::FT = 1e6
-    min_floe_height::FT = 0.1
-    max_floe_height::FT = 10.0
-    min_aspect_ratio::FT = 0.05
     smooth_vertices_on::Bool = true
     max_vertices::Int = 30
     tol::FT = 100.0  # Douglas–Peucker algorithm tolerance in (m)
     Δt_smooth::Int = 20
 
     function SimplificationSettings{FT}(
-        min_floe_area,
-        min_floe_height,
-        max_floe_height,
-        min_aspect_ratio,
         smooth_vertices_on,
         max_vertices,
         tol,
@@ -253,23 +313,7 @@ min_floe_area = 4(grid.xg[end] - grid.xg[1]) * (grid.yg[end] - grid.yg[1]) / 1e4
                 timesteps. Turning floe simplification off."
             smooth_vertices_on = false
         end
-        if min_aspect_ratio > 1
-            @warn "Floes can't have an aspect ratio greater than 1. Setting \
-            max_aspect_ratio to 1. However, this means only with equal x and y \
-            maximum extents can exist. It is suggested this is set much lower \
-            (e.g. 0.05)."
-            min_aspect_ratio = FT(1)
-        elseif min_aspect_ratio < 0
-            @warn "Floes can't have an aspect ratio less than 0. Setting \
-            max_aspect_ratio to 0. This means that floes of any aspect ratio \
-            can exist throughout the simulation."
-            min_aspect_ratio = FT(0)
-        end
         new{FT}(
-            min_floe_area,
-            min_floe_height,
-            max_floe_height,
-            min_aspect_ratio,
             smooth_vertices_on,
             max_vertices,
             tol,

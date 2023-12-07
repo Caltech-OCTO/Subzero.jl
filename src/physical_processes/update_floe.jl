@@ -9,8 +9,7 @@ from the timestep_simulation! function.
         floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
         new_poly,
         new_mass,
-        consts,
-        mc_n,
+        floe_settings,
         rng,
     )
 Updates existing floe shape and related physical properties based of the polygon
@@ -19,8 +18,7 @@ Inputs:
     floe        <Union{Floe, LazyRow{Floe}}> floe to update
     new_poly    <LG.Polygon> polygon representing new outline of floe
     new_mass    <AbstractFloat> mass of floe
-    consts      <Constants> simulation's constants
-    mc_n        <Int> number of monte carlo points to attempt to generate
+    floe_settings   <FloeSettings> simulation's settings for making floes
     rng         <RNG> random number generator
 Ouputs:
     Updates a given floe's physical properties given new shape and total mass.
@@ -29,8 +27,7 @@ function replace_floe!(
     floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
     new_poly,
     new_mass,
-    coupling_settings,
-    consts,
+    floe_settings,
     rng,
 ) where {FT}
     # Floe shape
@@ -41,13 +38,13 @@ function replace_floe!(
         push!(floe.coords, floe.coords[1][1])
     end
     floe.area = LG.area(new_poly)
-    floe.height = new_mass/(floe.area * consts.ρi)
+    floe.height = new_mass/(floe.area * floe_settings.ρi)
     floe.mass = new_mass
     floe.moment = calc_moment_inertia(
         floe.coords,
         floe.centroid,
         floe.height;
-        ρi = consts.ρi,
+        ρi = floe_settings.ρi,
     )
     floe.angles = calc_poly_angles(floe.coords)
     floe.α = FT(0)
@@ -55,7 +52,7 @@ function replace_floe!(
     floe.rmax = sqrt(maximum([sum(c.^2) for c in floe.coords[1]]))
     # Floe monte carlo points
     x_subfloe_points, y_subfloe_points, status = generate_subfloe_points(
-        coupling_settings.subfloe_point_generator,
+        floe_settings.subfloe_point_generator,
         floe.coords,
         floe.rmax,
         floe.area,

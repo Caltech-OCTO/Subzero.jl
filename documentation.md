@@ -39,10 +39,10 @@ The first method has you provide the size of each grid cell with ∆x and ∆y a
 ```julia 
 grid = RegRectilinearGrid( 
   FT, 
-  xbounds = (-1e5, 1e5), 
-  Ybounds = (0.0, 1e5) 
-  ∆x = 2e4, 
-  ∆y = 1e4, 
+  (-1e5, 1e5), # x bounds
+  (0.0, 1e5),  # y bounds
+  2e4,         # ∆x
+  1e4,         # ∆y
 ) 
 ``` 
 
@@ -53,14 +53,17 @@ The other way to create this same grid is to use:
 ```julia 
 grid = RegRectilinearGrid(
    FT,
-   xbounds = (-1e5, 1e5),
-   ybounds = (0.0, 1e5),
-   dims = (10, 10),
+   10,  # Nx
+   10,  # Ny
+   (-1e5, 1e5),  # x bounds
+   (0.0, 1e5),   # y bounds
 ) 
 ``` 
 by specifying the desired grid dimensions. Here you are guaranteed to always get a 10 by 10 grid, but do not have as fine-grained control over the size of your cells.  
 
-A grid object has the following fields: dims, xg, yg, xc, and yc. The dims field is the number of rows and columns within the grid as defined by each grid cell. Therefore, dim = (number of cells in the y direction, number of cells in the x direction) as the y-direction cell count represents the number of rows in the grid, while the x-direction cell count is the number of columns. 
+A grid object has the following fields:
+Nx, Ny, x0, xf, y0, yf, Δx, and Δy
+Ny is the number of rows and Ny is the number of columns within the grid as defined by each grid cell. x0 and xf are the minimum and maximum x-bounds, and y0 and yf are the minimum and maximum y-bounds. Finally, Δx and Δy are the number of grid cells in the x and y directions.
 
 Additionally, RegRectilinearGrid is a concrete subtype of AbstractGrid. More concrete subtypes may be added in the future.  
 
@@ -82,6 +85,8 @@ ocean = Ocean(
    fill(0.2, 11, 11),
    zeros(FT, 11, 11)
 )
+
+Note that the ocean velocity matricies are x values by y value (i.e. the x values are rows and the y values are columns) for ease of indexing and to match with Oceananigans. 
 ```
 
 ### Atmosphere: 
@@ -98,9 +103,9 @@ atmos = Atmos(
 ```
 
 ### Domain: 
-The domain includes both the boundaries of the simulation and the topographic features. It defines the areas where the floes cannot go. Before you can define a domain, you need to define each boundary wall. As of now, only rectangular boundaries around the edge of the grid are allowed so we need a north, east, south, and west boundary wall. We have four types of boundary wall: open, collision, periodic, and compression (not implemented yet).  
+The domain includes both the boundaries of the simulation and the topographic features. It defines the areas where the floes cannot go. Before you can define a domain, you need to define each boundary wall. As of now, only rectangular boundaries around the edge of the grid are allowed so we need a north, east, south, and west boundary wall. We have four types of boundary wall: open, collision, periodic, and compression.
 
-With an open wall, if a floe overlaps with the boundary wall at all, the floe is removed from the simulation. With a collision wall, floes collide with the wall, and it is calculated similarly to a collision with another floe, except that since the wall cannot break, or be moved, it has an idealized force factor. With a periodic wall, if a floe overlaps with the wall, a copy of that floe is created passing back into the domain through the opposite wall. These two floes are equivalent and are linked. We call the copy a “ghost floe.” So, for example, if a floe is pushed partially out of the domain through the south wall by a current, a copy of the floe will be created, re-entering through the north wall. If one wall in the domain is periodic, its opposite wall must also be periodic, that is north-south and east-west. Compression boundaries are walls that can move with a constant velocity towards the center of the domain. For example, if the west wall is a compression wall with a velocity of 0.1m/s it will move with a 0.1m/s u velocity and a 0m/s v velocity. These types of walls are for increasing pressure on the ice to investigate stress and strain on the floes.  
+With an open wall, if a floe overlaps with the boundary wall at all, the floe is removed from the simulation. With a collision wall, floes collide with the wall, and it is calculated similarly to a collision with another floe, except that since the wall cannot break, or be moved, it has an idealized force factor. With a periodic wall, if a floe overlaps with the wall, a copy of that floe is created passing back into the domain through the opposite wall. These two floes are equivalent and are linked. We call the copy a “ghost floe.” So, for example, if a floe is pushed partially out of the domain through the south wall by a current, a copy of the floe will be created, re-entering through the north wall. If one wall in the domain is periodic, its opposite wall must also be periodic, that is north-south and east-west. Compression boundaries are walls that can move with a constant velocity in either the x-direction (East and West walls) or in the y-direction (North and South walls). For example, if the west wall is a compression wall with a velocity of 0.1m/s it will move with a 0.1m/s u velocity and a 0m/s v velocity. These types of walls are for increasing pressure on the ice to investigate stress and strain on the floes.  
 
 Here is an example of creating a set of boundary walls using the grid from above: 
 
@@ -114,8 +119,14 @@ wboundary = OpenBoundary(West, grid)
 Once we have defined our walls, we can create a domain as follows: 
 
 ```julia 
-domain = Domain(nboundary, sboundary, eboundary, wboundary) 
+domain = Domain(nboundary, sboundary, eboundary, wboundary)
 ``` 
+
+Here is an example of how to create a compression wall as well that moves towards the center of the domain at 0.1m/s:
+```julia 
+comp_boundary = CompressionBoundary(North, grid, -0.1)
+```
+
 
 However, if we want topography, we can also add it to the domain. To do that, we would create one, or more, TopographyElements. Let us consider two simple square islands: 
 
@@ -166,11 +177,12 @@ coords = [
 | moment         | floe's mass moment of intertia in [kg m^2]    | Float64 or Float32|
 | angles         | list of floe's vertex angles in [degrees] | Vector of Float64 or Float32|
 
-The second catagory is **monte carlo points**. These are used for interpolation of the ocean and atmosphere onto the floe. They are a list of random points within the floe. They are randomly generated, with the user providing an initial target number of points using the `mc_n` argument in the floe constructor or in the initial floe field function. The user will not end up with `mc_n` monte carlo points. These are the number of points generated in a bounding box around the floe generated using the floe's `rmax` as the side lengths. However, every point that is outside of the floe will be removed. The monte carlo points are repeatedly generated until a set is created with 5% accuracy. If a set cannot be determined in 10 tries, the floe will be marked for removal using the `status` field (see below)
-| Monte Carlo Fields| Meaning                                 | Type                        |
+The second catagory is **sub-floe points**. These are used for interpolation of the ocean and atmosphere onto the floe. They are a list of points within the floe. There are two ways they can be generated. One is for them are randomly generated, with the user providing an initial target number of points. These are generated with a monte carlo generator (explained below). The other way is for the points to be on a sub-grid within the floe. There are benefits and drawbacks to both strategies. 
+
+| Sub-floe Point Fields| Meaning                                 | Type                        |
 | ----------------- | --------------------------------------- | --------------------------- |
-| mc_x              | floe's monte carlo points x-coordinates | Vector of Float64 or Float32|
-| mc_y              | floe's monte carlo points y-coordinates | Vector of Float64 or Float32|
+| x_subfloe_points   | floe's sub-floe points x-coordinates | Vector of Float64 or Float32|
+| y_subfloe_points   | floe's sub-floe points points y-coordinates | Vector of Float64 or Float32|
 
 The third catagory is **velocities and orientations**. Floe's have both linear and angular velocity and keep track of the angle that they have rotated since the begining of the simulation.
 | Movement Fields| Meaning                         | Type               |
@@ -226,23 +238,60 @@ The fifth catagory is **previous values**.
 | p_dαdt                | previous timestep angular-velocity in [rad/s] | Float64 or Float32|
 | p_dξdt                | previous timestep time angular acceleration in [rad/s^2] | Float64 or Float32|
 
+#### Floe Settings
+
+When you create a floe or a set of floes, you have the option to create a floe settings object. This set of settings controls certian floe fields and calculations.
+
+The following fields are part of the floe settings (with default values):
+  - ρi: floe's density (920.0 g/L)
+  - min_floe_area: minimum floe area (1e6 m^2)
+  - min_floe_height: minimum floe height (0.1 m)
+  - max_floe_height: maximum floe height (10.0 m)
+  - min_aspect_ratio: minimum ratio between floe x-length and y-length by maximum coordiante values (0.05)
+  - nhistory: number of elements to save in floe's stress history (100)
+  - subfloe_point_generator: generates floe's subfloe points (`MonteCarloPointsGenerator()`)
+
+If any of the minimum / maximum values are exceeded, a floe is removed in the course of the simulation.
+
+There are two types of subfloe point generators.
+
+The first is a `MonteCarloPointsGenerator`. This generates random points within the floe. You can create a MonteCarloPoint generator with three fields: `npoints` (default 1000), `ntries` (default 100), and `err` (default 0.1). `npoints` is the number of points to attempt to generate, `ntries` is the number of tries to generate a set of points that meets the acceptable error, and `err` is the percent of floe are that can not be covered by monte carlo points for it to be a valid set of subfloe points. The user will not end up with `npoints` monte carlo points. These are the number of points generated in a bounding box around the floe. However, every point that is outside of the floe will be removed. The monte carlo points are repeatedly generated until a set is created with less that `err`. If a set cannot be determined in `ntries` tries, the floe will be marked for removal using the `status` field (see below).
+
+The second type of subfloe point generator is the `SubGridPointsGenerator`. This generator places points along a grid within the floe. The user can define how fine that grid should be in comparison with the model's grid. A `SubGridPointsGenerator` takes in two arguemnts: the model's `grid` and `npoint_per_cell`, which defines how many subfloe points the user wants within the model's grid cell in botht the x and y direction (i.e. `npoint_per_cell = 3` will give 9 points in a grid cell, three in both x and y in a grid pattern).
+
+Both of these have different benefits. `MonteCarloPointsGenerator` guarentee that all floes have a somewhat similar number of subfloe points. However, since these points are randomly placed, they are not neccesarily evenly spread out. There may not even be one point per model grid cell, which causes errors when two-way coupling as stress from ice to ocean is calcualted with subfloe points. 
+
+On the other hand with a `SubGridPointsGenerator`, each floe has a number of points proportional to its area. However, these points are mainly evenly spaced and it is guarenteed that there is at least one per every model grid cell. Therefore, you must use `SubGridPointsGenerator` when two-way coupling. 
+
+You can make a floe settings object as follows:
+```julia
+floe_settings = FloeSettings(
+  min_floe_area = 1e5,
+  max_floe_height = 5,
+  nhistory = 50,
+  subfloe_point_generator = SubGridPointsGenerator(grid, 2)
+)
+ ```
+ Any fields that aren't specified are assigned their default value.
+
+#### Construct Individual Floes
+
 You can create one floe at a time using floe constructors that will set initial values for all of these fields depending on your inputs.
 
 Here is an example of using the PolyVec coordinates constructor, assume we have already created a PolyVec called `coords`:
 ```julia
+coords = [[[3e4, 1e4], [3e4, 1.5e4], [3.5e4, 1.5e4], [3.5e4, 1e4], [3e4, 1e4]]]
 hmean = 0.25
 Δh = 0.1
 floe = Floe(
     FT,
     coords,
     hmean,  # Floe height will be between 0.15 - 0.35
-    Δh,  # Δh is the maximum difference between hmean and actual floe height
-    ρi = 920.0,
+    Δh;  # Δh is the maximum difference between hmean and actual floe height
+    floe_settings = floe_settings,
     u = 0.0,
     v = 0.0,
     ξ = 0.0,
-    mc_n = 1000,
-    nhistory = 1000,
     rng = Xoshiro(1), # seed of 1
 )
 ```
@@ -257,10 +306,7 @@ Both of these functions share most arguments. They are as follows (with default 
 - `domain`, which is the model's domain so that the floes can be fit into the open space using polygon intersections/differences
 - `hmean`, which is the mean height of all floes created
 - `Δh`, which is the maximum potential height difference from `hmean` between floes
-- `min_floe_area = 0.0`, which is the minimum floe area for any floes initialized and smaller floes will not be added to the list of initial floes
-- `ρi = 920.0`, which is the density of ice in kg/m^3
-- `mc_n = 1000`, which is the number of monte carlo points desired for each floe
-- `nhistory = 1000`, which is the length of stress history for each floe
+- `floe_settings = FloeSettings()`, which specifies many values needed to create floes, as detailed above
 - `rng = Xoshiro()`, which is a random number generator so that floe creation is reproducible if a seeded random number generator is provided
 
 Note that all arguments with default values are optional keyword arguments.
@@ -274,9 +320,9 @@ floe_field = initialize_floe_field(
   [floe1, floe2],
   domain,
   0.25,  # mean height of 0.25
-  0.0,  # all floes will be the same height
+  0.0;  # all floes will be the same height
   rng = Xoshiro(1),
-  nhistory = 100,
+  floe_settings = floe_settings,
 )
 ```
 
@@ -288,10 +334,9 @@ floe_arr = initialize_floe_field(
     [1.0; 0.0],  # the top half of the domain is fully packed and the bottom has no floes
     domain,
     0.25,  # mean height of 0.25
-    0.10,  # floe heights will range from 0.15-0.35
-    min_floe_area = 1e7,
+    0.10;  # floe heights will range from 0.15-0.35
+    floe_settings = floe_settings,
     rng = Xoshiro(1),
-    nhistory = 1000,
 )
 ```
 We now focus on the first two arguments. The first is the number of floes to attempt to create with Voronoi tesselation. We are not guarenteed to get exactly that number. It depends on the amount of open space in the domain and the generation of random seed points. For example, if the domain is filled with lots of topography and islands, it will be more difficult to hit the exact number of floes requested. However, it will be in the ballpark. The second argument is the concentrations, which is a matrix. We can split the domain into quadrents that are the same shape at matrix and then request concentrations of ice in each of those quadrents equal to the corresponding value in the concentrations matrix. The other arguments are the same as in the floe coordinate version on the function.
@@ -315,7 +360,6 @@ consts = Constants(μ = 0.0)
 The list of constants and their default values are shown below:
 | Constants     |    Meaning                         | Default Value |
 | ------------- | ---------------------------------- | ------------- |
-| ρi            | ice density                        | 920.0 kg/m^3  |
 | ρo            | ocean densisty                     | 1027.0 kg/m^3 |
 | ρa            | air densisty                       | 1.2 kg/m^3    |
 | Cd_io         | ice-ocean drag coefficent          | 3e-3          |
@@ -341,7 +385,6 @@ Subzero allows you to turn on and off various physical processes, as well as cha
 - coupling_on, which turns this process on and off
 - ∆t, which sets the number of timesteps between this process running
 - ∆d, which sets the number of ocean/atmosphere grid cells around a floe to consider when interpolating ocean/atmosphere forcings
-- mc_n, which sets the number of monte carlo points for each floe that are used for the interpolation
 - two_way_coupling_on, which turns on and off the calculation of the ice and atmosphere effects on the ocean and stores output in the ocean's stress fields.
 
 Here is an example of creating your own coupling settings, using the default values:
@@ -350,7 +393,6 @@ couple_settings = CouplingSettings(
   coupling_on = true,
   Δt = 10,
   Δd = 1,
-  mc_n = 1000,
   two_way_coupling_on = false,
 )
 ```
@@ -379,7 +421,6 @@ Note that you only need to provide values to the fields that you wish to change 
 - Δt, which sets the number of timesteps between this process running
 - deform_on, which turns on a sub-process where a floe is deformed around the floe that is overlaps with the most during that timestep before it is fractured
 - npieces, which sets the number of pieces a floe should try to fracture into (note that this number might not be met depending on floe shape)
-- nhistory, which sets the length of stress history, stress from the previous `nhistory` timesteps, to record in order to determine a floe's current stress, which is the mean of the stress history
 
 Here is an example of creating your own fracture settings, using the default values:
 ```julia
@@ -389,7 +430,6 @@ fracture_settings = FractureSettings(
   Δt = 0,
   deform_on = false,
   npieces = 3,
-  nhistory = 1000,
 )
 ```
 Note that you only need to provide values to the fields that you wish to change from the defaults.
@@ -402,12 +442,10 @@ criteria = HiblerYieldCurve(FT, floe_arr, pstar, c)
 ```
 #### Simplification Settings
 `SimplificationSettings` changes Subzero's floe simplification. The availible settings are:
-- min_floe_area, which sets the minimum size for floes before they are dissolved, and also a barrier for making floes smaller through fracture and other processes
-- min_floe_height, which sets the minimum height for floes before they are dissolved
-- max_floe_height, which sets the maximum height for floes before their thermodynamic thickening is stopped
 - smooth_vertices_on, which turns on and off the process of smoothing floe vertices to decrease the total number of vertices
 - max_vertices, the total number of verticies a floe can have before smoothing
 - Δt_smooth, which sets the number of timesteps between floe smoothing
+- tol, which is the tolerance 
 
 Here is an example of creating your own simplification settings, using the default values:
 ```julia

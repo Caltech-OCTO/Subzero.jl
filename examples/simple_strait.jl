@@ -37,8 +37,10 @@ topo_arr = initialize_topography_field(
 domain = Domain(nboundary, sboundary, eboundary, wboundary, topo_arr)
 
 coupling_settings = CouplingSettings(
-    subfloe_point_generator = SubGridPointsGenerator(grid, 2),
     two_way_coupling_on = true,
+)
+floe_settings = FloeSettings(
+    subfloe_point_generator = SubGridPointsGenerator(grid, 2),
 )
 
 # Floe creation
@@ -50,7 +52,7 @@ floe_arr = initialize_floe_field(
     hmean,
     Δh,
     rng = Xoshiro(3),
-    coupling_settings = coupling_settings,
+    floe_settings = floe_settings,
 )
 
 fracture_settings = FractureSettings(
@@ -58,7 +60,6 @@ fracture_settings = FractureSettings(
         criteria = HiblerYieldCurve(floe_arr),
         Δt = 75,
         npieces = 3,
-        nhistory = 1000,
         deform_on = false,
 )
 
@@ -87,6 +88,7 @@ simulation = Simulation(
     Δt = Δt,
     nΔt = 10000,
     verbose = true,
+    floe_settings = floe_settings,
     coupling_settings = coupling_settings,
     fracture_settings = fracture_settings,
     ridgeraft_settings = ridgeraft_settings,

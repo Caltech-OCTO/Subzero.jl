@@ -153,8 +153,10 @@ coords = [[
     [0.0, 0.0],
 ]]
 
-coupling_settings = CouplingSettings(
+floe_settings = FloeSettings(
     subfloe_point_generator = SubGridPointsGenerator(grid, 1),
+)
+coupling_settings = CouplingSettings(
     two_way_coupling_on = true,
 )
 
@@ -165,7 +167,7 @@ floe_arr = initialize_floe_field(
     domain,
     0.5,
     0.0;
-    coupling_settings = coupling_settings,
+    floe_settings = floe_settings,
     rng = Xoshiro(1),
 )
 floe_arr.α .= 1e-5
@@ -197,6 +199,7 @@ simulation = Simulation(
     verbose = true,
     consts = Constants(Cd_ia = 0, Cd_ao = 0),
     coupling_settings = coupling_settings,
+    floe_settings = floe_settings,
     
 )
 

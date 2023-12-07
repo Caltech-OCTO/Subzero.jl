@@ -92,7 +92,7 @@ using LibGEOS
         floe2_subsume,
         floes,
         domain,
-        coupling_settings,
+        floe_settings,
         simp_settings,
         consts,
     )
@@ -113,10 +113,9 @@ using LibGEOS
             StructArray{Floe{Float64}}(undef, 0),
             domain,
             maximum(floes.id),
-            coupling_settings,
             rr_settings,
+            floe_settings,
             simp_settings,
-            consts,
             10,
         )
         @test mass1 + mass2 == sum(floes.mass)
@@ -150,7 +149,7 @@ using LibGEOS
     end
     function test_floe_domain_rr_scenario(rr_settings, does_raft, lose_mass, floes,
         domain, boundary_poly, topo_poly, bounds_overlap_area, topo_overlap_area,
-        height1, height2, coupling_settings, simp_settings, consts)
+        height1, height2, floe_settings, simp_settings, consts)
         update_height(floes, 1, height1, consts)
         update_height(floes, 2, height2, consts)
         total_mass = sum(floes.mass)
@@ -165,10 +164,9 @@ using LibGEOS
             StructArray{Floe{Float64}}(undef, 0),
             domain,
             maximum(floes.id),
-            coupling_settings,
             rr_settings,
+            floe_settings,
             simp_settings,
-            consts,
             10,
         )
         conservation_of_momentum_tests(floes,
@@ -204,7 +202,7 @@ using LibGEOS
     end
 
     function test_floe_ghost_rr_scenario(rr_settings, floes, height1, height2,
-        floe1_subsume, domain, coupling_settings, simp_settings, consts,
+        floe1_subsume, domain, floe_settings, simp_settings, consts,
     )
         update_height(floes, 1, height1, consts)  # floe 1 will ridge onto floe 2
         update_height(floes, 3, height1, consts)  # floe 1 has ghost floe 3
@@ -221,10 +219,9 @@ using LibGEOS
             pieces_arr,
             domain,
             maximum(floes.id),
-            coupling_settings,
             rr_settings,
+            floe_settings,
             simp_settings,
-            consts,
             10,
         )
         # Test conservation of momentum
@@ -287,8 +284,9 @@ using LibGEOS
     )
     topo_poly = LibGEOS.Polygon(topo_coords)
     consts = Constants()
+    floe_settings = FloeSettings(min_floe_area = 1e7)
     coupling_settings = CouplingSettings()
-    simp_settings = SimplificationSettings(min_floe_area = 1e7)
+    simp_settings = SimplificationSettings()
     collision_settings = CollisionSettings(floe_floe_max_overlap = 1.0) # don't fuse
     lock = Threads.SpinLock()
     @testset "Floe-Floe Ridging and Rafting" begin
@@ -314,7 +312,7 @@ using LibGEOS
             false,
             floes,
             collision_domain,
-            coupling_settings,
+            floe_settings,
             simp_settings,
             consts,
         )
@@ -331,7 +329,7 @@ using LibGEOS
             false,
             floes,
             collision_domain,
-            coupling_settings,
+            floe_settings,
             simp_settings,
             consts,
         )
@@ -352,7 +350,7 @@ using LibGEOS
             false,
             floes,
             collision_domain,
-            coupling_settings,
+            floe_settings,
             simp_settings,
             consts,
         )
@@ -366,7 +364,7 @@ using LibGEOS
             true,
             floes,
             collision_domain,
-            coupling_settings,
+            floe_settings,
             simp_settings,
             consts,
         )
@@ -380,7 +378,7 @@ using LibGEOS
             false,
             floes,
             collision_domain,
-            coupling_settings,
+            floe_settings,
             simp_settings,
             consts,
         )
@@ -401,7 +399,7 @@ using LibGEOS
             false,
             floes,
             collision_domain,
-            coupling_settings,
+            floe_settings,
             simp_settings,
             consts,
         )
@@ -415,7 +413,7 @@ using LibGEOS
             true,  # floe 2 should subsume floe 1
             floes,
             collision_domain,
-            coupling_settings,
+            floe_settings,
             simp_settings,
             consts,
         )
@@ -445,13 +443,13 @@ using LibGEOS
         )
         test_floe_domain_rr_scenario(ridge_settings, true, true, floes,
             collision_domain, boundary_poly, topo_poly, bounds_overlap_area,
-            topo_overlap_area,  0.1, 0.1, coupling_settings, simp_settings, consts,
+            topo_overlap_area,  0.1, 0.1, floe_settings, simp_settings, consts,
         )
         # Not ridging with domain
         floes = deepcopy(floes_base)
         test_floe_domain_rr_scenario(ridge_settings, false, true, floes,
             collision_domain, boundary_poly, topo_poly, bounds_overlap_area,
-            topo_overlap_area, 2.0, 2.0, coupling_settings, simp_settings, consts,
+            topo_overlap_area, 2.0, 2.0, floe_settings, simp_settings, consts,
         )
         # Rafting with domain
         floes = deepcopy(floes_base)
@@ -462,13 +460,13 @@ using LibGEOS
         )
         test_floe_domain_rr_scenario(rafting_settings, true, true, floes,
             collision_domain, boundary_poly, topo_poly, bounds_overlap_area,
-            topo_overlap_area, 0.1, 0.1, coupling_settings, simp_settings, consts,
+            topo_overlap_area, 0.1, 0.1, floe_settings, simp_settings, consts,
         )
         # Not rafting with domain   
         floes = deepcopy(floes_base)
         test_floe_domain_rr_scenario(rafting_settings, false, true, floes,
             collision_domain, boundary_poly, topo_poly, bounds_overlap_area,
-            topo_overlap_area, 0.3, 0.3, coupling_settings, simp_settings, consts,
+            topo_overlap_area, 0.3, 0.3, floe_settings, simp_settings, consts,
         )
 
         # Ridging with domain where floe keeps mass
@@ -481,7 +479,7 @@ using LibGEOS
         floes = deepcopy(floes_base)
         test_floe_domain_rr_scenario(ridge_keep_mass_settings, true, false,
             floes, collision_domain, boundary_poly, topo_poly, bounds_overlap_area,
-            topo_overlap_area, 1.0, 1.0, coupling_settings, simp_settings, consts,
+            topo_overlap_area, 1.0, 1.0, floe_settings, simp_settings, consts,
         )
 
         coords = [[[[-0.1e4, 0.1e4], [-0.1e4, 9.9e4], [0.1e4, 9.9e4], [0.1e4, 0.1e4], [-0.1e4, 0.1e4]]]]
@@ -496,10 +494,9 @@ using LibGEOS
             pieces_list,
             collision_domain,
             maximum(floes.id),
-            coupling_settings,
             ridge_settings,
+            floe_settings,
             simp_settings,
-            consts,
             10,
         )
         @test floes.status[1].tag == Subzero.remove
@@ -536,10 +533,9 @@ using LibGEOS
             pieces_list,
             collision_domain,
             maximum(floes.id),
-            coupling_settings,
             ridge_settings,
+            floe_settings,
             simp_settings,
-            consts,
             10,
         )
         conservation_of_momentum_tests(floes[1:1],
@@ -575,10 +571,9 @@ using LibGEOS
             pieces_list,
             collision_domain,
             maximum(floes.id),
-            coupling_settings,
             ridge_settings,
+            floe_settings,
             simp_settings,
-            consts,
             10,
         )
         @test length(pieces_list) == 1
@@ -620,10 +615,9 @@ using LibGEOS
             pieces_list,
             collision_domain,
             maximum(floes.id),
-            coupling_settings,
             ridge_keep_mass_settings,
+            floe_settings,
             simp_settings,
-            consts,
             10,
         )
         @test length(pieces_list) == 1
@@ -652,12 +646,12 @@ using LibGEOS
             # parent with ghost is subsumed by floe 2
         floes = deepcopy(base_floes)
         test_floe_ghost_rr_scenario(ridge_settings, floes, 0.1, 1.0,
-            false, periodic_domain, coupling_settings, simp_settings, consts,
+            false, periodic_domain, floe_settings, simp_settings, consts,
         )
             # parent with ghost subsumes floe 2 
         floes = deepcopy(base_floes)
         test_floe_ghost_rr_scenario(ridge_settings, floes, 1.0, 0.1,
-            true, periodic_domain, coupling_settings, simp_settings, consts,
+            true, periodic_domain, floe_settings, simp_settings, consts,
         )
         # Test parent-ghost ridge, no breakage and update parents
         coords = [
@@ -670,12 +664,12 @@ using LibGEOS
         # ghost (floe 3) is subsumed by floe 2
         floes = deepcopy(base_floes)
         test_floe_ghost_rr_scenario(ridge_settings, floes, 0.1, 1.0,
-            false, periodic_domain, coupling_settings, simp_settings, consts,
+            false, periodic_domain, floe_settings, simp_settings, consts,
         )
         # floe 2 is subsumed by ghost (floe 3)
         floes = deepcopy(base_floes)
         test_floe_ghost_rr_scenario(ridge_settings, floes, 1.0, 0.1,
-            true, periodic_domain, coupling_settings, simp_settings, consts,
+            true, periodic_domain, floe_settings, simp_settings, consts,
         )
     
         # Test parent-parent ridge, breakage
@@ -700,10 +694,9 @@ using LibGEOS
             pieces_list,
             periodic_domain,
             maximum(floes.id),
-            coupling_settings,
             ridge_settings,
+            floe_settings,
             simp_settings,
-            consts,
             10,
         )
         # Make sure each piece is saved, ghosts are marked to remove and
@@ -752,10 +745,9 @@ using LibGEOS
             pieces_list,
             periodic_domain,
             maximum(floes.id),
-            coupling_settings,
             ridge_settings,
+            floe_settings,
             simp_settings,
-            consts,
             10,
         )
         # Make sure each piece is saved, ghosts are marked to remove and

@@ -334,8 +334,7 @@ function deform_floe!(
     floe,
     deformer_coords,
     deforming_forces,
-    coupling_settings,
-    consts,
+    floe_settings,
     Δt,
     rng,
 )
@@ -366,8 +365,7 @@ function deform_floe!(
                 floe,
                 new_floe_poly,
                 floe.mass,
-                coupling_settings,
-                consts,
+                floe_settings,
                 rng,
             )
             conserve_momentum_change_floe_shape!(
@@ -388,8 +386,7 @@ end
         floe,
         rng,
         fracture_settings,
-        coupling_settings,
-        consts,
+        floe_settings,
         Δt,
     )
 Splits a given floe into pieces using voronoi tesselation.
@@ -398,8 +395,7 @@ Inputs:
     floe              <Floe> floe in simulation
     rng               <RNG> random number generator used for voronoi tesselation
     fracture_settings <FractureSettings> simulation's fracture settings
-    coupling_settings <CouplingSettings> simulation's coupling settings
-    consts            <Constants> simulation's constants
+    floe_settings     <FloeSettings> simulation's settings for making floes
     Δt                <Int> length of simulation timesteps in seconds
 Outputs:
     new_floes   <StructArray{Floes}> list of pieces floe is split into, each of
@@ -409,8 +405,7 @@ function split_floe(
     floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
     rng,
     fracture_settings,
-    coupling_settings,
-    consts,
+    floe_settings,
     Δt,
 ) where {FT}
     new_floes = StructArray{Floe{FT}}(undef, 0)
@@ -444,15 +439,13 @@ function split_floe(
         for i in eachindex(pieces_polys)
             if pieces_areas[i] > 0
                 mass = floe.mass * (pieces_areas[i]/total_area)
-                height = mass / (consts.ρi * pieces_areas[i])
+                height = mass / (floe_settings.ρi * pieces_areas[i])
                 pieces_floes = poly_to_floes(
                     FT,
                     pieces_polys[i],
                     height,
                     0;  # Δh - range of random height difference between floes
-                    ρi = consts.ρi,
-                    coupling_settings = coupling_settings,
-                    fracture_settings = fracture_settings,
+                    floe_settings = floe_settings,
                     rng = rng,
                     u = floe.u,
                     v = floe.v,
@@ -482,9 +475,7 @@ end
         max_floe_id,
         rng,
         fracture_settings,
-        coupling_settings,
-        simp_settings,
-        consts::Constants{FT},
+        floe_settings,
         Δt,
     )
 Fractures floes that meet the criteria defined in the fracture settings.
@@ -493,9 +484,7 @@ Inputs:
     max_floe_id <Int> maximum ID of any floe created so far in simulation
     rng         <RNG> random number generator
     fracture_settings   <FractureSettings> sim's fracture settings
-    coupling_settings   <CouplingSettings> sim's coupling settings
-    simp_settings       <SimplificationSettings> sim's simplification settings
-    consts              <Constants> sim's constants
+    floe_settings       <FloeSettings> sim's settings to make floes
     Δtout               <Int> length of simulation timestep in seconds
 Outputs:
     max_floe_id <Int> new highest floe ID after adding new floes to floe array.
@@ -506,16 +495,14 @@ function fracture_floes!(
     max_floe_id,
     rng,
     fracture_settings,
-    coupling_settings,
-    simp_settings,
-    consts,
+    floe_settings,
     Δt,
 ) where {FT <: AbstractFloat}
     # Determine which floes will fracture
     frac_idx = determine_fractures(
         floes,
         fracture_settings.criteria,
-        simp_settings.min_floe_area,
+        floe_settings.min_floe_area,
     )
     # Initialize list for new floes created from fracturing existing floes
     nfloes2frac = length(frac_idx)
@@ -544,8 +531,7 @@ function fracture_floes!(
                         LazyRow(floes, frac_idx[i]), 
                         floes.coords[deforming_floe_idx],
                         deforming_inter[xforce:yforce],
-                        coupling_settings,
-                        consts,
+                        floe_settings,
                         Δt,
                         rng,
                     )
@@ -557,8 +543,7 @@ function fracture_floes!(
             LazyRow(floes, frac_idx[i]),
             rng,
             fracture_settings,
-            coupling_settings,
-            consts,
+            floe_settings,
             Δt,
         )
         append!(fracture_list[i], new_floes)

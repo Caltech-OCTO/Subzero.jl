@@ -58,6 +58,7 @@ export
     SimplificationSettings,
     RidgeRaftSettings,
     WeldSettings,
+    FloeSettings,
     PolyVec,
     OutputWriters,
     check_energy_momentum_conservation_julia,

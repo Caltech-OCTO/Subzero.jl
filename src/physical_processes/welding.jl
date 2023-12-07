@@ -62,9 +62,8 @@ end
         domain,
         Nx,
         Ny,
-        coupling_settings,
         weld_settings::WeldSettings{FT},
-        consts,
+        floe_settings
         Δt,
         rng,
     )
@@ -80,8 +79,8 @@ Inputs:
                             domain into for welding groups
     Ny                  <Int> number of grid cells in the y-direction to split
                             domain into for welding groups
-    coupling_settings   <CouplingSettings> coupling settings
     weld_settings       <WeldSettings> welding settings
+    floe_settings       <FloeSettings> sim's settings for making new floes
     consts              <Consts> simulation's constants
     Δt                  <Int> length of timestep in seconds
     rng                 <RandomNumberGenerator> simulation's rng
@@ -94,10 +93,9 @@ function timestep_welding!(
     max_floe_id,
     grid,
     domain,
-    coupling_settings,
     weld_settings::WeldSettings{FT},
+    floe_settings,
     weld_idx,
-    consts,
     Δt,
     rng = Xoshiro(),
 ) where FT <: AbstractFloat
@@ -166,9 +164,8 @@ function timestep_welding!(
                 fuse_two_floes!(
                     LazyRow(floes, i),
                     LazyRow(floes, j),
-                    consts,
                     Δt,
-                    coupling_settings,
+                    floe_settings,
                     max_floe_id,
                     rng,
                 )

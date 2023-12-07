@@ -69,7 +69,7 @@
         LG.Polygon(rect_poly),
         0.25,
         0.01;
-        simp_settings = SimplificationSettings(min_floe_area = 55),
+        floe_settings = FloeSettings(min_floe_area = 55),
     )
     @test isempty(floe_arr)
 
@@ -100,7 +100,7 @@
         LG.MultiPolygon([c_poly_hole, rect_poly]),
         0.25,
         0.01;
-        simp_settings = SimplificationSettings(min_floe_area = 30),
+        floe_settings = FloeSettings(min_floe_area = 30),
     )
     @test length(floe_arr) == 2
     @test typeof(floe_arr) <: StructArray{<:Floe}
@@ -160,7 +160,7 @@
         small_domain_no_topo,
         0.5,
         0.1;
-        simp_settings = SimplificationSettings(min_floe_area = 1e5),
+        floe_settings = FloeSettings(min_floe_area = 1e5),
     ))
     @test typeof(floe_arr) <: StructArray{<:Floe}
     @test all(floe_arr.area .> 1e5)
@@ -172,7 +172,7 @@
         domain_with_topo,
         0.5,
         0.1;
-        simp_settings = SimplificationSettings(min_floe_area = 10),
+        floe_settings = FloeSettings(min_floe_area = 10),
         rng = Xoshiro(0)
     )
     @test typeof(floe_arr) <: StructArray{<:Floe}
@@ -224,7 +224,7 @@
         domain_with_topo,
         0.5,
         0.1;
-        simp_settings = SimplificationSettings(min_floe_area = 1e4),
+        floe_settings = FloeSettings(min_floe_area = 1e4),
         rng = Xoshiro(1)
     )
     @test isapprox(
@@ -247,7 +247,7 @@
         domain_with_topo,
         0.5,
         0.1;
-        simp_settings = SimplificationSettings(min_floe_area = 1e4),
+        floe_settings = FloeSettings(min_floe_area = 1e4),
         rng = rng
     )
     nfloes = length(floe_arr)

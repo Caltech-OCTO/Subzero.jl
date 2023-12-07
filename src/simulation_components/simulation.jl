@@ -69,7 +69,8 @@ The user can also define settings for each physical process.
     Δt::Int = 10                        # Simulation timestep (seconds)
     nΔt::Int = 7500                     # Total timesteps simulation runs for
     # Physical Processes -------------------------------------------------------
-    coupling_settings::CouplingSettings{PT} = CouplingSettings()
+    floe_settings::FloeSettings{FT, PT} = FloeSettings()
+    coupling_settings::CouplingSettings = CouplingSettings()
     collision_settings::CollisionSettings{FT} = CollisionSettings()
     fracture_settings::FractureSettings{CT} = FractureSettings()
     simp_settings::SimplificationSettings{FT} = SimplificationSettings()
@@ -126,10 +127,9 @@ function timestep_sim!(sim, tstep)
                 pieces_buffer,
                 sim.model.domain,
                 max_floe_id,
-                sim.coupling_settings,
                 sim.ridgeraft_settings,
+                sim.floe_settings,
                 sim.simp_settings,
-                sim.consts,
                 sim.Δt,
                 sim.rng,
             )
@@ -165,7 +165,7 @@ function timestep_sim!(sim, tstep)
             sim.model.floes,
             tstep,
             sim.Δt,
-            sim.simp_settings.max_floe_height,
+            sim.floe_settings.max_floe_height,
         )
         # Fracture floes
         if sim.fracture_settings.fractures_on && mod(tstep, sim.fracture_settings.Δt) == 0
@@ -175,9 +175,7 @@ function timestep_sim!(sim, tstep)
                     max_floe_id,
                     sim.rng,
                     sim.fracture_settings,
-                    sim.coupling_settings,
-                    sim.simp_settings,
-                    sim.consts,
+                    sim.floe_settings,
                     sim.Δt,
                 )
         end
@@ -194,10 +192,9 @@ function timestep_sim!(sim, tstep)
                     max_floe_id,
                     sim.model.grid,
                     sim.model.domain,
-                    sim.coupling_settings,
                     sim.weld_settings,
+                    sim.floe_settings,
                     weld_setting_idx,
-                    sim.consts,
                     sim.Δt,
                 )
             end
@@ -210,9 +207,8 @@ function timestep_sim!(sim, tstep)
                 max_floe_id,
                 sim.simp_settings,
                 sim.collision_settings,
-                sim.coupling_settings,
+                sim.floe_settings,
                 sim.Δt,
-                sim.consts,
                 sim.rng,
             )
     end
