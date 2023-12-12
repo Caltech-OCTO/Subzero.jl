@@ -1,4 +1,24 @@
 @testset "ProcessInfo" begin
+    @testset "FloeSettings" begin
+        # Test default
+        default_info = FloeSettings()
+        @test default_info.ρi == 920 &&
+            default_info.min_floe_area == 1e6 &&
+            default_info.min_floe_height == 0.1 &&
+            default_info.max_floe_height == 10 &&
+            default_info.min_aspect_ratio == 0.05 &&
+            default_info.nhistory == 100 &&
+            default_info.subfloe_point_generator isa MonteCarloPointsGenerator
+        @test default_info.ρi isa Float64 &&
+            default_info.min_floe_area isa Float64 &&
+            default_info.min_floe_height isa Float64
+        
+        f32_info = FloeSettings(Float32)
+        @test f32_info.ρi isa Float32 &&
+            f32_info.min_floe_area isa Float32 &&
+            f32_info.min_floe_height isa Float32
+    end
+
     @testset "CouplingSettings" begin
         # Test default
         default_info = CouplingSettings()
@@ -66,6 +86,9 @@
             out_of_bounds.floe_domain_max_overlap == 1.0
 
         @test typeof(CollisionSettings(Float32)) <: CollisionSettings{Float32}
+        @test typeof(CollisionSettings(
+            floe_floe_max_overlap = 1,
+        )) <: CollisionSettings{Float64}
 
     end
     @testset "FractureSettings" begin
@@ -137,12 +160,18 @@
         default_info = SimplificationSettings()
         @test default_info.smooth_vertices_on &&
             default_info.max_vertices == 30 &&
-            default_info.Δt_smooth == 20
+            default_info.Δt_smooth == 20 &&
+            default_info.tol == 100
         
         neg_Δt_str = "Floe smoothing can't occur on a multiple of negative \
             timesteps. Turning floe simplification off."
         neg_Δt_info = @test_logs (:warn, neg_Δt_str) SimplificationSettings(Δt_smooth = -20)
         @test !neg_Δt_info.smooth_vertices_on
+
+        @test typeof(SimplificationSettings(Float32)) <: SimplificationSettings{Float32}
+        @test typeof(SimplificationSettings(
+            tol = 50,
+        )) <: SimplificationSettings{Float64}
     end
 
     @testset "RidgeRaftSettings" begin
@@ -204,5 +233,10 @@
         @test sorted_settings.Δts == [700, 400, 100]
         @test sorted_settings.Nxs == [3, 2, 1]
         @test sorted_settings.Nys == [6, 5, 4]
+
+        @test typeof(WeldSettings(Float32)) <: WeldSettings{Float32}
+        @test typeof(WeldSettings(
+            welding_coeff = 100,
+        )) <: WeldSettings{Float64}
     end
 end

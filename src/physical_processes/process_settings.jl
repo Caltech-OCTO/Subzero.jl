@@ -37,7 +37,7 @@ Settings needed to create floes within the model.
         min_aspect_ratio,
         nhistory,
         subfloe_point_generator,
-    ) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator}
+    ) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator{FT}}
         if ρi < 0
             @warn "Ice density can't be negative. Resetting to default values \
             of 920."
@@ -80,15 +80,15 @@ Settings needed to create floes within the model.
     end
 
     FloeSettings(
-        ρi::FT,
+        ρi,
         min_floe_area,
         min_floe_height,
         max_floe_height,
         min_aspect_ratio,
         nhistory,
         subfloe_point_generator::GT,
-    ) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator} = 
-        FloeSettings{FT, GT}(
+    ) where {GT <: AbstractSubFloePointsGenerator} = 
+        FloeSettings{Float64, GT}(
             ρi,
             min_floe_area,
             min_floe_height,
@@ -98,6 +98,23 @@ Settings needed to create floes within the model.
             subfloe_point_generator,
         )
 end
+
+"""
+    FloeSettings(::Type{FT}; subfloe_point_generator, kwargs...)
+
+A float type FT can be provided as the first argument of any FloeSettings
+constructor. A FloeSettings of type FT will be created by passing all other
+arguments to the correct constructor. 
+"""
+FloeSettings(
+    ::Type{FT};
+    subfloe_point_generator::GT = MonteCarloPointsGenerator(FT),
+    kwargs...,
+) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator} =
+    FloeSettings{FT, GT}(;
+        subfloe_point_generator = subfloe_point_generator,
+        kwargs...,
+    )
 
 """
     CouplingSettings
@@ -198,10 +215,19 @@ will be set to 0 and 1 respectively.
             floe_domain_max_overlap,
         )
     end
+    CollisionSettings(
+        collisions_on,
+        floe_floe_max_overlap,
+        floe_domain_max_overlap,
+    ) = CollisionSettings{Float64}(
+        collisions_on,
+        floe_floe_max_overlap,
+        floe_domain_max_overlap,
+    )
 end
 
 """
-    CollisionSettings(::Type{FT}, args...)
+    CollisionSettings(::Type{FT}, kwargs...)
 
 A float type FT can be provided as the first argument of any CollisionSettings
 constructor. A CollisionSettings of type FT will be created by passing all
@@ -209,14 +235,6 @@ other arguments to the correct constructor.
 """
 CollisionSettings(::Type{FT}; kwargs...) where {FT <: AbstractFloat} =
     CollisionSettings{FT}(;kwargs...)
-
-"""
-    CollisionSettings(args...)
-
-If a type isn't specified, CollisionSettings will be of type Float64 and the
-correct constructor will be called with all other arguments.
-"""
-CollisionSettings(args...) = CollisionSettings{Float64}(args...)
 
 """
     FractureSettings{CT<:AbstractFractureCriteria}
@@ -286,20 +304,14 @@ end
 """
     struct SimplificationSettings{FT<:AbstractFloat}
 
-Settings needed for simplification within the model.
-Floes below the min_floe_area and below min_floe_height will be removed from the
-simulation every timestep. Floes above max_floe_height will not be able to gain
-height. Floes with aspect ratio less than min_aspect_ratio will be removed.
 If smooth_vertices_on is true then floe's with more vertices than
-max_vertices will be simplified every Δt_smooth timesteps.
-
-A reasonable formula for minimum floe area is the following:
-min_floe_area = 4(grid.xg[end] - grid.xg[1]) * (grid.yg[end] - grid.yg[1]) / 1e4
+max_vertices will be simplified every Δt_smooth timesteps. The tolerance is the
+Douglas–Peucker algorithm tolerance in (m).
 """
 @kwdef struct SimplificationSettings{FT<:AbstractFloat}
     smooth_vertices_on::Bool = true
     max_vertices::Int = 30
-    tol::FT = 100.0  # Douglas–Peucker algorithm tolerance in (m)
+    tol::FT = 100.0
     Δt_smooth::Int = 20
 
     function SimplificationSettings{FT}(
@@ -320,25 +332,29 @@ min_floe_area = 4(grid.xg[end] - grid.xg[1]) * (grid.yg[end] - grid.yg[1]) / 1e4
             Δt_smooth,
         )
     end
+    
+    SimplificationSettings(
+        smooth_vertices_on,
+        max_vertices,
+        tol,
+        Δt_smooth
+    ) = SimplificationSettings{Float64}(
+        smooth_vertices_on,
+        max_vertices,
+        tol,
+        Δt_smooth
+    )
 end
 
 """
-    SimplificationSettings(::Type{FT}, args...)
+    SimplificationSettings(::Type{FT}, kwargs...)
 
 A float type FT can be provided as the first argument of any
 SimplificationSettings constructor. A SimplificationSettings of type FT will be
 created by passing all other arguments to the correct constructor. 
 """
-SimplificationSettings(::Type{FT}, args...) where {FT <: AbstractFloat} =
-    SimplificationSettings{FT}(args...)
-
-"""
-    SimplificationSettings(args...)
-
-If a type isn't specified, SimplificationSettings will be of type Float64 and
-the correct constructor will be called with all other arguments.
-"""
-SimplificationSettings(args...) = SimplificationSettings{Float64}(args...)
+SimplificationSettings(::Type{FT}; kwargs...) where {FT <: AbstractFloat} =
+    SimplificationSettings{FT}(;kwargs...)
 
 """
     RidgeRaftSettings{FT <: AbstractFloat}
@@ -445,25 +461,44 @@ following meanings:
             domain_gain_probability,
         )
     end
+    RidgeRaftSettings(
+        ridge_raft_on,
+        Δt,
+        ridge_probability,
+        raft_probability,
+        min_overlap_frac,
+        min_ridge_height,
+        max_floe_ridge_height,
+        max_domain_ridge_height,
+        max_floe_raft_height,
+        max_domain_raft_height,
+        domain_gain_probability
+    ) = RidgeRaftSettings{Float64}(
+        ridge_raft_on,
+        Δt,
+        ridge_probability,
+        raft_probability,
+        min_overlap_frac,
+        min_ridge_height,
+        max_floe_ridge_height,
+        max_domain_ridge_height,
+        max_floe_raft_height,
+        max_domain_raft_height,
+        domain_gain_probability,
+    )
 end
 
 """
-    RidgeRaftSettings(::Type{FT}, args...)
+    RidgeRaftSettings(::Type{FT}, kwargs...)
 
 A float type FT can be provided as the first argument of any RidgeRaftSettings
 constructor. A RidgeRaftSettings of type FT will be created by passing all other
 arguments to the correct constructor. 
 """
-RidgeRaftSettings(::Type{FT}, args...) where {FT <: AbstractFloat} =
-    RidgeRaftSettings{FT}(args...)
+RidgeRaftSettings(::Type{FT}; kwargs...) where {FT <: AbstractFloat} =
+    RidgeRaftSettings{FT}(;kwargs...)
 
-"""
-    RidgeRaftSettings(args...)
 
-If a type isn't specified, RidgeRaftSettings will be of type Float64 and the
-correct constructor will be called with all other arguments.
-"""
-RidgeRaftSettings(args...) = RidgeRaftSettings{Float64}(args...)
 
 """
     WeldSettings{FT<:AbstractFloat}
@@ -531,25 +566,34 @@ meanings:
             welding_coeff,
         )
     end
+    WeldSettings(
+        weld_on,
+        Δts,
+        Nxs,
+        Nys,
+        min_weld_area,
+        max_weld_area,
+        welding_coeff,
+    ) = WeldSettings{Float64}(
+        weld_on,
+        Δts,
+        Nxs,
+        Nys,
+        min_weld_area,
+        max_weld_area,
+        welding_coeff,
+    )
 end
 
 """
-    WeldSettings(::Type{FT}, args...)
+    WeldSettings(::Type{FT}, kwargs...)
 
 A float type FT can be provided as the first argument of any WeldSettings
 constructor. A WeldSettings of type FT will be created by passing all other
 arguments to the correct constructor. 
 """
-WeldSettings(::Type{FT}, args...) where {FT <: AbstractFloat} =
-    WeldSettings{FT}(args...)
-
-"""
-    WeldSettings(args...)
-
-If a type isn't specified, WeldSettings will be of type Float64 and the
-correct constructor will be called with all other arguments.
-"""
-WeldSettings(args...) = WeldSettings{Float64}(args...)
+WeldSettings(::Type{FT}; kwargs...) where {FT <: AbstractFloat} =
+    WeldSettings{FT}(; kwargs...)
 
 
 # CORNERS::Bool = false           # If true, corners of floes can break

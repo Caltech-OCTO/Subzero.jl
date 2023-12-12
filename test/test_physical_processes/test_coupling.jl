@@ -532,6 +532,7 @@
         
         modulus = 1.5e3*(sqrt(area) + sqrt(area))
         consts = Constants(E = modulus)
+        floe_settings = FloeSettings()
 
     # stationary floe, uniform zonal ocean flow
         model1 = Model(
@@ -546,6 +547,7 @@
             10,
             consts,
             CouplingSettings(Δd = 2),
+            floe_settings,
         )
         @test isapprox(model1.floes[1].fxOA/area, 2.9760, atol = 1e-3)
         @test isapprox(model1.floes[1].fyOA/area, 0.8296, atol = 1e-3)
@@ -565,6 +567,7 @@
             10,
             consts,
             CouplingSettings(Δd = 2),
+            floe_settings,
         )
         @test isapprox(model2.floes[1].fxOA/area, -0.8296, atol = 1e-3)
         @test isapprox(model2.floes[1].fyOA/area, 2.9760, atol = 1e-3)
@@ -587,6 +590,7 @@
             10,
             consts,
             CouplingSettings(Δd = 2),
+            floe_settings,
         )
         @test isapprox(model3.floes[1].fxOA/area, -0.1756, atol = 1e-3)
         @test isapprox(model3.floes[1].fyOA/area, -0.1419, atol = 1e-3)
@@ -606,6 +610,7 @@
             10,
             consts,
             CouplingSettings(Δd = 2),
+            floe_settings,
         )
         @test isapprox(model4.floes[1].fxOA/area, -0.0013, atol = 1e-3)
         @test isapprox(model4.floes[1].fyOA/area, -6.7082e-4, atol = 1e-3)
@@ -638,6 +643,7 @@
             10,
             consts,
             CouplingSettings(),
+            floe_settings,
         )
         @test isapprox(model5.floes[1].fxOA/area, -0.0182, atol = 1e-3)
         @test isapprox(model5.floes[1].fyOA/area, 0.0392, atol = 1e-3)
@@ -665,6 +671,7 @@
             10,
             consts,
             CouplingSettings(),
+            floe_settings,
         )
         @test isapprox(model6.floes[1].fxOA/area, -1.6300, atol = 1e-3)
         @test isapprox(model6.floes[1].fyOA/area, 1.1240, atol = 1e-3)

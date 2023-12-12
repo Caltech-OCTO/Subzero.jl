@@ -3,7 +3,6 @@ Structs and functions to create and run a Subzero simulation
 """
 
 @kwdef struct Constants{FT<:AbstractFloat}
-    ρi::FT = 920.0              # Ice density
     ρo::FT = 1027.0             # Ocean density
     ρa::FT = 1.2                # Air density
     Cd_io::FT = 3e-3            # Ice-ocean drag coefficent
@@ -157,6 +156,7 @@ function timestep_sim!(sim, tstep)
                 sim.Δt,
                 sim.consts,
                 sim.coupling_settings,
+                sim.floe_settings,
             )
         end
         

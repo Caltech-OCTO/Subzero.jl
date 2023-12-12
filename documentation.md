@@ -434,18 +434,29 @@ fracture_settings = FractureSettings(
 ```
 Note that you only need to provide values to the fields that you wish to change from the defaults.
 
-If you do want to turn fractures on, you will need to create a criteria that is not the NoFracture() criteria. Right now, there is only one other fracture criteria, which is Hibler's elliptical yield curve. To learn more about this criteria, see the 1979 paper "A Dynamic Thermodynamic Sea Ice Model." This criteria uses the mean floe height and take in two parameters, `pstar` and `c`, which can be tuned to get the fracture behavior that you want. A simple way to create this criteria is as follows:
+If you do want to turn fractures on, you will need to create a criteria that is not the `NoFracture()` criteria. Right now, there is are two other fracture criteria.
+
+One is Hibler's elliptical yield curve. To learn more about this criteria, see the 1979 paper "A Dynamic Thermodynamic Sea Ice Model." This criteria uses the mean floe height and take in two parameters, `pstar` and `c`, which can be tuned to get the fracture behavior that you want. The `HilberYieldCurve` object then has both of these parameters as fields as well as the `vertices` of the yield curve. A simple way to create this criteria is as follows:
 ```julia
 pstar = 2.25e5
 c = 20.0
 criteria = HiblerYieldCurve(FT, floe_arr, pstar, c)
 ```
+
+The other is Mohr's Cone yield curve. To learn more about this critera, see the 2009 paper "Coulombic faulting from the grain scale to the geophysical scale: lessons from ice." This criteria takes in three parameters that define the shape of the cone. They are as follows:
+- q: based on the coefficient of internal friction (µi) by (μi^2 + 1)^(1/2) + μi^2
+- σc: uniaxial compressive strength
+- σ11: negative of the x-coordinate of one vertex of cone (triangle in 2D) and negative of the y-coordinate of adjacend vertex in principal stress space
+
+Note that the yield curve does not depend on the floe field. The `MohrsCone` object then has a `vertices` field that holds the coordiantes of the cone in principle stress space.
+
+
 #### Simplification Settings
 `SimplificationSettings` changes Subzero's floe simplification. The availible settings are:
 - smooth_vertices_on, which turns on and off the process of smoothing floe vertices to decrease the total number of vertices
 - max_vertices, the total number of verticies a floe can have before smoothing
 - Δt_smooth, which sets the number of timesteps between floe smoothing
-- tol, which is the tolerance 
+- tol, which is the tolerance in Douglas–Peucker's polygon simplification algorithm in meters.
 
 Here is an example of creating your own simplification settings, using the default values:
 ```julia
@@ -455,6 +466,64 @@ simp_settings = SimplificationSettings(
     smooth_vertices_on = true,
     max_vertices = 30,
     Δt_smooth = 20,
+)
+```
+Note that you only need to provide values to the fields that you wish to change from the defaults.
+
+#### Ridging and Rafting Settings
+`RidgeRaftSettings` changes Subzero's ridging and rafting process. The availible settings are:
+- ridge_raft_on, which turns on and off the process of smoothing floe vertices to decrease the total number of vertices
+- Δt  sets the number of timesteps between floe smoothing
+- ridge_probability is the likelyhood (between 0-1) that two floes that meet the criterion actually ridge
+- raft_probability is the likelyhood (between 0-1) that two floes that meet the criterion actually raft
+- min_overlap_frac is the minimum overlap area fraction between a floe and another floe/domain for that floe to ridge or raft
+- min_ridge_height is the minimum floe height to ridge with a floe/domain
+- max_floe_ridge_height is the maximum floe height to ridge with another floe
+- max_domain_ridge_height is the maximum floe height to ridge with a domain element
+- max_floe_raft_height is the maximum floe height to raft with another floe
+- max_domain_raft_height is the maximum floe height to raft with a domain element
+- domain_gain_probability is the probalility that a floe that rafts with a domain element keeps all of its mass (0) or if that mass is removed and lost to the domain element (1).
+
+Here is an example of creating your own simplification settings, using the default values:
+
+```julia
+ridgeraft_settings = RidgeRaftSettings(
+  ridge_raft_on = false,
+  Δt = 0,
+  ridge_probability = 0.95,
+  raft_probability = 0.95,
+  min_overlap_frac = 0.01,
+  min_ridge_height = 0.2,
+  max_floe_ridge_height = 5.0,
+  max_domain_ridge_height = 1.25,
+  max_floe_raft_height = 0.25,
+  max_domain_raft_height = 0.25,
+  domain_gain_probability = 1.0,
+)
+```
+Note that you only need to provide values to the fields that you wish to change from the defaults.
+
+#### Welding Settings
+`WeldSettings` changes Subzero's welding process. The availible settings are:
+- weld_on is a boolean flag for if welding should be turned on in the simulation
+- Δts is a a list of multiples of timesteps during which welding code will run, welding will be run at multiples of all elements, each with domain split into corresponding Nx and Ny values
+- Nxs is a list of number of x-directional bins to split the domain into at corresponding timesteps
+- Nys is a list of number of x-directional bins to split the domain into at corresponding timesteps
+- min_weld_area is the minimum area a weld can create for two floes to weld
+- max_weld_area is the maximum area a weld can create for two floes to weld
+- welding_coeff is a non-dimensional parameter, multiplied by ratio of overlap between two floes to original floe area to determin probability that a floe will merge. The larger this is, the more likely floes are to weld. Probability with 5% overlap is `welding_coeff * (0.05) > rand()`
+
+Here is an example of creating your own welding settings, using the default values:
+
+```julia
+weld_settings = WeldSettings(
+    weld_on = false,
+    Δts = Vector{Int}(),
+    Nxs = Vector{Int}(),
+    Nys = Vector{Int}(),
+    min_weld_area = 1e6,
+    max_weld_area = 2e9,
+    welding_coeff = 150,
 )
 ```
 Note that you only need to provide values to the fields that you wish to change from the defaults.
@@ -582,10 +651,13 @@ Once you have created all of the above objects, you can combine them to create a
 | name              | "sim"                   | Name of simulation                                        |
 | ∆t                | 10                      | Length of simulation timestep in seconds                  |
 | n∆t               | 7500                    | Number of timesteps run in simulation                     |
+| floe_settings     | FloeSettings()          | Settings for making new floes    during the simulation    |
 | coupling_settings | CouplingSettings()      | Settings for coupling during the simulation               |
 | collision_settings| CollisionSettings()     | Settings for collisions during the simulation             |
 | fracture_settings | FractureSettings()      | Settings for fractures during the simulation              |
 | simp_settings     | SimplificationSettings()| Settings for floe simplification during the simulation    |
+| ridgeraft_settings| RidgeRaftSettings()     | Settings for ridging and rafting during the simulation    |
+| weld_settings     | WeldSettings()          | Settings for welding during the simulation                |
 | writers           | OutputWriters()         | Lists of output writers to be written to during the run   |
 
 Here is an example of how to create a simulation, providing some of these optional inputs given that we have already created the following objects: `my_model`, `my_consts`, `my_coupling_settings`, `my_simp_settings`, and `my_writers`.
@@ -608,7 +680,7 @@ You can now use the `run!` function to run the simulation:
 run!(my_simulation)
 ```
 
-If you wish to couple to Oceananigans, you will need to run each model timestep by timestep and pass the needed fields back and forth. You can run a single timestep of the simulation using the `timestep_sim!` function. This also needs the length of a timestep in seconds as an argument (`tstep`).
+If you wish to couple to Oceananigans, you will need to run each model timestep by timestep and pass the needed fields back and forth. You can run a single timestep of the simulation using the `timestep_sim!` function. This also needs the current timestep the simulation is on (`tstep`) as an argument.
 
 ```
 timestep_sim!(
@@ -618,3 +690,18 @@ timestep_sim!(
 ```
 
 Note that we are working on a more elegant solution to coupling with Oceananigans and CliMA and this page will be updated once that is in place. 
+
+### Plotting
+
+If your simulation has both a `FloeOutputWriter` and an `InitialStateOutputWriter`, you can use the built in plotting function to make an MP4 file with each frame as a timestep saved by the `FloeOutputWriter`. You do this as follows:
+
+```
+plot_sim(
+    floe_output_writer_file_path,
+    initial_state_output_writer_file_path,
+    Δt,
+    output_file_path,
+)
+```
+
+where `floe_output_writer_file_path` is the .jl file saved by the `FloeOutputWriter`, `initial_state_output_writer_file_path` is the .jl file saved by the `InitialStateOutputWriter`, and `output_file_path` is the file path and name you want your .mp4 file saved as. `Δt` is the model timestep.
