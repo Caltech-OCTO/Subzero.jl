@@ -456,7 +456,7 @@ Note that the yield curve does not depend on the floe field. The `MohrsCone` obj
 - smooth_vertices_on, which turns on and off the process of smoothing floe vertices to decrease the total number of vertices
 - max_vertices, the total number of verticies a floe can have before smoothing
 - Δt_smooth, which sets the number of timesteps between floe smoothing
-- tol, which is the tolerance in the tolerance in Douglas–Peucker's polygon simplification algorithm in meters.
+- tol, which is the tolerance in Douglas–Peucker's polygon simplification algorithm in meters.
 
 Here is an example of creating your own simplification settings, using the default values:
 ```julia
