@@ -233,5 +233,10 @@
         @test sorted_settings.Δts == [700, 400, 100]
         @test sorted_settings.Nxs == [3, 2, 1]
         @test sorted_settings.Nys == [6, 5, 4]
+
+        @test typeof(WeldSettings(Float32)) <: WeldSettings{Float32}
+        @test typeof(WeldSettings(
+            welding_coeff = 100,
+        )) <: WeldSettings{Float64}
     end
 end

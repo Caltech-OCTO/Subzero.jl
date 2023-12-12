@@ -99,11 +99,22 @@ Settings needed to create floes within the model.
         )
 end
 
+"""
+    FloeSettings(::Type{FT}; subfloe_point_generator, kwargs...)
+
+A float type FT can be provided as the first argument of any FloeSettings
+constructor. A FloeSettings of type FT will be created by passing all other
+arguments to the correct constructor. 
+"""
 FloeSettings(
     ::Type{FT};
     subfloe_point_generator::GT = MonteCarloPointsGenerator(FT),
-    kwargs...) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator} =
-    FloeSettings{FT, GT}(;subfloe_point_generator = subfloe_point_generator, kwargs...)
+    kwargs...,
+) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator} =
+    FloeSettings{FT, GT}(;
+        subfloe_point_generator = subfloe_point_generator,
+        kwargs...,
+    )
 
 """
     CouplingSettings
@@ -204,13 +215,19 @@ will be set to 0 and 1 respectively.
             floe_domain_max_overlap,
         )
     end
-
-    CollisionSettings(args...) =
-        CollisionSettings{Float64}(args...)
+    CollisionSettings(
+        collisions_on,
+        floe_floe_max_overlap,
+        floe_domain_max_overlap,
+    ) = CollisionSettings{Float64}(
+        collisions_on,
+        floe_floe_max_overlap,
+        floe_domain_max_overlap,
+    )
 end
 
 """
-    CollisionSettings(::Type{FT}, args...)
+    CollisionSettings(::Type{FT}, kwargs...)
 
 A float type FT can be provided as the first argument of any CollisionSettings
 constructor. A CollisionSettings of type FT will be created by passing all
@@ -289,7 +306,7 @@ end
 
 If smooth_vertices_on is true then floe's with more vertices than
 max_vertices will be simplified every Δt_smooth timesteps. The tolerance is the
-Douglas–Peucker algorithm tolerance in (m)
+Douglas–Peucker algorithm tolerance in (m).
 """
 @kwdef struct SimplificationSettings{FT<:AbstractFloat}
     smooth_vertices_on::Bool = true
@@ -330,7 +347,7 @@ Douglas–Peucker algorithm tolerance in (m)
 end
 
 """
-    SimplificationSettings(::Type{FT}, args...)
+    SimplificationSettings(::Type{FT}, kwargs...)
 
 A float type FT can be provided as the first argument of any
 SimplificationSettings constructor. A SimplificationSettings of type FT will be
@@ -472,7 +489,7 @@ following meanings:
 end
 
 """
-    RidgeRaftSettings(::Type{FT}, args...)
+    RidgeRaftSettings(::Type{FT}, kwargs...)
 
 A float type FT can be provided as the first argument of any RidgeRaftSettings
 constructor. A RidgeRaftSettings of type FT will be created by passing all other
@@ -569,16 +586,14 @@ meanings:
 end
 
 """
-    WeldSettings(::Type{FT}, args...)
+    WeldSettings(::Type{FT}, kwargs...)
 
 A float type FT can be provided as the first argument of any WeldSettings
 constructor. A WeldSettings of type FT will be created by passing all other
 arguments to the correct constructor. 
 """
-WeldSettings(::Type{FT}, args...) where {FT <: AbstractFloat} =
-    WeldSettings{FT}(args...)
-
-
+WeldSettings(::Type{FT}; kwargs...) where {FT <: AbstractFloat} =
+    WeldSettings{FT}(; kwargs...)
 
 
 # CORNERS::Bool = false           # If true, corners of floes can break
