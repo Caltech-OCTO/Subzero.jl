@@ -12,7 +12,7 @@ stresses on each floe from the ocean and the atmosphere. There must be a
 AbstractSubFloePointsGenerator to generate the points for a given floe.
 Points generated must all be within a given floe.
 """
-abstract type AbstractSubFloePointsGenerator end
+abstract type AbstractSubFloePointsGenerator{FT<:AbstractFloat} end
 
 """
     MonteCarloPointsGenerator
@@ -26,7 +26,7 @@ within the floe that have a smaller error than `err`.
 """
 @kwdef struct MonteCarloPointsGenerator{
     FT <: AbstractFloat,
-} <: AbstractSubFloePointsGenerator
+} <: AbstractSubFloePointsGenerator{FT}
     npoints::Int = 1000
     ntries::Int = 10
     err::FT = 0.1
@@ -85,7 +85,7 @@ is at least one point in each grid cell that the floe occupies.
 """
 @kwdef struct SubGridPointsGenerator{
     FT <: AbstractFloat,
-} <: AbstractSubFloePointsGenerator
+} <: AbstractSubFloePointsGenerator{FT}
     Δg::FT
 
     function SubGridPointsGenerator{FT}(Δg) where {FT <: AbstractFloat}
@@ -1607,6 +1607,7 @@ end
         atmos,
         ocean,
         domain,
+        floe_settings,
         consts,
         Δt,
     )
@@ -1614,12 +1615,14 @@ end
 Calculate effects of ice and atmosphere on the ocean and update ocean stress
 fields and sea ice fraction.
 Inputs:
-    floes       <StructArray{Floe}> model's floes
-    ocean       <Ocean> model's ocean
-    grid        <AbstractGrid> model's grid
-    domain      <Domain> model's domain
-    consts      <Constants> model's constantd
-    Δt          <Int> simulation's timestep in seconds
+    floes           <StructArray{Floe}> model's floes
+    grid            <AbstractGrid> model's grid
+    atmos           <Atmos> model's atmosphere
+    ocean           <Ocean> model's ocean
+    domain          <Domain> model's domain
+    floe_settings   <FloeSettings> simulation's floe settings
+    consts          <Constants> model's constants
+    Δt              <Int> simulation's timestep in seconds
 Output:
     None. Update's ocean's stress fields and heatflux factor field. 
 """
@@ -1629,6 +1632,7 @@ function calc_two_way_coupling!(
     atmos,
     ocean,
     domain,
+    floe_settings,
     consts,
     Δt,
 ) where {FT}
@@ -1686,7 +1690,7 @@ function calc_two_way_coupling!(
         ocean.τx[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δu_AO
         ocean.τy[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δv_AO
         # Not sure this is where the heatflux should be??
-        ocean.hflx_factor[cartidx] = Δt * consts.k/(consts.ρi*consts.L) *
+        ocean.hflx_factor[cartidx] = Δt * consts.k/(floe_settings.ρi*consts.L) *
             (ocean.temp[cartidx] - atmos.temp[cartidx])
     end
     return
@@ -1699,6 +1703,7 @@ end
         Δt,
         consts,
         coupling_settings,
+        floe_settings,
     )
 
 Calculates the effects of the ocean and atmosphere on the ice and the effects of
@@ -1708,6 +1713,7 @@ Inputs:
     Δt                  <Int> length of timestep in seconds
     consts              <Constants> constants used in simulation
     coupling_settings   <CouplingSettings> settings for coupling
+    floe_settings       <FloeSettings> settings for basic floe properties
 Outputs:
     None. Updates each floe's ocean/atmosphere forcings (fxOA, fyOA, torqueOA)
     and calculates stresses on each ocean grid cell from ice and atmosphere if
@@ -1718,6 +1724,7 @@ function timestep_coupling!(
     Δt,
     consts,
     coupling_settings,
+    floe_settings,
 )
     empty!.(model.grid.floe_locations)
     if coupling_settings.two_way_coupling_on
@@ -1739,6 +1746,7 @@ function timestep_coupling!(
             model.atmos,
             model.ocean,
             model.domain,
+            floe_settings,
             consts,
             Δt,
         )

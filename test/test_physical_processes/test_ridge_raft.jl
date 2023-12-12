@@ -1,13 +1,13 @@
 using LibGEOS
 @testset "Ridging and Rafting" begin
-    function update_height(floes, i, new_height, consts)
+    function update_height(floes, i, new_height, floe_settings)
         floes.height[i] = new_height
-        floes.mass[i] = floes.area[i] * floes.height[i] * consts.ρi
+        floes.mass[i] = floes.area[i] * floes.height[i] * floe_settings.ρi
         floes.moment[i] = Subzero.calc_moment_inertia(
             floes.coords[i],
             floes.centroid[i],
             floes.height[i],
-            ρi = consts.ρi,
+            ρi = floe_settings.ρi,
         )
         return
     end
@@ -94,12 +94,11 @@ using LibGEOS
         domain,
         floe_settings,
         simp_settings,
-        consts,
     )
         @assert !floe1_subsume || !floe2_subsume "Both floe 1 and floe 2 can't subsume for testing"
         # Test floe 1 > min ridge height and floe 2 < min ridge height
-        update_height(floes, 1, new_height1, consts)
-        update_height(floes, 2, new_height2, consts)
+        update_height(floes, 1, new_height1, floe_settings)
+        update_height(floes, 2, new_height2, floe_settings)
         mass1, mass2 = floes.mass
         moment1, moment2 = floes.moment
         height1, height2 = floes.height
@@ -149,9 +148,9 @@ using LibGEOS
     end
     function test_floe_domain_rr_scenario(rr_settings, does_raft, lose_mass, floes,
         domain, boundary_poly, topo_poly, bounds_overlap_area, topo_overlap_area,
-        height1, height2, floe_settings, simp_settings, consts)
-        update_height(floes, 1, height1, consts)
-        update_height(floes, 2, height2, consts)
+        height1, height2, floe_settings, simp_settings)
+        update_height(floes, 1, height1, floe_settings)
+        update_height(floes, 2, height2, floe_settings)
         total_mass = sum(floes.mass)
         h1, h2 = floes.height
         area1, area2 = floes.area
@@ -202,11 +201,11 @@ using LibGEOS
     end
 
     function test_floe_ghost_rr_scenario(rr_settings, floes, height1, height2,
-        floe1_subsume, domain, floe_settings, simp_settings, consts,
+        floe1_subsume, domain, floe_settings, simp_settings,
     )
-        update_height(floes, 1, height1, consts)  # floe 1 will ridge onto floe 2
-        update_height(floes, 3, height1, consts)  # floe 1 has ghost floe 3
-        update_height(floes, 2, height2, consts)
+        update_height(floes, 1, height1, floe_settings)  # floe 1 will ridge onto floe 2
+        update_height(floes, 3, height1, floe_settings)  # floe 1 has ghost floe 3
+        update_height(floes, 2, height2, floe_settings)
         total_mass = floes.mass[1] + floes.mass[2]
         h1, h2, h3 = floes.height
         area1, area2, area3 = floes.area
@@ -314,7 +313,6 @@ using LibGEOS
             collision_domain,
             floe_settings,
             simp_settings,
-            consts,
         )
         no_rr_frac_settings = Subzero.RidgeRaftSettings(
             ridge_probability = 1.0,
@@ -331,7 +329,6 @@ using LibGEOS
             collision_domain,
             floe_settings,
             simp_settings,
-            consts,
         )
 
         # # Ridging Tests
@@ -352,7 +349,6 @@ using LibGEOS
             collision_domain,
             floe_settings,
             simp_settings,
-            consts,
         )
         floes = deepcopy(floes_base)
         # Test floe 1 ridging on top of floe 2
@@ -366,7 +362,6 @@ using LibGEOS
             collision_domain,
             floe_settings,
             simp_settings,
-            consts,
         )
         floes = deepcopy(floes_base)
         # Test both floes being too thin to ridge
@@ -380,7 +375,6 @@ using LibGEOS
             collision_domain,
             floe_settings,
             simp_settings,
-            consts,
         )
         # Rafting Tests
         raft_settings = Subzero.RidgeRaftSettings(
@@ -401,7 +395,6 @@ using LibGEOS
             collision_domain,
             floe_settings,
             simp_settings,
-            consts,
         )
         # Test floe 2 rafting on top of floe 1
         floes = deepcopy(floes_base)
@@ -415,7 +408,6 @@ using LibGEOS
             collision_domain,
             floe_settings,
             simp_settings,
-            consts,
         )
     end
     @testset "Floe-Domain Ridging and Rafting" begin
@@ -443,13 +435,13 @@ using LibGEOS
         )
         test_floe_domain_rr_scenario(ridge_settings, true, true, floes,
             collision_domain, boundary_poly, topo_poly, bounds_overlap_area,
-            topo_overlap_area,  0.1, 0.1, floe_settings, simp_settings, consts,
+            topo_overlap_area,  0.1, 0.1, floe_settings, simp_settings,
         )
         # Not ridging with domain
         floes = deepcopy(floes_base)
         test_floe_domain_rr_scenario(ridge_settings, false, true, floes,
             collision_domain, boundary_poly, topo_poly, bounds_overlap_area,
-            topo_overlap_area, 2.0, 2.0, floe_settings, simp_settings, consts,
+            topo_overlap_area, 2.0, 2.0, floe_settings, simp_settings,
         )
         # Rafting with domain
         floes = deepcopy(floes_base)
@@ -460,13 +452,13 @@ using LibGEOS
         )
         test_floe_domain_rr_scenario(rafting_settings, true, true, floes,
             collision_domain, boundary_poly, topo_poly, bounds_overlap_area,
-            topo_overlap_area, 0.1, 0.1, floe_settings, simp_settings, consts,
+            topo_overlap_area, 0.1, 0.1, floe_settings, simp_settings,
         )
         # Not rafting with domain   
         floes = deepcopy(floes_base)
         test_floe_domain_rr_scenario(rafting_settings, false, true, floes,
             collision_domain, boundary_poly, topo_poly, bounds_overlap_area,
-            topo_overlap_area, 0.3, 0.3, floe_settings, simp_settings, consts,
+            topo_overlap_area, 0.3, 0.3, floe_settings, simp_settings,
         )
 
         # Ridging with domain where floe keeps mass
@@ -479,7 +471,7 @@ using LibGEOS
         floes = deepcopy(floes_base)
         test_floe_domain_rr_scenario(ridge_keep_mass_settings, true, false,
             floes, collision_domain, boundary_poly, topo_poly, bounds_overlap_area,
-            topo_overlap_area, 1.0, 1.0, floe_settings, simp_settings, consts,
+            topo_overlap_area, 1.0, 1.0, floe_settings, simp_settings,
         )
 
         coords = [[[[-0.1e4, 0.1e4], [-0.1e4, 9.9e4], [0.1e4, 9.9e4], [0.1e4, 0.1e4], [-0.1e4, 0.1e4]]]]
@@ -518,7 +510,7 @@ using LibGEOS
         )
         # floe 2 has a very small section outside of floe 1, too small to save
         floes = deepcopy(floes_base)
-        update_height(floes, 2, 0.1, consts)  # floe 2 will ridge onto floe 1
+        update_height(floes, 2, 0.1, floe_settings)  # floe 2 will ridge onto floe 1
         total_mass = sum(floes.mass)
         h1, h2 = floes.height
         area1, area2 = floes.area
@@ -560,7 +552,7 @@ using LibGEOS
         )
         # Test scenario with floe breaking into pieces
         floes = deepcopy(floes_base)
-        update_height(floes, 1, 0.1, consts)  # floe1 will ridge onto floe 2
+        update_height(floes, 1, 0.1, floe_settings)  # floe1 will ridge onto floe 2
         total_mass = sum(floes.mass)
         h1, h2, h3 = floes.height
         area1, area2, area3 = floes.area
@@ -646,12 +638,12 @@ using LibGEOS
             # parent with ghost is subsumed by floe 2
         floes = deepcopy(base_floes)
         test_floe_ghost_rr_scenario(ridge_settings, floes, 0.1, 1.0,
-            false, periodic_domain, floe_settings, simp_settings, consts,
+            false, periodic_domain, floe_settings, simp_settings,
         )
             # parent with ghost subsumes floe 2 
         floes = deepcopy(base_floes)
         test_floe_ghost_rr_scenario(ridge_settings, floes, 1.0, 0.1,
-            true, periodic_domain, floe_settings, simp_settings, consts,
+            true, periodic_domain, floe_settings, simp_settings,
         )
         # Test parent-ghost ridge, no breakage and update parents
         coords = [
@@ -664,12 +656,12 @@ using LibGEOS
         # ghost (floe 3) is subsumed by floe 2
         floes = deepcopy(base_floes)
         test_floe_ghost_rr_scenario(ridge_settings, floes, 0.1, 1.0,
-            false, periodic_domain, floe_settings, simp_settings, consts,
+            false, periodic_domain, floe_settings, simp_settings,
         )
         # floe 2 is subsumed by ghost (floe 3)
         floes = deepcopy(base_floes)
         test_floe_ghost_rr_scenario(ridge_settings, floes, 1.0, 0.1,
-            true, periodic_domain, floe_settings, simp_settings, consts,
+            true, periodic_domain, floe_settings, simp_settings,
         )
     
         # Test parent-parent ridge, breakage
@@ -682,8 +674,8 @@ using LibGEOS
             collision_settings, lock
         )
         floes = deepcopy(base_floes)
-        update_height(floes, 1, 0.1, consts)
-        update_height(floes, 4, 0.1, consts)  # ghost of floe 1
+        update_height(floes, 1, 0.1, floe_settings)
+        update_height(floes, 4, 0.1, floe_settings)  # ghost of floe 1
         total_mass = sum(floes.mass[1:3])
         h1, h2, h3, h4 = floes.height
         area1, area2, area3, area4 = floes.area
@@ -733,8 +725,8 @@ using LibGEOS
             collision_settings, lock
         )
         floes = deepcopy(base_floes)
-        update_height(floes, 1, 0.1, consts)
-        update_height(floes, 4, 0.1, consts)  # ghost of floe 1
+        update_height(floes, 1, 0.1, floe_settings)
+        update_height(floes, 4, 0.1, floe_settings)  # ghost of floe 1
         total_mass = sum(floes.mass[1:3])
         h1, h2, h3, h4 = floes.height
         area1, area2, area3, area4 = floes.area
