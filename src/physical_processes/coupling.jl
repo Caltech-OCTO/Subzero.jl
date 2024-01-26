@@ -475,8 +475,8 @@ Note:
     than the number of grid lines in a given direction.
 """
 function find_center_cell_index(xp, yp, grid::RegRectilinearGrid)
-    xidx = floor(Int, (xp - grid.x0)/(grid.Δx) + 0.5) + 1
-    yidx = floor(Int, (yp - grid.y0)/(grid.Δy) + 0.5) + 1
+    xidx = floor(Int, (xp - grid.x0)/(grid.Δx)) + 1
+    yidx = floor(Int, (yp - grid.y0)/(grid.Δy)) + 1
     return xidx, yidx
 end
 """
@@ -652,6 +652,7 @@ function calc_mc_values!(
             cos(α)*floe.y_subfloe_points[i]  # at origin
         x = px + floe.centroid[1]  # at centroid
         y = py + floe.centroid[2]  # at centroid
+        println([x, y])
         # If point is in bounds, continue to find rest of values
         if in_bounds(x, y, grid, domain.east, domain.north)
             j += 1  # if added to outputs, move to next index in output array
@@ -662,6 +663,7 @@ function calc_mc_values!(
                 cart_vals[j, 2],
                 grid,
             )
+            println([grid_idx[j, 1], grid_idx[j, 2]])
         end
     end
     return j  # last spot in output arrays that has values for this floe
@@ -1131,21 +1133,21 @@ function center_cell_coords(
     ns_bound,
     ew_bound,
 )
-    xmin = (xidx - 1.5) * grid.Δx + grid.x0
+    xmin = (xidx - 1) * grid.Δx
     xmax = xmin + grid.Δx
-    ymin = (yidx - 1.5) * grid.Δy + grid.y0
+    ymin = (yidx - 1) * grid.Δy
     ymax = ymin + grid.Δy
     #= Check if cell extends beyond boundaries and if non-periodic, trim cell to
     fit within grid. =#
-    xmin, xmax, ymin, ymax = check_cell_bounds(
-        xmin,
-        xmax,
-        ymin,
-        ymax,
-        grid,
-        ns_bound,
-        ew_bound,
-    )
+    # xmin, xmax, ymin, ymax = check_cell_bounds(
+    #     xmin,
+    #     xmax,
+    #     ymin,
+    #     ymax,
+    #     grid,
+    #     ns_bound,
+    #     ew_bound,
+    # )
     return [[[xmin, ymin], [xmin, ymax],
     [xmax, ymax], [xmax, ymin],
     [xmin, ymin]]]
@@ -1639,6 +1641,7 @@ function calc_two_way_coupling!(
     # Determine force from floe on each grid cell it is in
     cell_area = grid.Δx * grid.Δy
     Threads.@threads for cartidx in CartesianIndices(ocean.scells)
+        println(cartidx)
         ocean.τx[cartidx] = FT(0)
         ocean.τy[cartidx] = FT(0)
         ocean.si_frac[cartidx] = FT(0)
@@ -1653,13 +1656,18 @@ function calc_two_way_coupling!(
                 domain.north,
                 domain.east
             )
+            println(cell_coords)
             cell_poly = LG.Polygon(cell_coords)
             for i in eachindex(floe_locations.floeidx)
-                floe_coords = translate(
+                println(floes.coords[floe_locations.floeidx[i]])
+                floe_coords_trans = translate(
                     floes.coords[floe_locations.floeidx[i]],
                     floe_locations.Δx[i],
                     floe_locations.Δy[i],
                 )
+                println([floe_locations.Δx[i], floe_locations.Δy[i]])
+                floe_coords = floes.coords[floe_locations.floeidx[i]]
+                println(floe_coords_trans)
                 floe_poly = LG.Polygon(floe_coords)
                 floe_area_in_cell = FT(sum(
                     LG.area.(intersect_polys(cell_poly, floe_poly))
@@ -1668,6 +1676,7 @@ function calc_two_way_coupling!(
                 #     cell_poly,
                 #     floe_poly,
                 # )))
+                println(floe_area_in_cell)
                 if floe_area_in_cell > 0
                     # Add forces and area to ocean fields
                     ocean.τx[cartidx] += (τocn.τx[i]/τocn.npoints[i]) * floe_area_in_cell
