@@ -475,10 +475,18 @@ Note:
     than the number of grid lines in a given direction.
 """
 function find_center_cell_index(xp, yp, grid::RegRectilinearGrid)
+    xidx = floor(Int, (xp - grid.x0)/(grid.Δx) + 0.5) + 1
+    yidx = floor(Int, (yp - grid.y0)/(grid.Δy) + 0.5) + 1
+    return xidx, yidx
+end
+
+
+function find_cell_index(xp, yp, grid::RegRectilinearGrid)
     xidx = floor(Int, (xp - grid.x0)/(grid.Δx)) + 1
     yidx = floor(Int, (yp - grid.y0)/(grid.Δy)) + 1
     return xidx, yidx
 end
+
 """
     in_bounds(
         xr,
@@ -641,6 +649,7 @@ function calc_mc_values!(
     domain,
     cart_vals,
     grid_idx,
+    grid_cell_idx,
 ) where {FT<:AbstractFloat}
     # Translate/rotate monte carlo points to floe location/orientation
     α = floe.α
@@ -652,7 +661,6 @@ function calc_mc_values!(
             cos(α)*floe.y_subfloe_points[i]  # at origin
         x = px + floe.centroid[1]  # at centroid
         y = py + floe.centroid[2]  # at centroid
-        println([x, y])
         # If point is in bounds, continue to find rest of values
         if in_bounds(x, y, grid, domain.east, domain.north)
             j += 1  # if added to outputs, move to next index in output array
@@ -663,7 +671,11 @@ function calc_mc_values!(
                 cart_vals[j, 2],
                 grid,
             )
-            println([grid_idx[j, 1], grid_idx[j, 2]])
+            grid_cell_idx[j, 1], grid_cell_idx[j, 2] = find_cell_index(
+                cart_vals[j, 1],
+                cart_vals[j, 2],
+                grid,
+            )
         end
     end
     return j  # last spot in output arrays that has values for this floe
@@ -1444,7 +1456,7 @@ function floe_to_grid_info!(
     shifted_xidx = shift_cell_idx(xidx, grid.Nx + 1, ew_bound)
     shifted_yidx = shift_cell_idx(yidx, grid.Ny + 1, ns_bound)
     Δx = (shifted_xidx - xidx) * (grid.Δx)
-    Δy = (shifted_yidx - yidx) * (grid.Δy)
+    Δy = (shifted_yidx - yidx) * (grid.Δy) 
     if coupling_settings.two_way_coupling_on 
         # If two-way coupling, save stress on ocean per cell
         add_point!(
@@ -1508,7 +1520,8 @@ function calc_one_way_coupling!(
 ) where {FT}
     max_points = maximum(length, floes.x_subfloe_points)
     cart_vals = Matrix{FT}(undef, max_points, 2)
-    grid_idx = Matrix{Int}(undef, max_points, 2)
+    grid_idx = Matrix{Int}(undef, max_points, 2) # grid line index - centered cell
+    grid_cell_idx = Matrix{Int}(undef, max_points, 2) # grid cell index
     for i in eachindex(floes)
         # Monte carlo point cartesian coordinates and grid cell indices
         npoints = calc_mc_values!(
@@ -1517,6 +1530,7 @@ function calc_one_way_coupling!(
             domain,
             cart_vals,
             grid_idx,
+            grid_cell_idx
         )
         if npoints == 0
             floes.status[i].tag = remove
@@ -1582,8 +1596,8 @@ function calc_one_way_coupling!(
                 # Save floe info onto the grid
                 floe_to_grid_info!(
                     i,
-                    grid_idx[j, 1],
-                    grid_idx[j, 2],
+                    grid_cell_idx[j, 1], # This is what I have to change - should be cell index
+                    grid_cell_idx[j, 2], # This is what I have to change
                     τx_ocn,
                     τy_ocn,
                     grid,
@@ -1641,7 +1655,7 @@ function calc_two_way_coupling!(
     # Determine force from floe on each grid cell it is in
     cell_area = grid.Δx * grid.Δy
     Threads.@threads for cartidx in CartesianIndices(ocean.scells)
-        println(cartidx)
+        println("   cell index :: " * string(cartidx))
         ocean.τx[cartidx] = FT(0)
         ocean.τy[cartidx] = FT(0)
         ocean.si_frac[cartidx] = FT(0)
@@ -1656,18 +1670,16 @@ function calc_two_way_coupling!(
                 domain.north,
                 domain.east
             )
-            println(cell_coords)
+            println("   cell_coords :: " * string(cell_coords))
             cell_poly = LG.Polygon(cell_coords)
             for i in eachindex(floe_locations.floeidx)
-                println(floes.coords[floe_locations.floeidx[i]])
-                floe_coords_trans = translate(
+                println("       floe number :: $i")
+                println("       floe centroid :: " * string(floes.centroid[floe_locations.floeidx[i]]))
+                floe_coords = translate(
                     floes.coords[floe_locations.floeidx[i]],
                     floe_locations.Δx[i],
                     floe_locations.Δy[i],
                 )
-                println([floe_locations.Δx[i], floe_locations.Δy[i]])
-                floe_coords = floes.coords[floe_locations.floeidx[i]]
-                println(floe_coords_trans)
                 floe_poly = LG.Polygon(floe_coords)
                 floe_area_in_cell = FT(sum(
                     LG.area.(intersect_polys(cell_poly, floe_poly))
@@ -1676,7 +1688,7 @@ function calc_two_way_coupling!(
                 #     cell_poly,
                 #     floe_poly,
                 # )))
-                println(floe_area_in_cell)
+                println("       floe area in cell :: " * string(floe_area_in_cell))
                 if floe_area_in_cell > 0
                     # Add forces and area to ocean fields
                     ocean.τx[cartidx] += (τocn.τx[i]/τocn.npoints[i]) * floe_area_in_cell
@@ -1696,8 +1708,8 @@ function calc_two_way_coupling!(
         Δv_AO = atmos.v[cartidx] - ocean.v[cartidx]
         ocn_frac = 1 - ocean.si_frac[cartidx]
         norm = sqrt(Δu_AO^2 + Δv_AO^2)
-        ocean.τx[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δu_AO
-        ocean.τy[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δv_AO
+        # ocean.τx[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δu_AO
+        # ocean.τy[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δv_AO
         # Not sure this is where the heatflux should be??
         ocean.hflx_factor[cartidx] = Δt * consts.k/(floe_settings.ρi*consts.L) *
             (ocean.temp[cartidx] - atmos.temp[cartidx])
