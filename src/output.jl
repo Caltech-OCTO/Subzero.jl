@@ -905,15 +905,15 @@ function calc_eulerian_data!(floes, topography, writer)
                         elseif outputs[k] == :stress_xx_grid
                             sum([s[1, 1] for s in floes.stress[floeidx]] .* ma_ratios)
                         elseif outputs[k] == :stress_yx_grid
-                            sum([s[1, 2] for s in floes.stress[floeidx]] .* ma_ratios)
-                        elseif outputs[k] == :stress_xy_grid
                             sum([s[2, 1] for s in floes.stress[floeidx]] .* ma_ratios)
+                        elseif outputs[k] == :stress_xy_grid
+                            sum([s[1, 2] for s in floes.stress[floeidx]] .* ma_ratios)
                         elseif outputs[k] == :stress_yy_grid
                             sum([s[2, 2] for s in floes.stress[floeidx]] .* ma_ratios)
                         elseif outputs[k] == :stress_eig_grid
                             xx = sum([s[1, 1] for s in floes.stress[floeidx]] .* ma_ratios)
-                            yx = sum([s[1, 2] for s in floes.stress[floeidx]] .* ma_ratios)
-                            xy = sum([s[2, 1] for s in floes.stress[floeidx]] .* ma_ratios)
+                            yx = sum([0.5 *(s[1, 2] + s[2, 1]) for s in floes.stress[floeidx]] .* ma_ratios)
+                            xy = sum([0.5 *(s[1, 2] + s[2, 1]) for s in floes.stress[floeidx]] .* ma_ratios)
                             yy = sum([s[2, 2] for s in floes.stress[floeidx]] .* ma_ratios)
                             stress = maximum(eigvals([xx yx; xy yy]))
                             if abs(stress) > 1e8
