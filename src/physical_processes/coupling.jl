@@ -1112,7 +1112,7 @@ function check_cell_bounds(
 end
 
 """
-    center_cell_coords(
+    cell_coords(
         xidx::Int,
         yidx::Int,
         grid::RegRectilinearGrid,
@@ -1138,7 +1138,7 @@ Output:
     will be trimmed at boundaries. Therefore, if indices place cell completely
     outside of grid, could return a line at the edge of the boundary. 
 """
-function center_cell_coords(
+function grid_cell_coords(
     xidx::Int,
     yidx::Int,
     grid::RegRectilinearGrid,
@@ -1655,26 +1655,27 @@ function calc_two_way_coupling!(
     # Determine force from floe on each grid cell it is in
     cell_area = grid.Δx * grid.Δy
     Threads.@threads for cartidx in CartesianIndices(ocean.scells)
-        println("   cell index :: " * string(cartidx))
+        # println("   cell index :: " * string(cartidx))
         ocean.τx[cartidx] = FT(0)
         ocean.τy[cartidx] = FT(0)
         ocean.si_frac[cartidx] = FT(0)
+        ocean.ice_mass[cartidx] = FT(0)
         τocn = ocean.scells[cartidx]
         floe_locations = grid.floe_locations[cartidx]
         if !isempty(floe_locations.floeidx)
             # Coordinates of grid cell
-            cell_coords = center_cell_coords(
+            cell_coords = grid_cell_coords(
                 cartidx[1],
                 cartidx[2],
                 grid,
                 domain.north,
                 domain.east
             )
-            println("   cell_coords :: " * string(cell_coords))
+            # println("   cell_coords :: " * string(cell_coords))
             cell_poly = LG.Polygon(cell_coords)
             for i in eachindex(floe_locations.floeidx)
-                println("       floe number :: $i")
-                println("       floe centroid :: " * string(floes.centroid[floe_locations.floeidx[i]]))
+                # println("       floe number :: $i")
+                # println("       floe centroid :: " * string(floes.centroid[floe_locations.floeidx[i]]))
                 floe_coords = translate(
                     floes.coords[floe_locations.floeidx[i]],
                     floe_locations.Δx[i],
@@ -1688,26 +1689,30 @@ function calc_two_way_coupling!(
                 #     cell_poly,
                 #     floe_poly,
                 # )))
-                println("       floe area in cell :: " * string(floe_area_in_cell))
+                # println("       floe area in cell :: " * string(floe_area_in_cell))
+                floe_mass = floes.mass[floe_locations.floeidx[i]]
+                floe_area = floes.area[floe_locations.floeidx[i]]
+                floe_area_dens = floe_mass/floe_area
                 if floe_area_in_cell > 0
                     # Add forces and area to ocean fields
-                    ocean.τx[cartidx] += (τocn.τx[i]/τocn.npoints[i]) * floe_area_in_cell
-                    ocean.τy[cartidx] += (τocn.τy[i]/τocn.npoints[i]) * floe_area_in_cell
+                    ocean.τx[cartidx] += (τocn.τx[i]/τocn.npoints[i]) * floe_area_in_cell * floe_area_dens
+                    ocean.τy[cartidx] += (τocn.τy[i]/τocn.npoints[i]) * floe_area_in_cell * floe_area_dens
                     ocean.si_frac[cartidx] += floe_area_in_cell
+                    ocean.ice_mass[cartidx] += floe_area_in_cell * floe_area_dens
                 end
             end
             if ocean.si_frac[cartidx] > 0
                 # Divide by total floe area in cell to get ocean stress
-                ocean.τx[cartidx] /= ocean.si_frac[cartidx]
-                ocean.τy[cartidx] /= ocean.si_frac[cartidx]
+                ocean.τx[cartidx] /= ocean.ice_mass[cartidx]
+                ocean.τy[cartidx] /= ocean.ice_mass[cartidx]
                 # Divide by cell area to get sea-ice fraction
                 ocean.si_frac[cartidx] /= cell_area
             end
         end
         Δu_AO = atmos.u[cartidx] - ocean.u[cartidx]
         Δv_AO = atmos.v[cartidx] - ocean.v[cartidx]
-        ocn_frac = 1 - ocean.si_frac[cartidx]
-        norm = sqrt(Δu_AO^2 + Δv_AO^2)
+        # ocn_frac = 1 - ocean.si_frac[cartidx]
+        # norm = sqrt(Δu_AO^2 + Δv_AO^2)
         # ocean.τx[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δu_AO
         # ocean.τy[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δv_AO
         # Not sure this is where the heatflux should be??
