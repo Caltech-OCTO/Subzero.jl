@@ -399,13 +399,13 @@ function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}) where {FT}
     stress = fill(FT(0), 2, 2)
     for i in 1:floe.num_inters
         stress[1, 1] += (inters[i, xpoint] - xi) * inters[i, xforce]
-        stress[1, 2] += (inters[i, ypoint] - yi) * inters[i, xforce] +
-            (inters[i, xpoint] - xi) * inters[i, yforce]
+        stress[1, 2] += (inters[i, ypoint] - yi) * inters[i, xforce] 
+        stress[2, 1] += (inters[i, xpoint] - xi) * inters[i, yforce]
         stress[2, 2] += (inters[i, ypoint] - yi) * inters[i, yforce]
     end
-    stress[1, 2] *= FT(0.5)
-    stress[2, 1] = stress[1, 2]
-    stress .*= 1/(floe.area * floe.height)
+    # stress[1, 2] *= FT(0.5)
+    # stress[2, 1] = stress[1, 2]
+    stress .*= 1/floe.area
     # Add timestep stress to stress history
     push!(floe.stress_history, stress)
     # Average stress history to find floe's average stress
