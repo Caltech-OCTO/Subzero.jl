@@ -32,18 +32,6 @@ function valid_polyvec!(coords)
 end
 
 """
-    find_poly_centroid(poly)
-
-Syntactic sugar for using LibGEOS to find a polygon's centroid
-Input:
-    poly    <LibGEOS.Polygon or LibGEOS. MultiPolygon>
-Output:
-    Vector{Float64} [x, y] where this represents the centroid in the xy plane
-"""
-find_poly_centroid(poly) =
-    LG.GeoInterface.coordinates(LG.centroid(poly))::Vector{Float64}
-
-"""
     find_poly_coords(poly)
 
 Syntactic sugar for using LibGEOS to find a polygon's coordinates
@@ -52,7 +40,7 @@ Input:
 Output:
     <PolyVec> representing the floe's coordinates xy plane
 """
-find_poly_coords(poly::Union{LG.Polygon, GI.Polygon}) =
+find_poly_coords(poly::Polys) =
     LG.GeoInterface.coordinates(poly)
 
 """
@@ -60,9 +48,9 @@ find_poly_coords(poly::Union{LG.Polygon, GI.Polygon}) =
 
 Returns an empty polygon list as non-polygon element was provided
 Inputs:
-    geom    <LG.AbstractGeometry>
+    geom    <AbstractGeometry>
 Outputs:
-    <Vector{LG.Polygon}>
+    <Vector{Polygon}>
 """
 function get_polygons(geom, ::Type{T} = Float64) where T
     polys =  Vector{Polys{T}}()
@@ -97,8 +85,8 @@ end
 
 Intersect two geometries and return a list of polygons resulting.
 Inputs:
-    p1  <LG.AbstractGeometry>
-    p2  <LG.AbstractGeometry>
+    p1  <AbstractGeometry>
+    p2  <AbstractGeometry>
 Output:
     Vector of LibGEOS Polygons
 """
@@ -106,7 +94,7 @@ intersect_polys(p1, p2) = get_polygons(
     LG.intersection(
         p1,
         p2,
-    )::LG.Geometry,
+    ),
 )
 
 """
@@ -220,7 +208,7 @@ Input:
 Output:
     <Vector{PolyVec}> representing the floe's coordinates xy plane
 """
-find_multipoly_coords(poly::Union{LG.Polygon, GI.Polygon}) =
+find_multipoly_coords(poly::Polys) =
     [find_poly_coords(poly)]
 
 
@@ -233,7 +221,7 @@ Input:
 Output:
     <Vector{PolyVec}> representing the floe's coordinates xy plane
 """
-find_multipoly_coords(multipoly::LG.MultiPolygon) =
+find_multipoly_coords(multipoly::MultiPolys) =
     LG.GeoInterface.coordinates(multipoly)::Vector{PolyVec{Float64}}
 
 """
@@ -322,7 +310,7 @@ function hashole(coords::PolyVec{FT}) where FT<:AbstractFloat
 end
 
 """
-    hashole(poly::LG.Polygon)
+    hashole(poly::Polys)
 
 Determine if polygon has one or more holes
 Inputs:
@@ -330,12 +318,12 @@ Inputs:
 Outputs:
     <Bool> true if there is a hole in the polygons, else false
 """
-function hashole(poly::Union{LG.Polygon, GI.Polygon})
+function hashole(poly::Polys)
     return GI.nhole(poly) > 0
 end 
 
 """
-    hashole(multipoly::LG.MultiPolygon)
+    hashole(multipoly::MultiPolys)
 
 Determine if any of multipolygon's internal polygons has holes
 Inputs:
@@ -343,9 +331,8 @@ Inputs:
 Outputs:
     <Bool> true if there is a hole in any of the polygons, else false
 """
-function hashole(multipoly::LG.MultiPolygon)
-    poly_lst = LG.getGeometries(multipoly)::Vector{LG.Polygon}
-    for poly in poly_lst
+function hashole(multipoly::MultiPolys)
+    for poly in GI.getgeom(multipoly)
         if hashole(poly)
             return true
         end
@@ -373,7 +360,7 @@ function rmholes!(coords::PolyVec{FT}) where {FT<:AbstractFloat}
 end
 
 """
-    rmholes(poly::LG.Polygon)
+    rmholes(poly::Polys)
 
 Remove polygon's holes if they exist
 Inputs:
@@ -381,15 +368,15 @@ Inputs:
 Outputs:
     <LibGEOS.Polygon>  LibGEOS polygon without any holes
 """
-function rmholes(poly::Union{LG.Polygon, GI.Polygon})
+function rmholes(poly::Polys)
     if hashole(poly)
-        return LG.Polygon(LG.exteriorRing(poly))
+        return LG.Polygon(GI.getexterior(poly))
     end
     return poly
 end
 
 """
-    rmholes(multipoly::LG.MultiPolygon)
+    rmholes(multipoly::MultiPolys)
 
 Remove holes from each polygon of a multipolygon if they exist
 Inputs:
@@ -397,40 +384,38 @@ Inputs:
 Outputs:
     <LibGEOS.MultiPolygon> multipolygon without any holes
 """
-function rmholes(multipoly::LG.MultiPolygon)
-    poly_lst = LG.getGeometries(multipoly)::Vector{LG.Polygon}
+function rmholes(multipoly::MultiPolys)
     nohole_lst = LG.Polygon[]
-    for poly in poly_lst
+    for poly in GI.getgeom(multipoly)
         push!(nohole_lst, rmholes(poly))
     end
     return LG.MultiPolygon(nohole_lst)
 end
 
 """
-    sortregions(poly::LG.Polygon)
+    sortregions(poly::Polys)
 
 Returns given polygon within a vector as it is the only region
 Inputs:
-    poly <LibGEOS.Polygon> LibGEOS polygon
+    poly <Polys> Polygon
 Outputs:
-    <Vector{LibGEOS.Polygon}> single LibGEOS polygon within list
+    <Vector{Polys}> single polygon within list
 """
-function sortregions(poly::Union{LG.Polygon, GI.Polygon})
+function sortregions(poly::Polys)
     return [poly]
 end
 
 """
-    sortregions(multipoly::LG.MultiPolygon)
+    sortregions(multipoly::MultiPolys)
 
 Sorts polygons within a multi-polygon by area in descending order
 Inputs:
-    multipoly <LibGEOS.MultiPolygon> LibGEOS multipolygon
+    multipoly <MultiPolygon> multipolygon
 Outputs:
-    <Vector{LibGEOS.Polygon}> list of LibGEOS polygons sorted in descending
-        order by area
+    <Vector{Polygon}> list of polygons sorted in descending order by area
 """
-function sortregions(multipoly::LG.MultiPolygon)
-    return sort!(LG.getGeometries(multipoly), by=GO.area, rev=true)
+function sortregions(multipoly::MultiPolys)
+    return sort!(collect(GI.getgeom(multipoly)), by=GO.area, rev=true)
 end
 
 """
@@ -484,7 +469,7 @@ function calc_moment_inertia(
 end
 
 """
-    calc_moment_inertia(poly::LG.Polygon, h; rhoice = 920.0)
+    calc_moment_inertia(poly::Polys, h; rhoice = 920.0)
 
 Calculate the mass moment of intertia from a LibGEOS polygon object using above
 coordinate-based moment of intertia function.
@@ -495,10 +480,10 @@ Inputs:
 Output:
     <Float> mass moment of inertia
 """
-calc_moment_inertia(poly::Union{LG.Polygon, GI.Polygon}, h; ρi = 920.0) = 
+calc_moment_inertia(poly::Polys, h; ρi = 920.0) = 
     calc_moment_inertia(
         find_poly_coords(poly),
-        find_poly_centroid(poly),
+        GO.centroid(poly),
         h,
         ρi = ρi,
     )
@@ -542,117 +527,6 @@ function orient_coords(coords::RingVec)
         reverse!(new_coords)
     end
     return new_coords
-end
-
-"""
-    calc_point_poly_dist(xp::Vector{T},yp::Vector{T}, vec_poly::PolyVec{T})
-
-Compute the distances from each one of a set of np points on a 2D plane to a
-polygon. Distance from point j to an edge k is defined as a distance from this
-point to a straight line passing through vertices v(k) and v(k+1), when the
-projection of point j on this line falls INSIDE segment k; and to the closest of
-v(k) or v(k+1) vertices, when the projection falls OUTSIDE segment k.
-Inputs:
-    xp  <Vector{Float}> x-coordinates of points to find distance from vec_poly
-    yp  <Vector{Float}> y-coordiantes of points to find distance from vec_poly
-    vec_poly    <PolyVec{Float}> coordinates of polygon
-Outputs:
-    <Vector{AbstractFloat}>List of distances from each point to the polygon. If
-    the point is inside of the polygon the value will be negative. This does not
-    take holes into consideration.
-
-Note - Translated into Julia from the following program:
-p_poly_dist by Michael Yoshpe - last updated in 2006.
-We mimic version 1 functionality with 4 inputs and 1 output.
-Only needed code was translated.
-"""
-function calc_point_poly_dist(
-    xp::Vector{FT},
-    yp::Vector{FT},
-    vec_poly::PolyVec{FT}
-) where {FT<:AbstractFloat}
-    @assert length(xp) == length(yp)
-    min_lst = if !isempty(xp)
-        # Vertices in polygon and given points
-        Pv = reduce(hcat, valid_polyvec!(vec_poly)[1])'
-        Pp = hcat(xp, yp)
-        np = length(xp)
-        nv = length(vec_poly[1])
-        # Distances between all points and vertices in x and y
-        x_dist = repeat(Pv[:, 1], 1, np)' .- repeat(Pp[:, 1], 1, nv)
-        y_dist = repeat(Pv[:, 2], 1, np)' .- repeat(Pp[:, 2], 1, nv)
-        p2c_dist = hypot.(x_dist, y_dist)
-        # minimum distance to vertices
-        min_dist, min_idx = findmin(p2c_dist, dims = 2)
-        # Coordinates of consecutive vertices
-        V1 = Pv[1:end-1, :]
-        V2 = Pv[2:end, :]
-        Δv = V2 .-  V1
-        # Vector of distances between each pair of consecutive vertices
-        vds = hypot.(Δv[:, 1], Δv[:, 2])
-
-        if (cumsum(vds)[end-1] - vds[end]) < 10eps(FT)
-            throw(ArgumentError("Polygon vertices should not lie on a straight \
-                line"))
-        end
-
-        #= Each pair of consecutive vertices V1[j], V2[j] defines a rotated
-        coordinate system with origin at V1[j], and x axis along the vector
-        V2[j]-V1[j]. cθ and sθ rotate from original to rotated system =#
-        cθ = Δv[:, 1] ./ vds
-        sθ = Δv[:, 2] ./  vds
-        Cer = zeros(FT, 2, 2, nv-1)
-        Cer[1, 1, :] .= cθ
-        Cer[1, 2, :] .= sθ
-        Cer[2, 1, :] .= -sθ
-        Cer[2, 2, :] .= cθ
-
-        # Build origin translation vector P1r in rotated frame by rotating V1
-        V1r = hcat(cθ .* V1[:, 1] .+ sθ .* V1[:, 2], 
-            -sθ .* V1[:, 1] .+ cθ .* V1[:, 2])
-
-        #= Ppr is a 3D array of size 2*np*(nv-1). Ppr(1,j,k) is an X coordinate
-        of point j in coordinate systems defined by segment k. Ppr(2,j,k) is its
-        Y coordinate. =#
-        Ppr = zeros(FT, 2, np, nv-1)
-        # Rotation and Translation
-        Ppr[1, :, :] .= Pp * Cer[1, :, :] .-
-            permutedims(repeat(V1r[:, 1], 1, 1, np), [2, 3, 1])[1, :, :]
-        Ppr[2, :, :] .= Pp * Cer[2, :, :] .-
-            permutedims(repeat(V1r[:, 2], 1, 1, np), [2, 3, 1])[1, :, :]
-
-        # x and y coordinates of the projected (cross-over) points in original
-        # coordinate
-        r = Ppr[1, :, :]
-        cr = Ppr[2, :, :]
-        B = fill(convert(FT, Inf), np, nv-1)
-        #= For the projections that fall inside the segments, find the minimum
-        distances from points to their projections (note, that for some points
-        these might not exist) =#
-        for i in eachindex(r)
-            if r[i] > 0 && r[i] < vds[cld(i, np)]
-                B[i] = cr[i]
-            end
-        end
-        cr_min, cr_min_idx = findmin(abs.(B), dims = 2)
-        #= For projections that fall outside segments, closest point is a vertex
-        These points have a negative value if point is actually outside of
-        polygon =#
-        in_poly = inpoly2(Pp, Pv)
-        dmin = cr_min
-        for i in eachindex(dmin)
-            if isinf(dmin[i]) || (cr_min_idx[i] != min_idx[i] && cr_min[i] > min_dist[i])
-                dmin[i] = min_dist[i]
-            end
-            if in_poly[i, 1] ||  in_poly[i, 2]
-                dmin[i] *= -1
-            end
-        end
-        dmin[:, 1]  # Turn array into a vector
-    else
-        FT[]
-    end
-    return min_lst
 end
 
 """

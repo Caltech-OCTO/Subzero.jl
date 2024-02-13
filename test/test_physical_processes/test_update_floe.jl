@@ -84,7 +84,7 @@
             FloeSettings(),
             Xoshiro(1)
         )
-        @test f1.centroid == Subzero.find_poly_centroid(tri_poly)
+        @test all(f1.centroid .== GO.centroid(tri_poly))
         @test f1.coords == Subzero.find_poly_coords(tri_poly)
         @test f1.area == GO.area(tri_poly)
         @test f1.mass == mass1

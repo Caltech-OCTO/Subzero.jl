@@ -5,7 +5,7 @@
     floe_coords = file["floe_vertices"][1:end]
     close(file)
     poly1 = LG.Polygon(Subzero.valid_polyvec!(floe_coords[1]))
-    centroid1 = LG.GeoInterface.coordinates(LG.centroid(poly1))
+    centroid1 = GO.centroid(poly1)
     area = GO.area(poly1)
 
     # Test InteractionFields enum
@@ -25,7 +25,7 @@
     @test typeof(floe_from_coords) <: Floe
     @test floe_from_coords.u == 0.2
     @test 0.49 <= floe_from_coords.height <= 0.51
-    @test floe_from_coords.centroid == centroid1
+    @test floe_from_coords.centroid == collect(centroid1)
     @test floe_from_coords.area == area
     @test floe_from_coords.status.tag == Subzero.active
     
@@ -41,7 +41,7 @@
     @test floe_from_poly.u == 0.0
     @test floe_from_poly.v == -0.2
     @test 0.49 <= floe_from_poly.height <= 0.51
-    @test floe_from_poly.centroid == centroid1
+    @test floe_from_poly.centroid == collect(centroid1)
     @test floe_from_poly.area == area
     @test floe_from_poly.status.tag == Subzero.active
 

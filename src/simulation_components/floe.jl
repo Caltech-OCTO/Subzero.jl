@@ -190,7 +190,7 @@ Base.:(:)(a::InteractionFields, b::InteractionFields) = Int(a):Int(b)
 
 """
     Floe{FT}(
-        poly::LG.Polygon,
+        poly::Polys,
         hmean,
         Δh;
         floe_settings = FloeSettings(),
@@ -213,7 +213,7 @@ Output:
         points were able to be generated.
 """
 function Floe{FT}(
-    poly::Union{LG.Polygon, GI.Polygon},
+    poly::Polys,
     hmean,
     Δh;
     floe_settings = FloeSettings(),
@@ -222,7 +222,7 @@ function Floe{FT}(
 ) where {FT <: AbstractFloat}
     floe = rmholes(poly)
     # Floe physical properties
-    centroid = find_poly_centroid(floe)
+    centroid = collect(GO.centroid(floe))
     height = clamp(
         hmean + (-1)^rand(rng, 0:1) * rand(rng, FT) * Δh,
         floe_settings.min_floe_height,
@@ -370,7 +370,7 @@ function poly_to_floes(
             if !hashole(r)
                 floe = Floe(
                     FT,
-                    r::Union{LG.Polygon, GI.Polygon},
+                    r::Polys,
                     hmean,
                     Δh;
                     floe_settings = floe_settings,

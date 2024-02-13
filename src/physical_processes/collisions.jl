@@ -64,7 +64,8 @@ function calc_normal_force(
         in_idx = points_in_poly(hcat(xt, yt), coords)
         uvec[in_idx, :] *= -1
         Fn = -force_factor * (mag * ones(FT, 1, 2)) .* uvec
-        dmin_lst = calc_point_poly_dist(xmid, ymid, c1)
+        p1 = GI.Polygon(c1)
+        dmin_lst = [GO.signed_distance((xmid[i], ymid[i]), p1,FT) for i in eachindex(xmid)]
         on_idx = findall(d->abs(d)<1e-8, dmin_lst)
         if 0 < length(on_idx) < length(dmin_lst)
             Δl = mean(mag[on_idx])
@@ -147,7 +148,7 @@ function calc_elastic_forces(
     Δl_lst = zeros(FT, ncontact)
     for k in 1:ncontact
         if region_areas[k] != 0
-            cx, cy = find_poly_centroid(regions[k])::Vector{Float64}
+            cx, cy = GO.centroid(regions[k])
             fpoint[k, 1] = cx
             fpoint[k, 2] = cy
             normal_force, Δl = calc_normal_force(

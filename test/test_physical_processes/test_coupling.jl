@@ -7,7 +7,7 @@
         floe_coords = file["floe_vertices"][1:end]
         close(file)
         poly1 = LG.Polygon(Subzero.valid_polyvec!(floe_coords[1]))
-        centroid1 = LG.GeoInterface.coordinates(LG.centroid(poly1))
+        centroid1 = GO.centroid(poly1)
         origin_coords = Subzero.translate(
             floe_coords[1],
             -centroid1[1],

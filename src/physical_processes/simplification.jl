@@ -156,8 +156,8 @@ function fuse_two_floes!(
     # Create new polygon if they fuse
     rmholes!(keep_floe.coords)
     rmholes!(remove_floe.coords)
-    poly1 = LG.Polygon(keep_floe.coords)::LG.Polygon
-    poly2 = LG.Polygon(remove_floe.coords)::LG.Polygon
+    poly1 = LG.Polygon(keep_floe.coords)
+    poly2 = LG.Polygon(remove_floe.coords)
     new_poly_list = get_polygons(LG.union(poly1, poly2))::Vector{Polys{Float64}}
     if length(new_poly_list) == 1  # if they fused, they will make one polygon
         new_poly = rmholes(new_poly_list[1])

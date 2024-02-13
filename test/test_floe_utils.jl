@@ -49,16 +49,16 @@
     copy_holes = [ext, hole1]
     Subzero.rmholes!(copy_holes)
     @test copy_holes == [ext]
-    @test LG.equals(Subzero.rmholes(poly_nohole), poly_nohole)
-    @test LG.equals(Subzero.rmholes(poly_hole1), poly_nohole)
-    @test LG.equals(Subzero.rmholes(poly_hole2), poly_nohole)
+    @test GO.equals(Subzero.rmholes(poly_nohole), poly_nohole)
+    @test GO.equals(Subzero.rmholes(poly_hole1), poly_nohole)
+    @test GO.equals(Subzero.rmholes(poly_hole2), poly_nohole)
     @test !Subzero.hashole(Subzero.rmholes(multipoly_hole1))
 
     # Test sorting regions from polygons and multipolygons
     @test Subzero.sortregions(poly_nohole) == [poly_nohole]
     poly_lst = Subzero.sortregions(multipoly_hole2)
-    @test LG.equals(poly_lst[1], poly_nohole)
-    @test LG.equals(poly_lst[3], poly_hole2)
+    @test GO.equals(poly_lst[1], poly_nohole)
+    @test GO.equals(poly_lst[3], poly_hole2)
 
     # Test translating coordinates and polygons
     @test Subzero.translate([ext], 0.0, 0.0) == [ext]
@@ -118,31 +118,6 @@
         [8.5e4, 4.5e4],
         [6.5e4, 4.5e4],
     ]
-
-    # Test calc_point_poly_dist - some basic shapes and compared to  MATLAB
-    rect_coords = [[[1.0, 1.0], [1.0, 2.0], [2.0, 2.0], [2.0, 1.0]]]
-    xpoints = [0.0, 1.1, 1.1, 2.0]
-    ypoints = [0.0, 1.0, 1.1, 2.0]
-    @test prod(isapprox(
-        Subzero.calc_point_poly_dist(xpoints, ypoints, rect_coords),
-        [sqrt(2); 0; -0.1; 0.0],
-        atol = 0.001),
-    )
-    @test_throws AssertionError Subzero.calc_point_poly_dist(
-        xpoints,
-        ypoints,
-        [[[1.0, 1.0], [1.0, 2.0]]],
-    )
-    @test Subzero.calc_point_poly_dist(
-        Float64[],
-        Float64[],
-        rect_coords,
-    ) == Float64[]
-    @test_throws AssertionError Subzero.calc_point_poly_dist(
-        Float64[],
-        [1.0, 2.0],
-        rect_coords,
-    )
 
     # ------------------------- Test intersection of lines ---------------------
     l1 = [[[0.0, 0.0], [2.5, 0.0], [5.0, 0.0]]]

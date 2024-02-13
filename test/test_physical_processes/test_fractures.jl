@@ -14,8 +14,8 @@
         hibler_poly = LG.Polygon(hibler_verts)
         @test isapprox(GO.area(hibler_poly), 49054437859.374, atol = -1e3)
         @test all(isapprox.(
-            Subzero.find_poly_centroid(hibler_poly),
-            [-1.25e5, -1.25e5],
+            GO.centroid(hibler_poly),
+            (-1.25e5, -1.25e5),
             atol = 1e-3
         ))
         x_verts, y_verts = Subzero.separate_xy(hibler_verts)
@@ -33,8 +33,8 @@
         hibler_poly = LG.Polygon(hibler_verts)
         @test isapprox(GO.area(hibler_poly), 2483380916.630, atol = -1e3)
         @test all(isapprox.(
-            Subzero.find_poly_centroid(hibler_poly),
-            [-28125, -28125],
+            GO.centroid(hibler_poly),
+            (-28125, -28125),
             atol = 1e-3
         ))
         x_verts, y_verts = Subzero.separate_xy(hibler_verts)

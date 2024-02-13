@@ -466,25 +466,25 @@ Inputs:
 Output:
     Topographic element of abstract float type FT
 """
-function TopographyElement{FT}(poly::LG.Polygon) where {FT <: AbstractFloat}
+function TopographyElement{FT}(poly::Polys) where {FT <: AbstractFloat}
     topo = rmholes(poly)
-    centroid = find_poly_centroid(topo)
+    cx, cy = GO.centroid(topo)
     coords = find_poly_coords(topo)
     # Move coordinates to be centered at origin to calculate maximum radius
     translate!(
         coords,
-        -centroid[1],
-        -centroid[2],
+        -cx,
+        -cy,
     )
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
     translate!(
         coords,
-        centroid[1],
-        centroid[2],
+        cx,
+        cy,
     )
     return TopographyElement{FT}(
         coords,
-        centroid,
+        [cx, cy],
         rmax,
     )
 end

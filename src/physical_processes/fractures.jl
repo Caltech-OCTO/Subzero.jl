@@ -332,24 +332,20 @@ Outputs:
 """
 function deform_floe!(
     floe,
-    deformer_coords,
+    deformer_coords::PolyVec{FT},
     deforming_forces,
     floe_settings,
     Δt,
     rng,
-)
+) where FT
     poly = LG.Polygon(floe.coords)
     deformer_poly = LG.Polygon(deformer_coords)
     overlap_region = sortregions(LG.intersection(poly, deformer_poly))[1]
     # If floe and the deformer floe have an overlap area
     if GO.area(overlap_region) > 0
         # Determine displacement of deformer floe
-        rcent = find_poly_centroid(overlap_region)
-        dist = calc_point_poly_dist(
-            [rcent[1]],
-            [rcent[2]],
-            find_poly_coords(overlap_region),
-        )
+        region_cent = GO.centroid(overlap_region)
+        dist = GO.signed_distance(region_cent,overlap_region, FT)
         force_fracs = deforming_forces ./ 2norm(deforming_forces)
         Δx, Δy = abs.(dist)[1] .* force_fracs
         # Temporarily move deformer floe to find new shape of floe
