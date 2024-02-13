@@ -362,7 +362,7 @@ function poly_to_floes(
     kwargs...
 ) where {FT <: AbstractFloat}
     floes = StructArray{Floe{FT}}(undef, 0)
-    regions = get_polygons(floe_poly)
+    regions = get_polygons(floe_poly, FT)
     while !isempty(regions)
         r = pop!(regions)
         a = LG.area(r)

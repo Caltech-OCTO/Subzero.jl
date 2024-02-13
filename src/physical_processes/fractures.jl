@@ -428,7 +428,7 @@ function split_floe(
             append!(
                 pieces_polys,
                 get_polygons(
-                    LG.intersection(LG.Polygon(p), floe_poly)
+                    LG.intersection(LG.Polygon(p), floe_poly), FT
                 ),
             )
         end

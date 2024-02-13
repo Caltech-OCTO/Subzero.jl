@@ -103,7 +103,7 @@ function remove_floe_overlap!(
     if transfer_area > ridgeraft_settings.min_overlap_frac * floes.area[shrink_idx]
         transfer_vol = floes.area[shrink_idx] * floes.height[shrink_idx]
         # Find regions
-        regions = get_polygons(new_floe_poly)
+        regions = get_polygons(new_floe_poly, FT)
         nregions = length(regions)
         # Reset shrinking index to parent floe and determine floe shift
         parent_Δx = floes.centroid[shrink_parent_idx][1] -

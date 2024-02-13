@@ -69,7 +69,7 @@ function smooth_floes!(
             if !isempty(topo_coords)
                 poly = LG.difference(poly, LG.MultiPolygon(topo_coords))
             end
-            poly_list = get_polygons(rmholes(poly))::Vector{Polys{FT}}
+            poly_list = get_polygons(rmholes(poly), FT)
             simp_poly =
                 if length(poly_list) == 1
                     poly_list[1]

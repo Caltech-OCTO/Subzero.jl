@@ -64,8 +64,8 @@ Inputs:
 Outputs:
     <Vector{LG.Polygon}>
 """
-function get_polygons(geom)
-    polys =  Vector{Polys{Float64}}()
+function get_polygons(geom, ::Type{T} = Float64) where T
+    polys =  Vector{Polys{T}}()
     _get_polygons!(geom, polys)
     return polys
 end
@@ -73,9 +73,9 @@ end
 _get_polygons!(_, polys) = nothing
 
 function _get_polygons!(
-    geom::Polys{Float64},
+    geom::Polys{T},
     polys,
-)
+) where T
     if !GI.isempty(geom) && GO.area(geom) > 0
         push!(polys, geom)
     end
