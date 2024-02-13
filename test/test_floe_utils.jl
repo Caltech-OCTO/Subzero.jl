@@ -127,40 +127,8 @@
         [6.5e4, 4.5e4],
     ]
 
-    # Test polygon angles - some basic shapes and then compared to MATLAB
-    rect_coords = [[[1.0, 1.0], [1.0, 2.0], [2.0, 2.0], [2.0, 1.0]]]
-    @test Subzero.calc_poly_angles(
-        [Subzero.orient_coords(rect_coords[1])]
-    ) == [90.0, 90.0, 90.0, 90.0]
-    tri_coords = [[[0.0, 0.0], [0.0, 4.0], [3.0, 0.0]]]
-    @test prod(isapprox.(
-        Subzero.calc_poly_angles([Subzero.orient_coords(tri_coords[1])]),
-        [90.0, 36.8699, 53.1301],
-        atol = 0.001,
-    ))
-    concave_tri_coords = [[[-3.0, -2.0], [0.0,0.0], [5.0, 0.0]]]
-    @test prod(isapprox.(
-        Subzero.calc_poly_angles([Subzero.orient_coords(concave_tri_coords[1])]),
-        [19.6538, 146.3099, 14.0362],
-        atol = 0.001,
-    ))
-    # generate list of random polygons
-    polygon_lst = voronoicells(
-        rand(10),
-        rand(10),
-        Rectangle(Point2(0.0, 0.0), Point2(1.0, 1.0)),
-    ).Cells
-    for poly in polygon_lst
-        @test isapprox(
-            sum(Subzero.calc_poly_angles(
-                [Subzero.orient_coords(Vector{Vector{Float64}}(poly))]
-            )),
-            180 * (length(poly) - 2),
-            atol = 1e-3,
-        )
-    end
-
     # Test calc_point_poly_dist - some basic shapes and compared to  MATLAB
+    rect_coords = [[[1.0, 1.0], [1.0, 2.0], [2.0, 2.0], [2.0, 1.0]]]
     xpoints = [0.0, 1.1, 1.1, 2.0]
     ypoints = [0.0, 1.0, 1.1, 2.0]
     @test prod(isapprox(

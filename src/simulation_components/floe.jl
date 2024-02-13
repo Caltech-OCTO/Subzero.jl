@@ -236,7 +236,7 @@ function Floe{FT}(
         coords, centroid, height;
         ρi = floe_settings.ρi,
     )
-    angles = calc_poly_angles(coords)
+    angles = GO.angles(GI.Polygon(coords))
     translate!(coords, -centroid[1], -centroid[2])
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
     status = Status()

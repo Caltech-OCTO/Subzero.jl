@@ -2,6 +2,8 @@ using DataStructures, GeometryBasics, JLD2, Logging, NCDatasets,
     PolygonInbounds, Random, SplitApplyCombine, Statistics, StructArrays,
     Subzero, VoronoiCells
 import LibGEOS as LG
+import GeometryOps as GO
+import GeometryOps.GeoInterface as GI
 using Test
 
 @testset "Subzero.jl" begin
