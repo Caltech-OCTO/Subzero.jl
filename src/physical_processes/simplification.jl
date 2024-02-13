@@ -69,7 +69,7 @@ function smooth_floes!(
             if !isempty(topo_coords)
                 poly = LG.difference(poly, LG.MultiPolygon(topo_coords))
             end
-            poly_list = get_polygons(rmholes(poly))::Vector{LG.Polygon}
+            poly_list = get_polygons(rmholes(poly))::Vector{Polys{FT}}
             simp_poly =
                 if length(poly_list) == 1
                     poly_list[1]
@@ -158,7 +158,7 @@ function fuse_two_floes!(
     rmholes!(remove_floe.coords)
     poly1 = LG.Polygon(keep_floe.coords)::LG.Polygon
     poly2 = LG.Polygon(remove_floe.coords)::LG.Polygon
-    new_poly_list = get_polygons(LG.union(poly1, poly2))::Vector{LG.Polygon}
+    new_poly_list = get_polygons(LG.union(poly1, poly2))::Vector{Polys{Float64}}
     if length(new_poly_list) == 1  # if they fused, they will make one polygon
         new_poly = rmholes(new_poly_list[1])
         # mark smaller floe for removal

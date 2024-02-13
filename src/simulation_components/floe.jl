@@ -213,7 +213,7 @@ Output:
         points were able to be generated.
 """
 function Floe{FT}(
-    poly::LG.Polygon,
+    poly::Union{LG.Polygon, GI.Polygon},
     hmean,
     Δh;
     floe_settings = FloeSettings(),
@@ -324,7 +324,8 @@ Floe{FT}(
         ::Type{FT},
         floe_poly,
         hmean,
-        Δh;
+        Δh,
+        rmax;
         floe_settings,
         rng = Xoshiro(),
         kwargs...
@@ -340,6 +341,7 @@ Inputs:
     hmean               <AbstratFloat> average floe height
     Δh                  <AbstratFloat> height range - floes will range in height
                         from hmean - Δh to hmean + Δh
+    rmax                <AbstractFloat> maximum radius of floe (could be larger given context)
     floe_settings       <FloeSettings> settings needed to initialize floe
                             settings
     rng                 <RNG> random number generator to generate random floe
@@ -353,13 +355,14 @@ function poly_to_floes(
     ::Type{FT},
     floe_poly,
     hmean,
-    Δh;
+    Δh,
+    rmax;
     floe_settings = FloeSettings(min_floe_area = 0),
     rng = Xoshiro(),
     kwargs...
 ) where {FT <: AbstractFloat}
     floes = StructArray{Floe{FT}}(undef, 0)
-    regions = LG.getGeometries(floe_poly)::Vector{LG.Polygon}
+    regions = get_polygons(floe_poly)
     while !isempty(regions)
         r = pop!(regions)
         a = LG.area(r)
@@ -367,7 +370,7 @@ function poly_to_floes(
             if !hashole(r)
                 floe = Floe(
                     FT,
-                    r::LG.Polygon,
+                    r::Union{LG.Polygon, GI.Polygon},
                     hmean,
                     Δh;
                     floe_settings = floe_settings,
@@ -376,9 +379,9 @@ function poly_to_floes(
                 )
                 push!(floes, floe)
             else
-                region_bottom, region_top = split_polygon_hole(r)
-                append!(regions, region_bottom)
-                append!(regions, region_top)
+                cx, cy = GO.centroid(GI.gethole(r, 1), FT)
+                new_regions = GO.cut(r, GI.Line([(cx - rmax, cy), (cx + rmax, cy)]), FT)
+                append!(regions, new_regions)
             end
         end
     end
@@ -446,7 +449,8 @@ function initialize_floe_field(
                 FT,
                 p,
                 hmean,
-                Δh;
+                Δh,
+                domain.east.val - domain.west.val;
                 floe_settings = floe_settings,
                 rng = rng,
             ),
@@ -689,7 +693,8 @@ function initialize_floe_field(
                             FT,
                             floe_poly,
                             hmean,
-                            Δh;
+                            Δh,
+                            domain.east.val - domain.west.val;
                             floe_settings = floe_settings,
                             rng = rng,
                         )

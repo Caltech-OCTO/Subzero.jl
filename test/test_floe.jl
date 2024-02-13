@@ -47,17 +47,18 @@
 
     # Test poly_to_floes
     rect_poly = [[[0.0, 0.0], [0.0, 5.0], [10.0, 5.0], [10.0, 0.0], [0.0, 0.0]]]
-
+    rmax_rect = 2sqrt(5^2 + 2.5^2)
     c_poly_hole = [[[0.0, 0.0], [0.0, 10.0], [10.0, 10.0], [10.0, 0.0],
         [4.0, 0.0], [4.0, 6.0], [2.0, 6.0], [2.0, 0.0], [0.0, 0.0]],
         [[6.0, 4.0], [6.0, 6.0], [7.0, 6.0], [7.0, 4.0], [6.0, 4.0]]]
-
+    rmax_cpoly = 2sqrt(5^2 + 5^2)
     # Test polygon with no holes
     floe_arr = Subzero.poly_to_floes(
         FT,
         LG.Polygon(rect_poly),
         0.25,
         0.01,
+        rmax_rect;
     )
     @test length(floe_arr) == 1
     @test typeof(floe_arr[1]) <: Floe
@@ -68,7 +69,8 @@
         FT,
         LG.Polygon(rect_poly),
         0.25,
-        0.01;
+        0.01,
+        rmax_rect;
         floe_settings = FloeSettings(min_floe_area = 55),
     )
     @test isempty(floe_arr)
@@ -79,6 +81,7 @@
         LG.Polygon(c_poly_hole),
         0.25,
         0.01,
+        rmax_cpoly,
     )
     @test length(floe_arr) == 3
     @test !any(Subzero.hashole.(floe_arr.coords))
@@ -89,7 +92,8 @@
         FT,
         LG.MultiPolygon([c_poly_hole, rect_poly]),
         0.25,
-        0.01
+        0.01,
+        max(rmax_cpoly, rmax_rect);
     )
     @test length(floe_arr) == 4
     @test typeof(floe_arr) <: StructArray{<:Floe}
@@ -99,7 +103,8 @@
         FT,
         LG.MultiPolygon([c_poly_hole, rect_poly]),
         0.25,
-        0.01;
+        0.01,
+        max(rmax_cpoly, rmax_rect);
         floe_settings = FloeSettings(min_floe_area = 30),
     )
     @test length(floe_arr) == 2

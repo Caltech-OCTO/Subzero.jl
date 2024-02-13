@@ -70,6 +70,8 @@ export
 
 import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG
+import GeometryOps as GO
+import GeometryOps.GeoInterface as GI
 using CairoMakie, DataStructures, Dates, GeometryBasics, Interpolations, JLD2,
     LinearAlgebra, Logging, Makie, Measures, NCDatasets, NetCDF,
     PolygonInbounds, Printf, Random, SplitApplyCombine, StaticArrays,
@@ -96,6 +98,16 @@ const RingVec{T} = R where {
     V<:AbstractArray{T},
     R <: AbstractArray{V},
 }
+
+const Polys{T} = Union{
+    LG.Polygon,
+    GI.Polygon{false, false, Vector{GI.LinearRing{false, false, Vector{Tuple{T, T}}, Nothing, Nothing}}, Nothing, Nothing}
+} where T <: AbstractFloat
+
+const MultiPolys{T} = Union{
+    LG.MultiPolygon,
+    GI.MultiPolygon{false, false, Vector{GI.Polygon{false, false, Vector{GI.LinearRing{false, false, Vector{Tuple{T, T}}, Nothing, Nothing}}, Nothing, Nothing}}, Nothing, Nothing}
+} where T <: AbstractFloat
 
 # Model
 include("simulation_components/floe.jl")

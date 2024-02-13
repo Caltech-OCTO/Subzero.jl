@@ -52,7 +52,7 @@ Input:
 Output:
     <PolyVec> representing the floe's coordinates xy plane
 """
-find_poly_coords(poly::LG.Polygon) =
+find_poly_coords(poly::Union{LG.Polygon, GI.Polygon}) =
     LG.GeoInterface.coordinates(poly)::PolyVec{Float64}
 
 """
@@ -65,29 +65,31 @@ Outputs:
     <Vector{LG.Polygon}>
 """
 function get_polygons(geom)
-    polys =
-        if geom isa LG.Polygon
-            LG.area(geom) > 0 ? [geom] : Vector{LG.Polygon}()
-        elseif geom isa LG.MultiPolygon
-            sub_geoms = LG.getGeometries(geom)
-            for i in reverse(eachindex(sub_geoms))
-                if LG.area(sub_geoms[i]) == 0
-                    deleteat!(sub_geoms, i)
-                end
-            end
-            sub_geoms
-        else
-            Vector{LG.Polygon}()
-        end
-    return polys::Vector{LG.Polygon}
+    polys =  Vector{Polys{Float64}}()
+    _get_polygons!(geom, polys)
+    return polys
 end
 
-function get_polygons(collection::LG.GeometryCollection)
-    polys =  Vector{LG.Polygon}()
-    for geom in LG.getGeometries(collection)
-        append!(polys, get_polygons(geom))
+_get_polygons!(_, polys) = nothing
+
+function _get_polygons!(
+    geom::Polys{Float64},
+    polys,
+)
+    if !GI.isempty(geom) && GO.area(geom) > 0
+        push!(polys, geom)
     end
-    return polys
+    return
+end
+
+function _get_polygons!(
+    collection::Union{MultiPolys{T}, LG.GeometryCollection},
+    polys,
+) where T
+    for geom in GI.getgeom(collection)
+        _get_polygons!(geom, polys)
+    end
+    return
 end
 
 """
@@ -105,7 +107,7 @@ intersect_polys(p1, p2) = get_polygons(
         p1,
         p2,
     )::LG.Geometry,
-)::Vector{LG.Polygon}
+)
 
 """
     intersect_coords(c1, c2)
@@ -121,7 +123,7 @@ Output:
 intersect_coords(c1, c2) = intersect_polys(
     LG.Polygon(c1),
     LG.Polygon(c2),
-)::Vector{LG.Polygon}
+)
 
 
 """
@@ -218,7 +220,7 @@ Input:
 Output:
     <Vector{PolyVec}> representing the floe's coordinates xy plane
 """
-find_multipoly_coords(poly::LG.Polygon) =
+find_multipoly_coords(poly::Union{LG.Polygon, GI.Polygon}) =
     [find_poly_coords(poly)]
 
 
@@ -343,8 +345,8 @@ Inputs:
 Outputs:
     <Bool> true if there is a hole in the polygons, else false
 """
-function hashole(poly::LG.Polygon)
-    return LG.numInteriorRings(poly) > 0
+function hashole(poly::Union{LG.Polygon, GI.Polygon})
+    return GI.nhole(poly) > 0
 end 
 
 """
@@ -394,7 +396,7 @@ Inputs:
 Outputs:
     <LibGEOS.Polygon>  LibGEOS polygon without any holes
 """
-function rmholes(poly::LG.Polygon)
+function rmholes(poly::Union{LG.Polygon, GI.Polygon})
     if hashole(poly)
         return LG.Polygon(LG.exteriorRing(poly))
     end
@@ -428,7 +430,7 @@ Inputs:
 Outputs:
     <Vector{LibGEOS.Polygon}> single LibGEOS polygon within list
 """
-function sortregions(poly::LG.Polygon)
+function sortregions(poly::Union{LG.Polygon, GI.Polygon})
     return [poly]
 end
 
@@ -508,7 +510,7 @@ Inputs:
 Output:
     <Float> mass moment of inertia
 """
-calc_moment_inertia(poly::LG.Polygon, h; ρi = 920.0) = 
+calc_moment_inertia(poly::Union{LG.Polygon, GI.Polygon}, h; ρi = 920.0) = 
     calc_moment_inertia(
         find_poly_coords(poly),
         find_poly_centroid(poly),
@@ -1070,127 +1072,6 @@ function find_shared_edges_midpoint(c1::PolyVec{FT}, c2; atol = 1e-1) where {FT}
         )
     end
     return mid_x, mid_y
-end
-
-"""
-    cut_polygon_coords(poly_coords::PolyVec, yp)
-
-Cut polygon through the line y = yp and return the polygon(s) coordinates below
-the line
-Inputs:
-    poly_coords <PolyVec>   polygon coordinates
-    yp          <Float>     value of line to split polygon through using line
-                                y = yp
-Outputs:
-    new_polygons <Vector{PolyVec}> List of coordinates of polygons below line
-                    y = yp. 
-Note:
-    Code translated from MATLAB to Julia. Credit for initial code to Dominik
-    Brands (2010) and Jasper Menger (2009). Only needed pieces of function are
-    translated (horizonal cut).
-"""
-function cut_polygon_coords(poly_coords::PolyVec{<:FT}, yp) where {FT}
-    # Loop through each edge
-    coord1 = poly_coords[1][1:end-1]
-    coord2 = poly_coords[1][2:end]
-    for i in eachindex(coord1)
-        x1, y1 = coord1[i]
-        x2, y2 = coord2[i]
-        # If both edge endpoints are above cut line, remove edge
-        if y1 > yp && y2 > yp
-            coord1[i] = [NaN, NaN]
-            coord2[i] = [NaN, NaN]
-        # If start point is above cut line, move down to intersection point
-        elseif y1 > yp
-            coord1[i] = [(yp - y2)/(y1 - y2) * (x1 - x2) + x2, yp]
-        # If end point is above cut line, move down to intersection point
-        elseif y2 > yp
-            coord2[i] = [(yp - y1)/(y2 - y1) * (x2 - x1) + x1, yp]
-        end
-    end
-    # Add non-repeat points to coordinate list for new polygon
-    new_poly_coords = [coord1[1]]
-    for i in eachindex(coord1)
-        if !isequal(coord1[i], new_poly_coords[end])
-            push!(new_poly_coords, coord1[i])
-        end
-        if !isequal(coord2[i], new_poly_coords[end])
-            push!(new_poly_coords, coord2[i])
-        end
-    end
-
-    new_polygons = Vector{PolyVec{FT}}()
-    # Multiple NaN's indicate new polygon if they seperate coordinates
-    nanidx_all = findall(c -> isnan(sum(c)), new_poly_coords)
-    # If no NaNs, just add coordiantes to list
-    if isempty(nanidx_all)
-        if new_poly_coords[1] != new_poly_coords[end]
-            push!(new_poly_coords, deepcopy(new_poly_coords[1]))
-        end
-        if length(new_poly_coords) > 3
-            push!(new_polygons, [new_poly_coords])
-        end
-    # Seperate out NaNs to seperate multiple polygons and add to list
-    else
-        if new_poly_coords[1] == new_poly_coords[end]
-            new_poly_coords = new_poly_coords[1:end-1]
-        end
-        # Shift so each polygon's vertices are together in a section
-        new_poly_coords = circshift(new_poly_coords, -nanidx_all[1] + 1)
-        nanidx_all .-= (nanidx_all[1] - 1)
-        # Determine start and stop point for each polygon's coordinates
-        start_poly = nanidx_all .+ 1
-        end_poly = [nanidx_all[2:end] .- 1; length(new_poly_coords)]
-        for i in eachindex(start_poly)
-            if start_poly[i] <= end_poly[i]
-                poly = new_poly_coords[start_poly[i]:end_poly[i]]
-                if poly[1] != poly[end]
-                    push!(poly, deepcopy(poly[1]))
-                end
-                if length(poly) > 3
-                    push!(new_polygons, [poly])
-                end
-            end
-        end
-    end
-
-    return new_polygons
-end
-
-"""
-    split_polygon_hole(poly::LG.Polygon, ::Type{FT} = Float64)
-
-Splits polygon horizontally through first hole and return lists of polygons
-created by split.
-Inputs:
-        poly    <LG.Polygon> polygon to split
-                <Type> Float type to run simulation with
-Outputs:
-    <(Vector{LibGEOS.Polyon}, (Vector{LibGEOS.Polyon}> list of polygons created
-    from split through first hole below line and polygons through first hole
-    above line. Note that if there is no hole, a list of the original polygon
-    and an empty list will be returned
-"""
-function split_polygon_hole(poly::LG.Polygon)
-    bottom_list = Vector{LG.Polygon}()
-    top_list = Vector{LG.Polygon}()
-    if hashole(poly)  # Polygon has a hole
-        poly_coords = find_poly_coords(poly)
-        full_coords = [poly_coords[1]]
-        h1 = LG.Polygon([poly_coords[2]])  # First hole
-        h1_center = find_poly_centroid(h1)
-        poly_bottom = LG.MultiPolygon(
-            cut_polygon_coords(full_coords, h1_center[2])
-        )
-         # Adds in any other holes in poly
-        poly_bottom =  LG.intersection(poly_bottom, poly)
-        poly_top = LG.difference(poly, poly_bottom)
-        bottom_list = LG.getGeometries(poly_bottom)::Vector{LG.Polygon}
-        top_list = LG.getGeometries(poly_top)::Vector{LG.Polygon}
-    else  # No hole
-        bottom_list, top_list = Vector{LG.Polygon}([poly]), Vector{LG.Polygon}()
-    end
-    return bottom_list, top_list
 end
 
 """
