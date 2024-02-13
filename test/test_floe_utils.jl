@@ -74,14 +74,6 @@
     Subzero.translate!(test_trans, 1.5, -1.5)
     @test test_trans == [[[-0.5, 0.5], [-0.5, -0.5], [0.5, -0.5], [0.5, 0.5]]]
 
-    # Test scaling polygons
-    centered_coords = [[[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], 
-                        [-1.0, 1.0], [-1.0, -1.0]]]
-    centered_poly = LG.Polygon(centered_coords)
-    @test LG.equals(Subzero.scale(centered_poly, 1), centered_poly)
-    @test LG.equals(Subzero.scale(centered_poly, 2.0),
-        LG.Polygon(centered_coords .* 2.0))
-
     # Test seperating x and y coordiantes from PolyVec form
     x_ext, y_ext = Subzero.separate_xy([ext])
     @test x_ext == [0.0, 0.0, 1.0, 1.0, 0.0]

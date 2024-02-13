@@ -276,21 +276,6 @@ function translate!(coords::PolyVec{FT}, Δx, Δy) where {FT<:AbstractFloat}
 end
 
 """
-    scale(poly::LG.Polygon, factor)
-
-Scale given polygon with respect to the reference point (0,0).
-Scaling factor is applied to both the x and y directions.
-Inputs:
-    coords <LibGEOS.Polygon> 
-    factor <Real>
-Output: <LibGEOS.Polygon>
-"""
-function scale(poly::LG.Polygon, factor)
-    coords = find_poly_coords(poly)
-    return LG.Polygon(coords .* factor)
-end
-
-"""
     rotate_radians!(coords::PolyVec, α)
 
 Rotate a polygon's coordinates by α radians around the origin.
