@@ -228,7 +228,7 @@ function Floe{FT}(
         floe_settings.min_floe_height,
         floe_settings.max_floe_height,
     )
-    area_tot = LG.area(floe)
+    area_tot = GO.area(floe)
     mass = area_tot * height * floe_settings.ρi
     coords = find_poly_coords(floe)
     coords = [orient_coords(coords[1])]
@@ -365,7 +365,7 @@ function poly_to_floes(
     regions = get_polygons(floe_poly, FT)
     while !isempty(regions)
         r = pop!(regions)
-        a = LG.area(r)
+        a = GO.area(r)
         if a >= floe_settings.min_floe_area && a > 0
             if !hashole(r)
                 floe = Floe(
@@ -522,7 +522,7 @@ function generate_voronoi_coords(
 ) where {FT <: AbstractFloat}
     xpoints = Vector{FT}()
     ypoints = Vector{FT}()
-    area_frac = LG.area(LG.MultiPolygon(domain_coords)) / reduce(*, scale_fac)
+    area_frac = GO.area(LG.MultiPolygon(domain_coords)) / reduce(*, scale_fac)
     # Increase the number of points based on availible percent of bounding box
     npoints = ceil(Int, desired_points / area_frac)
     current_points = 0
@@ -647,7 +647,7 @@ function initialize_floe_field(
             LG.MultiPolygon(domain.topography.coords)
         )
     end
-    open_water_area = LG.area(open_water)
+    open_water_area = GO.area(open_water)
 
     # Loop over cells
     for j in range(1, ncols)
@@ -668,7 +668,7 @@ function initialize_floe_field(
                 # Open water in cell
                 open_cell = LG.intersection(LG.Polygon(cell_bounds), open_water)
                 open_coords = find_multipoly_coords(open_cell)
-                open_area = LG.area(open_cell)
+                open_area = GO.area(open_cell)
                 # Generate coords with voronoi tesselation and make into floes
                 ncells = ceil(Int, nfloes * open_area / open_water_area / c)
                 floe_coords = generate_voronoi_coords(

@@ -15,7 +15,7 @@
         )
         xo, yo = Subzero.separate_xy(origin_coords)
         rmax = sqrt(maximum([sum(xo[i]^2 + yo[i]^2) for i in eachindex(xo)]))
-        area = LG.area(poly1)
+        area = GO.area(poly1)
         mc_x, mc_y, status = Subzero.generate_subfloe_points(
             MonteCarloPointsGenerator(),
             origin_coords,
@@ -282,7 +282,7 @@
             periodic_bound,
         )
         cell_poly = LG.Polygon(cell)
-        @test LG.area(cell_poly)::Float64 == 8
+        @test GO.area(cell_poly)::Float64 == 8
         @test LG.GeoInterface.coordinates(cell_poly) == 
             [[[-9, -2], [-9, 2], [-7, 2], [-7, -2], [-9, -2]]]
         @test Subzero.center_cell_coords(

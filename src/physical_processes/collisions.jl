@@ -81,7 +81,7 @@ function calc_normal_force(
         new_regions_list = intersect_coords(c1new, c2)
         # See if the area of overlap has increased in corresponding region
         for new_region in new_regions_list
-            if LG.intersects(new_region, region) && LG.area(new_region)/area > 1
+            if LG.intersects(new_region, region) && GO.area(new_region)/area > 1
                 force_dir .*= -1 
             end
         end
@@ -353,7 +353,7 @@ function floe_floe_interaction!(
     region_areas = Vector{FT}(undef, length(inter_regions))
     total_area = FT(0)
     for i in eachindex(inter_regions)
-        a = FT(LG.area(inter_regions[i]))
+        a = FT(GO.area(inter_regions[i]))
         region_areas[i] = a
         total_area += a
     end
@@ -431,7 +431,7 @@ function floe_domain_element_interaction!(
     floe_poly = LG.Polygon(floe.coords)
     bounds_poly = LG.Polygon(boundary.coords)
     # Check if the floe and boundary actually overlap
-    if LG.area(LG.intersection(floe_poly, bounds_poly)) > 0
+    if GO.area(LG.intersection(floe_poly, bounds_poly)) > 0
         floe.status.tag = remove
     end
     return
@@ -615,7 +615,7 @@ function floe_domain_element_interaction!(
     region_areas = Vector{FT}(undef, length(inter_regions))
     max_area = FT(0)
     for i in eachindex(inter_regions)
-        a = FT(LG.area(inter_regions[i]))
+        a = GO.area(inter_regions[i], FT)
         region_areas[i] = a
         if a > max_area
             max_area = a

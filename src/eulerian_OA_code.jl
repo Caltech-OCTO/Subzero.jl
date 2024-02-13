@@ -48,7 +48,7 @@ Outputs:
 """
 function cell_area_ratio(cell_poly, floe_poly)
     floe_in_cell = LG.intersection(floe_poly, cell_poly)
-    return LG.area(floe_in_cell)/LG.area(cell_poly)
+    return GO.area(floe_in_cell)/GO.area(cell_poly)
 end
 
 """

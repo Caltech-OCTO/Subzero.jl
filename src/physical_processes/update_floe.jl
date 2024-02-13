@@ -37,7 +37,7 @@ function replace_floe!(
     if floe.coords[1][1] != floe.coords[1][end]
         push!(floe.coords, floe.coords[1][1])
     end
-    floe.area = LG.area(new_poly)
+    floe.area = GO.area(new_poly)
     floe.height = new_mass/(floe.area * floe_settings.ρi)
     floe.mass = new_mass
     floe.moment = calc_moment_inertia(

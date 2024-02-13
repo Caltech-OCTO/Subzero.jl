@@ -6,7 +6,7 @@
     close(file)
     poly1 = LG.Polygon(Subzero.valid_polyvec!(floe_coords[1]))
     centroid1 = LG.GeoInterface.coordinates(LG.centroid(poly1))
-    area = LG.area(poly1)
+    area = GO.area(poly1)
 
     # Test InteractionFields enum
     interactions = range(1, 7)'
@@ -181,7 +181,7 @@
         rng = Xoshiro(0)
     )
     @test typeof(floe_arr) <: StructArray{<:Floe}
-    @test all([LG.area(
+    @test all([GO.area(
         LG.intersection(LG.Polygon(c), topo_polys)
     ) for c in floe_arr.coords] .< 1e-6)
 
@@ -202,8 +202,8 @@
     for c in voronoi_coords
         fpoly = LG.Polygon(c)
         @test isapprox(
-            LG.area(LG.intersection(fpoly, bounding_poly)),
-            LG.area(fpoly),
+            GO.area(LG.intersection(fpoly, bounding_poly)),
+            GO.area(fpoly),
             atol = 1e-3,
         )
         @test LG.isValid(fpoly)
@@ -233,12 +233,12 @@
         rng = Xoshiro(1)
     )
     @test isapprox(
-        sum(floe_arr.area)/(1.6e5*1.6e5 - LG.area(topo_polys)),
+        sum(floe_arr.area)/(1.6e5*1.6e5 - GO.area(topo_polys)),
         0.5,
         atol = 1e-1
     )
     @test all(floe_arr.area .> 1e4)
-    @test all([LG.area(
+    @test all([GO.area(
         LG.intersection(LG.Polygon(c), topo_polys)
     ) for c in floe_arr.coords] .< 1e-6)
     nfloes = length(floe_arr)
@@ -263,13 +263,13 @@
             cell = LG.Polygon(
                 Subzero.translate(first_cell, 8e4*(j-1), 8e4*(i-1))
             )
-            open_cell_area = LG.area(LG.difference(cell, topo_polys))
+            open_cell_area = GO.area(LG.difference(cell, topo_polys))
             c = concentrations[i, j]
             floes_in_cell = [LG.intersection(p, cell) for p in floe_polys]
-            @test c - 100eps() <= sum(LG.area.(floes_in_cell))/open_cell_area < 1 + eps()
+            @test c - 100eps() <= sum(GO.area.(floes_in_cell))/open_cell_area < 1 + eps()
         end
     end
-    @test all([LG.area(
+    @test all([GO.area(
         LG.intersection(p, topo_polys)
     ) for p in floe_polys] .< 1e-3)
     @test all([LG.isValid(p) for p in floe_polys])

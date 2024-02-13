@@ -86,7 +86,7 @@
         )
         @test f1.centroid == Subzero.find_poly_centroid(tri_poly)
         @test f1.coords == Subzero.find_poly_coords(tri_poly)
-        @test f1.area == LG.area(tri_poly)
+        @test f1.area == GO.area(tri_poly)
         @test f1.mass == mass1
         @test f1.height * f1.area * 920.0 == f1.mass
         @test f1.α == 0

@@ -868,7 +868,7 @@ function calc_eulerian_data!(floes, topography, writer)
                         LG.Polygon(floes.coords[idx]),
                     ) for idx in floeidx]
 
-                pic_area = [LG.area(poly) for poly in pic_polys]
+                pic_area = [GO.area(poly) for poly in pic_polys]
                 floeidx = floeidx[pic_area .> 0]
                 pic_area = pic_area[pic_area .> 0]
                 fic = floes[floeidx]
@@ -893,7 +893,7 @@ function calc_eulerian_data!(floes, topography, writer)
                         elseif outputs[k] == :dvdt_grid
                             sum(floes.p_dvdt[floeidx] .* ma_ratios)
                         elseif outputs[k] == :si_frac_grid
-                            area_tot/LG.area(cell_poly)
+                            area_tot/GO.area(cell_poly)
                         elseif outputs[k] == :overarea_grid
                             sum(floes.overarea[floeidx])/length(floeidx)
                         elseif outputs[k] == :mass_grid

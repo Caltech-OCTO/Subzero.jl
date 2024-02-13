@@ -94,7 +94,7 @@ function remove_floe_overlap!(
         LG.Polygon(grow_floe_coords),
     )
     new_floe_poly = LG.simplify(new_floe_poly, simp_settings.tol)
-    total_area = LG.area(new_floe_poly)
+    total_area = GO.area(new_floe_poly)
     floe_num = 0  # How many new floes have been created from the regions
     # Changes in area / volume
     transfer_area = floes.area[shrink_idx] - total_area
@@ -113,7 +113,7 @@ function remove_floe_overlap!(
         parent_centroid = floes.centroid[shrink_parent_idx]
         # Update existing floes/ghosts regions
         for region in regions
-            region_area = LG.area(region)
+            region_area = GO.area(region)
             new_coords = find_poly_coords(region)::PolyVec{FT}
             xmin, xmax, ymin, ymax = polyvec_extrema(new_coords)
             Δx = xmax - xmin

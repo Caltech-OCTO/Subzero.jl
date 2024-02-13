@@ -131,7 +131,7 @@ function timestep_welding!(
                         )
                     )
                         # Find intersection area
-                        inter_area = LG.area(LG.intersection(
+                        inter_area = GO.area(LG.intersection(
                             LG.Polygon(floes.coords[i]),
                             LG.Polygon(floes.coords[j])
                         ))

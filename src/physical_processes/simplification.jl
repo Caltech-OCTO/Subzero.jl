@@ -74,7 +74,7 @@ function smooth_floes!(
                 if length(poly_list) == 1
                     poly_list[1]
                 else
-                    areas = [LG.area(p) for p in poly_list]
+                    areas = [GO.area(p) for p in poly_list]
                     _, max_idx = findmax(areas)
                     poly_list[max_idx]
                 end
@@ -109,8 +109,8 @@ function smooth_floes!(
                         push!(floes.status[i].fuse_idx, j)
                     else
                         jpoly = LG.Polygon(floes.coords[j])
-                        intersect_area = LG.area(LG.intersection(simp_poly, jpoly))
-                        if intersect_area/LG.area(jpoly) > collision_settings.floe_floe_max_overlap
+                        intersect_area = GO.area(LG.intersection(simp_poly, jpoly))
+                        if intersect_area/GO.area(jpoly) > collision_settings.floe_floe_max_overlap
                             floes.status[i].tag = fuse
                             push!(floes.status[i].fuse_idx, j)
                         end

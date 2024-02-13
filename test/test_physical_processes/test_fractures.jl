@@ -12,7 +12,7 @@
         # Test calculate_hibler
         hibler_verts = Subzero.calculate_hibler(0.5, 5e5, -1)
         hibler_poly = LG.Polygon(hibler_verts)
-        @test isapprox(LG.area(hibler_poly), 49054437859.374, atol = -1e3)
+        @test isapprox(GO.area(hibler_poly), 49054437859.374, atol = -1e3)
         @test all(isapprox.(
             Subzero.find_poly_centroid(hibler_poly),
             [-1.25e5, -1.25e5],
@@ -31,7 +31,7 @@
         ))
         hibler_verts = Subzero.calculate_hibler(0.25, 2.25e5, 20.0)
         hibler_poly = LG.Polygon(hibler_verts)
-        @test isapprox(LG.area(hibler_poly), 2483380916.630, atol = -1e3)
+        @test isapprox(GO.area(hibler_poly), 2483380916.630, atol = -1e3)
         @test all(isapprox.(
             Subzero.find_poly_centroid(hibler_poly),
             [-28125, -28125],
@@ -185,7 +185,7 @@
         floe1_copy = deepcopy(floes[1])
         colliding_coords = no_frac_floe.coords
         deforming_forces = frac_deform_floe.interactions[xforce:yforce]
-        init_overlap = LG.area(LG.intersection(
+        init_overlap = GO.area(LG.intersection(
             LG.Polygon(floe1_copy.coords),
             LG.Polygon(colliding_coords),
         ))
@@ -197,7 +197,7 @@
             10,
             Xoshiro(1),
         )
-        @test init_overlap > LG.area(LG.intersection(
+        @test init_overlap > GO.area(LG.intersection(
             LG.Polygon(floe1_copy.coords),  # These coords have changed
             LG.Polygon(colliding_coords),
         ))
@@ -226,8 +226,8 @@
         og_floe_poly = LG.Polygon(floes.coords[1])
         new_floes_polys = LG.MultiPolygon(new_floes.coords)
         @test isapprox(
-            LG.area(LG.intersection(new_floes_polys, og_floe_poly)),
-            LG.area(og_floe_poly),
+            GO.area(LG.intersection(new_floes_polys, og_floe_poly)),
+            GO.area(og_floe_poly),
             atol = 1e-6,
         )
         # Conserve mass

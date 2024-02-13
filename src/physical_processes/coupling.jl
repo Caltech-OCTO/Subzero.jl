@@ -1661,13 +1661,9 @@ function calc_two_way_coupling!(
                     floe_locations.Δy[i],
                 )
                 floe_poly = LG.Polygon(floe_coords)
-                floe_area_in_cell = FT(sum(
-                    LG.area.(intersect_polys(cell_poly, floe_poly))
-                ))
-                # floe_area_in_cell = FT(LG.area(LG.intersection(
-                #     cell_poly,
-                #     floe_poly,
-                # )))
+                floe_area_in_cell = sum(
+                    GO.area.(intersect_polys(cell_poly, floe_poly), FT)
+                )
                 if floe_area_in_cell > 0
                     # Add forces and area to ocean fields
                     ocean.τx[cartidx] += (τocn.τx[i]/τocn.npoints[i]) * floe_area_in_cell

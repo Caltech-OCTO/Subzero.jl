@@ -430,7 +430,7 @@ Outputs:
         order by area
 """
 function sortregions(multipoly::LG.MultiPolygon)
-    return sort!(LG.getGeometries(multipoly), by=LG.area, rev=true)
+    return sort!(LG.getGeometries(multipoly), by=GO.area, rev=true)
 end
 
 """
