@@ -40,8 +40,7 @@ Input:
 Output:
     <PolyVec> representing the floe's coordinates xy plane
 """
-find_poly_coords(poly::Polys) =
-    LG.GeoInterface.coordinates(poly)
+find_poly_coords(poly::Polys) = GI.coordinates(poly)
 
 """
     get_polygons(geom)
@@ -144,6 +143,26 @@ function polyvec_extrema(coords::PolyVec{FT}) where FT
     return xmin, xmax, ymin, ymax
 end
 
+function bounding_box(poly::Polys, ::Type{FT} = Float64) where FT
+    xmin = ymin = FT(Inf)
+    xmax = ymax = FT(-Inf)
+    for (x, y) in GI.getpoint(GI.getexterior(poly))
+        if x < xmin
+            xmin = x
+        end
+        if x > xmax
+            xmax = x
+        end
+        if y < ymin
+            ymin = y
+        end
+        if y > ymax
+            ymax = y
+        end
+    end
+    return FT(xmin), FT(xmax), FT(ymin), FT(ymax)
+end
+
 """
     deepcopy_floe(floe::LazyRow{Floe{FT}})
 
@@ -221,8 +240,7 @@ Input:
 Output:
     <Vector{PolyVec}> representing the floe's coordinates xy plane
 """
-find_multipoly_coords(multipoly::MultiPolys) =
-    LG.GeoInterface.coordinates(multipoly)::Vector{PolyVec{Float64}}
+find_multipoly_coords(multipoly::MultiPolys) = GI.coordinates(multipoly)::Vector{PolyVec{Float64}}
 
 """
     translate!(coords, Δx, Δy)
@@ -787,66 +805,4 @@ function find_shared_edges_midpoint(c1::PolyVec{FT}, c2; atol = 1e-1) where {FT}
         )
     end
     return mid_x, mid_y
-end
-
-"""
-    points_in_poly(xy, coords::PolyVec{<:AbstractFloat})
-
-Determines if the provided points are within the given polygon, including
-checking that the points are not in any holes.
-Inputs:
-    xy  <Matrix{Real}> n-by-2 matrix of element where each row is a point and
-        the first column is the x-coordinates and the second is y-coordinates
-    coords  <PolyVec{AbstractFloat}> coordinates of polygon, with the exterior
-        coordinates as the first element of the vector, any any hole coordinates
-        as subsequent entries.
-Outputs:
-    in_idx  <Vector{Bool}> vector of booleans the length of the given points xy 
-        where an entry is true if the corresponding element in xy is within the
-        given polygon.
-"""
-function points_in_poly(xy, coords::PolyVec{<:AbstractFloat})
-    in_idx = fill(false, length(xy[:, 1]))
-    if !isempty(xy) && !isempty(coords[1][1])
-        # Loop over exterior coords and each hole
-        for i in eachindex(coords)
-            in_on = inpoly2(xy, reduce(hcat, coords[i])')
-            if i == 1  # Exterior outline of polygon - points must be within
-                in_idx = in_idx .|| (in_on[:, 1] .|  in_on[:, 2])
-            else  # Holes in polygon - points can't be within
-                in_idx = in_idx .&& .!(in_on[:, 1] .|  in_on[:, 2])
-            end
-        end
-    end
-    return in_idx
-end
-
-"""
-    points_in_poly(xy, multi_coords::Vector{<:PolyVec{<:AbstractFloat}})
-
-Determines if the provided points are within the given multipolygon, including
-checking that the points are not in any holes of any of the polygons.
-Inputs:
-    xy  <Matrix{Real}> n-by-2 matrix of element where each row is a point and
-        the first column is the x-coordinates and the second is y-coordinates
-    coords  <Vector{PolyVec{AbstractFloat}}> coordinates of the multi-polygon,
-        with each element of the vector being a PolyVec of coordinates for a
-        polygon and within each polygon the exterior coordinates as the first
-        element of the PolyVec, any any hole coordinates as subsequent entries.
-Outputs:
-    in_idx  <Vector{Bool}> vector of booleans the length of the given points xy 
-        where an entry is true if the corresponding element in xy is within the
-        given polygon.
-"""
-function points_in_poly(xy, multi_coords::Vector{<:PolyVec{<:AbstractFloat}})
-    # Check which of the points are within the domain coords
-    in_idx = fill(false, length(xy[:, 1]))
-    if !isempty(xy) && !isempty(multi_coords[1][1][1])
-        # Loop over every polygon
-        for i in eachindex(multi_coords)
-            # See if the points are within current polygon
-            in_idx = in_idx .|| points_in_poly(xy, multi_coords[i])
-        end
-    end
-    return in_idx
 end

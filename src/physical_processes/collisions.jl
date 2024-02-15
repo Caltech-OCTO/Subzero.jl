@@ -61,7 +61,7 @@ function calc_normal_force(
         uvec = [-Δy./mag Δx./mag]  # unit vector
         xt = xmid.+uvec[:, 1]./100
         yt = ymid+uvec[:, 2]./100  # should match our scale
-        in_idx = points_in_poly(hcat(xt, yt), coords)
+        in_idx = [GO.coveredby((xt[i], yt[i]), region) for i in eachindex(xt)]
         uvec[in_idx, :] *= -1
         Fn = -force_factor * (mag * ones(FT, 1, 2)) .* uvec
         p1 = GI.Polygon(c1)
@@ -82,7 +82,7 @@ function calc_normal_force(
         new_regions_list = intersect_coords(c1new, c2)
         # See if the area of overlap has increased in corresponding region
         for new_region in new_regions_list
-            if LG.intersects(new_region, region) && GO.area(new_region)/area > 1
+            if GO.intersects(new_region, region) && GO.area(new_region)/area > 1
                 force_dir .*= -1 
             end
         end

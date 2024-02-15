@@ -73,9 +73,8 @@ import LibGEOS as LG
 import GeometryOps as GO
 import GeometryOps.GeoInterface as GI
 using CairoMakie, DataStructures, Dates, GeometryBasics, Interpolations, JLD2,
-    LinearAlgebra, Logging, Makie, Measures, NCDatasets, NetCDF,
-    PolygonInbounds, Printf, Random, SplitApplyCombine, StaticArrays,
-    Statistics, StructArrays, VoronoiCells
+    LinearAlgebra, Logging, Makie, Measures, NCDatasets, NetCDF, Printf, Random,
+    SplitApplyCombine, StaticArrays, Statistics, StructArrays, VoronoiCells
 
 """
 Coordinates are vector of vector of vector of points of the form:

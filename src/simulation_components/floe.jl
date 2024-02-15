@@ -522,7 +522,8 @@ function generate_voronoi_coords(
 ) where {FT <: AbstractFloat}
     xpoints = Vector{FT}()
     ypoints = Vector{FT}()
-    area_frac = GO.area(LG.MultiPolygon(domain_coords)) / reduce(*, scale_fac)
+    domain_poly = GI.MultiPolygon(GO.tuples(domain_coords))
+    area_frac = GO.area(domain_poly) / reduce(*, scale_fac)
     # Increase the number of points based on availible percent of bounding box
     npoints = ceil(Int, desired_points / area_frac)
     current_points = 0
@@ -536,7 +537,10 @@ function generate_voronoi_coords(
             scale_fac[2] * y .+ trans_vec[2]
         )
         # Check which of the points are within the domain coords
-        in_idx = points_in_poly(st_xy, domain_coords)
+        in_idx = [GO.coveredby(
+            (scale_fac[1] * x[i] .+ trans_vec[1], scale_fac[2] * y[i] .+ trans_vec[2]),
+            domain_poly
+        ) for i in eachindex(x)]
         current_points += sum(in_idx)
         tries += 1
         append!(xpoints, x[in_idx])

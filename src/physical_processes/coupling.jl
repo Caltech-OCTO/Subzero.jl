@@ -193,7 +193,8 @@ function generate_subfloe_points(
         else
             mc_x .= xmin .+ Δx * rand(rng, FT, point_generator.npoints)
             mc_y .= ymin .+ Δy * rand(rng, FT, point_generator.npoints)
-            mc_in .= points_in_poly(hcat(mc_x, mc_y), coords)
+            poly = GI.Polygon(GO.tuples(coords))
+            mc_in .= [GO.coveredby((mc_x[i], mc_y[i]), poly) for i in eachindex(mc_x)]
             err = abs(sum(mc_in)/point_generator.npoints * (Δx * Δy) - area)/area
             count += 1
         end
@@ -324,7 +325,8 @@ function generate_subfloe_points(
     end
     x_sub_floe = repeat(x_interior_points, n_ypoints)
     y_sub_floe = repeat(y_interior_points, inner = n_xpoints)
-    in_floe = points_in_poly(hcat(x_sub_floe, y_sub_floe), coords)
+    poly = GI.Polygon(GO.tuples(coords))
+    in_floe = [GO.coveredby((x_sub_floe[i], y_sub_floe[i]), poly) for i in eachindex(x_sub_floe)]
 
     append!(xpoints, x_sub_floe[in_floe])
     append!(ypoints, y_sub_floe[in_floe])

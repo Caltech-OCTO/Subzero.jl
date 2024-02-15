@@ -13,6 +13,7 @@
             -centroid1[1],
             -centroid1[2],
         )
+        origin_poly = GI.Polygon(origin_coords)
         xo, yo = Subzero.separate_xy(origin_coords)
         rmax = sqrt(maximum([sum(xo[i]^2 + yo[i]^2) for i in eachindex(xo)]))
         area = GO.area(poly1)
@@ -25,8 +26,7 @@
             Xoshiro(1)
         )
         @test length(mc_x) == length(mc_y) && length(mc_x) > 0
-        in_on = inpoly2(hcat(mc_x, mc_y), hcat(xo, yo))
-        mc_in = in_on[:, 1] .|  in_on[:, 2]
+        mc_in = [GO.coveredby((mc_x[i], mc_y[i]), origin_poly) for i in eachindex(mc_x)]
         @test all(mc_in)
         xmin, xmax = extrema(xo)
         ymin, ymax = extrema(yo)
@@ -283,7 +283,7 @@
         )
         cell_poly = LG.Polygon(cell)
         @test GO.area(cell_poly)::Float64 == 8
-        @test LG.GeoInterface.coordinates(cell_poly) == 
+        @test GI.coordinates(cell_poly) == 
             [[[-9, -2], [-9, 2], [-7, 2], [-7, -2], [-9, -2]]]
         @test Subzero.center_cell_coords(
             1,
