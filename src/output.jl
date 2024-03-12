@@ -273,6 +273,16 @@ function get_known_grid_outputs()
         :strain_vx_grid,
         :strain_uy_grid,
         :strain_vy_grid,
+        :stress_uu_grid,
+        :stress_uv_grid,
+        :stress_vv_grid,
+        :stress_rot_grid,
+        :fx_contact_grid,
+        :fy_contact_grid,
+        :fxo_grid,
+        :fyo_grid,
+        :rhoHdudt_grid,
+        :rhoHdvdt_grid,
     ])
 end
 
@@ -882,6 +892,22 @@ function calc_eulerian_data!(floes, topography, writer)
                 if mass_tot > 0
                     # mass and area ratios
                     ma_ratios = area_ratios .* (floes.mass[floeidx] ./ mass_tot)
+
+                    # # Check residual
+                    # fxc = sum([c[1] for c in floes.collision_force[floeidx]] ./ floes.area[floeidx] .* ma_ratios)
+                    # fxo = sum(floes.fxOA[floeidx] ./ floes.area[floeidx] .* ma_ratios)
+                    # mdudt = sum(floes.mass[floeidx] .* floes.p_dudt[floeidx]./ floes.area[floeidx] .* ma_ratios)
+                    # res = mdudt - (fxc + fxo)
+                    # res =  abs(res)
+                    # println("   cell averaged residual on cell ($i, $j):: " * string(res))
+                    # println("")                
+
+                    # Inertial terms for the stress tensor
+                    uavg = sum(floes.u[floeidx] .* ma_ratios)
+                    vavg = sum(floes.v[floeidx] .* ma_ratios)
+                    udev = floes.u[floeidx] .- uavg
+                    vdev = floes.v[floeidx] .- vavg
+
                     outputs = writer.outputs
                     for k in eachindex(outputs)
                         data = if outputs[k] == :u_grid
@@ -928,6 +954,26 @@ function calc_eulerian_data!(floes, topography, writer)
                             sum([s[2, 1] for s in floes[floeidx].strain] .* ma_ratios)
                         elseif outputs[k] == :strain_vy_grid
                             sum([s[2, 2] for s in floes[floeidx].strain] .* ma_ratios)
+                        elseif outputs[k] == :stress_uu_grid
+                            sum(floes.mass[floeidx] ./ floes.area[floeidx] .* udev .* udev .* ma_ratios)
+                        elseif outputs[k] == :stress_uv_grid
+                            sum(floes.mass[floeidx] ./ floes.area[floeidx] .* udev .* vdev .* ma_ratios)
+                        elseif outputs[k] == :stress_vv_grid
+                            sum(floes.mass[floeidx] ./ floes.area[floeidx] .* vdev .* vdev .* ma_ratios)
+                        elseif outputs[k] == :stress_rot_grid
+                            sum(floes.ξ[floeidx] .^2 .* floes.moment[floeidx] ./ floes.area[floeidx] .* ma_ratios)
+                        elseif outputs[k] == :fx_contact_grid
+                            sum([c[1] for c in floes.collision_force[floeidx]] ./ floes.area[floeidx] .* ma_ratios)
+                        elseif outputs[k] == :fy_contact_grid
+                            sum([c[2] for c in floes.collision_force[floeidx]] ./ floes.area[floeidx] .* ma_ratios)
+                        elseif outputs[k] == :fxo_grid
+                            sum(floes.fxOA[floeidx] ./ floes.area[floeidx] .* ma_ratios)
+                        elseif outputs[k] == :fyo_grid
+                            sum(floes.fyOA[floeidx] ./ floes.area[floeidx] .* ma_ratios)     
+                        elseif outputs[k] == :rhoHdudt_grid
+                            sum(floes.mass[floeidx] .* floes.p_dudt[floeidx]./ floes.area[floeidx] .* ma_ratios)  
+                        elseif outputs[k] == :rhoHdvdt_grid
+                            sum(floes.mass[floeidx] .* floes.p_dvdt[floeidx]./ floes.area[floeidx] .* ma_ratios)                                                                            
                         end
                         writer.data[j, i, k] = data
                     end
@@ -1010,15 +1056,25 @@ function getattrs(output::Symbol)
         output == :area_grid ? ("m^2", "Average area of floes in grid cell") :
         output == :height_grid ? ("m", "Average height of floes in grid cell") :
         output == :si_frac_grid ? ("unitless", "Fraction of grid cell covered by floes") :
-        output == :stress_xx_grid ? ("N/m^2", "Average xx stress on floes in a given grid cell") :
-        output == :stress_yx_grid ? ("N/m^2", "Average yx stress on floes in a given grid cell") :
-        output == :stress_xy_grid ? ("N/m^2", "Average xy stress on floes in a given grid cell") :
-        output == :stress_yy_grid ? ("N/m^2", "Average yy stress on floes in a given grid cell") :
-        output == :stress_eig_grid ? ("N/m^2", "Maximum eigenvalue of the stress matricies [xx yx; xy yy]") :
+        output == :stress_xx_grid ? ("N/m", "Average xx stress on floes in a given grid cell") :
+        output == :stress_yx_grid ? ("N/m", "Average yx stress on floes in a given grid cell") :
+        output == :stress_xy_grid ? ("N/m", "Average xy stress on floes in a given grid cell") :
+        output == :stress_yy_grid ? ("N/m", "Average yy stress on floes in a given grid cell") :
+        output == :stress_eig_grid ? ("N/m", "Maximum eigenvalue of the stress matricies [xx yx; xy yy]") :
         output == :strain_ux_grid ? ("unitless", "Average ux strain on floes in a grid cell") :
         output == :strain_vx_grid ? ("unitless", "Average vx strain on floes in a grid cell") :
         output == :strain_uy_grid ? ("unitless", "Average uy strain on floes in a grid cell") :
         output == :strain_vy_grid ? ("unitless", "Average vy strain on floes in a grid cell") :
+        output == :stress_uu_grid ? ("N/m", "Average xx stress on floes due to inertia in a given grid cell") :
+        output == :stress_uv_grid ? ("N/m", "Average yx stress on floes due to inertia in a given grid cell") :
+        output == :stress_vv_grid ? ("N/m", "Average xy stress on floes due to inertia in a given grid cell") :
+        output == :stress_rot_grid ? ("N/m", "Average stress on floes due to rotations in a given grid cell") :
+        output == :fx_contact_grid ? ("N/m^2", "Average contact force in x direction on floes in a given grid cell") :  
+        output == :fy_contact_grid ? ("N/m^2", "Average contact force in y direction on floes in a given grid cell") :
+        output == :fxo_grid ? ("N/m^2", "Average ocean force in y direction on floes in a given grid cell") :  
+        output == :fyo_grid ? ("N/m^2", "Average ocean force in y direction on floes in a given grid cell") :  
+        output == :rhoHdudt_grid ? ("N/m^2", "Average inertial force in x direction on floes in a given grid cell") :  
+        output == :rhoHdvdt_grid ? ("N/m^2", "Average inertial force in y direction on floes in a given grid cell") :  
         ("", "") # if symbol isn't found, return empty attributes
     return unit, comment
 end
