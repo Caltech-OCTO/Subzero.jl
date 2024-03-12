@@ -483,11 +483,11 @@ function timestep_floe_properties!(
             floes.height[i] = max_height
         end
 
-        while maximum(abs.(cforce)) > floes.mass[i]/(5Δt)
-            @warn "Decreasing collision forces by a factor of 10"
-            cforce = cforce ./ 10
-            ctrq = ctrq ./ 10
-        end
+        # while maximum(abs.(cforce)) > floes.mass[i]/(5Δt)
+        #     @warn "Decreasing collision forces by a factor of 10"
+        #     cforce = cforce ./ 10
+        #     ctrq = ctrq ./ 10
+        # end
         
         # Update floe based on thermodynamic growth
         h = floes.height[i]
@@ -523,20 +523,21 @@ function timestep_floe_properties!(
         # Update ice velocities with forces and torques
         dudt = (floes.fxOA[i] + cforce[1])/floes.mass[i]
         dvdt = (floes.fyOA[i] + cforce[2])/floes.mass[i]
-        frac = if abs(Δt*dudt) > (h/2) && abs(Δt*dvdt) > (h/2)
-            frac1 = (sign(dudt)*h/2Δt)/dudt
-            frac2 = (sign(dvdt)*h/2Δt)/dvdt
-            min(frac1, frac2)
-        elseif abs(Δt*dudt) > (h/2) && abs(Δt*dvdt) < (h/2)
-            (sign(dudt)*h/2Δt)/dudt
-        elseif abs(Δt*dudt) < (h/2) && abs(Δt*dvdt) > (h/2)
-            (sign(dvdt)*h/2Δt)/dvdt
-        else
-            1
-        end
-        if frac != 1
-            @warn "Adjusting u and v velocities to prevent too high"
-        end
+        frac = 1
+        # frac = if abs(Δt*dudt) > (h/2) && abs(Δt*dvdt) > (h/2)
+        #     frac1 = (sign(dudt)*h/2Δt)/dudt
+        #     frac2 = (sign(dvdt)*h/2Δt)/dvdt
+        #     min(frac1, frac2)
+        # elseif abs(Δt*dudt) > (h/2) && abs(Δt*dvdt) < (h/2)
+        #     (sign(dudt)*h/2Δt)/dudt
+        # elseif abs(Δt*dudt) < (h/2) && abs(Δt*dvdt) > (h/2)
+        #     (sign(dvdt)*h/2Δt)/dvdt
+        # else
+        #     1
+        # end
+        # if frac != 1
+        #     @warn "Adjusting u and v velocities to prevent too high"
+        # end
         dudt = frac*dudt
         dvdt = frac*dvdt
         floes.u[i] += 1.5Δt*dudt-0.5Δt*floes.p_dudt[i]
