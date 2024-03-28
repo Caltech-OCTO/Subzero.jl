@@ -103,9 +103,9 @@ atmos = Atmos(
 ```
 
 ### Domain: 
-The domain includes both the boundaries of the simulation and the topographic features. It defines the areas where the floes cannot go. Before you can define a domain, you need to define each boundary wall. As of now, only rectangular boundaries around the edge of the grid are allowed so we need a north, east, south, and west boundary wall. We have four types of boundary wall: open, collision, periodic, and compression.
+The domain includes both the boundaries of the simulation and the topographic features. It defines the areas where the floes cannot go. Before you can define a domain, you need to define each boundary wall. As of now, only rectangular boundaries around the edge of the grid are allowed so we need a north, east, south, and west boundary wall. We have four types of boundary wall: open, collision, periodic, and moving.
 
-With an open wall, if a floe overlaps with the boundary wall at all, the floe is removed from the simulation. With a collision wall, floes collide with the wall, and it is calculated similarly to a collision with another floe, except that since the wall cannot break, or be moved, it has an idealized force factor. With a periodic wall, if a floe overlaps with the wall, a copy of that floe is created passing back into the domain through the opposite wall. These two floes are equivalent and are linked. We call the copy a “ghost floe.” So, for example, if a floe is pushed partially out of the domain through the south wall by a current, a copy of the floe will be created, re-entering through the north wall. If one wall in the domain is periodic, its opposite wall must also be periodic, that is north-south and east-west. Compression boundaries are walls that can move with a constant velocity in either the x-direction (East and West walls) or in the y-direction (North and South walls). For example, if the west wall is a compression wall with a velocity of 0.1m/s it will move with a 0.1m/s u velocity and a 0m/s v velocity. These types of walls are for increasing pressure on the ice to investigate stress and strain on the floes.  
+With an open wall, if a floe overlaps with the boundary wall at all, the floe is removed from the simulation. With a collision wall, floes collide with the wall, and it is calculated similarly to a collision with another floe, except that since the wall cannot break, or be moved, it has an idealized force factor. With a periodic wall, if a floe overlaps with the wall, a copy of that floe is created passing back into the domain through the opposite wall. These two floes are equivalent and are linked. We call the copy a “ghost floe.” So, for example, if a floe is pushed partially out of the domain through the south wall by a current, a copy of the floe will be created, re-entering through the north wall. If one wall in the domain is periodic, its opposite wall must also be periodic, that is north-south and east-west. Moving boundaries are walls that can move with a constant velocity in either the x or y-direction, causing either a shear or compressive stress. For example, if the west wall is a moving wall with a x-velocity of 0.1m/s it will move with a 0.1m/s u velocity and a 0m/s v velocity towards the center of the domain. These types of walls are for increasing pressure on the ice to investigate stress and strain on the floes.  
 
 Here is an example of creating a set of boundary walls using the grid from above: 
 
@@ -122,9 +122,9 @@ Once we have defined our walls, we can create a domain as follows:
 domain = Domain(nboundary, sboundary, eboundary, wboundary)
 ``` 
 
-Here is an example of how to create a compression wall as well that moves towards the center of the domain at 0.1m/s:
+Here is an example of how to create a moving wall as well that moves towards the center of the domain with u velocity of 0m/s and a v velocity of -0.1m/s:
 ```julia 
-comp_boundary = CompressionBoundary(North, grid, -0.1)
+move_boundary = MovingBoundary(North, grid, 0.0, -0.1)
 ```
 
 
