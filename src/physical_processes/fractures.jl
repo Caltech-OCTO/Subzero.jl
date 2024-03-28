@@ -339,9 +339,11 @@ function deform_floe!(
 ) where FT
     poly = LG.Polygon(floe.coords)
     deformer_poly = LG.Polygon(deformer_coords)
-    overlap_region = sortregions(LG.intersection(poly, deformer_poly))[1]
+    overlap_regions = get_polygons(LG.intersection(poly, deformer_poly), FT)
+    max_overlap_area, max_overlap_idx = findmax(GO.area, overlap_regions)
+    overlap_region = overlap_regions[max_overlap_idx]
     # If floe and the deformer floe have an overlap area
-    if GO.area(overlap_region) > 0
+    if max_overlap_area > 0
         # Determine displacement of deformer floe
         region_cent = GO.centroid(overlap_region)
         dist = GO.signed_distance(region_cent,overlap_region, FT)
@@ -349,8 +351,9 @@ function deform_floe!(
         Δx, Δy = abs.(dist)[1] .* force_fracs
         # Temporarily move deformer floe to find new shape of floe
         deformer_poly = LG.Polygon(translate(deformer_coords, Δx, Δy))
-        new_floe_poly = sortregions(LG.difference(poly, deformer_poly))[1]
-        new_floe_area = GO.area(new_floe_poly)
+        new_floes = get_polygons(LG.difference(poly, deformer_poly), FT)
+        new_floe_area, new_floe_idx = findmax(GO.area, new_floes)
+        new_floe_poly = new_floes[new_floe_idx]
         # If didn't change floe area by more than 90%
         if new_floe_area > 0 && new_floe_area/floe.area > 0.9
             # Update floe shape and conserve mass

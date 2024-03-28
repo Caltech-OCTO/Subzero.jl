@@ -411,32 +411,6 @@ function rmholes(multipoly::MultiPolys)
 end
 
 """
-    sortregions(poly::Polys)
-
-Returns given polygon within a vector as it is the only region
-Inputs:
-    poly <Polys> Polygon
-Outputs:
-    <Vector{Polys}> single polygon within list
-"""
-function sortregions(poly::Polys)
-    return [poly]
-end
-
-"""
-    sortregions(multipoly::MultiPolys)
-
-Sorts polygons within a multi-polygon by area in descending order
-Inputs:
-    multipoly <MultiPolygon> multipolygon
-Outputs:
-    <Vector{Polygon}> list of polygons sorted in descending order by area
-"""
-function sortregions(multipoly::MultiPolys)
-    return sort!(collect(GI.getgeom(multipoly)), by=GO.area, rev=true)
-end
-
-"""
     separate_xy(coords::PolyVec{T})
 
 Pulls x and y coordinates from standard polygon vector coordinates into seperate

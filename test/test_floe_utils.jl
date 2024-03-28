@@ -54,12 +54,6 @@
     @test GO.equals(Subzero.rmholes(poly_hole2), poly_nohole)
     @test !Subzero.hashole(Subzero.rmholes(multipoly_hole1))
 
-    # Test sorting regions from polygons and multipolygons
-    @test Subzero.sortregions(poly_nohole) == [poly_nohole]
-    poly_lst = Subzero.sortregions(multipoly_hole2)
-    @test GO.equals(poly_lst[1], poly_nohole)
-    @test GO.equals(poly_lst[3], poly_hole2)
-
     # Test translating coordinates and polygons
     @test Subzero.translate([ext], 0.0, 0.0) == [ext]
     trans_ext = Subzero.translate([ext], 1.0, 2.0)
