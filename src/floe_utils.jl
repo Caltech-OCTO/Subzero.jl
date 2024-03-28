@@ -107,10 +107,10 @@ Inputs:
 Output:
     Vector of LibGEOS Polygons
 """
-intersect_coords(c1, c2) = intersect_polys(
-    LG.Polygon(c1),
-    LG.Polygon(c2),
-)
+# intersect_coords(c1, c2) = intersect_polys(
+#     LG.Polygon(c1),
+#     LG.Polygon(c2),
+# )
 
 
 """
