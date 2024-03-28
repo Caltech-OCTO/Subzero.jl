@@ -176,7 +176,7 @@
         b2 = Subzero.OpenBoundary(East, g)
         b3 = Subzero.CollisionBoundary(West, g)
         b4 = Subzero.PeriodicBoundary(South, g)
-        b5 = Subzero.CompressionBoundary(South, g, 1.0)
+        b5 = Subzero.MovingBoundary(South, g, 1.0, 2.0)
         @test b1.val == 3e5
         @test typeof(b1) == Subzero.PeriodicBoundary{North, Float64}
         @test b1.coords == [[[-2e5, 3e5], [-2e5, 4.5e5], [6e5, 4.5e5], [6e5, 3e5], [-2e5, 3e5]]]
@@ -189,8 +189,8 @@
         @test b4.val == 0.0
         @test typeof(b4) == Subzero.PeriodicBoundary{South, Float64}
         @test b4.coords == [[[-2e5, -1.5e5], [-2e5, 0.0], [6e5, 0.0], [6e5, -1.5e5], [-2e5, -1.5e5]]]
-        @test b5.velocity == 1.0
-        @test b5.val == 0.0
+        @test b5.u == 1.0
+        @test b5.v == 2.0
 
         # Test changing CollisionBoundary values and can't change other boundary types
         b5.val = 1.0
