@@ -280,13 +280,6 @@ function calc_friction_forces(
         end
         force[i, 1] = xfriction
         force[i, 2] = yfriction
-        # if jfloe isa AbstractDomainElement
-        #     # new one
-        #     @show iu, iv
-        #     @show ju, jv
-        #     @show xfriction, yfriction
-        #     @show normal
-        # end
     end
     return force
 end

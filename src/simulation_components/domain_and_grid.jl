@@ -344,6 +344,13 @@ A sub-type of AbstractBoundary that creates a floe along the boundary that moves
 towards the center of the domain at the given velocity, compressing the ice
 within the domain. This subtype is a mutable struct so that the coordinates and
 val can be changed as the boundary moves. The u and v velocities are in [m/s].
+
+Note that with a u-velocity, east and west walls move towards the center of the domain,
+providing compressive stress, and with a v-velocity, the bounday creates a shear stress by
+incorporating the velocity into friction calculations but doesn't actually move. This means
+that the boundaries cannot move at an angle, distorting the shape of the domain regardless
+the the combination of u and v velocities. The same, but opposite is true for the north
+and south walls.
 """
 mutable struct MovingBoundary{D, FT}<:AbstractBoundary{D, FT}
     coords::PolyVec{FT}
