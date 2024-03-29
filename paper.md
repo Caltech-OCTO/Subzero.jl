@@ -13,13 +13,13 @@ authors:
   - name: Mukund Gupta
     orcid: 0000-0000-0000-0000
     affiliation: 2
-  - name: Andrew Thomspn
+  - name: Andrew Thompson
     orcid: 0000-0000-0000-0000
     affiliation: 1
 affiliations:
- - name: California Institute of Technology, CA, USA
+ - name: California Institute of Technology, USA
    index: 1
- - name: Delft Institute of Technology
+ - name: Delft Institute of Technology, NL
    index: 2
 date: 1 April 2024
 bibliography: paper.bib
@@ -27,7 +27,16 @@ bibliography: paper.bib
 
 # Summary
 
-Arctic sea ice extent and concentration continue to decline at rates that are commonly underestimated by climate projection models. Potential sources of uncertainty arise from an inaccurate representation of interactions between the ocean and sea ice within these climate models, as well as the simplification of sea-ice dynamics for the sake of reducing computational complexity. Discrete-element models (DEMs), where each piece of sea ice is represented as an individual simulation element, all of which can dynamically interact, are used to explore these uncertainties and study fine-scale sea ice dynamics. However, these models are computationally expensive and have not yet been coupled to a dynamic ocean to explore two-way feedbacks.
+Arctic sea ice extent and concentration continue to decline at rates that are
+commonly underestimated by climate projection models. Potential sources of
+uncertainty arise from an inaccurate representation of interactions between the
+ocean and sea ice within these climate models, as well as the simplification of
+sea-ice dynamics for the sake of reducing computational complexity.
+Discrete-element models (DEMs), where each piece of sea ice is represented as an
+individual simulation element, all of which can dynamically interact, are used
+to explore these uncertainties and study fine-scale sea ice dynamics. However,
+these models are computationally expensive and have not yet been coupled to a
+dynamic ocean to explore two-way feedbacks.
 
 # Statement of need
 
@@ -62,9 +71,9 @@ creation of new domain boundary types and floe fracture criteria, within
 their own scripts, rather than within the source code, using Julia's multiple
 dispatch paradigm.
 
-Subzero.jl is continuously tested against a suite of unit tests and integration tests that
-compare its behavior to the original MATLAB model, and confirm that the model conserves both
-energy and momentum. 
+Subzero.jl is continuously tested against a suite of unit tests and integration
+tests that compare its behavior to the original MATLAB model, and confirm that
+the model conserves both energy and momentum. 
 
 # Citations
 
