@@ -232,10 +232,7 @@ function Floe{FT}(
     mass = area_tot * height * floe_settings.ρi
     coords = find_poly_coords(floe)
     coords = [orient_coords(coords[1])]
-    moment = calc_moment_inertia(
-        coords, centroid, height;
-        ρi = floe_settings.ρi,
-    )
+    moment = calc_moment_inertia(FT, floe, centroid, height; ρi = floe_settings.ρi)
     angles = GO.angles(GI.Polygon(coords))
     translate!(coords, -centroid[1], -centroid[2])
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))

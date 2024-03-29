@@ -4,7 +4,8 @@ using LibGEOS
         floes.height[i] = new_height
         floes.mass[i] = floes.area[i] * floes.height[i] * floe_settings.ρi
         floes.moment[i] = Subzero.calc_moment_inertia(
-            floes.coords[i],
+            Float64,
+            GI.Polygon(floes.coords[i]),
             floes.centroid[i],
             floes.height[i],
             ρi = floe_settings.ρi,

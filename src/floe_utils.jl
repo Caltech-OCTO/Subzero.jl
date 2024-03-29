@@ -444,20 +444,47 @@ Note:
 Based on paper: Marin, Joaquin."Computing columns, footings and gates through
 moments of area." Computers & Structures 18.2 (1984): 343-349.
 """
+# function calc_moment_inertia(
+#     coords::PolyVec{T},
+#     centroid,
+#     h;
+#     ρi = 920.0
+# ) where {T<:AbstractFloat}
+#     x, y = separate_xy(coords)
+#     x .-= centroid[1]
+#     y .-= centroid[2]
+#     N = length(x)
+#     wi = x[1:N-1] .* y[2:N] - x[2:N] .* y[1:N-1]
+#     Ixx = 1/12 * sum(wi .* ((y[1:N-1] + y[2:N]).^2 - y[1:N-1] .* y[2:N]))
+#     Iyy = 1/12 * sum(wi .* ((x[1:N-1] + x[2:N]).^2 - x[1:N-1] .* x[2:N]))
+#     return abs(Ixx + Iyy)*h*ρi;
+# end
+
 function calc_moment_inertia(
-    coords::PolyVec{T},
-    centroid,
+    ::Type{FT},
+    poly,
+    cent,
     h;
-    ρi = 920.0
-) where {T<:AbstractFloat}
-    x, y = separate_xy(coords)
-    x .-= centroid[1]
-    y .-= centroid[2]
-    N = length(x)
-    wi = x[1:N-1] .* y[2:N] - x[2:N] .* y[1:N-1]
-    Ixx = 1/12 * sum(wi .* ((y[1:N-1] + y[2:N]).^2 - y[1:N-1] .* y[2:N]))
-    Iyy = 1/12 * sum(wi .* ((x[1:N-1] + x[2:N]).^2 - x[1:N-1] .* x[2:N]))
-    return abs(Ixx + Iyy)*h*ρi;
+    ρi = 920.0,
+) where FT
+    xc, yc = GO._tuple_point(cent, FT)
+    Ixx, Iyy = zero(FT), zero(FT)
+    x1, y1 = zero(FT), zero(FT)
+    for (i, p2) in enumerate(GI.getpoint(poly))
+        (x2, y2) = GO._tuple_point(p2, FT)
+        x2, y2 = x2 - xc, y2 - yc
+        if i == 1
+            x1, y1 = x2, y2 
+            continue
+        end
+        wi = (x1 - xc) * (y2 - yc) - (x2 - xc) * (y1 - yc)
+        Ixx += wi * (y1^2 + y1 * y2 + y2^2)
+        Iyy += wi * (x1^2 + x1 * x2 + x2^2)
+        x1, y1 = x2, y2 
+    end
+    Ixx *= 1/12
+    Iyy *= 1/12
+    return abs(Ixx + Iyy) * FT(h) * FT(ρi)
 end
 
 """
@@ -472,13 +499,13 @@ Inputs:
 Output:
     <Float> mass moment of inertia
 """
-calc_moment_inertia(poly::Polys, h; ρi = 920.0) = 
-    calc_moment_inertia(
-        find_poly_coords(poly),
-        GO.centroid(poly),
-        h,
-        ρi = ρi,
-    )
+# calc_moment_inertia(poly::Polys, h; ρi = 920.0) = 
+#     calc_moment_inertia(
+#         find_poly_coords(poly),
+#         GO.centroid(poly),
+#         h,
+#         ρi = ρi,
+#     )
 
 """
     orient_coords(coords)

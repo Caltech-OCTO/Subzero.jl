@@ -41,7 +41,8 @@ function replace_floe!(
     floe.height = new_mass/(floe.area * floe_settings.ρi)
     floe.mass = new_mass
     floe.moment = calc_moment_inertia(
-        floe.coords,
+        FT,
+        new_poly,
         floe.centroid,
         floe.height;
         ρi = floe_settings.ρi,
