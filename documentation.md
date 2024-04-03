@@ -587,6 +587,8 @@ floewriter = FloeOutputWriter(
 ```
 The `outputs` field takes in a list of symbols corresponding to floe fields. For example, if you want the floe output writer to output the floes centroid and coordinates then `outputs = [:centroid, :coords]`. If you want all floe fields then you can simply omit the outputs field all together and all floe fields will be output. Note that other than `∆tout`, all values have default values so you only need to pass in arguments that you wish to change from these values. Furthermore, all inputs but ∆tout are keyword arguments, so you must use the keyword when passing in new values.
 
+Note that if you have Periodic calls, and thus ghost floes in your simulation, these will also be saved by the `FloeOutputWriter`. If you want to exclude these floes from your analysis or when otherwise using the `FloeOutputWriter` output, you can do so by only including floes with a `ghost_id = 0`.
+
 #### GridOutputWriter
 The grid output writer allows you to floe values averaged onto a course grid to a NetCDF file. This will give you the ability to easily analyze floe characteristics on a grid. A `GridOutputWriter` has eight field:
 - `outputs`, which specifies which floe fields should be included
