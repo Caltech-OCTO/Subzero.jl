@@ -293,3 +293,35 @@ function run!(sim; logger = nothing, messages_per_tstep = 1)
     teardown_sim(sim)
     return
 end
+
+function restart!(initial_state_fn, checkpointer_fn, new_output_writers)
+    is = jldopen(initial_state_fn)
+    cp = jldopen(checkpointer_fn)
+    last_tstep = maximum(parse.(Int, keys(cp["ocean"])))
+
+    # Remove any ghost floes from floe list
+    new_floes = cp["floes"][string(last_tstep)]
+    filter!(f -> f.ghost_id == 0, new_floes)
+    empty!.(new_floes.ghosts)
+
+    new_model = Model(
+        is["sim"].model.grid, 
+        cp["ocean"][string(t_max)], 
+        cp["atmos"][string(t_max)], 
+        is["sim"].model.domain, 
+        new_floes,
+    )
+
+    new_simulation = Simulation(
+        model = model2,
+        consts = is["sim"].consts,
+        Δt = is["sim"].Δt,
+        nΔt = nΔt2,
+        verbose = is["sim"].verbose,
+        writers = new_output_writers,
+        coupling_settings = is["sim"].coupling_settings,
+        simp_settings = is["sim"].simp_settings,
+    )
+    run!(new_simulation)
+    return
+end

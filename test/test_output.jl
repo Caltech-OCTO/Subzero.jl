@@ -39,8 +39,8 @@ function test_basic_outputwriters()
         overwrite = true,
     )
     floewriter = FloeOutputWriter(
-        [:status, :coords, :area, :mass, :u, :v],
-        50,
+        50;
+        outputs = [:status, :coords, :area, :mass, :u, :v],
         dir = dir,
         filename = "floe.jld2",
         overwrite = true,
