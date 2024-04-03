@@ -80,13 +80,13 @@ The user can also define settings for each physical process.
 end
 
 """
-timestep_sim!(sim, tstep, writers)
+timestep_sim!(sim, tstep, start_tstep)
 
 Run one step of the simulation and write output. 
 Inputs:
-    sim     <Simulation> simulation to advance
-    tstep   <Int> current timestep
-    writers <Vector{AbstractOutputWriter}> list of output OutputWriters
+    sim          <Simulation> simulation to advance
+    tstep        <Int> current timestep
+    start_tstep  <Int> timestep simulation started on
 Outputs:
     None. Simulation advances by one timestep. 
 """
@@ -295,6 +295,17 @@ function run!(sim; logger = nothing, messages_per_tstep = 1, start_tstep = 0)
     return
 end
 
+"""
+    restart!(initial_state_fn, checkpointer_fn, new_nΔt, new_output_writers; start_tstep = 0)
+
+Continue the simulation run started with the given initial state and floe file for an
+additional `new_nΔt` timesteps and with the new output_writers provided. The simulation will
+restart with a recorded timestep of `start_tstep`.
+
+Note that this `restart!` function may not fit your needs and you may need to write your
+own. This function is meant to act as a simplest case and as a template for users to write
+their own restart functions. 
+"""
 function restart!(initial_state_fn, checkpointer_fn, new_nΔt, new_output_writers; start_tstep = 0)
     is = jldopen(initial_state_fn)
     cp = jldopen(checkpointer_fn)

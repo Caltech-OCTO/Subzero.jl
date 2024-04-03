@@ -691,6 +691,20 @@ timestep_sim!(
 
 Note that we are working on a more elegant solution to coupling with Oceananigans and CliMA and this page will be updated once that is in place. 
 
+If you run your simulation in multiple parts and need to re-start your simulation from files, the `restart!` function will be a good place to start. However, note that it is quite simple and users may need to write their own restart function if they want any complex behavior. 
+
+The provided `restart!` function takes in the output file from both an `InitialStateOutputWriter` and a `CheckpointOutputWriter` to restart the simulation. In addition to providing these two files, the user must also provide the number of timesteps to run the next part of the simulation for (`new_nΔt`) and new output writers. The user also has an option to specify a non-zero starting timestep for the simulation using the keyword argument `start_tstep`.
+
+```
+restart!(
+   initial_state_fn,
+   checkpointer_fn,
+   new_nΔt,
+   new_output_writers;
+   start_tstep = 0,
+)
+```
+
 ### Plotting
 
 If your simulation has both a `FloeOutputWriter` and an `InitialStateOutputWriter`, you can use the built in plotting function to make an MP4 file with each frame as a timestep saved by the `FloeOutputWriter`. You do this as follows:
