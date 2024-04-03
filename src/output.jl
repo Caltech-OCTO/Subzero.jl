@@ -54,6 +54,12 @@ function InitialStateOutputWriter(
     return InitialStateOutputWriter(filepath, overwrite)
 end
 
+"""
+    InitialStateOutputWriter(writer::InitialStateOutputWriter; kwargs...)
+
+Creates an initial state output writer from an existing writer, copying all fields unless 
+new field values are explicity provided through keyword arguments.
+"""
 InitialStateOutputWriter(writer::InitialStateOutputWriter;
     dir = dirname(writer.filepath),
     filename = basename(writer.filepath),
@@ -122,6 +128,13 @@ function CheckpointOutputWriter(
     return CheckpointOutputWriter(Δtout, filepath, overwrite)
 end
 
+"""
+    CheckpointOutputWriter(writer::CheckpointOutputWriter, [Δtout]; kwargs...)
+
+Creates an checkpoint writer from an existing writer, copying all fields unless new field
+values are explicity provided either as the optional argument Δtout or through keyword
+arguments.
+"""
 CheckpointOutputWriter(writer::CheckpointOutputWriter, Δtout = writer.Δtout;
     dir = dirname(writer.filepath),
     filename = basename(writer.filepath),
@@ -190,6 +203,13 @@ function FloeOutputWriter(
     return FloeOutputWriter(Δtout, outputs, filepath, overwrite)
 end
 
+"""
+    FloeOutputWriter(writer::FloeOutputWriter, [Δtout]; kwargs...)
+
+Creates an floe output writer from an existing writer, copying all fields unless new field
+values are explicity provided either as the optional argument Δtout or through keyword
+arguments.
+"""
 FloeOutputWriter(writer::FloeOutputWriter, Δtout = writer.Δtout;
     outputs = writer.outputs,
     dir = dirname(writer.filepath),
@@ -357,6 +377,12 @@ function GridOutputWriter{FT}(
     )
 end
 
+"""
+    GridOutputWriter(writer::GridOutputWriter, [Δtout]; kwargs...)
+
+Creates an grid output writer from an existing writer, copying all fields unless new field
+values are explicity provided through keyword arguments.
+"""
 GridOutputWriter(writer::GridOutputWriter;
     Δtout = writer.Δtout,
     grid = writer.grid,
