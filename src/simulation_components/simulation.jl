@@ -90,7 +90,7 @@ Inputs:
 Outputs:
     None. Simulation advances by one timestep. 
 """
-function timestep_sim!(sim, tstep, start_tstep)
+function timestep_sim!(sim, tstep, start_tstep = 0)
     sim.verbose && mod(tstep, 50) == 0 && println(tstep, " timesteps")
     if !isempty(sim.model.floes)
         max_floe_id = maximum(sim.model.floes.id)
