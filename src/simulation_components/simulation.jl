@@ -90,7 +90,7 @@ Inputs:
 Outputs:
     None. Simulation advances by one timestep. 
 """
-function timestep_sim!(sim, tstep)
+function timestep_sim!(sim, tstep, start_tstep)
     sim.verbose && mod(tstep, 50) == 0 && println(tstep, " timesteps")
     if !isempty(sim.model.floes)
         max_floe_id = maximum(sim.model.floes.id)
@@ -101,7 +101,7 @@ function timestep_sim!(sim, tstep)
         add_ghosts!(sim.model.floes, sim.model.domain)
 
         # Output at given timestep
-        write_data!(sim, tstep)  # Horribly type unstable
+        write_data!(sim, tstep, start_tstep)  # Horribly type unstable
         
         # Collisions
         if sim.collision_settings.collisions_on
@@ -267,7 +267,7 @@ function teardown_sim(sim)
 end
 
 """
-    run!(sim)
+    run!(sim; logger = nothing, messages_per_tstep = 1, start_tstep = 0)
 
 Run given simulation and generate output for given writers.
 Simulation calculations will be done with Floats of type T (Float64 of Float32).
@@ -278,23 +278,24 @@ Inputs:
                             Subzero logger
     messages_per_tstep  <Int> number of messages to print per timestep if using
                             default SubzeroLogger, else not needed
+    start_tstep         <Int> which timestep to start the simulation on
 Outputs:
     None. The simulation will be run and outputs will be saved in the output
     folder. 
 """
-function run!(sim; logger = nothing, messages_per_tstep = 1)
+function run!(sim; logger = nothing, messages_per_tstep = 1, start_tstep = 0)
     startup_sim(sim, logger, messages_per_tstep)
-    tstep = 0
-    while tstep <= sim.nΔt
+    tstep = start_tstep
+    while tstep <= (start_tstep + sim.nΔt)
         # Timestep the simulation forward
-        timestep_sim!(sim, tstep)
+        timestep_sim!(sim, tstep, start_tstep)
         tstep+=1
     end
     teardown_sim(sim)
     return
 end
 
-function restart!(initial_state_fn, checkpointer_fn, new_nΔt, new_output_writers)
+function restart!(initial_state_fn, checkpointer_fn, new_nΔt, new_output_writers; start_tstep = 0)
     is = jldopen(initial_state_fn)
     cp = jldopen(checkpointer_fn)
     last_tstep = maximum(parse.(Int, keys(cp["ocean"])))
@@ -322,6 +323,6 @@ function restart!(initial_state_fn, checkpointer_fn, new_nΔt, new_output_writer
         coupling_settings = is["sim"].coupling_settings,
         simp_settings = is["sim"].simp_settings,
     )
-    run!(new_simulation)
+    run!(new_simulation; start_tstep = start_tstep)
     return
 end

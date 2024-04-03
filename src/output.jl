@@ -127,7 +127,7 @@ CheckpointOutputWriter(writer::CheckpointOutputWriter, Δtout = writer.Δtout;
     filename = basename(writer.filepath),
     overwrite = writer.overwrite,
     kwargs...,
-) = InitialStateOutputWriter(Δtout;
+) = CheckpointOutputWriter(Δtout;
     dir = dir,
     filename = filename,
     overwrite = overwrite,
@@ -439,18 +439,19 @@ end
 #----------------------- Write Data -----------------------#
 
 """
-    write_data!(sim, tstep)
+    write_data!(sim, tstep, start_tstep)
 
 Writes data for the simulation's writers that are due to write at given tstep.
 Inputs:
-    sim     <Simulation> simulation to run
+    sim         <Simulation> simulation to run
     tstep       <Int> simulation timestep
+    start_tstep <Int> starting timestep of the simulation
 Output:
     Saves writer requested data to files specified in each writer. 
 """
-function write_data!(sim, tstep)
+function write_data!(sim, tstep, start_tstep)
     # write initial state on first timestep
-    if tstep == 0
+    if tstep == start_tstep
         write_init_state_data!(sim)
     end
     # Write checkpoint data
