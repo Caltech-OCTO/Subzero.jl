@@ -294,7 +294,7 @@ function run!(sim; logger = nothing, messages_per_tstep = 1)
     return
 end
 
-function restart!(initial_state_fn, checkpointer_fn, new_output_writers)
+function restart!(initial_state_fn, checkpointer_fn, new_nΔt, new_output_writers)
     is = jldopen(initial_state_fn)
     cp = jldopen(checkpointer_fn)
     last_tstep = maximum(parse.(Int, keys(cp["ocean"])))
@@ -306,17 +306,17 @@ function restart!(initial_state_fn, checkpointer_fn, new_output_writers)
 
     new_model = Model(
         is["sim"].model.grid, 
-        cp["ocean"][string(t_max)], 
-        cp["atmos"][string(t_max)], 
+        cp["ocean"][string(last_tstep)], 
+        cp["atmos"][string(last_tstep)], 
         is["sim"].model.domain, 
         new_floes,
     )
 
     new_simulation = Simulation(
-        model = model2,
+        model = new_model,
         consts = is["sim"].consts,
         Δt = is["sim"].Δt,
-        nΔt = nΔt2,
+        nΔt = new_nΔt,
         verbose = is["sim"].verbose,
         writers = new_output_writers,
         coupling_settings = is["sim"].coupling_settings,

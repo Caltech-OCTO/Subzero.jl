@@ -55,15 +55,15 @@ function InitialStateOutputWriter(
 end
 
 InitialStateOutputWriter(writer::InitialStateOutputWriter;
-    dir = writer.dir,
-    filename = writer.filename,
+    dir = dirname(writer.filepath),
+    filename = basename(writer.filepath),
     overwrite = writer.overwrite,
-    jld2_kw = writer.jld2_kw,
+    kwargs...,
 ) = InitialStateOutputWriter(;
     dir = dir,
     filename = filename,
     overwrite = overwrite,
-    jld2_kw = jld2_kw,
+    kwargs...,
 )
 
 """
@@ -123,15 +123,15 @@ function CheckpointOutputWriter(
 end
 
 CheckpointOutputWriter(writer::CheckpointOutputWriter, Δtout = writer.Δtout;
-    dir = writer.dir,
-    filename = writer.filename,
+    dir = dirname(writer.filepath),
+    filename = basename(writer.filepath),
     overwrite = writer.overwrite,
-    jld2_kw = writer.jld2_kw,
+    kwargs...,
 ) = InitialStateOutputWriter(Δtout;
     dir = dir,
     filename = filename,
     overwrite = overwrite,
-    jld2_kw = jld2_kw,
+    kwargs...,
 )
 
 """
@@ -192,16 +192,16 @@ end
 
 FloeOutputWriter(writer::FloeOutputWriter, Δtout = writer.Δtout;
     outputs = writer.outputs,
-    dir = writer.dir,
-    filename = writer.filename,
+    dir = dirname(writer.filepath),
+    filename = basename(writer.filepath),
     overwrite = writer.overwrite,
-    jld2_kw = writer.jld2_kw,
+    kwargs...,
 ) = FloeOutputWriter(Δtout;
     outputs = outputs,
     dir = dir,
     filename = filename,
     overwrite = overwrite,
-    jld2_kw = jld2_kw,
+    kwargs...,
 )
 
 """
@@ -362,8 +362,8 @@ GridOutputWriter(writer::GridOutputWriter;
     grid = writer.grid,
     dims = writer.dims,
     outputs = writer.outputs,
-    dir = writer.dir,
-    filename = writer.filename,
+    dir = dirname(writer.filepath),
+    filename = basename(writer.filepath),
     overwrite = writer.overwrite,
     average = writer.average
 ) = GridOutputWriter(

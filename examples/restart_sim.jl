@@ -1,12 +1,12 @@
 using JLD2, Subzero, Random, Statistics
 
-dir = "output/first_run/"
-new_dir = "output/second_run/"
+dir = "output/restart_sim/first_run/"
+new_dir = "output/restart_sim/second_run/"
 
 const FT = Float64
 const Δt = 10
-const nΔt = 500
-const nΔt2 = 500
+const nΔt = 5000
+const nΔt2 = 5000
 const nfloes = 20
 const L = 1e5
 const Δgrid = 1e4
@@ -115,7 +115,7 @@ floewriter2 = FloeOutputWriter(floewriter; dir = new_dir)
 writers2 = OutputWriters(initwriter2, floewriter2)
 
 
-restart!(initial_state_fn, checkpointer_fn, writers2)
+Subzero.restart!(dir * "/initial_state.jld2", dir * "/checkpoint.jld2", nΔt2, writers2)
 # simulation2 = Simulation(
 #     model = model2,
 #     consts = is["sim"].consts,
@@ -137,9 +137,9 @@ plot_sim(
 )
 
 # Read new initial_state file and compare size of floes
-is_new = jldopen(new_dir * "/initial_state.jld2", "r")
-size_is = size(is_new["sim"].model.floes)[1]
-size_cp = size(cp["floes"][string(t_max)])[1]
+# is_new = jldopen(new_dir * "/initial_state.jld2", "r")
+# size_is = size(is_new["sim"].model.floes)[1]
+# size_cp = size(cp["floes"][string(t_max)])[1]
 
-println("Size of floe vector in checkpoint :: $size_cp")
-println("Size of floe vector in new initial_state AFTER RUNNING SIMULATION :: $size_is")
+# println("Size of floe vector in checkpoint :: $size_cp")
+# println("Size of floe vector in new initial_state AFTER RUNNING SIMULATION :: $size_is")
