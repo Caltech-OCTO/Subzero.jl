@@ -842,31 +842,13 @@ function calc_eulerian_data!(floes, topography, writer)
             # If there are any potential interactions
             if sum(pint) > 0
                 cell_poly_list = [LG.Polygon(rect_coords(writer.xg[j], writer.xg[j+1], writer.yg[i], writer.yg[i+1]))]
-                n_pieces = 1
                 if length(topography) > 0
-                    for (i, topo_coords) in enumerate(topography.coords)
-                        # Check if the topography piece can even intersect with the cell
-                        xmin, xmax, ymin, ymax = polyvec_extrema(topo_coords)
-                        topo_ext = Extent(X = (xmin, xmax), Y = (ymin, ymax))
-                        cell_ext = Extent(X = (writer.xg[j], writer.xg[j+1]), Y = ( writer.yg[i], writer.yg[i+1]))
-                        if Extents.intersects(topo_ext, cell_ext)
-                            # if they might intersect, take the difference and update the list
-                            tp = LG.Polygon(topo_coords)
-                            for (j, cp) in enumerate(cell_poly_list)
-                                j > n_pieces && break
-                                new_cell_pieces = diff_polys(cp, tp)
-                                if length(new_cell_pieces) > 0
-                                    cell_poly_list[j] = new_cell_pieces[1]
-                                    @views append!(cell_poly_list, new_cell_pieces[2:end])
-                                end
-                            end
-                            n_pieces = length(cell_poly_list)
-                        end
-                    end
+                    remove_topography_from_poly_list!(topography, cell_poly_list)
                 end
-                if n_pieces == 0
+                
+                if length(cell_poly_list) == 0
                     writer.data[j, i, :] .= 0.0
-                    break
+                    continue
                 end
 
                 floeidx = collect(1:length(floes))[pint .== 1]

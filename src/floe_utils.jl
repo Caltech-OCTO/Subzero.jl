@@ -731,3 +731,30 @@ function find_shared_edges_midpoint(c1::PolyVec{FT}, c2; atol = 1e-1) where {FT}
     end
     return mid_x, mid_y
 end
+
+
+function remove_topography_from_poly_list!(topography, poly_list)
+    n_pieces = length(poly_list)
+    for topo_coords in topography.coords
+        # Check if the topography piece can even intersect with the cell
+        tp = LG.Polygon(topo_coords)
+        topo_ext = GI.extent(tp)
+        n_new_pieces = 0
+        for (k, poly) in enumerate(poly_list)
+            poly_ext = GI.extent(poly)
+            if Extents.intersects(topo_ext, poly_ext)
+                # if they might intersect, take the difference and update the list
+                k > n_pieces && break
+                new_poly_pieces = diff_polys(cp, tp)
+                n = length(new_poly_pieces)
+                if n > 0
+                    poly_list[k] = new_poly_pieces[1]
+                    @views append!(poly_list, new_poly_pieces[2:end])
+                    n_new_pieces += (n -1)
+                end
+            end
+        end
+        n_pieces += n_new_pieces
+    end
+    return
+end
