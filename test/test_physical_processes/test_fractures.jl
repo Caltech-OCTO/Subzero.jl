@@ -18,7 +18,7 @@
             (-1.25e5, -1.25e5),
             atol = 1e-3
         ))
-        x_verts, y_verts = Subzero.separate_xy(hibler_verts)
+        x_verts, y_verts = first.(hibler_verts[1]), last.(hibler_verts[1])
         @test all(isapprox.(
             extrema(x_verts),
             [-264743.588, 14727.999],
@@ -37,7 +37,7 @@
             (-28125, -28125),
             atol = 1e-3
         ))
-        x_verts, y_verts = Subzero.separate_xy(hibler_verts)
+        x_verts, y_verts = first.(hibler_verts[1]), last.(hibler_verts[1])
         @test all(isapprox.(
             extrema(x_verts),
             [-59567.307, 3313.799],

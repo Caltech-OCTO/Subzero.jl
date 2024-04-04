@@ -97,23 +97,6 @@ intersect_polys(p1, p2) = get_polygons(
 )
 
 """
-    intersect_coords(c1, c2)
-
-Intersect geometries using their coordinates to return list of resulting
-polygons.
-Inputs:
-    c1  <PolyVec>
-    c2  <PolyVec>
-Output:
-    Vector of LibGEOS Polygons
-"""
-# intersect_coords(c1, c2) = intersect_polys(
-#     LG.Polygon(c1),
-#     LG.Polygon(c2),
-# )
-
-
-"""
     polyvec_extrema(coords)
 
 Finds extremal x and y values for given coordiantes, defining a tight bounding
@@ -410,68 +393,30 @@ function rmholes(multipoly::MultiPolys)
     return LG.MultiPolygon(nohole_lst)
 end
 
-"""
-    separate_xy(coords::PolyVec{T})
+#=
+    _calc_moment_inertia(::Type{T} poly, cent, h; ρi = 920.0)
 
-Pulls x and y coordinates from standard polygon vector coordinates into seperate
-vectors. Only keeps external coordinates and disregards holes
-Inputs:
-    coords <PolyVec{Float}> polygon coordinates
-Outputs: 
-    x <Vector{Float}> x coordinates
-    y <Vector{Float}> y coordinates
-"""
-function separate_xy(coords::PolyVec{T}) where {T<:AbstractFloat}
-    x = first.(coords[1])
-    y = last.(coords[1])
-    return x, y 
-end
+Calculate the mass moment of intertia from a polygon given the polygon, its centroid,
+height, and the density of ice in the simulation. Answer will be of given type T.
 
-"""
-    calc_moment_inertia(coords::PolyVec{T}, h; rhoice = 920.0)
-
-Calculate the mass moment of intertia from polygon coordinates.
-Inputs:
-    coords      <PolyVec{Float}>
-    h           <Real> height of floe
-    rhoice      <Real> Density of ice
-Output:
-    <Float> mass moment of inertia
-Note:
-    Assumes that first and last point within the coordinates are the same.
-    Will not give correct answer otherwise.
+Note: Assumes that first and last point within the coordinates are the same and will not
+produce correct answer otherwise.
 
 Based on paper: Marin, Joaquin."Computing columns, footings and gates through
 moments of area." Computers & Structures 18.2 (1984): 343-349.
-"""
-# function calc_moment_inertia(
-#     coords::PolyVec{T},
-#     centroid,
-#     h;
-#     ρi = 920.0
-# ) where {T<:AbstractFloat}
-#     x, y = separate_xy(coords)
-#     x .-= centroid[1]
-#     y .-= centroid[2]
-#     N = length(x)
-#     wi = x[1:N-1] .* y[2:N] - x[2:N] .* y[1:N-1]
-#     Ixx = 1/12 * sum(wi .* ((y[1:N-1] + y[2:N]).^2 - y[1:N-1] .* y[2:N]))
-#     Iyy = 1/12 * sum(wi .* ((x[1:N-1] + x[2:N]).^2 - x[1:N-1] .* x[2:N]))
-#     return abs(Ixx + Iyy)*h*ρi;
-# end
-
-function calc_moment_inertia(
-    ::Type{FT},
+=#
+function _calc_moment_inertia(
+    ::Type{T},
     poly,
     cent,
-    h;
+    height;
     ρi = 920.0,
-) where FT
-    xc, yc = GO._tuple_point(cent, FT)
-    Ixx, Iyy = zero(FT), zero(FT)
-    x1, y1 = zero(FT), zero(FT)
+) where T
+    xc, yc = GO._tuple_point(cent, T)
+    Ixx, Iyy = zero(T), zero(T)
+    x1, y1 = zero(T), zero(T)
     for (i, p2) in enumerate(GI.getpoint(poly))
-        (x2, y2) = GO._tuple_point(p2, FT)
+        (x2, y2) = GO._tuple_point(p2, T)
         x2, y2 = x2 - xc, y2 - yc
         if i == 1
             x1, y1 = x2, y2 
@@ -484,28 +429,8 @@ function calc_moment_inertia(
     end
     Ixx *= 1/12
     Iyy *= 1/12
-    return abs(Ixx + Iyy) * FT(h) * FT(ρi)
+    return abs(Ixx + Iyy) * T(height) * T(ρi) 
 end
-
-"""
-    calc_moment_inertia(poly::Polys, h; rhoice = 920.0)
-
-Calculate the mass moment of intertia from a LibGEOS polygon object using above
-coordinate-based moment of intertia function.
-Inputs:
-    poly      LibGEOS.Polygon
-    h           <Real> height of floe
-    rhoice      <Real> Density of ice
-Output:
-    <Float> mass moment of inertia
-"""
-# calc_moment_inertia(poly::Polys, h; ρi = 920.0) = 
-#     calc_moment_inertia(
-#         find_poly_coords(poly),
-#         GO.centroid(poly),
-#         h,
-#         ρi = ρi,
-#     )
 
 """
     orient_coords(coords)

@@ -68,17 +68,12 @@
     Subzero.translate!(test_trans, 1.5, -1.5)
     @test test_trans == [[[-0.5, 0.5], [-0.5, -0.5], [0.5, -0.5], [0.5, 0.5]]]
 
-    # Test seperating x and y coordiantes from PolyVec form
-    x_ext, y_ext = Subzero.separate_xy([ext])
-    @test x_ext == [0.0, 0.0, 1.0, 1.0, 0.0]
-    @test y_ext == [1.0, 0.0, 0.0, 1.0, 1.0]
-
     # Test moment of intertia calculations - compared to values output my MATLAB
-    poly_moment = Subzero.calc_moment_inertia(Float64, GI.Polygon([ext]), [0.5, 0.5], 0.25)
+    poly_moment = Subzero._calc_moment_inertia(Float64, GI.Polygon([ext]), [0.5, 0.5], 0.25)
     @test isapprox(poly_moment, 38.333, atol = 0.001)
-    @test Subzero.calc_moment_inertia(Float64, poly_nohole, GO.centroid(poly_nohole), 0.25) == poly_moment
+    @test Subzero._calc_moment_inertia(Float64, poly_nohole, GO.centroid(poly_nohole), 0.25) == poly_moment
     tri_poly = GI.Polygon([[[0, 1], [0, 0], [1, 0], [0, 1]]] .* 6.67)
-    tri_moment = Subzero.calc_moment_inertia(Float64, tri_poly, GO.centroid(tri_poly), 0.5)
+    tri_moment = Subzero._calc_moment_inertia(Float64, tri_poly, GO.centroid(tri_poly), 0.5)
     @test isapprox(tri_moment, 50581.145, atol = 0.001)
 
     # Test orient_coords

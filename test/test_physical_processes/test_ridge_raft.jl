@@ -3,7 +3,7 @@ using LibGEOS
     function update_height(floes, i, new_height, floe_settings)
         floes.height[i] = new_height
         floes.mass[i] = floes.area[i] * floes.height[i] * floe_settings.ρi
-        floes.moment[i] = Subzero.calc_moment_inertia(
+        floes.moment[i] = Subzero._calc_moment_inertia(
             Float64,
             GI.Polygon(floes.coords[i]),
             floes.centroid[i],

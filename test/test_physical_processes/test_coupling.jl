@@ -14,7 +14,7 @@
             -centroid1[2],
         )
         origin_poly = GI.Polygon(origin_coords)
-        xo, yo = Subzero.separate_xy(origin_coords)
+        xo, yo = first.(origin_coords[1]), last.(origin_coords[1])
         rmax = sqrt(maximum([sum(xo[i]^2 + yo[i]^2) for i in eachindex(xo)]))
         area = GO.area(poly1)
         mc_x, mc_y, status = Subzero.generate_subfloe_points(

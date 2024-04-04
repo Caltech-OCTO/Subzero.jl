@@ -54,6 +54,6 @@ close(f)
 #  plotting voronoi w/ labels
 scatter(xp, yp, markersize = 3, label = "centroids")
 annotate!([(xp[n] + 0.2, yp[n] + 0.03, Plots.text(id[n], 4)) for n in 1:159])
-verts = [Subzero.separate_xy(c) for c in coords]
-plot!(first.(verts), last.(verts), seriestype = [:shape])
+xs, ys = first.(c[1]), last.(c[1])
+plot!(xs, ys, seriestype = [:shape])
 savefig("output/sim/labeled_voronoi.png")

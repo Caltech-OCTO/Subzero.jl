@@ -40,7 +40,7 @@ function replace_floe!(
     floe.area = GO.area(new_poly)
     floe.height = new_mass/(floe.area * floe_settings.ρi)
     floe.mass = new_mass
-    floe.moment = calc_moment_inertia(
+    floe.moment = _calc_moment_inertia(
         FT,
         new_poly,
         floe.centroid,
