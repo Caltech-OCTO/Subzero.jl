@@ -16,14 +16,14 @@ grid = RegRectilinearGrid(
     Δgrid,
     Δgrid,
 )
-ocean = Ocean(grid, 0.1, 0.0, 0.0)
+ocean = Ocean(grid, 0.0, 0.0, 0.0)
 atmos = Atmos(grid, 0.0, 0.0, -1.0)
 
 # Domain creation
-nboundary = CompressionBoundary(North, grid, -0.1)
-sboundary = CompressionBoundary(South, grid, 0.1)
-eboundary = CollisionBoundary(East, grid)
-wboundary = CollisionBoundary(West, grid)
+nboundary = MovingBoundary(North, grid, 0.2, 0.0)
+sboundary = MovingBoundary(South, grid, 0.2, 0.0)
+eboundary = PeriodicBoundary(East, grid)
+wboundary = PeriodicBoundary(West, grid)
 
 domain = Domain(nboundary, sboundary, eboundary, wboundary)
 
@@ -37,13 +37,15 @@ floe_arr = initialize_floe_field(
     Δh,
     rng = Xoshiro(1),
 )
-
+nfloes = length(floe_arr)
+floe_arr.u .= 0
+floe_arr.v .= -0.01
 # Model creation
 model = Model(grid, ocean, atmos, domain, floe_arr)
 
 # Simulation setup
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
-consts = Constants(E = modulus)
+consts = Constants(E = modulus, Cd_io = 0.0, f = 0.0, turnθ = 0.0)
 
 # Run simulation
 run_time!(simulation) = @time run!(simulation)
@@ -80,12 +82,11 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 10000,
+    nΔt = 5000,
     verbose = true,
     writers = writers,
     rng = Xoshiro(1),
     coupling_settings = coupling_settings,
-    weld_settings = weld_settings,
 )
 run_time!(simulation)
 

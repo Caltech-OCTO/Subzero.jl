@@ -610,7 +610,7 @@ function in_bounds(
 end
 
 """
-    calc_mc_values!(
+    calc_subfloe_values!(
         floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
         grid,
         domain,
@@ -618,7 +618,7 @@ end
         mc_grid_idx,
     )
 
-Calculates monte carlo point's cartesian coordiantes, polar coordiantes,
+Calculates subfloe point's cartesian coordiantes, polar coordiantes,
 velocity and index within the grid. 
 Inputs:
     floe        <Union{Floe{AbstractFloat}, LazyRow{Floe{AbstractFloat}}}> floe
@@ -637,7 +637,7 @@ Outputs:
     mc_cart and mc_grid_idx filled with data for given floe's monte carlo points
     up to row j.
 """
-function calc_mc_values!(
+function calc_subfloe_values!(
     floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
     grid,
     domain,
@@ -655,7 +655,7 @@ function calc_mc_values!(
         x = px + floe.centroid[1]  # at centroid
         y = py + floe.centroid[2]  # at centroid
         # If point is in bounds, continue to find rest of values
-        if in_bounds(x, y, grid, domain.east, domain.north)
+        if in_bounds(x, y, grid, domain.north, domain.east)
             j += 1  # if added to outputs, move to next index in output array
             cart_vals[j, 1] = x
             cart_vals[j, 2] = y
@@ -1511,7 +1511,7 @@ function calc_one_way_coupling!(
     grid_idx = Matrix{Int}(undef, max_points, 2)
     for i in eachindex(floes)
         # Monte carlo point cartesian coordinates and grid cell indices
-        npoints = calc_mc_values!(
+        npoints = calc_subfloe_values!(
             LazyRow(floes, i),
             grid,
             domain,

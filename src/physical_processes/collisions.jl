@@ -233,10 +233,16 @@ boundary.
 """
 get_velocity(
     element::AbstractDomainElement{FT},
-    x,
-    y,
+    _,
+    _,
 ) where {FT} = 
     FT(0), FT(0)
+
+get_velocity(
+    element::MovingBoundary,
+    _,
+    _,
+) = element.u, element.v
 
 """
     calc_friction_forces(
@@ -632,7 +638,7 @@ function floe_domain_element_interaction!(
     floe,
     element::Union{
         CollisionBoundary,
-        CompressionBoundary,
+        MovingBoundary,
         TopographyElement,
     },
     elem_idx,
@@ -705,17 +711,17 @@ end
 Move North/South compression boundaries by given velocity. Update coords and val
 fields to reflect new position.
 Inputs:
-    boundary    <CompressionBoundary{Union{North, South}, AbstractFloat}> 
+    boundary    <MovingBoundary{Union{North, South}, AbstractFloat}> 
                     domain compression boundary
     Δt          <Int> number of seconds in a timestep
 Outputs:
     None. Move boundary North or South depending on velocity.
 """
 function update_boundary!(
-    boundary::CompressionBoundary{D, FT},
+    boundary::MovingBoundary{D, FT},
     Δt,
 ) where {D <: Union{North, South}, FT <: AbstractFloat}
-    Δd = boundary.velocity * Δt
+    Δd = boundary.v * Δt
     boundary.val += Δd
     translate!(boundary.coords, FT(0), Δd)
 end
@@ -725,17 +731,17 @@ end
 Move East/West compression boundaries by given velocity. Update coords and val
 fields to reflect new position.
 Inputs:
-    boundary    <CompressionBoundary{Union{East, West}, AbstractFloat}> 
+    boundary    <MovingBoundary{Union{East, West}, AbstractFloat}> 
                     domain compression boundary
     Δt          <Int> number of seconds in a timestep
 Outputs:
     None. Move boundary East/West depending on velocity.
 """
 function update_boundary!(
-    boundary::CompressionBoundary{D, FT},
+    boundary::MovingBoundary{D, FT},
     Δt,
 ) where {D <: Union{East, West}, FT <: AbstractFloat}
-    Δd = boundary.velocity * Δt
+    Δd = boundary.u * Δt
     boundary.val += Δd
     translate!(boundary.coords, Δd, FT(0))
 end

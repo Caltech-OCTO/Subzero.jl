@@ -338,66 +338,74 @@ function CollisionBoundary{D, FT}(
 end
 
 """
-    CompressionBoundary <: AbstractBoundary
+    MovingBoundary <: AbstractBoundary
 
 A sub-type of AbstractBoundary that creates a floe along the boundary that moves
 towards the center of the domain at the given velocity, compressing the ice
 within the domain. This subtype is a mutable struct so that the coordinates and
-val can be changed as the boundary moves. The velocity is in [m/s].
+val can be changed as the boundary moves. The u and v velocities are in [m/s].
+
+Note that with a u-velocity, east and west walls move towards the center of the domain,
+providing compressive stress, and with a v-velocity, the bounday creates a shear stress by
+incorporating the velocity into friction calculations but doesn't actually move. This means
+that the boundaries cannot move at an angle, distorting the shape of the domain regardless
+the the combination of u and v velocities. The same, but opposite is true for the north
+and south walls.
 """
-mutable struct CompressionBoundary{D, FT}<:AbstractBoundary{D, FT}
+mutable struct MovingBoundary{D, FT}<:AbstractBoundary{D, FT}
     coords::PolyVec{FT}
     val::FT
-    velocity::FT
+    u::FT
+    v::FT
 end
 
 """
-    CompressionBoundary(::Type{FT}, ::Type{D}, args...)
+    MovingBoundary(::Type{FT}, ::Type{D}, args...)
 
-A float type FT can be provided as the first argument of any CompressionBoundary
+A float type FT can be provided as the first argument of any MovingBoundary
 constructor. The second argument D is the directional type of the boundary.
-A CompressionBoundary of type FT and D will be created by passing all other
+A MovingBoundary of type FT and D will be created by passing all other
 arguments to the correct constructor. 
 """
-CompressionBoundary(::Type{FT}, ::Type{D}, args...) where {
+MovingBoundary(::Type{FT}, ::Type{D}, args...) where {
     FT <: AbstractFloat,
     D <: AbstractDirection,
-} = CompressionBoundary{D, FT}(args...)
+} = MovingBoundary{D, FT}(args...)
 
 """
-    CompressionBoundary(::Type{D}, args...)
+    MovingBoundary(::Type{D}, args...)
 
-If a float type isn't specified, CompressionBoundary will be of type Float64 and
+If a float type isn't specified, MovingBoundary will be of type Float64 and
 the correct constructor will be called with all other arguments.
 """
-CompressionBoundary(::Type{D}, args...) where {D <: AbstractDirection} =
-    CompressionBoundary{D, Float64}(args...)
+MovingBoundary(::Type{D}, args...) where {D <: AbstractDirection} =
+    MovingBoundary{D, Float64}(args...)
 
 
 """
-    CompressionBoundary{D, FT}(grid, velocity)
+    MovingBoundary{D, FT}(grid, velocity)
 
 Creates compression boundary on the edge of the grid, and with the direction as
 a type.
 Edge is determined by direction.
 Inputs:
         grid        <AbstractGrid> model grid
-        velocity    <AbstractFloat> velocity of boundary
+        u    <AbstractFloat> u velocity of boundary
+        v    <AbstractFloat> v velocity of boundary
 Outputs:
-    CompressionBoundary on edge of grid given by direction. 
-Note:
-    If a boundary should move from north to south or east to west, the velocity
-    should be negative. Else the velocity should be positive.
+    MovingBoundary on edge of grid given by direction. 
 """
-function CompressionBoundary{D, FT}(
+function MovingBoundary{D, FT}(
     grid,
-    velocity,
+    u,
+    v,
 ) where {D <: AbstractDirection, FT <: AbstractFloat}
     val, coords = boundary_coords(grid, D)
-    CompressionBoundary{D, FT}(
+    MovingBoundary{D, FT}(
         coords,
         val,
-        velocity,
+        u,
+        v,
     )
 end
 
@@ -409,7 +417,7 @@ Union of all non-peridic boundary types to use as shorthand for dispatch.
 const NonPeriodicBoundary = Union{
     OpenBoundary,
     CollisionBoundary,
-    CompressionBoundary,
+    MovingBoundary,
 }
 
 """

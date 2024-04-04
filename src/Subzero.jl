@@ -13,7 +13,7 @@ export
     CollisionBC,
     CompressionBC,
     AbstractBoundary,
-    CompressionBoundary,
+    MovingBoundary,
     CollisionBoundary,
     PeriodicBoundary,
     OpenBoundary,
