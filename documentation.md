@@ -569,23 +569,25 @@ Note that other than `∆tout`, all values have default values so you only need 
 
 #### FloeOutputWriter
 The floe output writer allows you to save floe values into a JLD2 file. This will give you the ability to easily analyze floe fields across timesteps. A `FloeOutputWriter` has four field:
-- `outputs`, which specifies which floe fields should be included
 - `Δtout`, which specifies the umber of timesteps between floe outputs starting from the first timestep
+- `outputs`, which specifies which floe fields should be included
 - `filename`, including the path to the file, to save the file to
 - `overwrite` boolean that specifies whether a file with the same filename should be overwritter or if an error should be thrown during creation.
 
 You can create an `FloeOutputWriter` directly as a struct or with the following function call:
 ```julia
 floewriter = FloeOutputWriter(
-    outputs,
-    Δtout,
+    Δtout;
+    outputs = collect(fieldnames(Floe)),
     dir = ".",
     filename = "floes.jld2",
     overwrite = false,
     jld2_kw = Dict{Symbol, Any}(),
 )
 ```
-The `outputs` field takes in a list of symbols corresponding to floe fields. For example, if you want the floe output writer to output the floes centroid and coordinates then `outputs = [:centroid, :coords]`. If you want all floe fields then you can simply admit the outputs field altogether and all floe fields will be output. Note that other than `outputs` and `∆tout`, all values have default values so you only need to pass in arguments that you wish to change from these values. Furthermore, all inputs but ∆tout are keyword arguments, so you must use the keyword when passing in new values.
+The `outputs` field takes in a list of symbols corresponding to floe fields. For example, if you want the floe output writer to output the floes centroid and coordinates then `outputs = [:centroid, :coords]`. If you want all floe fields then you can simply omit the outputs field all together and all floe fields will be output. Note that other than `∆tout`, all values have default values so you only need to pass in arguments that you wish to change from these values. Furthermore, all inputs but ∆tout are keyword arguments, so you must use the keyword when passing in new values.
+
+Note that if you have Periodic calls, and thus ghost floes in your simulation, these will also be saved by the `FloeOutputWriter`. If you want to exclude these floes from your analysis or when otherwise using the `FloeOutputWriter` output, you can do so by only including floes with a `ghost_id = 0`.
 
 #### GridOutputWriter
 The grid output writer allows you to floe values averaged onto a course grid to a NetCDF file. This will give you the ability to easily analyze floe characteristics on a grid. A `GridOutputWriter` has eight field:
@@ -602,10 +604,10 @@ You can create an `GridOutputWriter` directly as a struct or with the following 
 ```julia
 gridwriter = GridOutputWriter(
     FT,
-    outputs,
     Δtout,
     grid,
     dims;
+    outputs = collect(get_known_grid_outputs()),
     dir = ".",
     filename = "gridded_data.nc",
     overwrite = false,
@@ -614,7 +616,7 @@ gridwriter = GridOutputWriter(
 ```
 The `outputs` field takes in a list of symbols. To see all possible outputs, call the `get_known_grid_outputs()` function. For example, if you want the grid output writer to output the floe masses and areas averaged on the grid then `outputs = [:mass_grid, :area_grid]`. If you want all possible fields then you can simply admit the outputs field altogether and all grid fields will be output. The `grid` field is the simulation grid, and then `dims` field specifies the dimensions of the grid you would like the output calculated on.
 
-Note that other than `outputs`, `∆tout`, `grid`, and `dims`, all values have default values so you only need to pass in arguments that you wish to change from these values. Furthermore, all inputs but ∆tout are keyword arguments, so you must use the keyword when passing in new values.
+Note that other than `∆tout`, `grid`, and `dims`, all values have default values so you only need to pass in arguments that you wish to change from these values. Furthermore, all inputs but ∆tout are keyword arguments, so you must use the keyword when passing in new values.
 
 #### OutputWriters
 Once you have created all of the types of output writers you need, you must combine them into one `OutputWriters` object that will be a simulation field. 
@@ -690,6 +692,20 @@ timestep_sim!(
 ```
 
 Note that we are working on a more elegant solution to coupling with Oceananigans and CliMA and this page will be updated once that is in place. 
+
+If you run your simulation in multiple parts and need to re-start your simulation from files, the `restart!` function will be a good place to start. However, note that it is quite simple and users may need to write their own restart function if they want any complex behavior. 
+
+The provided `restart!` function takes in the output file from both an `InitialStateOutputWriter` and a `CheckpointOutputWriter` to restart the simulation. In addition to providing these two files, the user must also provide the number of timesteps to run the next part of the simulation for (`new_nΔt`) and new output writers. The user also has an option to specify a non-zero starting timestep for the simulation using the keyword argument `start_tstep`.
+
+```
+restart!(
+   initial_state_fn,
+   checkpointer_fn,
+   new_nΔt,
+   new_output_writers;
+   start_tstep = 0,
+)
+```
 
 ### Plotting
 
