@@ -185,10 +185,7 @@
         floe1_copy = deepcopy(floes[1])
         colliding_coords = no_frac_floe.coords
         deforming_forces = frac_deform_floe.interactions[xforce:yforce]
-        init_overlap = GO.area(LG.intersection(
-            LG.Polygon(floe1_copy.coords),
-            LG.Polygon(colliding_coords),
-        ))
+        init_overlap = sum(GO.area, Subzero.intersect_polys(LG.Polygon(floe1_copy.coords), LG.Polygon(colliding_coords)); init = 0.0)
         Subzero.deform_floe!(
             floe1_copy,
             colliding_coords,
@@ -197,10 +194,8 @@
             10,
             Xoshiro(1),
         )
-        @test init_overlap > GO.area(LG.intersection(
-            LG.Polygon(floe1_copy.coords),  # These coords have changed
-            LG.Polygon(colliding_coords),
-        ))
+        post_deform_overlap = sum(GO.area, Subzero.intersect_polys(LG.Polygon(floe1_copy.coords), LG.Polygon(colliding_coords)); init = 0.0)
+        @test init_overlap > post_deform_overlap
         
         @test all(isapprox.( 
             floe1_copy.centroid,
@@ -226,7 +221,7 @@
         og_floe_poly = LG.Polygon(floes.coords[1])
         new_floes_polys = LG.MultiPolygon(new_floes.coords)
         @test isapprox(
-            GO.area(LG.intersection(new_floes_polys, og_floe_poly)),
+            sum(GO.area, Subzero.intersect_polys(new_floes_polys, og_floe_poly); init = 0.0),
             GO.area(og_floe_poly),
             atol = 1e-6,
         )

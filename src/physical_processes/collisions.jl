@@ -466,7 +466,8 @@ function floe_domain_element_interaction!(
     floe_poly = LG.Polygon(floe.coords)
     bounds_poly = LG.Polygon(boundary.coords)
     # Check if the floe and boundary actually overlap
-    if GO.area(LG.intersection(floe_poly, bounds_poly)) > 0
+    inter_area = sum(GO.area, intersect_polys(floe_poly, bounds_poly); init = 0.0)
+    if inter_area > 0
         floe.status.tag = remove
     end
     return

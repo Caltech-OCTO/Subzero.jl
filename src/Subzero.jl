@@ -72,7 +72,7 @@ import Base.@kwdef # this is being exported as of version 1.9
 import LibGEOS as LG
 import GeometryOps as GO
 import GeometryOps.GeoInterface as GI
-using CairoMakie, DataStructures, Dates, GeometryBasics, Interpolations, JLD2,
+using CairoMakie, DataStructures, Dates, Extents, GeometryBasics, Interpolations, JLD2,
     LinearAlgebra, Logging, Makie, Measures, NCDatasets, NetCDF, Printf, Random,
     SplitApplyCombine, StaticArrays, Statistics, StructArrays, VoronoiCells
 

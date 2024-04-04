@@ -339,7 +339,7 @@ function deform_floe!(
 ) where FT
     poly = LG.Polygon(floe.coords)
     deformer_poly = LG.Polygon(deformer_coords)
-    overlap_regions = get_polygons(LG.intersection(poly, deformer_poly), FT)
+    overlap_regions =intersect_polys(poly, deformer_poly)
     max_overlap_area, max_overlap_idx = findmax(GO.area, overlap_regions)
     overlap_region = overlap_regions[max_overlap_idx]
     # If floe and the deformer floe have an overlap area
@@ -351,7 +351,7 @@ function deform_floe!(
         Δx, Δy = abs.(dist)[1] .* force_fracs
         # Temporarily move deformer floe to find new shape of floe
         deformer_poly = LG.Polygon(translate(deformer_coords, Δx, Δy))
-        new_floes = get_polygons(LG.difference(poly, deformer_poly), FT)
+        new_floes = diff_polys(poly, deformer_poly)
         new_floe_area, new_floe_idx = findmax(GO.area, new_floes)
         new_floe_poly = new_floes[new_floe_idx]
         # If didn't change floe area by more than 90%
@@ -425,9 +425,7 @@ function split_floe(
         for p in pieces
             append!(
                 pieces_polys,
-                get_polygons(
-                    LG.intersection(LG.Polygon(p), floe_poly), FT
-                ),
+                intersect_polys(LG.Polygon(p), floe_poly),
             )
         end
         # Conserve mass within pieces

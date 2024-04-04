@@ -89,12 +89,11 @@ Inputs:
 Output:
     Vector of LibGEOS Polygons
 """
-intersect_polys(p1, p2) = get_polygons(
-    LG.intersection(
-        p1,
-        p2,
-    ),
-)
+intersect_polys(p1, p2) = get_polygons(LG.intersection(p1, p2))
+
+diff_polys(p1, p2) = get_polygons(LG.difference(p1, p2))
+
+union_polys(p1, p2) = get_polygons(LG.union(p1, p2))
 
 """
     polyvec_extrema(coords)

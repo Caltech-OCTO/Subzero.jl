@@ -109,7 +109,7 @@ function smooth_floes!(
                         push!(floes.status[i].fuse_idx, j)
                     else
                         jpoly = LG.Polygon(floes.coords[j])
-                        intersect_area = GO.area(LG.intersection(simp_poly, jpoly))
+                        intersect_area = sum(GO.area, intersect_polys(simp_poly, jpoly); init = 0.0)
                         if intersect_area/GO.area(jpoly) > collision_settings.floe_floe_max_overlap
                             floes.status[i].tag = fuse
                             push!(floes.status[i].fuse_idx, j)
@@ -158,7 +158,7 @@ function fuse_two_floes!(
     rmholes!(remove_floe.coords)
     poly1 = LG.Polygon(keep_floe.coords)
     poly2 = LG.Polygon(remove_floe.coords)
-    new_poly_list = get_polygons(LG.union(poly1, poly2))::Vector{Polys{Float64}}
+    new_poly_list = union_polys(poly1, poly2)::Vector{Polys{Float64}}
     if length(new_poly_list) == 1  # if they fused, they will make one polygon
         new_poly = rmholes(new_poly_list[1])
         # mark smaller floe for removal

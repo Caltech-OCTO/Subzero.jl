@@ -181,10 +181,8 @@
         rng = Xoshiro(0)
     )
     @test typeof(floe_arr) <: StructArray{<:Floe}
-    @test all([GO.area(
-        LG.intersection(LG.Polygon(c), topo_polys)
-    ) for c in floe_arr.coords] .< 1e-6)
-
+    @test all([sum(GO.area, Subzero.intersect_polys(LG.Polygon(c), topo_polys); init = 0.0) for c in floe_arr.coords] .< 1e-6)
+    
     # Test generate_voronoi_coords - general case
     domain_coords = [[[[1, 2], [1.5, 3.5], [1, 5], [2.5, 5], [2.5, 2], [1, 2]]]]
     bounding_box = [[[1, 2], [1, 5], [2.5, 5], [2.5, 2], [1, 2]]]
@@ -202,7 +200,7 @@
     for c in voronoi_coords
         fpoly = LG.Polygon(c)
         @test isapprox(
-            GO.area(LG.intersection(fpoly, bounding_poly)),
+            sum(GO.area, Subzero.intersect_polys(fpoly, bounding_poly); init = 0.0),
             GO.area(fpoly),
             atol = 1e-3,
         )
@@ -238,9 +236,8 @@
         atol = 1e-1
     )
     @test all(floe_arr.area .> 1e4)
-    @test all([GO.area(
-        LG.intersection(LG.Polygon(c), topo_polys)
-    ) for c in floe_arr.coords] .< 1e-6)
+    @test all([sum(GO.area, Subzero.intersect_polys(LG.Polygon(c), topo_polys); init = 0.0) for c in floe_arr.coords] .< 1e-6)
+
     nfloes = length(floe_arr)
     @test all(floe_arr.id .== range(1, nfloes))
 
@@ -260,18 +257,14 @@
     first_cell = [[[-8e4, -8e4], [-8e4, 0], [0, 0], [0, -8e4], [-8e4, -8e4]]]
     for j in 1:2
         for i in 1:2
-            cell = LG.Polygon(
-                Subzero.translate(first_cell, 8e4*(j-1), 8e4*(i-1))
-            )
-            open_cell_area = GO.area(LG.difference(cell, topo_polys))
+            cell = LG.Polygon(Subzero.translate(first_cell, 8e4*(j-1), 8e4*(i-1)))
+            open_cell_area = sum(GO.area, Subzero.diff_polys(cell, topo_polys); init = 0.0)
             c = concentrations[i, j]
-            floes_in_cell = [LG.intersection(p, cell) for p in floe_polys]
-            @test c - 100eps() <= sum(GO.area.(floes_in_cell))/open_cell_area < 1 + eps()
+            floes_in_cell_area = mapreduce(x -> sum(GO.area, Subzero.intersect_polys(x, cell); init = 0.0), +, floe_polys; init = 0.0)
+            @test c - 100eps() <= floes_in_cell_area/open_cell_area < 1 + eps()
         end
     end
-    @test all([GO.area(
-        LG.intersection(p, topo_polys)
-    ) for p in floe_polys] .< 1e-3)
+    @test all([sum(GO.area, Subzero.intersect_polys(p, topo_polys); init = 0.0) for p in floe_polys] .< 1e-3)
     @test all([LG.isValid(p) for p in floe_polys])
     @test all(floe_arr.id .== range(1, nfloes))
 
