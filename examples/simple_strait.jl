@@ -80,13 +80,14 @@ run_time!(simulation) = @time run!(simulation)
 
 initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
 floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
-writers = OutputWriters(initwriter, floewriter)
+gridwriter = GridOutputWriter(100, grid, (10, 10), dir = dir, overwrite = true)
+writers = OutputWriters(initwriter, floewriter, gridwriter)
 
 simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 2000,
+    nΔt = 1000,
     verbose = true,
     floe_settings = floe_settings,
     coupling_settings = coupling_settings,

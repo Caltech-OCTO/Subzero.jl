@@ -841,15 +841,32 @@ function calc_eulerian_data!(floes, topography, writer)
             pint = potential_interactions[i,j,:]
             # If there are any potential interactions
             if sum(pint) > 0
-                cell_poly = LG.Polygon(rect_coords(
-                    writer.xg[j],
-                    writer.xg[j+1],
-                    writer.yg[i],
-                    writer.yg[i+1],
-                ))
+                cell_poly_list = [LG.Polygon(rect_coords(writer.xg[j], writer.xg[j+1], writer.yg[i], writer.yg[i+1]))]
+                n_pieces = 1
                 if length(topography) > 0
-                    topography_poly = LG.MultiPolygon(topography.coords)
-                    cell_poly = LG.difference(cell_poly, topography_poly)
+                    for (i, topo_coords) in enumerate(topography.coords)
+                        # Check if the topography piece can even intersect with the cell
+                        xmin, xmax, ymin, ymax = polyvec_extrema(topo_coords)
+                        topo_ext = Extent(X = (xmin, xmax), Y = (ymin, ymax))
+                        cell_ext = Extent(X = (writer.xg[j], writer.xg[j+1]), Y = ( writer.yg[i], writer.yg[i+1]))
+                        if Extents.intersects(topo_ext, cell_ext)
+                            # if they might intersect, take the difference and update the list
+                            tp = LG.Polygon(topo_coords)
+                            for (j, cp) in enumerate(cell_poly_list)
+                                j > n_pieces && break
+                                new_cell_pieces = diff_polys(cp, tp)
+                                if length(new_cell_pieces) > 0
+                                    cell_poly_list[j] = new_cell_pieces[1]
+                                    @views append!(cell_poly_list, new_cell_pieces[2:end])
+                                end
+                            end
+                            n_pieces = length(cell_poly_list)
+                        end
+                    end
+                end
+                if n_pieces == 0
+                    writer.data[j, i, :] .= 0.0
+                    break
                 end
 
                 floeidx = collect(1:length(floes))[pint .== 1]
@@ -858,13 +875,12 @@ function calc_eulerian_data!(floes, topography, writer)
                     pic -> partially in cell - only includes pieces of floes
                         that are within grid bounds
                 =#
-                pic_polys = [
-                    LG.intersection(
-                        cell_poly,
-                        LG.Polygon(floes.coords[idx]),
-                    ) for idx in floeidx]
-
-                pic_area = [GO.area(poly) for poly in pic_polys]
+                pic_area = zeros(length(floeidx))
+                for (i, idx) in enumerate(floeidx)
+                    floe_poly = LG.Polygon(floes.coords[idx])
+                    pic_area[i] = mapreduce(x -> sum(GO.area, Subzero.intersect_polys(floe_poly, x); init = 0.0), +, cell_poly_list; init = 0.0)
+                end
+                
                 floeidx = floeidx[pic_area .> 0]
                 pic_area = pic_area[pic_area .> 0]
                 fic = floes[floeidx]
@@ -873,11 +889,11 @@ function calc_eulerian_data!(floes, topography, writer)
 
                 area_ratios = pic_area ./ fic_area
                 area_tot = sum(pic_area)
-                mass_tot = sum(floes.mass[floeidx] .* area_ratios)
+                mass_tot = sum(fic_mass .* area_ratios)
 
                 if mass_tot > 0
                     # mass and area ratios
-                    ma_ratios = area_ratios .* (floes.mass[floeidx] ./ mass_tot)
+                    ma_ratios = area_ratios .* (fic_mass ./ mass_tot)
                     outputs = writer.outputs
                     for k in eachindex(outputs)
                         data = if outputs[k] == :u_grid
@@ -889,7 +905,7 @@ function calc_eulerian_data!(floes, topography, writer)
                         elseif outputs[k] == :dvdt_grid
                             sum(floes.p_dvdt[floeidx] .* ma_ratios)
                         elseif outputs[k] == :si_frac_grid
-                            area_tot/GO.area(cell_poly)
+                            area_tot/sum(GO.area, cell_poly_list; init = 0.0)
                         elseif outputs[k] == :overarea_grid
                             sum(floes.overarea[floeidx])/length(floeidx)
                         elseif outputs[k] == :mass_grid
@@ -917,13 +933,13 @@ function calc_eulerian_data!(floes, topography, writer)
                             end
                             stress
                         elseif outputs[k] == :strain_ux_grid
-                            sum([s[1, 1] for s in floes[floeidx].strain] .* ma_ratios)
+                            sum([s[1, 1] for s in fic.strain] .* ma_ratios)
                         elseif outputs[k] == :strain_vx_grid
-                            sum([s[1, 2] for s in floes[floeidx].strain] .* ma_ratios)
+                            sum([s[1, 2] for s in fic.strain] .* ma_ratios)
                         elseif outputs[k] == :strain_uy_grid
-                            sum([s[2, 1] for s in floes[floeidx].strain] .* ma_ratios)
+                            sum([s[2, 1] for s in fic.strain] .* ma_ratios)
                         elseif outputs[k] == :strain_vy_grid
-                            sum([s[2, 2] for s in floes[floeidx].strain] .* ma_ratios)
+                            sum([s[2, 2] for s in fic.strain] .* ma_ratios)
                         end
                         writer.data[j, i, k] = data
                     end
