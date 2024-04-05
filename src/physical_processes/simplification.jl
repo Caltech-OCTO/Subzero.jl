@@ -62,14 +62,12 @@ function smooth_floes!(
     Δt,
     rng,
 ) where {FT <: AbstractFloat}
-    topo_coords = topography.coords
     for i in eachindex(floes)
         if length(floes.coords[i][1]) > simp_settings.max_vertices
-            poly = LG.simplify(LG.Polygon(floes.coords[i]), simp_settings.tol)
-            if !isempty(topo_coords)
-                poly = LG.difference(poly, LG.MultiPolygon(topo_coords))
+            poly_list = [LG.simplify(LG.Polygon(floes.coords[i]), simp_settings.tol)]
+            if !isempty(topography)
+                remove_topography_from_poly_list!(topography, poly_list)
             end
-            poly_list = get_polygons(rmholes(poly), FT)
             simp_poly =
                 if length(poly_list) == 1
                     poly_list[1]

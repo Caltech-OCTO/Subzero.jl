@@ -88,13 +88,15 @@ function remove_floe_overlap!(
     simp_settings,
     rng,  
 ) where {FT <: AbstractFloat}
-    # Find new floe shape and regions
-    new_floe_poly = LG.difference(
-        LG.Polygon(floes.coords[shrink_idx]),
-        LG.Polygon(grow_floe_coords),
-    )
-    new_floe_poly = LG.simplify(new_floe_poly, simp_settings.tol)
-    total_area = GO.area(new_floe_poly)
+    # Find new floe shapes and regions
+    regions = diff_polys(LG.Polygon(floes.coords[shrink_idx]), LG.Polygon(grow_floe_coords))
+    total_area = zero(FT)
+    nregions = 0
+    for (i, region) in enumerate(regions)
+        regions[i] = LG.simplify(region, simp_settings.tol)
+        total_area += GO.area(region)
+        nregions += 1
+    end
     floe_num = 0  # How many new floes have been created from the regions
     # Changes in area / volume
     transfer_area = floes.area[shrink_idx] - total_area
@@ -102,9 +104,6 @@ function remove_floe_overlap!(
     # If the transfer area is sufficent, create new floes
     if transfer_area > ridgeraft_settings.min_overlap_frac * floes.area[shrink_idx]
         transfer_vol = floes.area[shrink_idx] * floes.height[shrink_idx]
-        # Find regions
-        regions = get_polygons(new_floe_poly, FT)
-        nregions = length(regions)
         # Reset shrinking index to parent floe and determine floe shift
         parent_Δx = floes.centroid[shrink_parent_idx][1] -
             floes.centroid[shrink_idx][1]

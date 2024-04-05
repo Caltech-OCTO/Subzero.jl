@@ -266,12 +266,10 @@
         mass1 = sqr_floe.mass
         moment1 = sqr_floe.moment
         x1, y1 = sqr_floe.centroid
+        tri_rect_poly = Subzero.union_polys(LG.Polygon(square_coords), LG.Polygon(triangle_coords))[1]
         Subzero.replace_floe!(
             sqr_floe,
-            LG.union(
-                LG.Polygon(square_coords),
-                LG.Polygon(triangle_coords)
-            ),
+            tri_rect_poly,
             sqr_floe.mass + tri_floe.mass,
             FloeSettings(),
             Xoshiro(1)
