@@ -421,13 +421,14 @@ function split_floe(
     if !isempty(pieces)
         # Intersect voronoi tesselation pieces with floe
         floe_poly = LG.Polygon(rmholes(floe.coords))
-        pieces_polys = Vector{LG.Polygon}()
-        for p in pieces
-            append!(
-                pieces_polys,
-                intersect_polys(LG.Polygon(p), floe_poly),
-            )
-        end
+        pieces_polys = mapreduce(p -> intersect_polys(LG.Polygon(p), floe_poly), append!, pieces; init = Vector{Polys{FT}}())
+        # pieces_polys = Vector{Polys{FT}}()
+        # for p in pieces
+        #     append!(
+        #         pieces_polys,
+        #         intersect_polys(LG.Polygon(p), floe_poly),
+        #     )
+        # end
         # Conserve mass within pieces
         pieces_areas = [GO.area(p) for p in pieces_polys]
         total_area = sum(pieces_areas)
@@ -436,8 +437,9 @@ function split_floe(
             if pieces_areas[i] > 0
                 mass = floe.mass * (pieces_areas[i]/total_area)
                 height = mass / (floe_settings.ρi * pieces_areas[i])
-                pieces_floes = poly_to_floes(
+                poly_to_floes!(
                     FT,
+                    new_floes,
                     pieces_polys[i],
                     height,
                     0,  # Δh - range of random height difference between floes
@@ -448,7 +450,6 @@ function split_floe(
                     v = floe.v,
                     ξ = floe.ξ,
                 )
-                append!(new_floes, pieces_floes)
             end
         end
     end

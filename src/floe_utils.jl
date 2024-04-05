@@ -732,29 +732,70 @@ function find_shared_edges_midpoint(c1::PolyVec{FT}, c2; atol = 1e-1) where {FT}
     return mid_x, mid_y
 end
 
+function _remove_poly_list_overlap!(overlap_poly, poly_list)
+
+
+end
 
 function remove_topography_from_poly_list!(topography, poly_list)
     n_pieces = length(poly_list)
+    remove_idx = falses(n_pieces)
     for topo_coords in topography.coords
         # Check if the topography piece can even intersect with the cell
-        tp = LG.Polygon(topo_coords)
-        topo_ext = GI.extent(tp)
+        topo = LG.Polygon(topo_coords)
+        topo_ext = GI.extent(topo)
         n_new_pieces = 0
         for (k, poly) in enumerate(poly_list)
+            remove_idx[k] && continue
             poly_ext = GI.extent(poly)
             if Extents.intersects(topo_ext, poly_ext)
                 # if they might intersect, take the difference and update the list
                 k > n_pieces && break
-                new_poly_pieces = diff_polys(cp, tp)
+                new_poly_pieces = diff_polys(poly, topo)
                 n = length(new_poly_pieces)
-                if n > 0
+                if n == 0
+                    remove_idx[k] = true
+                else # at least 1 resulting polygon
                     poly_list[k] = new_poly_pieces[1]
                     @views append!(poly_list, new_poly_pieces[2:end])
-                    n_new_pieces += (n -1)
+                    append!(remove_idx, falses(n - 1))
+                    n_new_pieces += (n - 1)
                 end
             end
         end
         n_pieces += n_new_pieces
     end
+    deleteat!(poly_list, remove_idx)
+    return
+end
+
+function apply_floe_list_mask!(mask_list, poly_list)
+    n_pieces = length(poly_list)
+    remove_idx = falses(n_pieces)
+    for mask in mask_list
+        # Check if the topography piece can even intersect with the cell
+        mask_ext = GI.extent(mask)
+        n_new_pieces = 0
+        for (k, poly) in enumerate(poly_list)
+            remove_idx[k] && continue
+            poly_ext = GI.extent(poly)
+            if Extents.intersects(mask_ext, poly_ext)
+                # if they might intersect, take the difference and update the list
+                k > n_pieces && break
+                new_poly_pieces = intersect_polys(poly, mask)
+                n = length(new_poly_pieces)
+                if n == 0
+                    remove_idx[k] = true
+                else # at least 1 resulting polygon
+                    poly_list[k] = new_poly_pieces[1]
+                    @views append!(poly_list, new_poly_pieces[2:end])
+                    append!(remove_idx, falses(n - 1))
+                    n_new_pieces += (n - 1)
+                end
+            end
+        end
+        n_pieces += n_new_pieces
+    end
+    deleteat!(poly_list, remove_idx)
     return
 end

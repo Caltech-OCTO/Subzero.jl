@@ -53,62 +53,41 @@
         [[6.0, 4.0], [6.0, 6.0], [7.0, 6.0], [7.0, 4.0], [6.0, 4.0]]]
     rmax_cpoly = 2sqrt(5^2 + 5^2)
     # Test polygon with no holes
-    floe_arr = Subzero.poly_to_floes(
+    floe_arr = StructArray{Floe{FT}}(undef, 0)
+    n_new = Subzero.poly_to_floes!(
         FT,
+        floe_arr,
         LG.Polygon(rect_poly),
         0.25,
         0.01,
         rmax_rect;
     )
-    @test length(floe_arr) == 1
-    @test typeof(floe_arr[1]) <: Floe
+    @test n_new == 1 && length(floe_arr) == 1
     @test !Subzero.hashole(floe_arr.coords[1])
 
     # Test with polygon below minimum floe area
-    floe_arr = Subzero.poly_to_floes(
+    n_new = Subzero.poly_to_floes!(
         FT,
+        floe_arr,
         LG.Polygon(rect_poly),
         0.25,
         0.01,
         rmax_rect;
         floe_settings = FloeSettings(min_floe_area = 55),
     )
-    @test isempty(floe_arr)
+    @test n_new == 0 && length(floe_arr) == 1
 
     # Test with polygon with a hole that is split into 3 polyons
-    floe_arr = Subzero.poly_to_floes(
+    n_new = Subzero.poly_to_floes!(
         FT,
+        floe_arr,
         LG.Polygon(c_poly_hole),
         0.25,
         0.01,
         rmax_cpoly,
     )
-    @test length(floe_arr) == 3
+    @test n_new == 3 && length(floe_arr) == 4
     @test !any(Subzero.hashole.(floe_arr.coords))
-    @test typeof(floe_arr) <: StructArray{<:Floe}
-
-    # Test with multipolygon 
-    floe_arr = Subzero.poly_to_floes(
-        FT,
-        LG.MultiPolygon([c_poly_hole, rect_poly]),
-        0.25,
-        0.01,
-        max(rmax_cpoly, rmax_rect);
-    )
-    @test length(floe_arr) == 4
-    @test typeof(floe_arr) <: StructArray{<:Floe}
-
-    # Test with multipolygon with minimum area
-    floe_arr = Subzero.poly_to_floes(
-        FT,
-        LG.MultiPolygon([c_poly_hole, rect_poly]),
-        0.25,
-        0.01,
-        max(rmax_cpoly, rmax_rect);
-        floe_settings = FloeSettings(min_floe_area = 30),
-    )
-    @test length(floe_arr) == 2
-    @test typeof(floe_arr) <: StructArray{<:Floe}
 
     # Test initialize_floe_field from coord list
     grid = RegRectilinearGrid(
@@ -258,9 +237,16 @@
     for j in 1:2
         for i in 1:2
             cell = LG.Polygon(Subzero.translate(first_cell, 8e4*(j-1), 8e4*(i-1)))
-            open_cell_area = sum(GO.area, Subzero.diff_polys(cell, topo_polys); init = 0.0)
+            cell_without_topos = Subzero.diff_polys(cell, topo_polys)
+            open_cell_area = sum(GO.area, cell_without_topos; init = 0.0)
             c = concentrations[i, j]
-            floes_in_cell_area = mapreduce(x -> sum(GO.area, Subzero.intersect_polys(x, cell); init = 0.0), +, floe_polys; init = 0.0)
+            floes_in_cell_area = 0
+            n_polys = 0
+            for floe in floe_polys
+                for mask in cell_without_topos
+                    floes_in_cell_area += GO.area(Subzero.intersect_polys(floe, mask))
+                end
+            end
             @test c - 100eps() <= floes_in_cell_area/open_cell_area < 1 + eps()
         end
     end
