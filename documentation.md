@@ -248,10 +248,11 @@ The following fields are part of the floe settings (with default values):
   - min_floe_height: minimum floe height (0.1 m)
   - max_floe_height: maximum floe height (10.0 m)
   - min_aspect_ratio: minimum ratio between floe x-length and y-length by maximum coordiante values (0.05)
+  - maximum_ξ: the absolute maximum rotational velocity a floe can reach before it is capped at maximum_ξ (1e-5 rad/s)
   - nhistory: number of elements to save in floe's stress history (100)
   - subfloe_point_generator: generates floe's subfloe points (`MonteCarloPointsGenerator()`)
 
-If any of the minimum / maximum values are exceeded, a floe is removed in the course of the simulation.
+If any of the minimum values are exceeded, a floe is removed in the course of the simulation. If any of the maximum values are reached, the value is capped at the given value.
 
 There are two types of subfloe point generators.
 

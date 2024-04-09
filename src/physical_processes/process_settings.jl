@@ -26,6 +26,7 @@ Settings needed to create floes within the model.
     min_floe_height::FT = 0.1
     max_floe_height::FT = 10.0
     min_aspect_ratio::FT = 0.05
+    maximum_ξ::FT = 1e-5
     nhistory::Int = 100
     subfloe_point_generator::GT = MonteCarloPointsGenerator()
 
@@ -35,37 +36,36 @@ Settings needed to create floes within the model.
         min_floe_height,
         max_floe_height,
         min_aspect_ratio,
+        maximum_ξ,
         nhistory,
         subfloe_point_generator,
     ) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator{FT}}
         if ρi < 0
-            @warn "Ice density can't be negative. Resetting to default values \
-            of 920."
+            @warn "Ice density can't be negative. Resetting to default values of 920."
             ρi = FT(920)
         end
         if min_floe_area < 0
-            @warn "Floe area can't be negative. Resetting minimum floe area to \
-            0 m^2."
+            @warn "Floe area can't be negative. Resetting minimum floe area to 0 m^2."
             min_floe_area = FT(0)
         end
         if min_floe_height < 0
-            @warn "Floe height can't be negative. Resetting minimum floe area \
-            to 0,."
+            @warn "Floe height can't be negative. Resetting minimum floe area to 0."
             min_floe_height = FT(0)
         end
         if max_floe_height < 0
-            @warn "Floe height can't be negative. Resetting maximum floe area \
-            to default 10m."
+            @warn "Floe height can't be negative. Resetting to default of 10m."
             min_floe_height = FT(0)
         end
         if min_aspect_ratio < 0 || min_aspect_ratio > 1
-            @warn "Aspect ratio must be between 0 and 1. Resetting to default \
-            0f 0.05."
+            @warn "Aspect ratio must be between 0 and 1. Resetting to default of 0.05."
+            min_aspect_ratio = FT(0.05)
+        end
+        if maximum_ξ < 0
+            @warn "Maximum rotational velocity must be greater than 0. Resetting to default of 1e-5."
             min_aspect_ratio = FT(0.05)
         end
         if nhistory < 1
-            @warn "Need to save at least one timestep of stress history.
-            Resetting to default of 100."
+            @warn "Need to save at least one timestep of stress history. Resetting to default of 100."
             nhistory = 100
         end
         new{FT, GT}(
@@ -74,6 +74,7 @@ Settings needed to create floes within the model.
             min_floe_height,
             max_floe_height,
             min_aspect_ratio,
+            maximum_ξ,
             nhistory,
             subfloe_point_generator,
         )
@@ -85,6 +86,7 @@ Settings needed to create floes within the model.
         min_floe_height,
         max_floe_height,
         min_aspect_ratio,
+        maximum_ξ,
         nhistory,
         subfloe_point_generator::GT,
     ) where {GT <: AbstractSubFloePointsGenerator} = 
@@ -94,6 +96,7 @@ Settings needed to create floes within the model.
             min_floe_height,
             max_floe_height,
             min_aspect_ratio,
+            maximum_ξ,
             nhistory,
             subfloe_point_generator,
         )
