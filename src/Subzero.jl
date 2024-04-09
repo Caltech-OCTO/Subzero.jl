@@ -103,11 +103,6 @@ const Polys{T} = Union{
     GI.Polygon{false, false, Vector{GI.LinearRing{false, false, Vector{Tuple{T, T}}, Nothing, Nothing}}, Nothing, Nothing}
 } where T <: AbstractFloat
 
-const MultiPolys{T} = Union{
-    LG.MultiPolygon,
-    GI.MultiPolygon{false, false, Vector{GI.Polygon{false, false, Vector{GI.LinearRing{false, false, Vector{Tuple{T, T}}, Nothing, Nothing}}, Nothing, Nothing}}, Nothing, Nothing}
-} where T <: AbstractFloat
-
 # Model
 include("simulation_components/floe.jl")
 include("floe_utils.jl")

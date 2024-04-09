@@ -70,7 +70,7 @@ function _get_polygons!(
 end
 
 function _get_polygons!(
-    collection::Union{MultiPolys{T}, LG.GeometryCollection},
+    collection::Union{LG.MultiPolygon, LG.GeometryCollection},
     polys,
 ) where T
     for geom in GI.getgeom(collection)
@@ -212,18 +212,6 @@ Output:
 find_multipoly_coords(poly::Polys) =
     [find_poly_coords(poly)]
 
-
-"""
-    find_multipoly_coords(multipoly)
-
-Syntactic sugar for using LibGEOS to find a multi-polygon's coordinates
-Input:
-    poly    <LibGEOS. MultiPolygon>
-Output:
-    <Vector{PolyVec}> representing the floe's coordinates xy plane
-"""
-find_multipoly_coords(multipoly::MultiPolys) = GI.coordinates(multipoly)::Vector{PolyVec{Float64}}
-
 """
     translate!(coords, Δx, Δy)
 
@@ -323,24 +311,6 @@ function hashole(poly::Polys)
 end 
 
 """
-    hashole(multipoly::MultiPolys)
-
-Determine if any of multipolygon's internal polygons has holes
-Inputs:
-    multipoly <LibGEOS.MultiPolygon> LibGEOS multipolygon
-Outputs:
-    <Bool> true if there is a hole in any of the polygons, else false
-"""
-function hashole(multipoly::MultiPolys)
-    for poly in GI.getgeom(multipoly)
-        if hashole(poly)
-            return true
-        end
-    end
-    return false
-end
-
-"""
     rmholes(coords::PolyVec{FT})
 
 Remove polygon coordinates's holes if they exist
@@ -373,23 +343,6 @@ function rmholes(poly::Polys)
         return LG.Polygon(GI.getexterior(poly))
     end
     return poly
-end
-
-"""
-    rmholes(multipoly::MultiPolys)
-
-Remove holes from each polygon of a multipolygon if they exist
-Inputs:
-    multipoly <LibGEOS.MultiPolygon> multipolygon coordinates
-Outputs:
-    <LibGEOS.MultiPolygon> multipolygon without any holes
-"""
-function rmholes(multipoly::MultiPolys)
-    nohole_lst = LG.Polygon[]
-    for poly in GI.getgeom(multipoly)
-        push!(nohole_lst, rmholes(poly))
-    end
-    return LG.MultiPolygon(nohole_lst)
 end
 
 #=

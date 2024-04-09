@@ -5,9 +5,7 @@
     poly_nohole = LG.Polygon([ext])
     poly_hole1 = LG.Polygon([ext, hole1])
     poly_hole2 = LG.Polygon([ext, hole1, hole2])
-    multipoly_hole1 = LG.MultiPolygon([poly_nohole, poly_hole1])
-    multipoly_hole2 = LG.MultiPolygon([poly_nohole, poly_hole1, poly_hole2])
-
+    
     # Test validating/correcting RingVecs and PolyVecs
     @test Subzero.valid_ringvec!(ext) == ext
     invalid_ext = [[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]
@@ -41,7 +39,7 @@
     @test !Subzero.hashole(poly_nohole)
     @test Subzero.hashole(poly_hole1)
     @test Subzero.hashole(poly_hole2)
-    @test Subzero.hashole(multipoly_hole1)
+    # @test Subzero.hashole(multipoly_hole1)
 
     # Test removing holes from polygons and multipolygons
     @test [ext] == Subzero.rmholes([ext])
@@ -52,7 +50,7 @@
     @test GO.equals(Subzero.rmholes(poly_nohole), poly_nohole)
     @test GO.equals(Subzero.rmholes(poly_hole1), poly_nohole)
     @test GO.equals(Subzero.rmholes(poly_hole2), poly_nohole)
-    @test !Subzero.hashole(Subzero.rmholes(multipoly_hole1))
+    # @test !Subzero.hashole(Subzero.rmholes(multipoly_hole1))
 
     # Test translating coordinates and polygons
     @test Subzero.translate([ext], 0.0, 0.0) == [ext]
