@@ -115,9 +115,8 @@ function remove_floe_overlap!(
         for region in regions
             region_area = GO.area(region)
             new_coords = find_poly_coords(region)::PolyVec{FT}
-            xmin, xmax, ymin, ymax = polyvec_extrema(new_coords)
-            Δx = xmax - xmin
-            Δy = ymax - ymin
+            (xmin, xmax), (ymin, ymax) = GI.extent(region)
+            Δx, Δy = xmax - xmin, ymax - ymin
             # Region is big enought to be a floe and has okay aspect ratio
             if (
                 region_area > floe_settings.min_floe_area &&
