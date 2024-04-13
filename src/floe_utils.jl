@@ -60,9 +60,9 @@ end
 _get_polygons!(_, polys) = nothing
 
 function _get_polygons!(
-    geom::Polys{T},
+    geom::Polys,
     polys,
-) where T
+)
     if !GI.isempty(geom) && GO.area(geom) > 0
         push!(polys, geom)
     end
@@ -72,7 +72,7 @@ end
 function _get_polygons!(
     collection::Union{LG.MultiPolygon, LG.GeometryCollection},
     polys,
-) where T
+)
     for geom in GI.getgeom(collection)
         _get_polygons!(geom, polys)
     end

@@ -124,10 +124,8 @@ using LibGEOS
             p_x_momentum_init, p_y_momentum_init,
         )
         if floe1_subsume || floe2_subsume
-            @test LibGEOS.area(LibGEOS.intersection(
-                LibGEOS.Polygon(floes.coords[1]),
-                LibGEOS.Polygon(floes.coords[2])
-            )) == 0  # floes DO NOT overlap anymore!
+            inter_polys =  Subzero.intersect_polys(LG.Polygon(floes.coords[1]), LG.Polygon(floes.coords[2]))
+            @test sum(GO.area, inter_polys; init = 0.0) == 0  # floes DO NOT overlap anymore!
             @test floe1_subsume ?
                 (mass1 < floes.mass[1] && mass2 > floes.mass[2]) :
                 (mass1 > floes.mass[1] && mass2 < floes.mass[2])
@@ -184,14 +182,10 @@ using LibGEOS
             @test area1 - bounds_overlap_area == floes.area[1]
             @test area2 - topo_overlap_area == floes.area[2]
             @test cent1 != floes.centroid[1] && cent2 != floes.centroid[2]
-            @test LibGEOS.area(LibGEOS.intersection(
-                    LibGEOS.Polygon(floes.coords[1]),
-                    boundary_poly,
-            )) == 0
-            @test LibGEOS.area(LibGEOS.intersection(
-                LibGEOS.Polygon(floes.coords[2]),
-                topo_poly,
-            )) == 0
+            inter_polys = Subzero.intersect_polys(LG.Polygon(floes.coords[1]), boundary_poly)
+            @test sum(GO.area, inter_polys; init = 0.0) == 0
+            inter_polys = Subzero.intersect_polys(LG.Polygon(floes.coords[2]), topo_poly)
+            @test sum(GO.area, inter_polys; init = 0.0) == 0
         else
             @test total_mass == sum(floes.mass)
             @test isapprox(h1, floes.height[1]) && isapprox(h2, floes.height[2])
@@ -278,11 +272,14 @@ using LibGEOS
         PeriodicBoundary(East, grid),
         PeriodicBoundary(West, grid),
     )
+    # boundary_poly = GO.UnionIntersectingPolygons()(GI.MultiPolygon([
+    #     collision_domain.north.coords, collision_domain.south.coords,
+    #     collision_domain.east.coords, collision_domain.west.coords]))
     boundary_poly = LibGEOS.union(
-        LibGEOS.MultiPolygon([collision_domain.north.coords, collision_domain.south.coords]),
-        LibGEOS.MultiPolygon([collision_domain.east.coords, collision_domain.west.coords]),
+        LG.MultiPolygon([collision_domain.north.coords, collision_domain.south.coords]),
+        LG.MultiPolygon([collision_domain.east.coords, collision_domain.west.coords]),
     )
-    topo_poly = LibGEOS.Polygon(topo_coords)
+    topo_poly = LG.Polygon(topo_coords)
     consts = Constants()
     floe_settings = FloeSettings(min_floe_area = 1e7)
     coupling_settings = CouplingSettings()
@@ -419,14 +416,11 @@ using LibGEOS
         floes_base = setup_floes_with_inters(coords, collision_domain, consts,
             collision_settings, lock, [0.0, 0.5e4], [0.0, 0.5e4],
         )
-        bounds_overlap_area = LibGEOS.area(LibGEOS.intersection(
-                LibGEOS.Polygon(floes_base.coords[1]),
-                boundary_poly,
-        ))
-        topo_overlap_area = LibGEOS.area(LibGEOS.intersection(
-                LibGEOS.Polygon(floes_base.coords[2]),
-                topo_poly,
-        ))
+        bounds_polys = Subzero.intersect_polys(GI.Polygon(floes_base.coords[1]), boundary_poly)
+        bounds_overlap_area = sum(GO.area, bounds_polys; init = 0.0)
+        topos_polys = Subzero.intersect_polys(GI.Polygon(floes_base.coords[2]), topo_poly)
+        topo_overlap_area = sum(GO.area, topos_polys; init = 0.0)
+ 
         # Ridging with domain
         floes = deepcopy(floes_base)
         ridge_settings = Subzero.RidgeRaftSettings(
