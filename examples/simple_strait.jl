@@ -56,7 +56,7 @@ floe_arr = initialize_floe_field(
 )
 
 fracture_settings = FractureSettings(
-        fractures_on = false,
+        fractures_on = true,
         criteria = HiblerYieldCurve(floe_arr),
         Δt = 75,
         npieces = 3,
@@ -70,7 +70,7 @@ model = Model(grid, ocean, atmos, domain, floe_arr)
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 consts = Constants(E = modulus)
 ridgeraft_settings = RidgeRaftSettings(
-    ridge_raft_on = false,
+    ridge_raft_on = true,
     Δt = 150
 )
 
@@ -87,7 +87,7 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 1000,
+    nΔt = 2500,
     verbose = true,
     floe_settings = floe_settings,
     coupling_settings = coupling_settings,

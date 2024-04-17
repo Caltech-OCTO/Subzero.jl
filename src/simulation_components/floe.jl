@@ -435,7 +435,7 @@ function initialize_floe_field(
     floe_polys = [LG.Polygon(valid_polyvec!(c)) for c in coords]
     # Remove overlaps with topography
     if !isempty(domain.topography)
-        remove_topography_from_poly_list!(domain.topography, floe_polys)
+        floe_polys = GO.difference(LG.MultiPolygon(floe_polys), LG.MultiPolygon(domain.topography.coords); target = GI.PolygonTrait(),fix_multipoly = nothing)
     end
     # Turn polygons into floes
     for p in floe_polys
@@ -642,8 +642,13 @@ function initialize_floe_field(
                 ymin = domain.south.val + rowlen * (i - 1)
                 trans_vec = [xmin, ymin]
                 # Open water in cell
-                open_cell = [LG.Polygon(rect_coords(xmin, xmin + collen, ymin, ymin + rowlen))]
-                remove_topography_from_poly_list!(domain.topography, open_cell)
+                open_cell_init = LG.Polygon(rect_coords(xmin, xmin + collen, ymin, ymin + rowlen))
+                open_cell = if !isempty(domain.topography)
+                    diff_polys(open_cell_init, GI.MultiPolygon(domain.topography.coords); fix_multipoly = nothing)
+                else
+                    [open_cell_init]
+                end
+                open_cell_mpoly = GI.MultiPolygon(open_cell)
                 open_coords = [GI.coordinates(c) for c in open_cell]
                 open_area = sum(GO.area, open_cell; init = 0.0)
                 # Generate coords with voronoi tesselation and make into floes
@@ -659,24 +664,26 @@ function initialize_floe_field(
                 nfloes = length(floe_coords)
                 if !isempty(floe_coords)
                     floe_poly_list = [LG.Polygon(c) for c in floe_coords]
-                    apply_floe_list_mask!(open_cell, floe_poly_list)
                     nfloes = length(floe_poly_list)
                     floe_idx = shuffle(rng, range(1, nfloes))
                     floes_area = FT(0.0)
                     while !isempty(floe_idx) && floes_area/open_area <= c
                         idx = pop!(floe_idx)
-                        n_new_floes = poly_to_floes!(
-                            FT,
-                            floe_arr,
-                            floe_poly_list[idx],
-                            hmean,
-                            Δh,
-                            domain.east.val - domain.west.val;
-                            floe_settings = floe_settings,
-                            rng = rng,
-                        )
-                        floes_area += sum(Iterators.drop(floe_arr.area, nfloes_added))
-                        nfloes_added += n_new_floes
+                        poly_pieces_list = intersect_polys(floe_poly_list[idx], open_cell_mpoly)
+                        for piece in poly_pieces_list
+                            n_new_floes = poly_to_floes!(
+                                FT,
+                                floe_arr,
+                                piece,
+                                hmean,
+                                Δh,
+                                domain.east.val - domain.west.val;
+                                floe_settings = floe_settings,
+                                rng = rng,
+                            )
+                            floes_area += sum(Iterators.drop(floe_arr.area, nfloes_added))
+                            nfloes_added += n_new_floes
+                        end
                     end
                 end
             end

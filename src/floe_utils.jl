@@ -36,7 +36,7 @@ end
 
 Syntactic sugar for using LibGEOS to find a polygon's coordinates
 Input:
-    poly    <LibGEOS.Polygon>
+    poly    <Polygon>
 Output:
     <PolyVec> representing the floe's coordinates xy plane
 """
@@ -89,11 +89,16 @@ Inputs:
 Output:
     Vector of LibGEOS Polygons
 """
-intersect_polys(p1, p2) = get_polygons(LG.intersection(p1, p2))
+intersect_polys(p1, p2; kwargs...) = get_polygons(LG.intersection(p1, p2))
 
-diff_polys(p1, p2) = get_polygons(LG.difference(p1, p2))
+diff_polys(p1, p2; kwargs...) = get_polygons(LG.difference(p1, p2))
 
-union_polys(p1, p2) = get_polygons(LG.union(p1, p2))
+union_polys(p1, p2; kwargs...) = get_polygons(LG.union(p1, p2))
+
+make_polygon(coords::PolyVec) = LG.Polygon(coords)
+make_polygon(rings::Vector) = LG.Polygon(rings)
+make_multipolygon(coords::Vector{<:PolyVec}) = LG.Polygon(coords)
+make_multipolygon(polys) = LG.MultiPolygon(polys)
 
 """
     deepcopy_floe(floe::LazyRow{Floe{FT}})
@@ -149,18 +154,6 @@ function deepcopy_floe(floe::LazyRow{Floe{FT}}) where {FT}
     append!(f.stress_history.cb, copy(floe.stress_history.cb))
     return f
 end
-
-"""
-    find_multipoly_coords(poly)
-
-Syntactic sugar for using LibGEOS to find a multipolygon's coordinates
-Input:
-    poly    <LibGEOS.Polygon>
-Output:
-    <Vector{PolyVec}> representing the floe's coordinates xy plane
-"""
-find_multipoly_coords(poly::Polys) =
-    [find_poly_coords(poly)]
 
 """
     translate!(coords, Δx, Δy)
@@ -252,7 +245,7 @@ end
 
 Determine if polygon has one or more holes
 Inputs:
-    poly <LibGEOS.Polygon> LibGEOS polygon
+    poly <Polygon> LibGEOS polygon
 Outputs:
     <Bool> true if there is a hole in the polygons, else false
 """
@@ -284,13 +277,13 @@ end
 
 Remove polygon's holes if they exist
 Inputs:
-    poly <LibGEOS.Polygon> LibGEOS polygon
+    poly <Polygon> LibGEOS polygon
 Outputs:
-    <LibGEOS.Polygon>  LibGEOS polygon without any holes
+    <Polygon>  LibGEOS polygon without any holes
 """
 function rmholes(poly::Polys)
     if hashole(poly)
-        return LG.Polygon(GI.getexterior(poly))
+        return GI.Polygon([GI.getexterior(poly)])
     end
     return poly
 end
@@ -633,72 +626,4 @@ function find_shared_edges_midpoint(c1::PolyVec{FT}, c2; atol = 1e-1) where {FT}
         )
     end
     return mid_x, mid_y
-end
-
-function _remove_poly_list_overlap!(overlap_poly, poly_list)
-
-
-end
-
-function remove_topography_from_poly_list!(topography, poly_list)
-    n_pieces = length(poly_list)
-    remove_idx = falses(n_pieces)
-    for topo_coords in topography.coords
-        # Check if the topography piece can even intersect with the cell
-        topo = LG.Polygon(topo_coords)
-        topo_ext = GI.extent(topo)
-        n_new_pieces = 0
-        for (k, poly) in enumerate(poly_list)
-            remove_idx[k] && continue
-            poly_ext = GI.extent(poly)
-            if Extents.intersects(topo_ext, poly_ext)
-                # if they might intersect, take the difference and update the list
-                k > n_pieces && break
-                new_poly_pieces = diff_polys(poly, topo)
-                n = length(new_poly_pieces)
-                if n == 0
-                    remove_idx[k] = true
-                else # at least 1 resulting polygon
-                    poly_list[k] = new_poly_pieces[1]
-                    @views append!(poly_list, new_poly_pieces[2:end])
-                    append!(remove_idx, falses(n - 1))
-                    n_new_pieces += (n - 1)
-                end
-            end
-        end
-        n_pieces += n_new_pieces
-    end
-    deleteat!(poly_list, remove_idx)
-    return
-end
-
-function apply_floe_list_mask!(mask_list, poly_list)
-    n_pieces = length(poly_list)
-    remove_idx = falses(n_pieces)
-    for mask in mask_list
-        # Check if the topography piece can even intersect with the cell
-        mask_ext = GI.extent(mask)
-        n_new_pieces = 0
-        for (k, poly) in enumerate(poly_list)
-            remove_idx[k] && continue
-            poly_ext = GI.extent(poly)
-            if Extents.intersects(mask_ext, poly_ext)
-                # if they might intersect, take the difference and update the list
-                k > n_pieces && break
-                new_poly_pieces = intersect_polys(poly, mask)
-                n = length(new_poly_pieces)
-                if n == 0
-                    remove_idx[k] = true
-                else # at least 1 resulting polygon
-                    poly_list[k] = new_poly_pieces[1]
-                    @views append!(poly_list, new_poly_pieces[2:end])
-                    append!(remove_idx, falses(n - 1))
-                    n_new_pieces += (n - 1)
-                end
-            end
-        end
-        n_pieces += n_new_pieces
-    end
-    deleteat!(poly_list, remove_idx)
-    return
 end

@@ -421,7 +421,7 @@ const NonPeriodicBoundary = Union{
 }
 
 """
-    TopographyE{FT}<:AbstractDomainElement{FT}
+    TopographyElement{FT}<:AbstractDomainElement{FT}
 
 Singular topographic element with coordinates field storing where the element is
 within the grid. These are used to create the desired topography within the
@@ -443,7 +443,9 @@ struct TopographyElement{FT}<:AbstractDomainElement{FT}
             throw(ArgumentError("Topography element maximum radius must be \
                 positive and non-zero."))
         end
-        new{FT}(valid_polyvec!(rmholes(coords)), centroid, rmax)
+        topo_poly = GI.Polygon(rmholes(coords))
+        topo_poly = GO.ClosedRing()(topo_poly)
+        new{FT}(GI.coordinates(topo_poly), centroid, rmax)
     end
 end
 
@@ -544,10 +546,10 @@ function initialize_topography_field(
     ::Type{FT},
     coords,
 ) where {FT <: AbstractFloat}
-    topo_arr = StructArray{TopographyElement{FT}}(undef, length(coords))
-    for i in eachindex(coords)
-        c = Subzero.rmholes(coords[i])
-        topo_arr[i] = TopographyElement{FT}(c)
+    topo_multipoly = GO.DiffIntersectingPolygons()(GI.MultiPolygon(coords))
+    topo_arr = StructArray{TopographyElement{FT}}(undef, GI.npolygon(topo_multipoly))
+    for (i, p) in enumerate(GI.getpolygon(topo_multipoly))
+        topo_arr[i] = TopographyElement{FT}(p)
     end
     return topo_arr
 end
