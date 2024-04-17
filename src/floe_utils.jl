@@ -96,56 +96,6 @@ diff_polys(p1, p2) = get_polygons(LG.difference(p1, p2))
 union_polys(p1, p2) = get_polygons(LG.union(p1, p2))
 
 """
-    polyvec_extrema(coords)
-
-Finds extremal x and y values for given coordiantes, defining a tight bounding
-box. 
-Inputs:
-    coords <PolyVec>
-Outputs: xmin, xmax, ymin, ymax
-"""
-function polyvec_extrema(coords::PolyVec{FT}) where FT
-    xmin = ymin = FT(Inf)
-    xmax = ymax = FT(-Inf)
-    for i in eachindex(coords[1])
-        x, y = coords[1][i]
-        if x < xmin
-            xmin = x
-        end
-        if x > xmax
-            xmax = x
-        end
-        if y < ymin
-            ymin = y
-        end
-        if y > ymax
-            ymax = y
-        end
-    end
-    return xmin, xmax, ymin, ymax
-end
-
-function bounding_box(poly::Polys, ::Type{FT} = Float64) where FT
-    xmin = ymin = FT(Inf)
-    xmax = ymax = FT(-Inf)
-    for (x, y) in GI.getpoint(GI.getexterior(poly))
-        if x < xmin
-            xmin = x
-        end
-        if x > xmax
-            xmax = x
-        end
-        if y < ymin
-            ymin = y
-        end
-        if y > ymax
-            ymax = y
-        end
-    end
-    return FT(xmin), FT(xmax), FT(ymin), FT(ymax)
-end
-
-"""
     deepcopy_floe(floe::LazyRow{Floe{FT}})
 
 Deepcopy of a floe by creating a new floe and copying all fields.
