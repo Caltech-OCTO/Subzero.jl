@@ -198,7 +198,7 @@ Base.:(:)(a::InteractionFields, b::InteractionFields) = Int(a):Int(b)
         kwargs...
     )
 
-Constructor for floe with LibGEOS Polygon
+Constructor for floe with a polygon
 Inputs:
     poly                <Polygon> 
     hmean               <Real> mean height for floes
@@ -430,7 +430,7 @@ function initialize_floe_field(
     floe_polys = [make_polygon(valid_polyvec!(c)) for c in coords]
     # Remove overlaps with topography
     if !isempty(domain.topography)
-        floe_polys = GO.difference(LG.MultiPolygon(floe_polys), LG.MultiPolygon(domain.topography.coords); target = GI.PolygonTrait(),fix_multipoly = nothing)
+        floe_polys = GO.difference(make_multipolygon(floe_polys), make_multipolygon(domain.topography.coords); target = GI.PolygonTrait(),fix_multipoly = nothing)
     end
     # Turn polygons into floes
     for p in floe_polys

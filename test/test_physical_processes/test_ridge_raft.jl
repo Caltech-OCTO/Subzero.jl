@@ -272,13 +272,13 @@ using LibGEOS
         PeriodicBoundary(East, grid),
         PeriodicBoundary(West, grid),
     )
-    # boundary_poly = GO.UnionIntersectingPolygons()(GI.MultiPolygon([
-    #     collision_domain.north.coords, collision_domain.south.coords,
-    #     collision_domain.east.coords, collision_domain.west.coords]))
-    boundary_poly = LibGEOS.union(
-        LG.MultiPolygon([collision_domain.north.coords, collision_domain.south.coords]),
-        LG.MultiPolygon([collision_domain.east.coords, collision_domain.west.coords]),
-    )
+    boundary_poly = GO.UnionIntersectingPolygons()(GI.MultiPolygon([
+        collision_domain.north.coords, collision_domain.south.coords,
+        collision_domain.east.coords, collision_domain.west.coords]))
+    # boundary_poly = LibGEOS.union(
+    #     LG.MultiPolygon([collision_domain.north.coords, collision_domain.south.coords]),
+    #     LG.MultiPolygon([collision_domain.east.coords, collision_domain.west.coords]),
+    # )
     topo_poly = Subzero.make_polygon(topo_coords)
     consts = Constants()
     floe_settings = FloeSettings(min_floe_area = 1e7)

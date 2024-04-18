@@ -64,7 +64,7 @@ function smooth_floes!(
 ) where {FT <: AbstractFloat}
     for i in eachindex(floes)
         if length(floes.coords[i][1]) > simp_settings.max_vertices
-            poly_list = [LG.simplify(make_polygon(floes.coords[i]), simp_settings.tol)]
+            poly_list = [simplify_poly(make_polygon(floes.coords[i]), simp_settings.tol)]
             if !isempty(topography)
                 poly_list = diff_polys(GI.MultiPolygon(poly_list), GI.MultiPolygon(topography.coords); fix_multipoly = nothing)
             end

@@ -93,7 +93,7 @@ function remove_floe_overlap!(
     total_area = zero(FT)
     nregions = 0
     for (i, region) in enumerate(regions)
-        regions[i] = LG.simplify(region, simp_settings.tol)
+        regions[i] = simplify_poly(region, simp_settings.tol)
         total_area += GO.area(region)
         nregions += 1
     end

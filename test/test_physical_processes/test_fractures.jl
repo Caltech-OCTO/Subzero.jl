@@ -219,7 +219,7 @@
         ) 
         # Test that the pieces all fit within original floe
         og_floe_poly = Subzero.make_polygon(floes.coords[1])
-        new_floes_polys = LG.MultiPolygon(new_floes.coords)
+        new_floes_polys = Subzero.make_multipolygon(new_floes.coords)
         @test isapprox(
             sum(GO.area, Subzero.intersect_polys(new_floes_polys, og_floe_poly); init = 0.0),
             GO.area(og_floe_poly),

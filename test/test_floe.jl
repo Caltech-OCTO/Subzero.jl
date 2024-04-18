@@ -110,7 +110,7 @@
         wbound,
         StructVector([TopographyElement(t) for t in [island, topo1]])
     )
-    topo_polys = LG.MultiPolygon([island, topo1])
+    topo_polys = Subzero.make_multipolygon([island, topo1])
 
     # From file without topography -> floes below recommended area
     floe_arr = (@test_logs (:warn, "Some user input floe areas are less than the suggested minimum floe area.") initialize_floe_field(
@@ -183,7 +183,7 @@
             GO.area(fpoly),
             atol = 1e-3,
         )
-        @test LG.isValid(fpoly)
+        @test Subzero.isvalid(fpoly)
     end
 
     # Test warning and no points generated
@@ -251,7 +251,7 @@
         end
     end
     @test all([sum(GO.area, Subzero.intersect_polys(p, topo_polys); init = 0.0) for p in floe_polys] .< 1e-3)
-    @test all([LG.isValid(p) for p in floe_polys])
+    @test all([Subzero.isvalid(p) for p in floe_polys])
     @test all(floe_arr.id .== range(1, nfloes))
 
     @test typeof(initialize_floe_field(

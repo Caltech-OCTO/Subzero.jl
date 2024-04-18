@@ -470,7 +470,7 @@ TopographyElement(args...) = TopographyElement{Float64}(args...)
 """
     TopographyElement{FT}(poly)
 
-Constructor for topographic element with LibGEOS Polygon
+Constructor for topographic element with Polygon
 Inputs:
     poly    <Polygon>
 Output:

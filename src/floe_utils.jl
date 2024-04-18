@@ -87,7 +87,7 @@ Inputs:
     p1  <AbstractGeometry>
     p2  <AbstractGeometry>
 Output:
-    Vector of LibGEOS Polygons
+    Vector of Polygons
 """
 intersect_polys(p1, p2; kwargs...) = get_polygons(LG.intersection(p1, p2))
 
@@ -95,11 +95,18 @@ diff_polys(p1, p2; kwargs...) = get_polygons(LG.difference(p1, p2))
 
 union_polys(p1, p2; kwargs...) = get_polygons(LG.union(p1, p2))
 
+simplify_poly(p, tol) = LG.simplify(p, tol)
+
 make_polygon(coords::PolyVec) = LG.Polygon(coords)
 make_polygon(ring::GI.LinearRing) = LG.Polygon(GI.convert(LG, ring))
 make_polygon(ring::LG.LinearRing) = LG.Polygon(ring)
-make_multipolygon(coords::Vector{<:PolyVec}) = LG.Polygon(coords)
-make_multipolygon(polys) = LG.MultiPolygon(polys)
+make_multipolygon(coords::Vector{<:PolyVec}) = LG.MultiPolygon(coords)
+make_multipolygon(polys::Vector{<:GI.Polygon}) = LG.MultiPolygon(GI.convert.(LG, polys))
+make_multipolygon(polys::Vector{<:LG.Polygon}) = LG.MultiPolygon(polys)
+
+isvalid(poly::LG.Polygon) = LG.isValid(poly)
+isvalid(multipoly::LG.MultiPolygon) = LG.isValid(multipoly)
+isvalid(geom) = LG.isValid(GI.convert(LG, geom))
 
 """
     deepcopy_floe(floe::LazyRow{Floe{FT}})
@@ -246,7 +253,7 @@ end
 
 Determine if polygon has one or more holes
 Inputs:
-    poly <Polygon> LibGEOS polygon
+    poly <Polygon> polygon
 Outputs:
     <Bool> true if there is a hole in the polygons, else false
 """
@@ -278,9 +285,9 @@ end
 
 Remove polygon's holes if they exist
 Inputs:
-    poly <Polygon> LibGEOS polygon
+    poly <Polygon> polygon
 Outputs:
-    <Polygon>  LibGEOS polygon without any holes
+    <Polygon> polygon without any holes
 """
 function rmholes(poly::Polys)
     if hashole(poly)
