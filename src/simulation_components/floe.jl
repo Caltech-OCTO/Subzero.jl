@@ -200,7 +200,7 @@ Base.:(:)(a::InteractionFields, b::InteractionFields) = Int(a):Int(b)
 
 Constructor for floe with LibGEOS Polygon
 Inputs:
-    poly                <LibGEOS.Polygon> 
+    poly                <Polygon> 
     hmean               <Real> mean height for floes
     Δh                  <Real> variability in height for floes
     floe_settings       <FloeSettings> settings needed to initialize floe        
@@ -303,12 +303,7 @@ Floe{FT}(
     kwargs...,
 ) where {FT <: AbstractFloat} =
     Floe{FT}( # Polygon convert is needed since LibGEOS only takes Float64
-        LG.Polygon(
-            convert(
-                PolyVec{Float64},
-                valid_polyvec!(rmholes(coords)),
-            ),
-        ),
+        make_polygon(convert(PolyVec{Float64}, valid_polyvec!(rmholes(coords)))),
         hmean,
         Δh;
         floe_settings = floe_settings,
@@ -432,7 +427,7 @@ function initialize_floe_field(
     rng = Xoshiro(),
 ) where {FT <: AbstractFloat}
     floe_arr = StructArray{Floe{FT}}(undef, 0)
-    floe_polys = [LG.Polygon(valid_polyvec!(c)) for c in coords]
+    floe_polys = [make_polygon(valid_polyvec!(c)) for c in coords]
     # Remove overlaps with topography
     if !isempty(domain.topography)
         floe_polys = GO.difference(LG.MultiPolygon(floe_polys), LG.MultiPolygon(domain.topography.coords); target = GI.PolygonTrait(),fix_multipoly = nothing)
@@ -629,7 +624,7 @@ function initialize_floe_field(
     rowlen = Ly / nrows
     collen = Lx / ncols
     # Availible space in whole domain
-    topography_list = [LG.Polygon(t) for t in domain.topography.coords]
+    topography_list = [make_polygon(t) for t in domain.topography.coords]
     open_water_area = (Lx * Ly) - sum(GO.area, topography_list; init = 0.0)
     # Loop over cells
     for j in range(1, ncols)
@@ -642,7 +637,7 @@ function initialize_floe_field(
                 ymin = domain.south.val + rowlen * (i - 1)
                 trans_vec = [xmin, ymin]
                 # Open water in cell
-                open_cell_init = LG.Polygon(rect_coords(xmin, xmin + collen, ymin, ymin + rowlen))
+                open_cell_init = make_polygon(rect_coords(xmin, xmin + collen, ymin, ymin + rowlen))
                 open_cell = if !isempty(domain.topography)
                     diff_polys(open_cell_init, GI.MultiPolygon(domain.topography.coords); fix_multipoly = nothing)
                 else
@@ -663,7 +658,7 @@ function initialize_floe_field(
                 )
                 nfloes = length(floe_coords)
                 if !isempty(floe_coords)
-                    floe_poly_list = [LG.Polygon(c) for c in floe_coords]
+                    floe_poly_list = [make_polygon(c) for c in floe_coords]
                     nfloes = length(floe_poly_list)
                     floe_idx = shuffle(rng, range(1, nfloes))
                     floes_area = FT(0.0)

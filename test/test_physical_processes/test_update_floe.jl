@@ -76,7 +76,7 @@
             [10.0, 10.0],
             [0.0, 0.0],
         ]]
-        tri_poly = LG.Polygon(triangle_coords)  # this is a triangle
+        tri_poly = Subzero.make_polygon(triangle_coords)  # this is a triangle
         Subzero.replace_floe!(
             f1,
             tri_poly,
@@ -266,7 +266,7 @@
         mass1 = sqr_floe.mass
         moment1 = sqr_floe.moment
         x1, y1 = sqr_floe.centroid
-        tri_rect_poly = Subzero.union_polys(LG.Polygon(square_coords), LG.Polygon(triangle_coords))[1]
+        tri_rect_poly = Subzero.union_polys(Subzero.make_polygon(square_coords), Subzero.make_polygon(triangle_coords))[1]
         Subzero.replace_floe!(
             sqr_floe,
             tri_rect_poly,

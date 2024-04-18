@@ -4,7 +4,7 @@
     file = jldopen("inputs/floe_shapes.jld2", "r")
     floe_coords = file["floe_vertices"][1:end]
     close(file)
-    poly1 = LG.Polygon(Subzero.valid_polyvec!(floe_coords[1]))
+    poly1 = Subzero.make_polygon(Subzero.valid_polyvec!(floe_coords[1]))
     centroid1 = GO.centroid(poly1)
     area = GO.area(poly1)
 
@@ -57,7 +57,7 @@
     n_new = Subzero.poly_to_floes!(
         FT,
         floe_arr,
-        LG.Polygon(rect_poly),
+        Subzero.make_polygon(rect_poly),
         0.25,
         0.01,
         rmax_rect;
@@ -69,7 +69,7 @@
     n_new = Subzero.poly_to_floes!(
         FT,
         floe_arr,
-        LG.Polygon(rect_poly),
+        Subzero.make_polygon(rect_poly),
         0.25,
         0.01,
         rmax_rect;
@@ -81,7 +81,7 @@
     n_new = Subzero.poly_to_floes!(
         FT,
         floe_arr,
-        LG.Polygon(c_poly_hole),
+        Subzero.make_polygon(c_poly_hole),
         0.25,
         0.01,
         rmax_cpoly,
@@ -160,7 +160,7 @@
         rng = Xoshiro(0)
     )
     @test typeof(floe_arr) <: StructArray{<:Floe}
-    @test all([sum(GO.area, Subzero.intersect_polys(LG.Polygon(c), topo_polys); init = 0.0) for c in floe_arr.coords] .< 1e-6)
+    @test all([sum(GO.area, Subzero.intersect_polys(Subzero.make_polygon(c), topo_polys); init = 0.0) for c in floe_arr.coords] .< 1e-6)
     
     # Test generate_voronoi_coords - general case
     domain_coords = [[[[1, 2], [1.5, 3.5], [1, 5], [2.5, 5], [2.5, 2], [1, 2]]]]
@@ -174,10 +174,10 @@
         10,
         max_tries = 20, # 20 tries makes it very likely to reach 10 polygons
     )
-    bounding_poly = LG.Polygon(bounding_box)
+    bounding_poly = Subzero.make_polygon(bounding_box)
     @test length(voronoi_coords) == 10
     for c in voronoi_coords
-        fpoly = LG.Polygon(c)
+        fpoly = Subzero.make_polygon(c)
         @test isapprox(
             sum(GO.area, Subzero.intersect_polys(fpoly, bounding_poly); init = 0.0),
             GO.area(fpoly),
@@ -215,7 +215,7 @@
         atol = 1e-1
     )
     @test all(floe_arr.area .> 1e4)
-    @test all([sum(GO.area, Subzero.intersect_polys(LG.Polygon(c), topo_polys); init = 0.0) for c in floe_arr.coords] .< 1e-6)
+    @test all([sum(GO.area, Subzero.intersect_polys(Subzero.make_polygon(c), topo_polys); init = 0.0) for c in floe_arr.coords] .< 1e-6)
 
     nfloes = length(floe_arr)
     @test all(floe_arr.id .== range(1, nfloes))
@@ -232,11 +232,11 @@
         rng = rng
     )
     nfloes = length(floe_arr)
-    floe_polys = [LG.Polygon(f) for f in floe_arr.coords]
+    floe_polys = [Subzero.make_polygon(f) for f in floe_arr.coords]
     first_cell = [[[-8e4, -8e4], [-8e4, 0], [0, 0], [0, -8e4], [-8e4, -8e4]]]
     for j in 1:2
         for i in 1:2
-            cell = LG.Polygon(Subzero.translate(first_cell, 8e4*(j-1), 8e4*(i-1)))
+            cell = Subzero.make_polygon(Subzero.translate(first_cell, 8e4*(j-1), 8e4*(i-1)))
             cell_without_topos = Subzero.diff_polys(cell, topo_polys)
             open_cell_area = sum(GO.area, cell_without_topos; init = 0.0)
             c = concentrations[i, j]

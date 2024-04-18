@@ -472,7 +472,7 @@ TopographyElement(args...) = TopographyElement{Float64}(args...)
 
 Constructor for topographic element with LibGEOS Polygon
 Inputs:
-    poly    <LibGEOS.Polygon>
+    poly    <Polygon>
 Output:
     Topographic element of abstract float type FT
 """
@@ -511,11 +511,7 @@ Output:
 function TopographyElement{FT}(
     coords::PolyVec,
 ) where {FT <: AbstractFloat} 
-    return TopographyElement{FT}(
-        LG.Polygon(
-            convert(PolyVec{Float64}, coords),
-        ),
-    )
+    return TopographyElement{FT}(make_polygon(convert(PolyVec{Float64}, coords)))
 end
 
 """

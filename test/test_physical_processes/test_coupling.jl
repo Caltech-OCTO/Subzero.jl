@@ -6,14 +6,14 @@
         file = jldopen("inputs/floe_shapes.jld2", "r")
         floe_coords = file["floe_vertices"][1:end]
         close(file)
-        poly1 = LG.Polygon(Subzero.valid_polyvec!(floe_coords[1]))
+        poly1 = Subzero.make_polygon(Subzero.valid_polyvec!(floe_coords[1]))
         centroid1 = GO.centroid(poly1)
         origin_coords = Subzero.translate(
             floe_coords[1],
             -centroid1[1],
             -centroid1[2],
         )
-        origin_poly = GI.Polygon(origin_coords)
+        origin_poly = Subzero.make_polygon(origin_coords)
         xo, yo = first.(origin_coords[1]), last.(origin_coords[1])
         rmax = sqrt(maximum([sum(xo[i]^2 + yo[i]^2) for i in eachindex(xo)]))
         area = GO.area(poly1)
@@ -281,7 +281,7 @@
             periodic_bound,
             periodic_bound,
         )
-        cell_poly = LG.Polygon(cell)
+        cell_poly = Subzero.make_polygon(cell)
         @test GO.area(cell_poly)::Float64 == 8
         @test GI.coordinates(cell_poly) == 
             [[[-9, -2], [-9, 2], [-7, 2], [-7, -2], [-9, -2]]]

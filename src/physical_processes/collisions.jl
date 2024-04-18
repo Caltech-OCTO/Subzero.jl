@@ -52,13 +52,13 @@ function calc_normal_force(
             force_dir .= [-Δy/Δl; Δx/Δl]
         end
     elseif m != 0  # Unusual number of intersection points
-        Δl = _many_intersect_normal_force!(FT, force_dir, region, GI.Polygon(c1), force_factor)
+        Δl = _many_intersect_normal_force!(FT, force_dir, region, make_polygon(c1), force_factor)
     end
     # Check if direction of the force desceases overlap, else negate direction
     if Δl > 0.1
         c1new = translate(c1, force_dir[1], force_dir[2])
         # Floe/boudary intersection after being moved in force direction
-        new_regions_list = intersect_polys(LG.Polygon(c1new), LG.Polygon(c2))
+        new_regions_list = intersect_polys(make_polygon(c1new), make_polygon(c2))
         # See if the area of overlap has increased in corresponding region
         for new_region in new_regions_list
             if GO.intersects(new_region, region) && GO.area(new_region)/area > 1
@@ -133,7 +133,7 @@ regions created from floe collisions
 Inputs:
     c1              <PolyVec> first floe's coordinates in collision
     c2              <PolyVec> second floe's coordinates in collision
-    regions         <Vector{LibGEOS.Polygon}> polygon regions of overlap during
+    regions         <Vector{Polygon}> polygon regions of overlap during
                         collision
     region_areas    <Vector{Float}> area of each polygon in regions
     force_factor    <Float> Spring constant equivalent for collisions
@@ -384,7 +384,7 @@ function floe_floe_interaction!(
     Δt,
     max_overlap::FT,
 ) where {FT<:AbstractFloat}
-    inter_regions = intersect_polys(LG.Polygon(ifloe.coords), LG.Polygon(jfloe.coords))
+    inter_regions = intersect_polys(make_polygon(ifloe.coords), make_polygon(jfloe.coords))
     region_areas = Vector{FT}(undef, length(inter_regions))
     total_area = FT(0)
     for i in eachindex(inter_regions)
@@ -463,8 +463,8 @@ function floe_domain_element_interaction!(
     Δt,
     max_overlap,
 )
-    floe_poly = LG.Polygon(floe.coords)
-    bounds_poly = LG.Polygon(boundary.coords)
+    floe_poly = make_polygon(floe.coords)
+    bounds_poly = make_polygon(boundary.coords)
     # Check if the floe and boundary actually overlap
     inter_area = sum(GO.area, intersect_polys(floe_poly, bounds_poly); init = 0.0)
     if inter_area > 0
@@ -647,7 +647,7 @@ function floe_domain_element_interaction!(
     Δt,
     max_overlap::FT,
 ) where {FT}
-    inter_regions = intersect_polys(LG.Polygon(floe.coords), LG.Polygon(element.coords))
+    inter_regions = intersect_polys(make_polygon(floe.coords), make_polygon(element.coords))
     region_areas = Vector{FT}(undef, length(inter_regions))
     max_area = FT(0)
     for i in eachindex(inter_regions)
@@ -1077,7 +1077,7 @@ function ghosts_on_bounds!(
 )
     nfloes = length(floes)
     nghosts = 1
-    if !isempty(intersect_polys(LG.Polygon(floes.coords[elem_idx]), LG.Polygon(boundary.coords)))
+    if !isempty(intersect_polys(make_polygon(floes.coords[elem_idx]), make_polygon(boundary.coords)))
         # ghosts of existing ghosts and original element
         for i in floes.ghosts[elem_idx]
             push!(

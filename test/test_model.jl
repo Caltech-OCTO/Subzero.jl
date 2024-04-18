@@ -214,7 +214,7 @@
 
     @testset "Topography" begin
         coords = [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]]
-        poly = LG.Polygon(coords)
+        poly = Subzero.make_polygon(coords)
         # Polygon Constructor
         topo1 = Subzero.TopographyElement(poly)
         @test topo1.coords == coords

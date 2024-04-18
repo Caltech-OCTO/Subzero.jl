@@ -89,7 +89,7 @@ function remove_floe_overlap!(
     rng,  
 ) where {FT <: AbstractFloat}
     # Find new floe shapes and regions
-    regions = diff_polys(LG.Polygon(floes.coords[shrink_idx]), LG.Polygon(grow_floe_coords))
+    regions = diff_polys(make_polygon(floes.coords[shrink_idx]), make_polygon(grow_floe_coords))
     total_area = zero(FT)
     nregions = 0
     for (i, region) in enumerate(regions)
@@ -128,7 +128,7 @@ function remove_floe_overlap!(
                     parent_Δy,
                 )
                 rmholes!(new_coords)  # remove holes in floe
-                new_poly = LG.Polygon(new_coords)  # parent floe new region poly
+                new_poly = make_polygon(new_coords)  # parent floe new region poly
                 new_vol = region_area * floes.height[shrink_idx]
                 transfer_vol -= new_vol
                 buffer_length = length(pieces_buffer)

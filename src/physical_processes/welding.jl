@@ -131,7 +131,7 @@ function timestep_welding!(
                         )
                     )
                         # Find intersection area
-                        inter_area = FT(sum(GO.area, intersect_polys(LG.Polygon(floes.coords[i]), LG.Polygon(floes.coords[j])); init = 0.0))
+                        inter_area = FT(sum(GO.area, intersect_polys(make_polygon(floes.coords[i]), make_polygon(floes.coords[j])); init = 0.0))
                         # Probability two floes will weld
                         weld_prob = weld_settings.welding_coeff *
                             (inter_area / floes.area[i])

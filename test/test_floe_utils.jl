@@ -2,9 +2,9 @@
     ext = [[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
     hole1 = [[0.2, 0.3], [0.2, 0.2], [0.3, 0.2], [0.3, 0.3], [0.2, 0.3]]
     hole2 = [[0.5, 0.6], [0.5, 0.5], [0.6, 0.5], [0.6, 0.6], [0.5, 0.6]]
-    poly_nohole = LG.Polygon([ext])
-    poly_hole1 = LG.Polygon([ext, hole1])
-    poly_hole2 = LG.Polygon([ext, hole1, hole2])
+    poly_nohole = Subzero.make_polygon([ext])
+    poly_hole1 = Subzero.make_polygon([ext, hole1])
+    poly_hole2 = Subzero.make_polygon([ext, hole1, hole2])
     
     # Test validating/correcting RingVecs and PolyVecs
     @test Subzero.valid_ringvec!(ext) == ext
@@ -67,10 +67,10 @@
     @test test_trans == [[[-0.5, 0.5], [-0.5, -0.5], [0.5, -0.5], [0.5, 0.5]]]
 
     # Test moment of intertia calculations - compared to values output my MATLAB
-    poly_moment = Subzero._calc_moment_inertia(Float64, GI.Polygon([ext]), [0.5, 0.5], 0.25)
+    poly_moment = Subzero._calc_moment_inertia(Float64, Subzero.make_polygon([ext]), [0.5, 0.5], 0.25)
     @test isapprox(poly_moment, 38.333, atol = 0.001)
     @test Subzero._calc_moment_inertia(Float64, poly_nohole, GO.centroid(poly_nohole), 0.25) == poly_moment
-    tri_poly = GI.Polygon([[[0, 1], [0, 0], [1, 0], [0, 1]]] .* 6.67)
+    tri_poly = Subzero.make_polygon([[[0, 1], [0, 0], [1, 0], [0, 1]]] .* 6.67)
     tri_moment = Subzero._calc_moment_inertia(Float64, tri_poly, GO.centroid(tri_poly), 0.5)
     @test isapprox(tri_moment, 50581.145, atol = 0.001)
 

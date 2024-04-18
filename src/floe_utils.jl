@@ -96,7 +96,8 @@ diff_polys(p1, p2; kwargs...) = get_polygons(LG.difference(p1, p2))
 union_polys(p1, p2; kwargs...) = get_polygons(LG.union(p1, p2))
 
 make_polygon(coords::PolyVec) = LG.Polygon(coords)
-make_polygon(rings::Vector) = LG.Polygon(rings)
+make_polygon(ring::GI.LinearRing) = LG.Polygon(GI.convert(LG, ring))
+make_polygon(ring::LG.LinearRing) = LG.Polygon(ring)
 make_multipolygon(coords::Vector{<:PolyVec}) = LG.Polygon(coords)
 make_multipolygon(polys) = LG.MultiPolygon(polys)
 
@@ -283,7 +284,7 @@ Outputs:
 """
 function rmholes(poly::Polys)
     if hashole(poly)
-        return GI.Polygon([GI.getexterior(poly)])
+        return make_polygon(GI.getexterior(poly))
     end
     return poly
 end

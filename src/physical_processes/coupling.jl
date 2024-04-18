@@ -1654,14 +1654,14 @@ function calc_two_way_coupling!(
                 domain.north,
                 domain.east
             )
-            cell_poly = LG.Polygon(cell_coords)
+            cell_poly = make_polygon(cell_coords)
             for i in eachindex(floe_locations.floeidx)
                 floe_coords = translate(
                     floes.coords[floe_locations.floeidx[i]],
                     floe_locations.Δx[i],
                     floe_locations.Δy[i],
                 )
-                floe_poly = LG.Polygon(floe_coords)
+                floe_poly = make_polygon(floe_coords)
                 floe_area_in_cell = sum(
                     GO.area.(intersect_polys(cell_poly, floe_poly), FT)
                 )

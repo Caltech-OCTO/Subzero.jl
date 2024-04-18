@@ -11,7 +11,7 @@
         ) isa HiblerYieldCurve
         # Test calculate_hibler
         hibler_verts = Subzero.calculate_hibler(0.5, 5e5, -1)
-        hibler_poly = LG.Polygon(hibler_verts)
+        hibler_poly = Subzero.make_polygon(hibler_verts)
         @test isapprox(GO.area(hibler_poly), 49054437859.374, atol = -1e3)
         @test all(isapprox.(
             GO.centroid(hibler_poly),
@@ -30,7 +30,7 @@
             atol = 1e-3
         ))
         hibler_verts = Subzero.calculate_hibler(0.25, 2.25e5, 20.0)
-        hibler_poly = LG.Polygon(hibler_verts)
+        hibler_poly = Subzero.make_polygon(hibler_verts)
         @test isapprox(GO.area(hibler_poly), 2483380916.630, atol = -1e3)
         @test all(isapprox.(
             GO.centroid(hibler_poly),
@@ -185,7 +185,7 @@
         floe1_copy = deepcopy(floes[1])
         colliding_coords = no_frac_floe.coords
         deforming_forces = frac_deform_floe.interactions[xforce:yforce]
-        init_overlap = sum(GO.area, Subzero.intersect_polys(LG.Polygon(floe1_copy.coords), LG.Polygon(colliding_coords)); init = 0.0)
+        init_overlap = sum(GO.area, Subzero.intersect_polys(Subzero.make_polygon(floe1_copy.coords), Subzero.make_polygon(colliding_coords)); init = 0.0)
         Subzero.deform_floe!(
             floe1_copy,
             colliding_coords,
@@ -194,7 +194,7 @@
             10,
             Xoshiro(1),
         )
-        post_deform_overlap = sum(GO.area, Subzero.intersect_polys(LG.Polygon(floe1_copy.coords), LG.Polygon(colliding_coords)); init = 0.0)
+        post_deform_overlap = sum(GO.area, Subzero.intersect_polys(Subzero.make_polygon(floe1_copy.coords), Subzero.make_polygon(colliding_coords)); init = 0.0)
         @test init_overlap > post_deform_overlap
         
         @test all(isapprox.( 
@@ -218,7 +218,7 @@
             10,
         ) 
         # Test that the pieces all fit within original floe
-        og_floe_poly = LG.Polygon(floes.coords[1])
+        og_floe_poly = Subzero.make_polygon(floes.coords[1])
         new_floes_polys = LG.MultiPolygon(new_floes.coords)
         @test isapprox(
             sum(GO.area, Subzero.intersect_polys(new_floes_polys, og_floe_poly); init = 0.0),

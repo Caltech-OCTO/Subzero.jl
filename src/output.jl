@@ -841,7 +841,7 @@ function calc_eulerian_data!(floes, topography, writer)
             pint = potential_interactions[i,j,:]
             # If there are any potential interactions
             if sum(pint) > 0
-                cell_poly_list = [LG.Polygon(rect_coords(writer.xg[j], writer.xg[j+1], writer.yg[i], writer.yg[i+1]))]
+                cell_poly_list = [make_polygon(rect_coords(writer.xg[j], writer.xg[j+1], writer.yg[i], writer.yg[i+1]))]
                 if length(topography) > 0
                     cell_poly_list = diff_polys(GI.MultiPolygon(cell_poly_list), GI.MultiPolygon(topography.coords); fix_multipoly = nothing)
                 end
@@ -859,7 +859,7 @@ function calc_eulerian_data!(floes, topography, writer)
                 =#
                 pic_area = zeros(length(floeidx))
                 for (i, idx) in enumerate(floeidx)
-                    floe_poly = LG.Polygon(floes.coords[idx])
+                    floe_poly = make_polygon(floes.coords[idx])
                     pic_area[i] = mapreduce(x -> sum(GO.area, Subzero.intersect_polys(floe_poly, x); init = 0.0), +, cell_poly_list; init = 0.0)
                 end
                 
