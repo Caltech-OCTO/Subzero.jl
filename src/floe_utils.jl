@@ -89,20 +89,29 @@ Inputs:
 Output:
     Vector of Polygons
 """
-intersect_polys(p1, p2; kwargs...) = get_polygons(LG.intersection(p1, p2))
+intersect_polys(p1, p2; kwargs...) = GO.intersection(p1, p2; target = GI.PolygonTrait(), fix_multipoly = nothing)
+# intersect_polys(p1, p2; kwargs...) = get_polygons(LG.intersection(p1, p2))
+diff_polys(p1, p2; kwargs...) = GO.difference(p1, p2; target = GI.PolygonTrait(), fix_multipoly = nothing) 
+# diff_polys(p1, p2; kwargs...) = get_polygons(LG.difference(p1, p2))
+union_polys(p1, p2; kwargs...) = GO.union(p1, p2; target = GI.PolygonTrait(), fix_multipoly = nothing)
+# union_polys(p1, p2; kwargs...) = get_polygons(LG.union(p1, p2))
 
-diff_polys(p1, p2; kwargs...) = get_polygons(LG.difference(p1, p2))
+simplify_poly(p, tol) = GO.tuples(LG.simplify(p, tol)) #GO.simplify(p; tol = tol)
 
-union_polys(p1, p2; kwargs...) = get_polygons(LG.union(p1, p2))
+make_polygon(coords::PolyVec) = GI.Polygon(GO.tuples(coords))
+make_polygon(ring::GI.LinearRing) = GI.Polygon([ring])
+make_polygon(ring::LG.LinearRing) = GI.Polygon([GO.tuples(ring)])
+make_multipolygon(coords::Vector{<:PolyVec}) = GI.MultiPolygon(GO.tuples(coords))
+make_multipolygon(polys::Vector{<:GI.Polygon}) = GI.MultiPolygon(polys)
+make_multipolygon(polys::Vector{<:LG.Polygon}) = GI.MultiPolygon(GO.tuples(polys))
 
-simplify_poly(p, tol) = LG.simplify(p, tol)
+# make_polygon(coords::PolyVec) = LG.Polygon(coords)
+# make_polygon(ring::GI.LinearRing) = LG.Polygon(GI.convert(LG, ring))
+# make_polygon(ring::LG.LinearRing) = LG.Polygon(ring)
+# make_multipolygon(coords::Vector{<:PolyVec}) = LG.MultiPolygon(coords)
+# make_multipolygon(polys::Vector{<:GI.Polygon}) = LG.MultiPolygon(GI.convert.(LG, polys))
+# make_multipolygon(polys::Vector{<:LG.Polygon}) = LG.MultiPolygon(polys) # LG.M
 
-make_polygon(coords::PolyVec) = LG.Polygon(coords)
-make_polygon(ring::GI.LinearRing) = LG.Polygon(GI.convert(LG, ring))
-make_polygon(ring::LG.LinearRing) = LG.Polygon(ring)
-make_multipolygon(coords::Vector{<:PolyVec}) = LG.MultiPolygon(coords)
-make_multipolygon(polys::Vector{<:GI.Polygon}) = LG.MultiPolygon(GI.convert.(LG, polys))
-make_multipolygon(polys::Vector{<:LG.Polygon}) = LG.MultiPolygon(polys)
 
 isvalid(poly::LG.Polygon) = LG.isValid(poly)
 isvalid(multipoly::LG.MultiPolygon) = LG.isValid(multipoly)

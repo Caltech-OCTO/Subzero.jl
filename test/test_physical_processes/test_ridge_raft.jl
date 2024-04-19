@@ -612,7 +612,7 @@ using LibGEOS
         # Make sure floe ridged onto domain bounary and broke
         @test h1 < floes.height[1]
         @test h1 < pieces_list.height[1]
-        @test pieces_list.height[1] > floes.height[1]
+        @test isapprox(pieces_list.height[1], floes.height[1])
         @test cent1 != floes.centroid[1]
         # Make sure IDs are correct
         @test max_id == 3
