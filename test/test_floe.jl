@@ -178,6 +178,8 @@
     @test length(voronoi_coords) == 10
     for c in voronoi_coords
         fpoly = Subzero.make_polygon(c)
+        @show GI.coordinates(fpoly)
+        @show GI.coordinates(bounding_poly)
         @test isapprox(
             sum(GO.area, Subzero.intersect_polys(fpoly, bounding_poly); init = 0.0),
             GO.area(fpoly),
@@ -222,6 +224,7 @@
 
     concentrations = [1 0.3; 0 0.5]
     rng = Xoshiro(2)
+    println("START")
     floe_arr = initialize_floe_field(
         25,
         concentrations,
@@ -244,6 +247,8 @@
             n_polys = 0
             for floe in floe_polys
                 for mask in cell_without_topos
+                    @show GI.coordinates(floe)
+                    @show GI.coordinates(mask)
                     floes_in_cell_area += GO.area(Subzero.intersect_polys(floe, mask))
                 end
             end
@@ -253,7 +258,7 @@
     @test all([sum(GO.area, Subzero.intersect_polys(p, topo_polys); init = 0.0) for p in floe_polys] .< 1e-3)
     @test all([Subzero.isvalid(p) for p in floe_polys])
     @test all(floe_arr.id .== range(1, nfloes))
-
+    println("END")
     @test typeof(initialize_floe_field(
         Float32,
         25,
