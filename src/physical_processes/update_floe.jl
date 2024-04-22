@@ -406,12 +406,15 @@ function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}) where {FT}
     stress[1, 2] *= FT(0.5)
     stress[2, 1] = stress[1, 2]
     stress .*= 1/(floe.area * floe.height)
-    # Add timestep stress to stress history
-    push!(floe.stress_history, stress)
-    # Average stress history to find floe's average stress
-    floe.stress = mean(floe.stress_history)
+    if typeof(floe.calculator) == RunningAverageCalculator
+        # Add timestep stress to stress history
+        push!(floe.calculator.stress_history_tensor, stress)
+        # Average stress history to find floe's average stress
+        floe.stress = mean(floe.calculator.stress_history_tensor)
+    end
     return
 end
+
 
 """
     calc_strain!(coords, centroid, u, v, ξ, area)

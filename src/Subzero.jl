@@ -48,6 +48,7 @@ export
     overlap, 
     initialize_floe_field,
     initialize_topography_field,
+    AbstractAccumulatedStressCalculator,
     AbstractFractureCriteria,
     NoFracture,
     HiblerYieldCurve,

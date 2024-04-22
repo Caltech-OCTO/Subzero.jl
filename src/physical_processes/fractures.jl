@@ -2,6 +2,59 @@
 Structs and functions for fracturing floes
 """
 
+# """
+#     AbstractAccumulatedStressCalculator
+
+# Abstract type ways of keeping track of stress.
+# """
+# abstract type AbstractAccumulatedStressCalculator{FT<:AbstractFloat} end
+
+# """
+#     RunningAverageCalculator
+
+# idk yet.
+# """
+# @kwdef struct RunningAverageCalculator{
+#     FT <: AbstractFloat,
+# } <: AbstractAccumulatedStressCalculator{FT}
+#     nhistory::Int = 100
+#     stress_history_tensor::FT
+
+#     function RunningAverageCalculator{FT}(nhistory) where {FT <: AbstractFloat}
+#         if nhistory < 1
+#             throw(ArgumentError("Need some amount of stress history to keep track of"))
+#         end
+
+#         stress_history_tensor = StressCircularBuffer{FT}(nhistory)
+#         fill!(stress_history_tensor, zeros(FT, 2, 2))
+
+#         return new{FT}(nhistory, stress_history_tensor)
+#     end
+# end
+
+# """
+#     RunningAverageCalculator(::Type{FT}; kwargs...)
+
+# A float type FT can be provided as the first argument of any
+# MonteCarloPointsGenerator constructor. A MonteCarloPointsGenerato of type FT
+# will be created by passing all other arguments to the correct constructor. 
+# """
+# RunningAverageCalculator(
+#     ::Type{FT},
+#     args...;
+#     kwargs...,
+# ) where {FT <: AbstractFloat} =
+#     RunningAverageCalculator{FT}(args...; kwargs...)
+
+# """
+#     RunningAverageCalculator(; kwargs...)
+
+# If type isn't specified, MonteCarloPointsGenerator(; kwargs...) will be of type
+# Float64 and the correct constructor will be called with all other arguments.
+# """
+# RunningAverageCalculator(args...; kwargs...) =
+#     RunningAverageCalculator{Float64}(args...; kwargs...)
+
 """
     AbstractFractureCriteria
 
