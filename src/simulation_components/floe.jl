@@ -606,9 +606,12 @@ Inputs:
     hmean           <Float> average floe height
     Δh              <Float> height range - floes will range in height from
                         hmean - Δh to hmean + Δh
-    floe_settings       <FloeSettings> settings needed to initialize floes
-    rng                 <RNG> random number generator to generate random floe
-                            attributes - default uses Xoshiro256++
+    floe_bounds     <PolyVec> coordinates of boundary within which to populate floes. This
+                        can be smaller that the domain, but will be limited to open space
+                        within the domain
+    floe_settings   <FloeSettings> settings needed to initialize floes
+    rng             <RNG> random number generator to generate random floe
+                        attributes - default uses Xoshiro256++
 Output:
     floe_arr <StructArray> list of floes created using Voronoi Tesselation
         of the domain with given concentrations.
@@ -620,30 +623,29 @@ function initialize_floe_field(
     domain,
     hmean,
     Δh;
+    floe_bounds = rect_coords(domain.west.val, domain.east.val, domain.south.val, domain.north.val),
     floe_settings = FloeSettings(min_floe_area = 0.0),
     rng = Xoshiro(),
 ) where {FT <: AbstractFloat}
     floe_arr = StructArray{Floe{FT}}(undef, 0)
-    # Split domain into cells with given concentrations
-    nrows, ncols = size(concentrations[:, :])
-    Lx = domain.east.val - domain.west.val
-    Ly = domain.north.val - domain.south.val
-    rowlen = Ly / nrows
-    collen = Lx / ncols
-    # Availible space in whole domain
-    open_water = LG.Polygon(rect_coords(
-        domain.west.val,
-        domain.east.val,
-        domain.south.val,
-        domain.north.val
-    ))
+    # Availible space in domain
+    open_water = LG.Polygon(floe_bounds)
+    open_water = LG.intersection(open_water, LG.Polygon(rect_coords(domain.west.val, domain.east.val, domain.south.val, domain.north.val)))
     if !isempty(domain.topography)
         open_water = LG.difference(
             open_water, 
             LG.MultiPolygon(domain.topography.coords)
         )
     end
+    (bounds_xmin, bounds_xmax), (bounds_ymin, bounds_ymax) = GeometryBasics.GeoInterface.extent(open_water)
     open_water_area = LG.area(open_water)
+
+    # Split domain into cells with given concentrations
+    nrows, ncols = size(concentrations[:, :])
+    Lx = bounds_xmax - bounds_xmin
+    Ly = bounds_ymax - bounds_ymin
+    rowlen = Ly / nrows
+    collen = Lx / ncols
 
     # Loop over cells
     for j in range(1, ncols)
@@ -652,8 +654,8 @@ function initialize_floe_field(
             if c > 0
                 c = c > 1 ? 1 : c
                 # Grid cell bounds
-                xmin = domain.west.val + collen * (j - 1)
-                ymin = domain.south.val + rowlen * (i - 1)
+                xmin = bounds_xmin + collen * (j - 1) # TODO: change this
+                ymin = bounds_ymin + rowlen * (i - 1)
                 cell_bounds = rect_coords(
                     xmin,
                     xmin + collen,
