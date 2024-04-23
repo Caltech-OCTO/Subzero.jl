@@ -58,7 +58,7 @@ domain = Domain(nboundary, sboundary, eboundary, wboundary)
 floe_settings = FloeSettings(
     subfloe_point_generator = SubGridPointsGenerator(grid, 2),
 )
-# Floe creation
+# Floe creation - bound floes within smaller part of the domain
 floe_bounds = [[[0.1Lx, 0.1Ly], [0.1Lx, 0.9Ly], [0.9Lx, 0.9Ly], [0.9Lx, 0.1Ly], [0.1Lx, 0.1Ly]]]
 floe_arr = initialize_floe_field(
     FT,
