@@ -16,32 +16,35 @@ grid = RegRectilinearGrid(
     Δgrid,
     Δgrid,
 )
-# Set u velocities
-uvels = zeros(FT, (Nx + 1, Ny + 1))
-for i in CartesianIndices(uvels)
+# Set ocean u velocities
+ocean_uvels = zeros(FT, (grid.Nx + 1, grid.Ny + 1))
+for i in CartesianIndices(ocean_uvels)
     r, c = Tuple(i)
-    if c ≤ 2
-        uvels[i] = 0.2
-    elseif c ≥ Nx
-        uvels[i] = -0.2
+    if r ≤ 5
+        ocean_uvels[i] = 0.2
+    elseif r ≥ grid.Nx - 4
+        ocean_uvels[i] = -0.2
     end
 end
-# Set v velocities
-vvels = zeros(FT, (Nx + 1, Ny + 1))
-for i in CartesianIndices(vvels)
+ocean_uvels[20:40, 20:30] .= 0.15
+# Set ocean v velocities
+ocean_vvels = zeros(FT, (grid.Nx + 1, grid.Ny + 1))
+for i in CartesianIndices(ocean_vvels)
     r, c = Tuple(i)
-    if r ≤ 2
-        vvels[i] = -0.2
-    elseif r ≥ Nx
-        vvels[i] = 0.2
+    if c ≤ 5
+        ocean_vvels[i] = 0.2
+    elseif c ≥ grid.Ny - 4
+        ocean_vvels[i] = -0.2
     end
 end
-
+# Create ocean
 ocean = Ocean(
-    uvels,
-    vvels,
-    zeros(grid.Nx + 1, grid.Ny + 1),
+    ocean_uvels,
+    ocean_vvels,
+    zeros(FT, (grid.Nx + 1, grid.Ny + 1)),
 )
+
+# Create atmosphere
 atmos = Atmos(grid, 0.0, 0.0, -1.0)
 
 # Domain creation
@@ -56,13 +59,15 @@ floe_settings = FloeSettings(
     subfloe_point_generator = SubGridPointsGenerator(grid, 2),
 )
 # Floe creation
+floe_bounds = [[[0.1Lx, 0.1Ly], [0.1Lx, 0.9Ly], [0.9Lx, 0.9Ly], [0.9Lx, 0.1Ly], [0.1Lx, 0.1Ly]]]
 floe_arr = initialize_floe_field(
     FT,
-    50,
-    [0.8],
+    300,
+    [0.4],
     domain,
     hmean,
     Δh;
+    floe_bounds = floe_bounds,
     rng = Xoshiro(1),
     floe_settings = floe_settings
 )
@@ -76,7 +81,7 @@ consts = Constants(E = modulus)
 
 # Run simulation
 run_time!(simulation) =  @time run!(simulation)
-dir = "output/shear_flow"
+dir = "output/contained"
 
 # Output setup
 initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
@@ -86,17 +91,16 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 10000,
+    nΔt = 15000,
     verbose = true,
     writers = writers,
     rng = Xoshiro(1),
-    coupling_settings = coupling_settings,
 )
 run_time!(simulation)
 
 plot_sim(
-    "output/shear_flow/floes.jld2",
-    "output/shear_flow/initial_state.jld2",
-    20,
-    "output/shear_flow/shear_flow.mp4",
+    joinpath(dir, "floes.jld2"),
+    joinpath(dir, "initial_state.jld2"),
+    Δt,
+    joinpath(dir, "contained.mp4"),
 )
