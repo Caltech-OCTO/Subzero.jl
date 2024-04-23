@@ -20,6 +20,7 @@ Settings needed to create floes within the model.
 @kwdef struct FloeSettings{
     FT <: AbstractFloat,
     GT <: AbstractSubFloePointsGenerator,
+    CT <: AbstractStressCalculator,
 }
     ρi::FT = 920.0
     min_floe_area::FT = 1e6
@@ -28,8 +29,9 @@ Settings needed to create floes within the model.
     min_aspect_ratio::FT = 0.05
     nhistory::Int = 100
     subfloe_point_generator::GT = MonteCarloPointsGenerator()
+    stress_calculator::CT = RunningAverageCalculator()
 
-    function FloeSettings{FT, GT}(
+    function FloeSettings{FT, GT, CT}(
         ρi,
         min_floe_area,
         min_floe_height,
@@ -37,7 +39,8 @@ Settings needed to create floes within the model.
         min_aspect_ratio,
         nhistory,
         subfloe_point_generator,
-    ) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator{FT}}
+        stress_calculator,
+    ) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator{FT}, CT <: AbstractStressCalculator}
         if ρi < 0
             @warn "Ice density can't be negative. Resetting to default values \
             of 920."
@@ -68,7 +71,7 @@ Settings needed to create floes within the model.
             Resetting to default of 100."
             nhistory = 100
         end
-        new{FT, GT}(
+        new{FT, GT, CT}(
             ρi,
             min_floe_area,
             min_floe_height,
@@ -76,6 +79,7 @@ Settings needed to create floes within the model.
             min_aspect_ratio,
             nhistory,
             subfloe_point_generator,
+            stress_calculator,
         )
     end
 
@@ -87,8 +91,9 @@ Settings needed to create floes within the model.
         min_aspect_ratio,
         nhistory,
         subfloe_point_generator::GT,
-    ) where {GT <: AbstractSubFloePointsGenerator} = 
-        FloeSettings{Float64, GT}(
+        stress_calculator::CT,
+    ) where {GT <: AbstractSubFloePointsGenerator, CT <: AbstractStressCalculator} = 
+        FloeSettings{Float64, GT, CT}(
             ρi,
             min_floe_area,
             min_floe_height,
@@ -96,6 +101,7 @@ Settings needed to create floes within the model.
             min_aspect_ratio,
             nhistory,
             subfloe_point_generator,
+            stress_calculator,
         )
 end
 
@@ -109,10 +115,12 @@ arguments to the correct constructor.
 FloeSettings(
     ::Type{FT};
     subfloe_point_generator::GT = MonteCarloPointsGenerator(FT),
+    stress_calculator::CT = RunningAverageCalculator(),
     kwargs...,
-) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator} =
-    FloeSettings{FT, GT}(;
-        subfloe_point_generator = subfloe_point_generator,
+) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator, CT <: AbstractStressCalculator} =
+    FloeSettings{FT, GT, CT}(;
+        subfloe_point_generator,
+        stress_calculator,
         kwargs...,
     )
 

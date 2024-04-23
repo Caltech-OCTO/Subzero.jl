@@ -48,7 +48,7 @@ export
     overlap, 
     initialize_floe_field,
     initialize_topography_field,
-    AbstractAccumulatedStressCalculator,
+    AbstractStressCalculator,
     AbstractFractureCriteria,
     NoFracture,
     HiblerYieldCurve,
@@ -105,10 +105,10 @@ include("simulation_components/domain_and_grid.jl")
 include("simulation_components/ocean_and_atmos.jl")
 include("simulation_components/model.jl")
 # Physical Processes
+include("physical_processes/fractures.jl")
 include("physical_processes/update_floe.jl")
 include("physical_processes/coupling.jl")
 include("physical_processes/collisions.jl")
-include("physical_processes/fractures.jl")
 include("physical_processes/process_settings.jl")
 include("physical_processes/simplification.jl")
 include("physical_processes/ridge_raft.jl")

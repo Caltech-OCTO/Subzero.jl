@@ -165,7 +165,7 @@ function timestep_sim!(sim, tstep)
             sim.model.floes,
             tstep,
             sim.Δt,
-            sim.floe_settings.max_floe_height,
+            sim.floe_settings,
         )
         # Fracture floes
         if sim.fracture_settings.fractures_on && mod(tstep, sim.fracture_settings.Δt) == 0

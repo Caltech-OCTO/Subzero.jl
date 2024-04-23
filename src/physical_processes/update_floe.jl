@@ -391,7 +391,7 @@ Inputs:
 Outputs:
     Caculates stress on floe at current timestep from interactions
 """
-function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}) where {FT}
+function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}, floe_settings) where {FT}
     # Stress calcultions
     xi, yi = floe.centroid
     inters = floe.interactions
@@ -406,13 +406,14 @@ function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}) where {FT}
     stress[1, 2] *= FT(0.5)
     stress[2, 1] = stress[1, 2]
     stress .*= 1/(floe.area * floe.height)
-    if typeof(floe.calculator) == RunningAverageCalculator
-        # Add timestep stress to stress history
-        push!(floe.calculator.stress_history_tensor, stress)
-        # Average stress history to find floe's average stress
-        floe.stress = mean(floe.calculator.stress_history_tensor)
-    end
+    accumulate_stress!(floe_settings.stress_calculator, stress, floe)
+
     return
+end
+
+function accumulate_stress!(::RunningAverageCalculator, curr_stress, floe)
+    push!(floe.stress_history, curr_stress)
+    floe.stress = mean(floe.stress_history)
 end
 
 
@@ -461,9 +462,9 @@ tendencies calculated at previous timesteps. Height, mass, stress, and strain
 also updated based on previous timestep thermodynamics and interactions with
 other floes. 
 Input:
-        floe        <Floe>
-        Δt          <Int> simulation timestep in second
-        max_height  <AbstractFloat> maximum floe height
+        floe            <Floe>
+        Δt              <Int> simulation timestep in second
+        floe_settings   <FloeSettings> simulation floe settings
 Output:
         None. Floe's fields are updated with values.
 """
@@ -471,19 +472,19 @@ function timestep_floe_properties!(
     floes,
     tstep,
     Δt,
-    max_height,
+    floe_settings,
 )
     Threads.@threads for i in eachindex(floes)
         cforce = floes.collision_force[i]
         ctrq = floes.collision_trq[i]
         # Update stress
         if floes.num_inters[i] > 0
-            calc_stress!(LazyRow(floes, i))
+            calc_stress!(LazyRow(floes, i), floe_settings)
         end
         # Ensure no extreem values due to model instability
-        if floes.height[i] > max_height
+        if floes.height[i] > floe_settings.max_floe_height
             @warn "Reducing height to 10 m"
-            floes.height[i] = max_height
+            floes.height[i] = floe_settings.max_floe_height
         end
 
         while maximum(abs.(cforce)) > floes.mass[i]/(5Δt)
