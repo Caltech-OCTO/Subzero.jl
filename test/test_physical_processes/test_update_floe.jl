@@ -23,7 +23,7 @@
         floe_dict = load(
             "inputs/stress_strain.jld2"  # uses the first 2 element
         )
-        floe_settings = FloeSettings(nhistory = 1000)
+        floe_settings = FloeSettings(stress_calculator = RunningAverageCalculator(1000))
         stresses = [[-10.065, 36.171, 36.171, -117.458],
             [7.905, 21.913, 21.913, -422.242]]
         stress_histories = [[-4971.252, 17483.052, 17483.052, -57097.458],

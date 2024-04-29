@@ -248,8 +248,8 @@ The following fields are part of the floe settings (with default values):
   - min_floe_height: minimum floe height (0.1 m)
   - max_floe_height: maximum floe height (10.0 m)
   - min_aspect_ratio: minimum ratio between floe x-length and y-length by maximum coordiante values (0.05)
-  - nhistory: number of elements to save in floe's stress history (100)
   - subfloe_point_generator: generates floe's subfloe points (`MonteCarloPointsGenerator()`)
+  - stress_calculator: generates the calculator for fress ('RunningAverageCalculator()')
 
 If any of the minimum / maximum values are exceeded, a floe is removed in the course of the simulation.
 
@@ -268,8 +268,8 @@ You can make a floe settings object as follows:
 floe_settings = FloeSettings(
   min_floe_area = 1e5,
   max_floe_height = 5,
-  nhistory = 50,
-  subfloe_point_generator = SubGridPointsGenerator(grid, 2)
+  subfloe_point_generator = SubGridPointsGenerator(grid, 2),
+  stress_calculator = RunningAverageCalculator(50),
 )
  ```
  Any fields that aren't specified are assigned their default value.

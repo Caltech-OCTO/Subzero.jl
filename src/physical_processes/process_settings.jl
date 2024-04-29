@@ -13,9 +13,9 @@ Settings needed to create floes within the model.
     can't increase any further
 - min_aspect_ratio is the minimum ratio between the x-length and y-length of any
     floe prior to removal
-- nhistory is how many timesteps of stress history to save within each floe
 - subfloe_point_generator is the method of subfloe point generation for each
     floe within the model
+- stress_calculator is the method of calculating current stress of floe
 """
 @kwdef struct FloeSettings{
     FT <: AbstractFloat,
@@ -27,7 +27,6 @@ Settings needed to create floes within the model.
     min_floe_height::FT = 0.1
     max_floe_height::FT = 10.0
     min_aspect_ratio::FT = 0.05
-    nhistory::Int = 100
     subfloe_point_generator::GT = MonteCarloPointsGenerator()
     stress_calculator::CT = RunningAverageCalculator()
 
@@ -37,7 +36,6 @@ Settings needed to create floes within the model.
         min_floe_height,
         max_floe_height,
         min_aspect_ratio,
-        nhistory,
         subfloe_point_generator,
         stress_calculator,
     ) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator{FT}, CT <: AbstractStressCalculator}
@@ -66,18 +64,12 @@ Settings needed to create floes within the model.
             0f 0.05."
             min_aspect_ratio = FT(0.05)
         end
-        if nhistory < 1
-            @warn "Need to save at least one timestep of stress history.
-            Resetting to default of 100."
-            nhistory = 100
-        end
         new{FT, GT, CT}(
             ρi,
             min_floe_area,
             min_floe_height,
             max_floe_height,
             min_aspect_ratio,
-            nhistory,
             subfloe_point_generator,
             stress_calculator,
         )
@@ -89,7 +81,6 @@ Settings needed to create floes within the model.
         min_floe_height,
         max_floe_height,
         min_aspect_ratio,
-        nhistory,
         subfloe_point_generator::GT,
         stress_calculator::CT,
     ) where {GT <: AbstractSubFloePointsGenerator, CT <: AbstractStressCalculator} = 
@@ -99,7 +90,6 @@ Settings needed to create floes within the model.
             min_floe_height,
             max_floe_height,
             min_aspect_ratio,
-            nhistory,
             subfloe_point_generator,
             stress_calculator,
         )

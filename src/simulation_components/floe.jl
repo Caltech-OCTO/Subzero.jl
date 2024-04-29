@@ -252,8 +252,7 @@ function Floe{FT}(
     )
     translate!(coords, centroid[1], centroid[2])
     # Generate Stress History
-    stress_history = StressCircularBuffer{FT}(floe_settings.nhistory)
-    fill!(stress_history, zeros(FT, 2, 2))
+    stress_history = _generateStressHistory(floe_settings.stress_calculator, FT)
 
     return Floe{FT}(;
         centroid = centroid,
@@ -272,6 +271,13 @@ function Floe{FT}(
     )
 end
 
+function _generateStressHistory(stress_calculator::RunningAverageCalculator, FT)
+    stress_history = StressCircularBuffer{FT}(stress_calculator.nhistory)
+    fill!(stress_history, zeros(FT, 2, 2))
+    return stress_history
+end
+
+
 """
     Floe{FT}(
         coords::PolyVec,
@@ -279,7 +285,6 @@ end
         Δh;
         ρi = 920.0,
         mc_n = 1000,
-        nhistory = 1000,
         rng = Xoshiro(),
         kwargs...,
     )
