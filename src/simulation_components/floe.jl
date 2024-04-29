@@ -277,6 +277,12 @@ function _generateStressHistory(stress_calculator::RunningAverageCalculator, FT)
     return stress_history
 end
 
+function _generateStressHistory(stress_calculator::DecayCalculator, FT)
+    stress_history = StressCircularBuffer{FT}(1)
+    fill!(stress_history, zeros(FT, 2, 2))
+    return stress_history
+end
+
 
 """
     Floe{FT}(

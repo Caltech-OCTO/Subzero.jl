@@ -68,7 +68,7 @@ The user can also define settings for each physical process.
     Δt::Int = 10                        # Simulation timestep (seconds)
     nΔt::Int = 7500                     # Total timesteps simulation runs for
     # Physical Processes -------------------------------------------------------
-    floe_settings::FloeSettings{FT, PT} = FloeSettings()
+    floe_settings::FloeSettings{FT, PT} = FloeSettings(time_step = Δt)
     coupling_settings::CouplingSettings = CouplingSettings()
     collision_settings::CollisionSettings{FT} = CollisionSettings()
     fracture_settings::FractureSettings{CT} = FractureSettings()

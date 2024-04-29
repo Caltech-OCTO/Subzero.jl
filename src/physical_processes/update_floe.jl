@@ -406,14 +406,19 @@ function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}, floe_settings) w
     stress[1, 2] *= FT(0.5)
     stress[2, 1] = stress[1, 2]
     stress .*= 1/(floe.area * floe.height)
-    accumulate_stress!(floe_settings.stress_calculator, stress, floe)
+    accumulate_stress!(floe_settings.stress_calculator, stress, floe, floe_settings.time_step)
 
     return
 end
 
-function accumulate_stress!(::RunningAverageCalculator, curr_stress, floe)
+function accumulate_stress!(::RunningAverageCalculator, curr_stress, floe, time_step)
     push!(floe.stress_history, curr_stress)
     floe.stress = mean(floe.stress_history)
+end
+
+function accumulate_stress!(stress_calculator::DecayCalculator, curr_stress, floe, time_step)
+    push!(floe.stress_history, curr_stress)
+    floe.stress = floe.stress + (time_step/stress_calculator.τ)*(curr_stress - floe.stress)
 end
 
 

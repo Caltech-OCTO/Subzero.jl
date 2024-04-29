@@ -50,6 +50,7 @@ export
     initialize_topography_field,
     AbstractStressCalculator,
     RunningAverageCalculator,
+    DecayCalculator,
     AbstractFractureCriteria,
     NoFracture,
     HiblerYieldCurve,

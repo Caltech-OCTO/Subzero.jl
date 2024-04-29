@@ -22,6 +22,7 @@ Settings needed to create floes within the model.
     GT <: AbstractSubFloePointsGenerator,
     CT <: AbstractStressCalculator,
 }
+    time_step::Int = 10
     ρi::FT = 920.0
     min_floe_area::FT = 1e6
     min_floe_height::FT = 0.1
@@ -31,6 +32,7 @@ Settings needed to create floes within the model.
     stress_calculator::CT = RunningAverageCalculator()
 
     function FloeSettings{FT, GT, CT}(
+        time_step,
         ρi,
         min_floe_area,
         min_floe_height,
@@ -65,6 +67,7 @@ Settings needed to create floes within the model.
             min_aspect_ratio = FT(0.05)
         end
         new{FT, GT, CT}(
+            time_step,
             ρi,
             min_floe_area,
             min_floe_height,
@@ -76,6 +79,7 @@ Settings needed to create floes within the model.
     end
 
     FloeSettings(
+        time_step,
         ρi,
         min_floe_area,
         min_floe_height,
@@ -85,6 +89,7 @@ Settings needed to create floes within the model.
         stress_calculator::CT,
     ) where {GT <: AbstractSubFloePointsGenerator, CT <: AbstractStressCalculator} = 
         FloeSettings{Float64, GT, CT}(
+            time_step,
             ρi,
             min_floe_area,
             min_floe_height,
