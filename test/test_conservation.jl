@@ -92,7 +92,7 @@ end
 
     # Two blocks crashing head on - no rotation
     rng = Xoshiro(1)
-    floe_settings = FloeSettings(nhistory = 100)
+    floe_settings = FloeSettings(stress_calculator = RunningAverageCalculator(100))
     head_on_floes = initialize_floe_field(
         FT,
         [floe1, floe2],
