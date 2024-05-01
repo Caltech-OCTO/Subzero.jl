@@ -178,8 +178,8 @@
     @test length(voronoi_coords) == 10
     for c in voronoi_coords
         fpoly = Subzero.make_polygon(c)
-        @show GI.coordinates(fpoly)
-        @show GI.coordinates(bounding_poly)
+        # @show GI.coordinates(fpoly)
+        # @show GI.coordinates(bounding_poly)
         @test isapprox(
             sum(GO.area, Subzero.intersect_polys(fpoly, bounding_poly); init = 0.0),
             GO.area(fpoly),
@@ -217,6 +217,12 @@
         atol = 1e-1
     )
     @test all(floe_arr.area .> 1e4)
+    for (i, c) in enumerate(floe_arr.coords)
+        @show i
+        @show c
+        @show GI.coordinates(topo_polys)
+        Subzero.intersect_polys(Subzero.make_polygon(c), topo_polys)
+    end
     @test all([sum(GO.area, Subzero.intersect_polys(Subzero.make_polygon(c), topo_polys); init = 0.0) for c in floe_arr.coords] .< 1e-6)
 
     nfloes = length(floe_arr)
@@ -247,8 +253,8 @@
             n_polys = 0
             for floe in floe_polys
                 for mask in cell_without_topos
-                    @show GI.coordinates(floe)
-                    @show GI.coordinates(mask)
+                    # @show GI.coordinates(floe)
+                    # @show GI.coordinates(mask)
                     floes_in_cell_area += GO.area(Subzero.intersect_polys(floe, mask))
                 end
             end
