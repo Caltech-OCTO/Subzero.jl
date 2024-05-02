@@ -552,13 +552,13 @@ function generate_voronoi_coords(
         # Scale and translate voronoi coordinates
         tcoords = Vector{PolyVec{FT}}(undef, length(tess_cells))
         for i in eachindex(tess_cells)
-            perturb_vec = [
-                (-1)^rand(rng, 0:1) * rand(rng, FT)*1e-10,
-                (-1)^rand(rng, 0:1) * rand(rng, FT)*1e-10,
-            ]
+            # perturb_vec = [
+            #     (-1)^rand(rng, 0:1) * rand(rng, FT)*1e-10,
+            #     (-1)^rand(rng, 0:1) * rand(rng, FT)*1e-10,
+            # ]
             tcoords[i] = [valid_ringvec!([
                 Vector(c) .* scale_fac .+
-                trans_vec .+ perturb_vec
+                trans_vec #.+ perturb_vec
                 for c in tess_cells[i]
             ])]
         end
