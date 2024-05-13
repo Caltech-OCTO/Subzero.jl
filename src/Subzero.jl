@@ -51,6 +51,7 @@ export
     AbstractStressCalculator,
     RunningAverageCalculator,
     DecayCalculator,
+    AreaScaledCalculator,
     AbstractFractureCriteria,
     NoFracture,
     HiblerYieldCurve,

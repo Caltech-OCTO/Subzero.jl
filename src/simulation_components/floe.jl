@@ -139,8 +139,9 @@ Singular sea ice floe with fields describing current state.
     interactions::Matrix{FT} = zeros(0, 7)
     num_inters::Int = 0
     stress::Matrix{FT} = zeros(2, 2)
-    stress_history::StressCircularBuffer{FT} = StressCircularBuffer(1000)
+    stress_history::StressCircularBuffer{FT} = StressCircularBuffer(1)
     strain::Matrix{FT} = zeros(2, 2)
+    damage::FT = 0.0
     # Previous values for timestepping  -------------------------------------
     p_dxdt::FT = 0.0        # previous timestep x-velocity
     p_dydt::FT = 0.0        # previous timestep y-velocity
@@ -283,6 +284,12 @@ function _generateStressHistory(stress_calculator::DecayCalculator, FT)
     return stress_history
 end
 
+function _generateStressHistory(stress_calculator::AreaScaledCalculator, FT)
+    stress_history = StressCircularBuffer{FT}(1)
+    fill!(stress_history, zeros(FT, 2, 2))
+    return stress_history
+end
+
 
 """
     Floe{FT}(
@@ -365,6 +372,7 @@ function poly_to_floes(
     ::Type{FT},
     floe_poly,
     hmean,
+    Δt,
     Δh;
     floe_settings = FloeSettings(min_floe_area = 0),
     rng = Xoshiro(),
@@ -372,6 +380,8 @@ function poly_to_floes(
 ) where {FT <: AbstractFloat}
     floes = StructArray{Floe{FT}}(undef, 0)
     regions = LG.getGeometries(floe_poly)::Vector{LG.Polygon}
+    # TODO WRITE THIS FUNCTIOn
+    initial_damage = calc_initial_damage(floe_settings.stress_calculator, Δt)
     while !isempty(regions)
         r = pop!(regions)
         a = LG.area(r)
@@ -384,6 +394,7 @@ function poly_to_floes(
                     Δh;
                     floe_settings = floe_settings,
                     rng = rng,
+                    damage = initial_damage,
                     kwargs...
                 )
                 push!(floes, floe)
@@ -396,6 +407,9 @@ function poly_to_floes(
     end
     return floes
 end
+
+calc_initial_damage(stress_calculator::DecayCalculator, Δt) = Δt/stress_calculator.τ
+calc_initial_damage(stress_calculator::AreaScaledCalculator, Δt) = Δt/stress_calculator.τ
 
 """
     initialize_floe_field(args...)
@@ -439,6 +453,7 @@ function initialize_floe_field(
     coords,
     domain,
     hmean,
+    Δt,
     Δh;
     floe_settings = FloeSettings(min_floe_area = 0.0),
     rng = Xoshiro(),
@@ -458,6 +473,7 @@ function initialize_floe_field(
                 FT,
                 p,
                 hmean,
+                Δt,
                 Δh;
                 floe_settings = floe_settings,
                 rng = rng,
@@ -486,6 +502,8 @@ function initialize_floe_field(
     floe_arr.id .= range(1, length(floe_arr))
     return floe_arr
 end
+
+
 
 """
     generate_voronoi_coords(
@@ -631,10 +649,13 @@ function initialize_floe_field(
     concentrations,
     domain,
     hmean,
+    Δt,
     Δh;
     floe_settings = FloeSettings(min_floe_area = 0.0),
     rng = Xoshiro(),
+
 ) where {FT <: AbstractFloat}
+    τ = floe_settings.stress_calculator.τ
     floe_arr = StructArray{Floe{FT}}(undef, 0)
     # Split domain into cells with given concentrations
     nrows, ncols = size(concentrations[:, :])
@@ -701,6 +722,7 @@ function initialize_floe_field(
                             FT,
                             floe_poly,
                             hmean,
+                            Δt,
                             Δh;
                             floe_settings = floe_settings,
                             rng = rng,

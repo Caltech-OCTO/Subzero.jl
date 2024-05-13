@@ -296,16 +296,25 @@ Outputs:
 function determine_fractures(
     floes,
     criteria::AbstractFractureCriteria,
-    min_floe_area,
+    floe_settings, # TODO change this to floe settings
 )
     # Determine if floe stresses are in or out of criteria allowable regions
     update_criteria!(criteria, floes)
     σvals = combinedims(sort.(eigvals.(floes.stress)))'
+    scale_stress!(floe_settings.stress_calculator, σvals, floe_settings.min_floe_area, floes)
     in_idx = points_in_poly(σvals, criteria.vertices)
     # If stresses are outside of criteria regions, we will fracture the floe
     frac_idx = .!(in_idx)
-    frac_idx[floes.area .< min_floe_area] .= false
+    frac_idx[floes.area .< floe_settings.min_floe_area] .= false
     return range(1, length(floes))[frac_idx]
+end
+
+function scale_stress!(stress_calculator::AreaScaledCalculator, σvals, min_floe_area, floes)
+    stress_calculator.α == 0 && return
+    for (idx, floe) in enumerate(floes)
+        M = (floe.area/min_floe_area).^stress_calculator.α
+        σvals[idx,:] .= M*σvals[idx,:]
+    end
 end
 
 """
@@ -406,6 +415,7 @@ function split_floe(
     floe_settings,
     Δt,
 ) where {FT}
+    τ = floe_settings.stress_calculator.τ
     new_floes = StructArray{Floe{FT}}(undef, 0)
     # Generate voronoi tesselation in floe's bounding box
     scale_fac = fill(2floe.rmax, 2)
@@ -442,6 +452,7 @@ function split_floe(
                     FT,
                     pieces_polys[i],
                     height,
+                    Δt/τ,
                     0;  # Δh - range of random height difference between floes
                     floe_settings = floe_settings,
                     rng = rng,
@@ -500,7 +511,7 @@ function fracture_floes!(
     frac_idx = determine_fractures(
         floes,
         fracture_settings.criteria,
-        floe_settings.min_floe_area,
+        floe_settings,
     )
     # Initialize list for new floes created from fracturing existing floes
     nfloes2frac = length(frac_idx)

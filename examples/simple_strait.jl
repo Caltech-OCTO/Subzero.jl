@@ -50,6 +50,7 @@ floe_arr = initialize_floe_field(
     [0.7],
     domain,
     hmean,
+    Δt,
     Δh,
     rng = Xoshiro(3),
     floe_settings = floe_settings,
@@ -75,7 +76,7 @@ ridgeraft_settings = RidgeRaftSettings(
 )
 
 # Output setup
-dir = "output/simple_strait"
+dir = "output/simple_strait_alpha_0_5"
 run_time!(simulation) = @time run!(simulation)
 
 initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
@@ -86,7 +87,7 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 10000,
+    nΔt = 3000,
     verbose = true,
     floe_settings = floe_settings,
     coupling_settings = coupling_settings,
@@ -99,8 +100,8 @@ simulation = Simulation(
 run_time!(simulation)
 
 plot_sim(
-    "output/simple_strait/floes.jld2",
-    "output/simple_strait/initial_state.jld2",
+    dir*"/floes.jld2",
+    dir*"/initial_state.jld2",
     Δt,
-    "output/simple_strait/simple_strait.mp4",
+    dir*"/simple_strait.mp4",
 )

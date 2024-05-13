@@ -391,7 +391,7 @@ Inputs:
 Outputs:
     Caculates stress on floe at current timestep from interactions
 """
-function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}, floe_settings) where {FT}
+function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}, floe_settings, Δt) where {FT}
     # Stress calcultions
     xi, yi = floe.centroid
     inters = floe.interactions
@@ -406,20 +406,19 @@ function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}, floe_settings) w
     stress[1, 2] *= FT(0.5)
     stress[2, 1] = stress[1, 2]
     stress .*= 1/(floe.area * floe.height)
-    accumulate_stress!(floe_settings.stress_calculator, stress, floe, floe_settings.time_step)
+    update_damage!(floe_settings.stress_calculator, stress, floe, Δt)
+    floe.stress = floe.stress + floe.damage*(stress - floe.stress)
+    push!(floe.stress_history, stress)
 
     return
 end
 
-function accumulate_stress!(::RunningAverageCalculator, curr_stress, floe, time_step)
-    push!(floe.stress_history, curr_stress)
-    floe.stress = mean(floe.stress_history)
+# Get rid of typing for decay calc. 
+function update_damage!(stress_calculator::AreaScaledCalculator, curr_stress, floe, Δt)
+    return
 end
 
-function accumulate_stress!(stress_calculator::DecayCalculator, curr_stress, floe, time_step)
-    push!(floe.stress_history, curr_stress)
-    floe.stress = floe.stress + (time_step/stress_calculator.τ)*(curr_stress - floe.stress)
-end
+# function update_damage!(different ytpe of stress calculator)
 
 
 """
@@ -484,7 +483,7 @@ function timestep_floe_properties!(
         ctrq = floes.collision_trq[i]
         # Update stress
         if floes.num_inters[i] > 0
-            calc_stress!(LazyRow(floes, i), floe_settings)
+            calc_stress!(LazyRow(floes, i), floe_settings, Δt)
         end
         # Ensure no extreem values due to model instability
         if floes.height[i] > floe_settings.max_floe_height

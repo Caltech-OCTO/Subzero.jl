@@ -173,10 +173,11 @@
         )
 
         # Test determine_fractures
+        floe_settings = FloeSettings(min_floe_area = 1e6)
         frac_idx = Subzero.determine_fractures(
              floes,
              HiblerYieldCurve(floes),
-             1e6
+             floe_settings
         )
         # First floe fractures, second is too small, third stress is too small
         @test frac_idx == [1, 2]

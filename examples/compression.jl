@@ -9,6 +9,8 @@ const hmean = 0.25
 const Δh = 0.125
 const Δt = 20
 
+dir = "output/lana_compression_DECAY"
+video_name = "/DECAY_compression"
 # Model instantiation
 grid = RegRectilinearGrid(
     (0.0, Lx),
@@ -49,7 +51,7 @@ consts = Constants(E = modulus, Cd_io = 0.0, f = 0.0, turnθ = 0.0)
 
 # Run simulation
 run_time!(simulation) = @time run!(simulation)
-dir = "output/lana_compression"
+
 
 # Output setup
 initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
@@ -87,12 +89,13 @@ simulation = Simulation(
     writers = writers,
     rng = Xoshiro(1),
     coupling_settings = coupling_settings,
+    floe_settings = FloeSettings(stress_calculator = DecayCalculator()),
 )
 run_time!(simulation)
 
 Subzero.plot_sim(
-    "output/lana_compression/floes.jld2",
-    "output/lana_compression/initial_state.jld2",
+    dir*"/floes.jld2",
+    dir*"/initial_state.jld2",
     20,
-    "output/lana_compression/lana_compression.mp4",
+    dir*video_name*".mp4",
 )

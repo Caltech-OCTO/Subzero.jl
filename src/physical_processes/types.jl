@@ -32,15 +32,38 @@ end
 
 idk yet.
 """
-@kwdef struct DecayCalculator <: AbstractStressCalculator
-    τ::Float32 = 0.1
+@kwdef struct DecayCalculator{FT<:AbstractFloat} <: AbstractStressCalculator
+    τ::FT = 20.0
 
-    function DecayCalculator( τ) 
-        if τ > 1
-            @warn "Value of τ must be less than or equal to 1. Resetting to default value of 0.1."
-            τ = 0.1
-        end
+    function DecayCalculator{FT}(τ::FT) where {FT<:AbstractFloat}
+        # if τ > 1
+        #     @warn "Value of τ must be less than or equal to 1. Resetting to default value of 0.1."
+        #     τ = 20.0
+        # end
 
         return new(τ)
     end
 end
+
+DecayCalculator(args...; kwargs...) = DecayCalculator{Float64}(args...; kwargs...)
+
+"""
+    AreaScaledCalculator
+
+idk yet.
+"""
+@kwdef struct AreaScaledCalculator{FT<:AbstractFloat} <: AbstractStressCalculator
+    τ::FT = 20.0
+    α::FT = 0.5
+
+    function AreaScaledCalculator{FT}(τ::FT, α::FT) where {FT<:AbstractFloat}
+        # if τ > 1
+        #     @warn "Value of τ must be less than or equal to 1. Resetting to default value of 0.1."
+        #     τ = 20.0
+        # end
+
+        return new{FT}(τ, α)
+    end
+end
+
+AreaScaledCalculator(args...; kwargs...) = AreaScaledCalculator{Float64}(args...; kwargs...)
