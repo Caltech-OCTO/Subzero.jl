@@ -452,8 +452,8 @@ function split_floe(
                     FT,
                     pieces_polys[i],
                     height,
-                    Δt/τ,
-                    0;  # Δh - range of random height difference between floes
+                    0,
+                    Δt/τ;  # Δh - range of random height difference between floes
                     floe_settings = floe_settings,
                     rng = rng,
                     u = floe.u,

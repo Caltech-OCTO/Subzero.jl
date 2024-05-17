@@ -1,5 +1,6 @@
 using LibGEOS
 @testset "Ridging and Rafting" begin
+    Δt = 10
     function update_height(floes, i, new_height, floe_settings)
         floes.height[i] = new_height
         floes.mass[i] = floes.area[i] * floes.height[i] * floe_settings.ρi
@@ -32,6 +33,7 @@ using LibGEOS
             domain,
             1.0,
             0.0,
+            Δt,
         )
         if !isnothing(Δx)
             for i in eachindex(Δx)

@@ -1,5 +1,6 @@
 @testset "Simplification" begin
     FT = Float64
+    Δt = 10
     @testset "Dissolve Floes" begin
         grid = RegRectilinearGrid(
             (-1e5, 1e5),
@@ -49,6 +50,7 @@
     end
 
     @testset "Fuse Floes" begin
+        Δt = 10
         coords1 = [[
             [0.0, 0.0],
             [0.0, 10.0],
@@ -254,7 +256,8 @@
             [coords1, coords2, coords3, coords4],
             open_domain_no_topo,
             0.5,
-            0.0;
+            0.0,
+            Δt;
             floe_settings = FloeSettings(min_floe_area = 1e6),
             rng = Xoshiro(1),
         )
@@ -306,7 +309,8 @@
             floe_coords,
             open_domain_no_topo,
             0.5,
-            0.0;
+            0.0,
+            Δt;
             floe_settings = FloeSettings(min_floe_area = 1e6),
             rng = Xoshiro(1),
         )
@@ -520,7 +524,8 @@
             [coords1, coords2, coords3, coords4],
             open_domain_no_topo,
             0.5,
-            0.0;
+            0.0,
+            Δt;
             floe_settings = FloeSettings(min_floe_area = 1e6),
             rng = Xoshiro(1),
         )

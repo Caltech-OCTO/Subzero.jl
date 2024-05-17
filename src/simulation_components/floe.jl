@@ -372,8 +372,8 @@ function poly_to_floes(
     ::Type{FT},
     floe_poly,
     hmean,
-    Δt,
-    Δh;
+    Δh,
+    Δt;
     floe_settings = FloeSettings(min_floe_area = 0),
     rng = Xoshiro(),
     kwargs...
@@ -453,8 +453,8 @@ function initialize_floe_field(
     coords,
     domain,
     hmean,
-    Δt,
-    Δh;
+    Δh,
+    Δt;
     floe_settings = FloeSettings(min_floe_area = 0.0),
     rng = Xoshiro(),
 ) where {FT <: AbstractFloat}
@@ -473,8 +473,8 @@ function initialize_floe_field(
                 FT,
                 p,
                 hmean,
-                Δt,
-                Δh;
+                Δh,
+                Δt;
                 floe_settings = floe_settings,
                 rng = rng,
             ),
@@ -649,8 +649,8 @@ function initialize_floe_field(
     concentrations,
     domain,
     hmean,
-    Δt,
-    Δh;
+    Δh,
+    Δt;
     floe_settings = FloeSettings(min_floe_area = 0.0),
     rng = Xoshiro(),
 
@@ -722,8 +722,8 @@ function initialize_floe_field(
                             FT,
                             floe_poly,
                             hmean,
-                            Δt,
-                            Δh;
+                            Δh,
+                            Δt;
                             floe_settings = floe_settings,
                             rng = rng,
                         )

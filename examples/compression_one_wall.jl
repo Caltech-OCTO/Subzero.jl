@@ -44,7 +44,8 @@ for theta in [pi/2]
             [[[[0, 0], [Lx, 0], [Lx, Ly], [0, Ly], [0, 0]]]],
             domain,
             hmean,  # mean height of 0.25
-            0.0;  # all floes will be the same height
+            0.0,
+            Δt;  # all floes will be the same height
             rng = Xoshiro(1),
         )
         # display(floe_arr.area)

@@ -93,6 +93,7 @@ zonal_3rect_floes = initialize_floe_field(
     collision_domain_topo,
     hmean,
     Δh,
+    Δt,
 )
 zonal_3rect_floes.u .= [3.0, -3.0, 0.0]
 
@@ -298,6 +299,7 @@ funky_floe_arr = initialize_floe_field(
     collision_domain_topo,
     hmean,
     Δh,
+    Δt,
 )
 close(file)
 funky_floe_arr.u .= (-1)^rand(0:1) * (0.1 * rand(length(funky_floe_arr)))

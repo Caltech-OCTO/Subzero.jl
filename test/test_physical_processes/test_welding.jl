@@ -1,4 +1,5 @@
 @testset "Bin floes" begin
+    Δt = 10
     grid = RegRectilinearGrid(
         (0, 1e5),
         (0, 1e5),
@@ -42,6 +43,7 @@
             periodic_domain,
             1.0,
             0.0,
+            Δt,
         )
     end
 
@@ -132,6 +134,7 @@
 end
 
 @testset "Weld floes" begin
+    Δt = 10
     grid = RegRectilinearGrid(
         (0, 1e5),
         (0, 1e5),
@@ -158,6 +161,7 @@ end
         periodic_domain,
         1.0,
         0.0,
+        Δt,
     )
     a1, a2, a3 = floe_base.area
     h1, h2, h3 = floe_base.height
