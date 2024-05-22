@@ -96,7 +96,7 @@
         f2.p_dudt = 0.02
         f2.p_dvdt = -0.005
         f2.p_dξdt = 0.05
-        stress1_init = f1.stress
+        stress1_init = f1.stress_accum
         x_momentum_init, y_momentum_init = Subzero.calc_linear_momentum(
             [f1.u, f2.u],
             [f1.v, f2.v],
@@ -182,8 +182,8 @@
             p_spin_momentum_after + p_angular_momentum_after,
             atol = 1e-10,
         )
-        @test mean(f1.stress_history.cb) == f1.stress_history.total/1000 == f1.stress
-        @test f1.stress == (stress1_init * (f2.mass - mass_tot) .+ f2.stress * f2.mass) / mass_tot
+        @test mean(f1.stress_instant.cb) == f1.stress_instant.total/1000 == f1.stress_accum
+        @test f1.stress_accum == (stress1_init * (f2.mass - mass_tot) .+ f2.stress_accum * f2.mass) / mass_tot
 
         # Test two floes intersecting -> will fuse into floe2 since bigger
         f1 = Floe(coords1, 0.5, 0.0)

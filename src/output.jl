@@ -903,18 +903,18 @@ function calc_eulerian_data!(floes, topography, writer)
                         elseif outputs[k] == :height_grid
                             sum(floes.height[floeidx] .* ma_ratios)
                         elseif outputs[k] == :stress_xx_grid
-                            sum([s[1, 1] for s in floes.stress[floeidx]] .* ma_ratios)
+                            sum([s[1, 1] for s in floes.stress_accum[floeidx]] .* ma_ratios)
                         elseif outputs[k] == :stress_yx_grid
-                            sum([s[1, 2] for s in floes.stress[floeidx]] .* ma_ratios)
+                            sum([s[1, 2] for s in floes.stress_accum[floeidx]] .* ma_ratios)
                         elseif outputs[k] == :stress_xy_grid
-                            sum([s[2, 1] for s in floes.stress[floeidx]] .* ma_ratios)
+                            sum([s[2, 1] for s in floes.stress_accum[floeidx]] .* ma_ratios)
                         elseif outputs[k] == :stress_yy_grid
-                            sum([s[2, 2] for s in floes.stress[floeidx]] .* ma_ratios)
+                            sum([s[2, 2] for s in floes.stress_accum[floeidx]] .* ma_ratios)
                         elseif outputs[k] == :stress_eig_grid
-                            xx = sum([s[1, 1] for s in floes.stress[floeidx]] .* ma_ratios)
-                            yx = sum([s[1, 2] for s in floes.stress[floeidx]] .* ma_ratios)
-                            xy = sum([s[2, 1] for s in floes.stress[floeidx]] .* ma_ratios)
-                            yy = sum([s[2, 2] for s in floes.stress[floeidx]] .* ma_ratios)
+                            xx = sum([s[1, 1] for s in floes.stress_accum[floeidx]] .* ma_ratios)
+                            yx = sum([s[1, 2] for s in floes.stress_accum[floeidx]] .* ma_ratios)
+                            xy = sum([s[2, 1] for s in floes.stress_accum[floeidx]] .* ma_ratios)
+                            yy = sum([s[2, 2] for s in floes.stress_accum[floeidx]] .* ma_ratios)
                             stress = maximum(eigvals([xx yx; xy yy]))
                             if abs(stress) > 1e8
                                 stress = 0.0
@@ -991,8 +991,8 @@ function getattrs(output::Symbol)
                                     "Matrix of floe's interactions with following columns: ID of floe interacted with,
                                     collision x-force on floe, collision y-force on floe, collision x-point, collision y-point,
                                     collision torque on floe, overlap with other floe") :
-        output == :stress ? ("N/m^2", "Stress on the floe in the form [xx yx; xy, yy]") :
-        output == :stress_history ? ("N/m^2", "List of last stresses felt on the floe from previous timesteps") :
+        output == :stress_accum ? ("N/m^2", "Stress on the floe in the form [xx yx; xy, yy]") :
+        output == :stress_instant ? ("N/m^2", "List of last stresses felt on the floe from previous timesteps") :
         output == :strain ? ("unitless", "Strain on the floe in the form [ux vx; uy vy]") :
         output == :p_dxdt ? ("m/s", "Floe x-velocity from previous time step") :
         output == :p_dydt ? ("m/s", "Floe y-velocity from previous time step") :

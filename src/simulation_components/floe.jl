@@ -138,8 +138,8 @@ Singular sea ice floe with fields describing current state.
     collision_trq::FT = 0.0
     interactions::Matrix{FT} = zeros(0, 7)
     num_inters::Int = 0
-    stress::Matrix{FT} = zeros(2, 2)
-    stress_history::StressCircularBuffer{FT} = StressCircularBuffer(1)
+    stress_accum::Matrix{FT} = zeros(2, 2)
+    stress_instant::StressCircularBuffer{FT} = StressCircularBuffer(1)
     strain::Matrix{FT} = zeros(2, 2)
     damage::FT = 0.0
     # Previous values for timestepping  -------------------------------------
@@ -253,7 +253,7 @@ function Floe{FT}(
     )
     translate!(coords, centroid[1], centroid[2])
     # Generate Stress History
-    stress_history = _generateStressHistory(floe_settings.stress_calculator, FT)
+    stress_instant = _generateStressHistory(floe_settings.stress_calculator, FT)
 
     return Floe{FT}(;
         centroid = centroid,
@@ -266,28 +266,28 @@ function Floe{FT}(
         angles = angles,
         x_subfloe_points = x_subfloe_points,
         y_subfloe_points = y_subfloe_points,
-        stress_history = stress_history,
+        stress_instant = stress_instant,
         status = status,
         kwargs...
     )
 end
 
 function _generateStressHistory(stress_calculator::RunningAverageCalculator, FT)
-    stress_history = StressCircularBuffer{FT}(stress_calculator.nhistory)
-    fill!(stress_history, zeros(FT, 2, 2))
-    return stress_history
+    stress_instant = StressCircularBuffer{FT}(stress_calculator.nhistory)
+    fill!(stress_instant, zeros(FT, 2, 2))
+    return stress_instant
 end
 
 function _generateStressHistory(stress_calculator::DecayCalculator, FT)
-    stress_history = StressCircularBuffer{FT}(1)
-    fill!(stress_history, zeros(FT, 2, 2))
-    return stress_history
+    stress_instant = StressCircularBuffer{FT}(1)
+    fill!(stress_instant, zeros(FT, 2, 2))
+    return stress_instant
 end
 
 function _generateStressHistory(stress_calculator::AreaScaledCalculator, FT)
-    stress_history = StressCircularBuffer{FT}(1)
-    fill!(stress_history, zeros(FT, 2, 2))
-    return stress_history
+    stress_instant = StressCircularBuffer{FT}(1)
+    fill!(stress_instant, zeros(FT, 2, 2))
+    return stress_instant
 end
 
 

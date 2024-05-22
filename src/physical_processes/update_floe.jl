@@ -407,8 +407,8 @@ function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}, floe_settings, Î
     stress[2, 1] = stress[1, 2]
     stress .*= 1/(floe.area * floe.height)
     update_damage!(floe_settings.stress_calculator, stress, floe, Î”t)
-    floe.stress = floe.stress + floe.damage*(stress - floe.stress)
-    push!(floe.stress_history, stress)
+    floe.stress_accum = floe.stress_accum + floe.damage*(stress - floe.stress_accum)
+    push!(floe.stress_instant, stress)
 
     return
 end

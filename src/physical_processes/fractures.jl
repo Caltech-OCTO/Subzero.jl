@@ -300,7 +300,7 @@ function determine_fractures(
 )
     # Determine if floe stresses are in or out of criteria allowable regions
     update_criteria!(criteria, floes)
-    σvals = combinedims(sort.(eigvals.(floes.stress)))'
+    σvals = combinedims(sort.(eigvals.(floes.stress_accum)))'
     scale_stress!(floe_settings.stress_calculator, σvals, floe_settings.min_floe_area, floes)
     in_idx = points_in_poly(σvals, criteria.vertices)
     # If stresses are outside of criteria regions, we will fracture the floe

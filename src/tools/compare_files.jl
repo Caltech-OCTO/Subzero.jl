@@ -24,7 +24,7 @@ function compare_floe_data(filename1, filename2)
                 f2_data = file2[k][t]
                 same = true
                 for i in eachindex(f1_data)
-                    if k == "stress_history"
+                    if k == "stress_instant"
                         same = same && f1_data[i].total == f2_data[i].total
                         same = same && all(f1_data[i].cb .== f2_data[i].cb)
                     else
