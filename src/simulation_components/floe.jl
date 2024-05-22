@@ -18,80 +18,80 @@ end
 
 Status() = Status(active, Vector{Int}())  # active floe
 
-"""
-    StressCircularBuffer{FT<:AbstractFloat}
+# """
+#     StressCircularBuffer{FT<:AbstractFloat}
 
-Extended circular buffer for the stress history that hold 2x2 matrices of stress
-values and allows for efficently taking the mean of  buffer by keeping an
-element-wise running total of values within circular buffer
-"""
-mutable struct StressCircularBuffer{FT<:AbstractFloat}
-    cb::CircularBuffer{Matrix{FT}}
-    total::Matrix{FT}
-end
-"""
-    StressCircularBuffer{FT}(capacity::Int)
+# Extended circular buffer for the stress history that hold 2x2 matrices of stress
+# values and allows for efficently taking the mean of  buffer by keeping an
+# element-wise running total of values within circular buffer
+# """
+# mutable struct StressCircularBuffer{FT<:AbstractFloat}
+#     cb::CircularBuffer{Matrix{FT}}
+#     total::Matrix{FT}
+# end
+# """
+#     StressCircularBuffer{FT}(capacity::Int)
 
-Create a stress buffer with given capacity
-Inputs:
-    capacity    <Int> capacity of circular buffer
-Outputs:
-    StressCircularBuffer with given capacity and a starting total that is a 2x2
-    matrix of zeros.
-"""
-StressCircularBuffer{FT}(capacity::Int) where {FT} =
-    StressCircularBuffer{FT}(
-        CircularBuffer{Matrix{FT}}(capacity),
-        zeros(FT, 2, 2)
-    )
-"""
-    push!(scb::StressCircularBuffer, data)
+# Create a stress buffer with given capacity
+# Inputs:
+#     capacity    <Int> capacity of circular buffer
+# Outputs:
+#     StressCircularBuffer with given capacity and a starting total that is a 2x2
+#     matrix of zeros.
+# """
+# StressCircularBuffer{FT}(capacity::Int) where {FT} =
+#     StressCircularBuffer{FT}(
+#         CircularBuffer{Matrix{FT}}(capacity),
+#         zeros(FT, 2, 2)
+#     )
+# """
+#     push!(scb::StressCircularBuffer, data)
 
-Adds element to the back of the circular buffer and overwrite front if full.
-Add data to total and remove overwritten value from total if full.
-Inputs:
-    scb     <StressCircularBuffer> stress circular buffer
-    data    <Matrix> 2x2 stress data
-Outputs:
-    Add data to the buffer and update the total to reflect the addition
-"""
-function Base.push!(scb::StressCircularBuffer, data)
-    if scb.cb.length == scb.cb.capacity
-        scb.total .-= scb.cb[1]
-    end
-    scb.total .+= data
-    push!(scb.cb, data)
-end
+# Adds element to the back of the circular buffer and overwrite front if full.
+# Add data to total and remove overwritten value from total if full.
+# Inputs:
+#     scb     <StressCircularBuffer> stress circular buffer
+#     data    <Matrix> 2x2 stress data
+# Outputs:
+#     Add data to the buffer and update the total to reflect the addition
+# """
+# function Base.push!(scb::StressCircularBuffer, data)
+#     if scb.cb.length == scb.cb.capacity
+#         scb.total .-= scb.cb[1]
+#     end
+#     scb.total .+= data
+#     push!(scb.cb, data)
+# end
 
-"""
-fill!(scb::StressCircularBuffer, data)
+# """
+# fill!(scb::StressCircularBuffer, data)
 
-Grows the buffer up-to capacity, and fills it entirely. It doesn't overwrite
-existing elements. Adds value of added items to total.
-Inputs:
-    scb     <StressCircularBuffer> stress circular buffer
-    data    <Matrix> 2x2 stress data
-Outputs:
-    Fill all empty buffer slots with data and update total to reflect additions
-"""
-function Base.fill!(scb::StressCircularBuffer, data)
-    scb.total .+= (scb.cb.capacity - scb.cb.length) * data
-    fill!(scb.cb, data)
-end
+# Grows the buffer up-to capacity, and fills it entirely. It doesn't overwrite
+# existing elements. Adds value of added items to total.
+# Inputs:
+#     scb     <StressCircularBuffer> stress circular buffer
+#     data    <Matrix> 2x2 stress data
+# Outputs:
+#     Fill all empty buffer slots with data and update total to reflect additions
+# """
+# function Base.fill!(scb::StressCircularBuffer, data)
+#     scb.total .+= (scb.cb.capacity - scb.cb.length) * data
+#     fill!(scb.cb, data)
+# end
 
-"""
-    mean(scb::StressCircularBuffer)
+# """
+#     mean(scb::StressCircularBuffer)
 
-Calculates mean of buffer, over the capacity of the buffer. If the buffer is not
-full, empty slots are counted as zeros.
-Inputs:
-    scb     <StressCircularBuffer> stress circular buffer
-Outputs:
-    mean of stress circular buffer over the capacity of the buffer
-"""
-function Statistics.mean(scb::StressCircularBuffer)
-    return scb.total / capacity(scb.cb) 
-end
+# Calculates mean of buffer, over the capacity of the buffer. If the buffer is not
+# full, empty slots are counted as zeros.
+# Inputs:
+#     scb     <StressCircularBuffer> stress circular buffer
+# Outputs:
+#     mean of stress circular buffer over the capacity of the buffer
+# """
+# function Statistics.mean(scb::StressCircularBuffer)
+#     return scb.total / capacity(scb.cb) 
+# end
 
 """
 Singular sea ice floe with fields describing current state.
@@ -139,7 +139,7 @@ Singular sea ice floe with fields describing current state.
     interactions::Matrix{FT} = zeros(0, 7)
     num_inters::Int = 0
     stress_accum::Matrix{FT} = zeros(2, 2)
-    stress_instant::StressCircularBuffer{FT} = StressCircularBuffer(1)
+    stress_instant::Matrix{FT} = zeros(2, 2)
     strain::Matrix{FT} = zeros(2, 2)
     damage::FT = 0.0
     # Previous values for timestepping  -------------------------------------
@@ -272,22 +272,22 @@ function Floe{FT}(
     )
 end
 
-function _generateStressHistory(stress_calculator::RunningAverageCalculator, FT)
-    stress_instant = StressCircularBuffer{FT}(stress_calculator.nhistory)
-    fill!(stress_instant, zeros(FT, 2, 2))
-    return stress_instant
-end
+# function _generateStressHistory(stress_calculator::RunningAverageCalculator, FT)
+#     stress_instant = StressCircularBuffer{FT}(stress_calculator.nhistory)
+#     fill!(stress_instant, zeros(FT, 2, 2))
+#     return stress_instant
+# end
 
 function _generateStressHistory(stress_calculator::DecayCalculator, FT)
-    stress_instant = StressCircularBuffer{FT}(1)
-    fill!(stress_instant, zeros(FT, 2, 2))
-    return stress_instant
+    # stress_instant = StressCircularBuffer{FT}(1)
+    # fill!(stress_instant, zeros(FT, 2, 2))
+    return zeros(FT, 2, 2)
 end
 
 function _generateStressHistory(stress_calculator::AreaScaledCalculator, FT)
-    stress_instant = StressCircularBuffer{FT}(1)
-    fill!(stress_instant, zeros(FT, 2, 2))
-    return stress_instant
+    # stress_instant = StressCircularBuffer{FT}(1)
+    # fill!(stress_instant, zeros(FT, 2, 2))
+    return zeros(FT, 2, 2)
 end
 
 

@@ -42,11 +42,13 @@
             )
             f.interactions = floe_dict["interactions"][i]
             f.num_inters = size(f.interactions, 1)
-            push!(f.stress_instant, floe_dict["last_stress"][i])
+            # push!(f.stress_instant, floe_dict["last_stress"][i])
+            f.stress_instant = floe_dict["last_stress"][i]
             stress = Subzero.calc_stress!(f, floe_settings, 10)
             @test all(isapprox.(vec(f.stress_accum), stresses[i], atol = 1e-3))
             @test all(isapprox.(
-                vec(f.stress_instant.cb[end]),
+                # vec(f.stress_instant.cb[end]),
+                vec(f.stress_instant),
                 stress_histories[i],
                 atol = 1e-3
             ))

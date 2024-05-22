@@ -193,9 +193,7 @@ function deepcopy_floe(floe::LazyRow{Floe{FT}}) where {FT}
         collision_force = copy(floe.collision_force),
         collision_trq = floe.collision_trq,
         stress_accum = copy(floe.stress_accum),
-        stress_instant = StressCircularBuffer{FT}(
-            capacity(floe.stress_instant.cb),
-        ),
+        stress_instant = copy(floe.stress_instant),
         strain = copy(floe.strain),
         p_dxdt = floe.p_dxdt,
         p_dydt = floe.p_dydt,
@@ -204,8 +202,8 @@ function deepcopy_floe(floe::LazyRow{Floe{FT}}) where {FT}
         p_dξdt = floe.p_dξdt,
         p_dαdt = floe.p_dαdt,
     )
-    f.stress_instant.total .= copy(floe.stress_instant.total)
-    append!(f.stress_instant.cb, copy(floe.stress_instant.cb))
+    # f.stress_instant.total .= copy(floe.stress_instant.total)
+    # append!(f.stress_instant.cb, copy(floe.stress_instant.cb))
     return f
 end
 

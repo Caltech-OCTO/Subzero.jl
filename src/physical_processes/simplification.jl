@@ -190,13 +190,16 @@ function fuse_two_floes!(
             keep_floe.stress_accum * mass_tmp .+
             remove_floe.stress_accum * remove_floe.mass
         )
-        keep_floe.stress_instant.cb .= (1/keep_floe.mass) * (
-            keep_floe.stress_instant.cb * mass_tmp .+
-            remove_floe.stress_instant.cb * remove_floe.mass
-        )
-        keep_floe.stress_instant.total = (1/keep_floe.mass) * (
-            keep_floe.stress_instant.total * mass_tmp +
-            remove_floe.stress_instant.total * remove_floe.mass)
+        # keep_floe.stress_instant.cb .= (1/keep_floe.mass) * (
+        #     keep_floe.stress_instant.cb * mass_tmp .+
+        #     remove_floe.stress_instant.cb * remove_floe.mass
+        # )
+        # keep_floe.stress_instant.total = (1/keep_floe.mass) * (
+        #     keep_floe.stress_instant.total * mass_tmp +
+        #     remove_floe.stress_instant.total * remove_floe.mass)
+        keep_floe.stress_instant = (1/keep_floe.mass) * (
+            keep_floe.stress_instant * mass_tmp + 
+            remove_floe.stress_instant * remove_floe.mass)
         # Update IDs
         if 0 < keep_floe.id <= prefuse_max_floe_id
             push!(keep_floe.parent_ids, keep_floe.id)
