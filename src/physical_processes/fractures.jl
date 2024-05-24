@@ -317,6 +317,10 @@ function scale_stress!(stress_calculator::AreaScaledCalculator, σvals, min_floe
     end
 end
 
+function scale_stress!(stress_calculator::DamageStressCalculator, σvals, min_floe_area, floes)
+    return
+end
+
 """
     deform_floe!(
         floe,

@@ -407,19 +407,35 @@ function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}, floe_settings, �
     stress[2, 1] = stress[1, 2]
     stress .*= 1/(floe.area * floe.height)
     update_damage!(floe_settings.stress_calculator, stress, floe, Δt)
-    floe.stress_accum = floe.stress_accum + floe.damage*(stress - floe.stress_accum)
-    push!(floe.stress_instant, stress)
+    update_stress!(floe_settings.stress_calculator, stress, floe)
+    # push!(floe.stress_instant, stress)
+    floe.stress_instant = stress
 
     return
 end
 
 # Get rid of typing for decay calc. 
-function update_damage!(stress_calculator::AreaScaledCalculator, curr_stress, floe, Δt)
+function update_damage!(stress_calculator, curr_stress, floe, Δt)
     return
 end
 
 # function update_damage!(different ytpe of stress calculator)
+function update_damage!(stress_calculator::DamageStressCalculator, curr_stress, floe, Δt)
+    τ = stress_calculator.τ
+    if iszero(curr_stress)
+        floe.damage = 0
+    else
+        floe.damage = (floe.stress_accum + (Δt/τ)*(curr_stress - floe.stress_accum))./curr_stress
+    end
+end
 
+function update_stress!(stress_calculator::DamageStressCalculator, curr_stress, floe)
+    floe.stress_accum = floe.damage * curr_stress
+end
+
+function update_stress!(stress_calculator, curr_stress, floe)
+    floe.stress_accum = floe.stress_accum + floe.damage*(curr_stress - floe.stress_accum)
+end
 
 """
     calc_strain!(coords, centroid, u, v, ξ, area)

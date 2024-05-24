@@ -141,7 +141,7 @@ Singular sea ice floe with fields describing current state.
     stress_accum::Matrix{FT} = zeros(2, 2)
     stress_instant::Matrix{FT} = zeros(2, 2)
     strain::Matrix{FT} = zeros(2, 2)
-    damage::FT = 0.0
+    damage::Matrix{FT} = zeros(2, 2)
     # Previous values for timestepping  -------------------------------------
     p_dxdt::FT = 0.0        # previous timestep x-velocity
     p_dydt::FT = 0.0        # previous timestep y-velocity
@@ -290,6 +290,12 @@ function _generateStressHistory(stress_calculator::AreaScaledCalculator, FT)
     return zeros(FT, 2, 2)
 end
 
+function _generateStressHistory(stress_calculator::DamageStressCalculator, FT)
+    # stress_instant = StressCircularBuffer{FT}(1)
+    # fill!(stress_instant, zeros(FT, 2, 2))
+    return zeros(FT, 2, 2)
+end
+
 
 """
     Floe{FT}(
@@ -410,6 +416,8 @@ end
 
 calc_initial_damage(stress_calculator::DecayCalculator, Δt) = Δt/stress_calculator.τ
 calc_initial_damage(stress_calculator::AreaScaledCalculator, Δt) = Δt/stress_calculator.τ
+calc_initial_damage(stress_calculator::DamageStressCalculator, Δt) = zeros(2, 2)
+calc_initial_damage(stress_calculator, Δt) = Δt/stress_calculator.τ
 
 """
     initialize_floe_field(args...)
