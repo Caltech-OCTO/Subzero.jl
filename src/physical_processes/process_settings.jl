@@ -29,7 +29,7 @@ Settings needed to create floes within the model.
     min_aspect_ratio::FT = 0.05
     subfloe_point_generator::GT = MonteCarloPointsGenerator()
     # Eventually change to DecayStressCalcultor
-    stress_calculator::CT = AreaScaledCalculator()
+    stress_calculator::CT = DecayAreaScaledCalculator()
 
     function FloeSettings{FT, GT, CT}(
         ρi,
@@ -106,7 +106,7 @@ arguments to the correct constructor.
 FloeSettings(
     ::Type{FT};
     subfloe_point_generator::GT = MonteCarloPointsGenerator(FT),
-    stress_calculator::CT = RunningAverageCalculator(),
+    stress_calculator::CT = DecayAreaScaledCalculator(),
     kwargs...,
 ) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator, CT <: AbstractStressCalculator} =
     FloeSettings{FT, GT, CT}(;

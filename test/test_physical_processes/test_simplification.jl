@@ -182,8 +182,7 @@
             p_spin_momentum_after + p_angular_momentum_after,
             atol = 1e-10,
         )
-        # TODO ask skylar about this test
-        # @test mean(f1.stress_instant.cb) == f1.stress_instant.total/1000 == f1.stress_accum
+        
         @test f1.stress_accum == (stress1_init * (f2.mass - mass_tot) .+ f2.stress_accum * f2.mass) / mass_tot
 
         # Test two floes intersecting -> will fuse into floe2 since bigger

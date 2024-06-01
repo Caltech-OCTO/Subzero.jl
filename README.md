@@ -85,7 +85,7 @@ domain = Domain(
   CollisionBoundary(West, grid),
 )
 # Create floes
-floe_settings = FloeSettings(stress_calculator = RunningAverageCalculator(100), min_floe_area = 1e5)
+floe_settings = FloeSettings(stress_calculator = DecayAreaScaledCalculator(), min_floe_area = 1e5)
 floe_arr = initialize_floe_field(
   Float64,
   100,  # number of floes

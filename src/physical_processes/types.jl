@@ -10,80 +10,44 @@ Abstract type ways of keeping track of stress.
 abstract type AbstractStressCalculator end
 
 """
-    RunningAverageCalculator
+    DecayAreaScaledCalculator{FT<:AbstractFloat}<:AbstractStressCalculator
 
-idk yet.
+Type of AbstractStressCalculator that implements stress calculations the same way that 
+Brandon Montemuro and Georgy Manucharyan do in the MatLab version.
+Fields:
+    τ      <AbstractFloat> Difference between current and previous stress scaled by Δt/τ
+    α      <AbstractFloat> Adjusts ellipse in stress space by raising area ratio to the α
+Note:
+    τ is used in calc_stress!(), whereas α is used in determine_fractures().
 """
-@kwdef struct RunningAverageCalculator <: AbstractStressCalculator
-    nhistory::Int = 100
-
-    function RunningAverageCalculator(nhistory) 
-        if nhistory < 1
-            @warn "Value of nhistory must be greater than or equal to 1. Resetting to default value of 100."
-            nhistory = 100
-        end
-
-        return new(nhistory)
-    end
-end
-
-# TODO: Get rid of this calculator
-"""
-    DecayCalculator
-
-idk yet.
-"""
-@kwdef struct DecayCalculator{FT<:AbstractFloat} <: AbstractStressCalculator
-    τ::FT = 20.0
-
-    function DecayCalculator{FT}(τ::FT) where {FT<:AbstractFloat}
-        # if τ > 1
-        #     @warn "Value of τ must be less than or equal to 1. Resetting to default value of 0.1."
-        #     τ = 20.0
-        # end
-
-        return new(τ)
-    end
-end
-
-DecayCalculator(args...; kwargs...) = DecayCalculator{Float64}(args...; kwargs...)
-
-# Rename this DecayAreaScaledCalc...
-"""
-    AreaScaledCalculator
-
-idk yet.
-"""
-@kwdef struct AreaScaledCalculator{FT<:AbstractFloat} <: AbstractStressCalculator
+@kwdef struct DecayAreaScaledCalculator{FT<:AbstractFloat} <: AbstractStressCalculator
     τ::FT = 20.0
     α::FT = 0.5
 
-    function AreaScaledCalculator{FT}(τ::FT, α::FT) where {FT<:AbstractFloat}
-        # if τ > 1
-        #     @warn "Value of τ must be less than or equal to 1. Resetting to default value of 0.1."
-        #     τ = 20.0
-        # end
-
+    function DecayAreaScaledCalculator{FT}(τ::FT, α::FT) where {FT<:AbstractFloat}
+        # Can insert warnings about parameter values here
         return new{FT}(τ, α)
     end
 end
 
-AreaScaledCalculator(args...; kwargs...) = AreaScaledCalculator{Float64}(args...; kwargs...)
+DecayAreaScaledCalculator(args...; kwargs...) = DecayAreaScaledCalculator{Float64}(args...; kwargs...)
 
-# TODO: New Calculator: DamageStressCalc (Mukund's)
 """
     DamageStressCalculator
 
-idk yet.
+Type of AbstractStressCalculator that calculates stress with damage*curre_stress, as suggested
+by Mukund Gupta.
+    τ      <AbstractFloat> Difference between current and previous stress scaled by Δt/τ
+Note:
+    There is no α parameter in this calculator because currently it does not adjust the
+    boundary in stress space by multiplying the eigenvalues of stress_accum by something.
+    This could be implemented if the user desires.
 """
 @kwdef struct DamageStressCalculator{FT<:AbstractFloat} <: AbstractStressCalculator
     τ::FT = 20.0
 
     function DamageStressCalculator{FT}(τ::FT) where {FT<:AbstractFloat}
-        # if τ > 1
-        #     @warn "Value of τ must be less than or equal to 1. Resetting to default value of 0.1."
-        #     τ = 20.0
-        # end
+        # Can insert parameter warnings here
 
         return new(τ)
     end

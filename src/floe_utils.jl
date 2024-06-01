@@ -202,8 +202,6 @@ function deepcopy_floe(floe::LazyRow{Floe{FT}}) where {FT}
         p_dξdt = floe.p_dξdt,
         p_dαdt = floe.p_dαdt,
     )
-    # f.stress_instant.total .= copy(floe.stress_instant.total)
-    # append!(f.stress_instant.cb, copy(floe.stress_instant.cb))
     return f
 end
 

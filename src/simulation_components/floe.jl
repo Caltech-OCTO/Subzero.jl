@@ -18,81 +18,6 @@ end
 
 Status() = Status(active, Vector{Int}())  # active floe
 
-# """
-#     StressCircularBuffer{FT<:AbstractFloat}
-
-# Extended circular buffer for the stress history that hold 2x2 matrices of stress
-# values and allows for efficently taking the mean of  buffer by keeping an
-# element-wise running total of values within circular buffer
-# """
-# mutable struct StressCircularBuffer{FT<:AbstractFloat}
-#     cb::CircularBuffer{Matrix{FT}}
-#     total::Matrix{FT}
-# end
-# """
-#     StressCircularBuffer{FT}(capacity::Int)
-
-# Create a stress buffer with given capacity
-# Inputs:
-#     capacity    <Int> capacity of circular buffer
-# Outputs:
-#     StressCircularBuffer with given capacity and a starting total that is a 2x2
-#     matrix of zeros.
-# """
-# StressCircularBuffer{FT}(capacity::Int) where {FT} =
-#     StressCircularBuffer{FT}(
-#         CircularBuffer{Matrix{FT}}(capacity),
-#         zeros(FT, 2, 2)
-#     )
-# """
-#     push!(scb::StressCircularBuffer, data)
-
-# Adds element to the back of the circular buffer and overwrite front if full.
-# Add data to total and remove overwritten value from total if full.
-# Inputs:
-#     scb     <StressCircularBuffer> stress circular buffer
-#     data    <Matrix> 2x2 stress data
-# Outputs:
-#     Add data to the buffer and update the total to reflect the addition
-# """
-# function Base.push!(scb::StressCircularBuffer, data)
-#     if scb.cb.length == scb.cb.capacity
-#         scb.total .-= scb.cb[1]
-#     end
-#     scb.total .+= data
-#     push!(scb.cb, data)
-# end
-
-# """
-# fill!(scb::StressCircularBuffer, data)
-
-# Grows the buffer up-to capacity, and fills it entirely. It doesn't overwrite
-# existing elements. Adds value of added items to total.
-# Inputs:
-#     scb     <StressCircularBuffer> stress circular buffer
-#     data    <Matrix> 2x2 stress data
-# Outputs:
-#     Fill all empty buffer slots with data and update total to reflect additions
-# """
-# function Base.fill!(scb::StressCircularBuffer, data)
-#     scb.total .+= (scb.cb.capacity - scb.cb.length) * data
-#     fill!(scb.cb, data)
-# end
-
-# """
-#     mean(scb::StressCircularBuffer)
-
-# Calculates mean of buffer, over the capacity of the buffer. If the buffer is not
-# full, empty slots are counted as zeros.
-# Inputs:
-#     scb     <StressCircularBuffer> stress circular buffer
-# Outputs:
-#     mean of stress circular buffer over the capacity of the buffer
-# """
-# function Statistics.mean(scb::StressCircularBuffer)
-#     return scb.total / capacity(scb.cb) 
-# end
-
 """
 Singular sea ice floe with fields describing current state.
 """
@@ -272,30 +197,10 @@ function Floe{FT}(
     )
 end
 
-# function _generateStressHistory(stress_calculator::RunningAverageCalculator, FT)
-#     stress_instant = StressCircularBuffer{FT}(stress_calculator.nhistory)
-#     fill!(stress_instant, zeros(FT, 2, 2))
-#     return stress_instant
-# end
-
-function _generateStressHistory(stress_calculator::DecayCalculator, FT)
-    # stress_instant = StressCircularBuffer{FT}(1)
-    # fill!(stress_instant, zeros(FT, 2, 2))
+# Can change how stress_instant is initialized based on stress calculator
+function _generateStressHistory(stress_calculator, FT)
     return zeros(FT, 2, 2)
 end
-
-function _generateStressHistory(stress_calculator::AreaScaledCalculator, FT)
-    # stress_instant = StressCircularBuffer{FT}(1)
-    # fill!(stress_instant, zeros(FT, 2, 2))
-    return zeros(FT, 2, 2)
-end
-
-function _generateStressHistory(stress_calculator::DamageStressCalculator, FT)
-    # stress_instant = StressCircularBuffer{FT}(1)
-    # fill!(stress_instant, zeros(FT, 2, 2))
-    return zeros(FT, 2, 2)
-end
-
 
 """
     Floe{FT}(
@@ -349,7 +254,8 @@ Floe{FT}(
         ::Type{FT},
         floe_poly,
         hmean,
-        Δh;
+        Δh,
+        Δt;
         floe_settings,
         rng = Xoshiro(),
         kwargs...
@@ -365,6 +271,7 @@ Inputs:
     hmean               <AbstratFloat> average floe height
     Δh                  <AbstratFloat> height range - floes will range in height
                         from hmean - Δh to hmean + Δh
+    Δt                  <Int> timestep of simulation in seconds
     floe_settings       <FloeSettings> settings needed to initialize floe
                             settings
     rng                 <RNG> random number generator to generate random floe
@@ -414,10 +321,9 @@ function poly_to_floes(
     return floes
 end
 
-calc_initial_damage(stress_calculator::DecayCalculator, Δt) = Δt/stress_calculator.τ
-calc_initial_damage(stress_calculator::AreaScaledCalculator, Δt) = Δt/stress_calculator.τ
+calc_initial_damage(stress_calculator, Δt) = ones(2,2)*Δt/stress_calculator.τ
+calc_initial_damage(stress_calculator::DecayAreaScaledCalculator, Δt) = ones(2,2)*Δt/stress_calculator.τ
 calc_initial_damage(stress_calculator::DamageStressCalculator, Δt) = zeros(2, 2)
-calc_initial_damage(stress_calculator, Δt) = Δt/stress_calculator.τ
 
 """
     initialize_floe_field(args...)
@@ -434,7 +340,8 @@ initialize_floe_field(args...; kwargs...) =
         coords,
         domain,
         hmean,
-        Δh;
+        Δh,
+        Δt;
         floe_settings,
         rng,
     )
@@ -449,6 +356,7 @@ Inputs:
     hmean               <Float> average floe height
     Δh                  <Float> height range - floes will range in height from
                             hmean ± Δh
+    Δt                  <Int> simulation timestep in seconds
     floe_settings       <FloeSettings> settings needed to initialize floes
     rng                 <RNG> random number generator to generate random floe
                             attributes - default uses Xoshiro256++ algorithm
@@ -621,7 +529,8 @@ end
         concentrations,
         domain,
         hmean,
-        Δh;
+        Δh,
+        Δt;
         floe_settings,
         rng,
     )
@@ -644,6 +553,7 @@ Inputs:
     hmean           <Float> average floe height
     Δh              <Float> height range - floes will range in height from
                         hmean - Δh to hmean + Δh
+    Δt              <Int> simulation timestep in seconds
     floe_settings       <FloeSettings> settings needed to initialize floes
     rng                 <RNG> random number generator to generate random floe
                             attributes - default uses Xoshiro256++

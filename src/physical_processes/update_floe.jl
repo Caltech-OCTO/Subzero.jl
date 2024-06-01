@@ -384,12 +384,11 @@ end
 Calculates the stress on a floe for current collisions given interactions and
 floe properties.
 Inputs:
-    inters      <Matrix{AbstractFloat}> matrix of floe interactions
-    centroid    <Vector{AbstractFloat}> floe centroid as [x, y] coordinates
-    area        <AbstractFloat> floe area
-    height      <AbstractFloat> floe height
+    floe          <Union{LazyRow{Floe{AbstractFloat}}, Floe{AbstractFloat}> properties of floe
+    floe_settings <FloeSettings{AbstractFloat}> Settings to create floes within model
+    Δt            <AbstractFloat> Simulation timestep in seconds
 Outputs:
-    Caculates stress on floe at current timestep from interactions
+    Does not return anything, but updates floe.stress_accum and floe.stress_instant
 """
 function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}, floe_settings, Δt) where {FT}
     # Stress calcultions
@@ -408,18 +407,17 @@ function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}, floe_settings, �
     stress .*= 1/(floe.area * floe.height)
     update_damage!(floe_settings.stress_calculator, stress, floe, Δt)
     update_stress!(floe_settings.stress_calculator, stress, floe)
-    # push!(floe.stress_instant, stress)
     floe.stress_instant = stress
 
     return
 end
-
-# Get rid of typing for decay calc. 
+ 
 function update_damage!(stress_calculator, curr_stress, floe, Δt)
     return
 end
 
-# function update_damage!(different ytpe of stress calculator)
+# This is where one would implement a different method of updating the damage parameter.
+# currently this effectively carries out the same math as update_stress! for DecayAreaScaledCalculator
 function update_damage!(stress_calculator::DamageStressCalculator, curr_stress, floe, Δt)
     τ = stress_calculator.τ
     if iszero(curr_stress)
@@ -430,11 +428,11 @@ function update_damage!(stress_calculator::DamageStressCalculator, curr_stress, 
 end
 
 function update_stress!(stress_calculator::DamageStressCalculator, curr_stress, floe)
-    floe.stress_accum = floe.damage * curr_stress
+    floe.stress_accum = floe.damage .* curr_stress
 end
 
 function update_stress!(stress_calculator, curr_stress, floe)
-    floe.stress_accum = floe.stress_accum + floe.damage*(curr_stress - floe.stress_accum)
+    floe.stress_accum = floe.stress_accum + floe.damage .* (curr_stress - floe.stress_accum)
 end
 
 """

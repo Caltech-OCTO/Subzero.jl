@@ -288,15 +288,15 @@ Determines which floes will fracture depending on the principal stress criteria.
 Inputs:
     floes           <StructArray{Floe}> model's list of floes
     criteria        <AbstractFractureCriteria> fracture criteria
-    min_floe_area   <AbstractFloat> minimum floe area - floes under this area
-                        will not be fractured
+    floe_settings   <FloeSettings> Floe settings. Contains Floe properties and stress 
+                    calculator.
 Outputs:
     <Vector{Int}> list of indices of floes to fracture 
 """
 function determine_fractures(
     floes,
     criteria::AbstractFractureCriteria,
-    floe_settings, # TODO change this to floe settings
+    floe_settings, 
 )
     # Determine if floe stresses are in or out of criteria allowable regions
     update_criteria!(criteria, floes)
@@ -309,7 +309,7 @@ function determine_fractures(
     return range(1, length(floes))[frac_idx]
 end
 
-function scale_stress!(stress_calculator::AreaScaledCalculator, σvals, min_floe_area, floes)
+function scale_stress!(stress_calculator::DecayAreaScaledCalculator, σvals, min_floe_area, floes)
     stress_calculator.α == 0 && return
     for (idx, floe) in enumerate(floes)
         M = (floe.area/min_floe_area).^stress_calculator.α
@@ -317,9 +317,10 @@ function scale_stress!(stress_calculator::AreaScaledCalculator, σvals, min_floe
     end
 end
 
+# This can be changed to add some sort of scaling to the DamageStressCalculator
 function scale_stress!(stress_calculator::DamageStressCalculator, σvals, min_floe_area, floes)
     return
-end
+end   
 
 """
     deform_floe!(
