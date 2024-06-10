@@ -75,6 +75,7 @@ Outputs:
 """
 function deepcopy_floe(floe::LazyRow{Floe{FT}}) where {FT}
     f = Floe{FT}(
+        poly = make_polygon(floe.coords),
         centroid = copy(floe.centroid),
         coords = translate(floe.coords, 0, 0),
         height = floe.height,

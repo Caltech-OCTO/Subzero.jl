@@ -98,6 +98,7 @@ Singular sea ice floe with fields describing current state.
 """
 @kwdef mutable struct Floe{FT<:AbstractFloat}
     # Physical Properties -------------------------------------------------
+    poly::Polys{FT}         # polygon that represents the floe's shape
     centroid::Vector{FT}    # center of mass of floe (might not be in floe!)
     coords::PolyVec{FT}     # floe coordinates
     height::FT              # floe height (m)
@@ -220,7 +221,7 @@ function Floe{FT}(
     rng = Xoshiro(),
     kwargs...
 ) where {FT <: AbstractFloat}
-    floe = rmholes(poly)
+    floe = rmholes(GO.tuples(poly, FT))
     # Floe physical properties
     centroid = collect(GO.centroid(floe))
     height = clamp(
@@ -252,6 +253,7 @@ function Floe{FT}(
     fill!(stress_history, zeros(FT, 2, 2))
 
     return Floe{FT}(;
+        poly = GO.tuples(floe, FT),
         centroid = centroid,
         coords = coords,
         height = height,
@@ -302,8 +304,8 @@ Floe{FT}(
     rng = Xoshiro(),
     kwargs...,
 ) where {FT <: AbstractFloat} =
-    Floe{FT}( # Polygon convert is needed since LibGEOS only takes Float64
-        make_polygon(convert(PolyVec{Float64}, valid_polyvec!(rmholes(coords)))),
+    Floe{FT}(
+        make_polygon(valid_polyvec!(rmholes(coords))),
         hmean,
         Δh;
         floe_settings = floe_settings,
