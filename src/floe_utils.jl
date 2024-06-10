@@ -34,50 +34,13 @@ end
 """
     find_poly_coords(poly)
 
-Syntactic sugar for using LibGEOS to find a polygon's coordinates
+Syntactic sugar for to find a polygon's coordinates
 Input:
     poly    <Polygon>
 Output:
     <PolyVec> representing the floe's coordinates xy plane
 """
 find_poly_coords(poly::Polys) = GI.coordinates(poly)
-
-"""
-    get_polygons(geom)
-
-Returns an empty polygon list as non-polygon element was provided
-Inputs:
-    geom    <AbstractGeometry>
-Outputs:
-    <Vector{Polygon}>
-"""
-function get_polygons(geom, ::Type{T} = Float64) where T
-    polys =  Vector{Polys{T}}()
-    _get_polygons!(geom, polys)
-    return polys
-end
-
-_get_polygons!(_, polys) = nothing
-
-function _get_polygons!(
-    geom::Polys,
-    polys,
-)
-    if !GI.isempty(geom) && GO.area(geom) > 0
-        push!(polys, geom)
-    end
-    return
-end
-
-function _get_polygons!(
-    collection::Union{LG.MultiPolygon, LG.GeometryCollection},
-    polys,
-)
-    for geom in GI.getgeom(collection)
-        _get_polygons!(geom, polys)
-    end
-    return
-end
 
 """
     intersect_polys(p1, p2)
@@ -90,32 +53,15 @@ Output:
     Vector of Polygons
 """
 intersect_polys(p1, p2; kwargs...) = GO.intersection(p1, p2; target = GI.PolygonTrait(), fix_multipoly = nothing)
-# intersect_polys(p1, p2; kwargs...) = get_polygons(LG.intersection(p1, p2))
 diff_polys(p1, p2; kwargs...) = GO.difference(p1, p2; target = GI.PolygonTrait(), fix_multipoly = nothing) 
-# diff_polys(p1, p2; kwargs...) = get_polygons(LG.difference(p1, p2))
 union_polys(p1, p2; kwargs...) = GO.union(p1, p2; target = GI.PolygonTrait(), fix_multipoly = nothing)
-# union_polys(p1, p2; kwargs...) = get_polygons(LG.union(p1, p2))
 
-simplify_poly(p, tol) = GO.tuples(LG.simplify(p, tol)) #GO.simplify(p; tol = tol)
+simplify_poly(p, tol) = GO.simplify(p; tol = tol)
 
 make_polygon(coords::PolyVec) = GI.Polygon(GO.tuples(coords))
 make_polygon(ring::GI.LinearRing) = GI.Polygon([ring])
-make_polygon(ring::LG.LinearRing) = GI.Polygon([GO.tuples(ring)])
 make_multipolygon(coords::Vector{<:PolyVec}) = GI.MultiPolygon(GO.tuples(coords))
 make_multipolygon(polys::Vector{<:GI.Polygon}) = GI.MultiPolygon(polys)
-make_multipolygon(polys::Vector{<:LG.Polygon}) = GI.MultiPolygon(GO.tuples(polys))
-
-# make_polygon(coords::PolyVec) = LG.Polygon(coords)
-# make_polygon(ring::GI.LinearRing) = LG.Polygon(GI.convert(LG, ring))
-# make_polygon(ring::LG.LinearRing) = LG.Polygon(ring)
-# make_multipolygon(coords::Vector{<:PolyVec}) = LG.MultiPolygon(coords)
-# make_multipolygon(polys::Vector{<:GI.Polygon}) = LG.MultiPolygon(GI.convert.(LG, polys))
-# make_multipolygon(polys::Vector{<:LG.Polygon}) = LG.MultiPolygon(polys) # LG.M
-
-
-isvalid(poly::LG.Polygon) = LG.isValid(poly)
-isvalid(multipoly::LG.MultiPolygon) = LG.isValid(multipoly)
-isvalid(geom) = LG.isValid(GI.convert(LG, geom))
 
 """
     deepcopy_floe(floe::LazyRow{Floe{FT}})
@@ -327,7 +273,7 @@ function _calc_moment_inertia(
     xc, yc = GO._tuple_point(cent, T)
     Ixx, Iyy = zero(T), zero(T)
     x1, y1 = zero(T), zero(T)
-    for (i, p2) in enumerate(GI.getpoint(poly))
+    for (i, p2) in enumerate(GI.getpoint(GI.getexterior(poly)))
         (x2, y2) = GO._tuple_point(p2, T)
         x2, y2 = x2 - xc, y2 - yc
         if i == 1
@@ -342,6 +288,21 @@ function _calc_moment_inertia(
     Ixx *= 1/12
     Iyy *= 1/12
     return abs(Ixx + Iyy) * T(height) * T(ρi) 
+end
+
+# Find the length of the maximum radius of a given polygon
+function _calc_max_radius(::Type{T}, poly, cent) where T
+    max_rad_sqrd = zero(T)
+    Δx, Δy = GO._tuple_point(cent, T)
+    for pt in GI.getpoint(GI.getexterior(poly))
+        x, y = GO._tuple_point(pt, T)
+        x, y = x - Δx, y - Δy
+        rad_sqrd = x^2 + y^2
+        if rad_sqrd > max_rad_sqrd
+            max_rad_sqrd = rad_sqrd
+        end
+    end
+    return sqrt(max_rad_sqrd)
 end
 
 """

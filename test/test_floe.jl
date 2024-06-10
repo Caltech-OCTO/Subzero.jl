@@ -183,7 +183,6 @@
             GO.area(fpoly),
             atol = 1e-3,
         )
-        @test Subzero.isvalid(fpoly)
     end
 
     # Test warning and no points generated
@@ -254,7 +253,6 @@
         end
     end
     @test all([sum(GO.area, Subzero.intersect_polys(p, topo_polys); init = 0.0) for p in floe_polys] .< 1e-3)
-    @test all([Subzero.isvalid(p) for p in floe_polys])
     @test all(floe_arr.id .== range(1, nfloes))
     @test typeof(initialize_floe_field(
         Float32,
