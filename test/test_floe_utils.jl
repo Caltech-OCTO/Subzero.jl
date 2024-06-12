@@ -132,7 +132,7 @@
     ]
     @test Subzero.which_vertices_match_points(
         two_shared_v[1][1],
-        two_shared_v[2],
+        Subzero.make_polygon(two_shared_v[2]),
     ) == [1, 2]
 
     @test Subzero.which_points_on_edges(
@@ -146,7 +146,7 @@
     ]
     @test Subzero.which_vertices_match_points(
         three_shared_v[1][1],
-        three_shared_v[2],
+        Subzero.make_polygon(three_shared_v[2]),
     ) == [3, 4, 5]
 
     @test Subzero.which_points_on_edges(
@@ -166,7 +166,7 @@
     ]
     @test Subzero.which_vertices_match_points(
         four_shared_v[1][1],
-        four_shared_v[2],
+        Subzero.make_polygon(four_shared_v[2]),
     ) == [1, 2, 5, 6]
 
     offset_shared_v = [
@@ -188,7 +188,7 @@
     ]
     @test Subzero.which_vertices_match_points(
         triange_shared_v[1][1],
-        triange_shared_v[2],
+        Subzero.make_polygon(triange_shared_v[2]),
     ) == [1, 2, 3]
 
     @test Subzero.which_points_on_edges(

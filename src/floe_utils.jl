@@ -252,6 +252,11 @@ function rmholes(poly::Polys)
     return poly
 end
 
+function rmholes!(poly::Polys)
+    deleteat!(poly.geom, 2:GI.nring(poly))
+    return
+end
+
 #=
     _calc_moment_inertia(::Type{T} poly, cent, h; ρi = 920.0)
 
@@ -418,24 +423,47 @@ Note:
     If last coordinate is a repeat of first coordinate, last coordinate index is
     NOT recorded.
 """
-function which_vertices_match_points(
-    points,
-    coords::PolyVec{FT},
-    atol = 1,
-) where {FT}
+# function which_vertices_match_points(
+#     points,
+#     coords::PolyVec{FT},
+#     atol = 1,
+# ) where {FT}
+#     idxs = Vector{Int}()
+#     npoints = length(points)
+#     if points[1] == points[end]
+#         npoints -= 1
+#     end
+#     @views for i in 1:npoints  # find which vertex matches point
+#         min_dist = FT(Inf)
+#         min_vert = 1
+#         for j in eachindex(coords[1])
+#             dist = sqrt(
+#                 (coords[1][j][1] - points[i][1])^2 +
+#                 (coords[1][j][2] - points[i][2])^2,
+#             )
+#             if dist < min_dist
+#                 min_dist = dist
+#                 min_vert = j
+#             end
+#         end
+#         if min_dist < atol
+#             push!(idxs, min_vert)
+#         end
+#     end
+#     return sort!(idxs)
+# end
+
+function which_vertices_match_points(points, region::Polys{FT}, atol = 1) where FT
     idxs = Vector{Int}()
     npoints = length(points)
     if points[1] == points[end]
         npoints -= 1
     end
-    @views for i in 1:npoints  # find which vertex matches point
+    for i in 1:npoints  # find which vertex matches point
         min_dist = FT(Inf)
         min_vert = 1
-        for j in eachindex(coords[1])
-            dist = sqrt(
-                (coords[1][j][1] - points[i][1])^2 +
-                (coords[1][j][2] - points[i][2])^2,
-            )
+        for (j, pt) in enumerate(GI.getpoint(GI.getexterior(region)))
+            dist = sqrt(GO.distance(pt, points[i], FT))
             if dist < min_dist
                 min_dist = dist
                 min_vert = j

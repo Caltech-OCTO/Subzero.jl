@@ -31,6 +31,7 @@ function replace_floe!(
     rng,
 ) where {FT}
     # Floe shape
+    floe.poly = new_poly
     floe.centroid = collect(GO.centroid(new_poly))
     floe.coords = find_poly_coords(new_poly)::PolyVec{FT}
     floe.coords = [orient_coords(floe.coords[1])]

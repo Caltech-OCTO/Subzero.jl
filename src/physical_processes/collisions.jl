@@ -37,16 +37,17 @@ function calc_normal_force(
     force_factor::FT,
 ) where {FT<:AbstractFloat}
     force_dir = zeros(FT, 2)
-    coords = find_poly_coords(region)
     # Identify which region coordinates are the intersection points (ipoints)
-    p = which_vertices_match_points(ipoints, coords)
+    p = which_vertices_match_points(ipoints, region)
     m = length(p)
     # Calculate force direction
     Δl = FT(0)
     if m == 2  # Two intersection points
         idx1, idx2 = p
-        Δx = FT(coords[1][idx2][1] - coords[1][idx1][1])
-        Δy = FT(coords[1][idx2][2] - coords[1][idx1][2])
+        pt1 = GI.getpoint(GI.getexterior(region), idx1)
+        pt2 = GI.getpoint(GI.getexterior(region), idx2)
+        Δx = FT(GI.x(pt2) - GI.x(pt1))
+        Δy = FT(GI.y(pt2) - GI.y(pt1))
         Δl = sqrt(Δx^2 + Δy^2)
         if Δl > 0.1  # If overlap is large enough to consider
             force_dir .= [-Δy/Δl; Δx/Δl]
