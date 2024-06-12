@@ -46,7 +46,7 @@ floe_settings = FloeSettings(
 # Floe creation
 floe_arr = initialize_floe_field(
     FT,
-    75,
+    500,
     [0.7],
     domain,
     hmean,
@@ -87,7 +87,7 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 2500,
+    nΔt = 10000,
     verbose = true,
     floe_settings = floe_settings,
     coupling_settings = coupling_settings,
