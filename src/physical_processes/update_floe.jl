@@ -47,7 +47,7 @@ function replace_floe!(
         floe.height;
         ρi = floe_settings.ρi,
     )
-    floe.angles = GO.angles(GI.Polygon(floe.coords))
+    floe.angles = GO.angles(make_polygon(floe.coords))
     floe.α = FT(0)
     translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
     floe.rmax = sqrt(maximum([sum(c.^2) for c in floe.coords[1]]))

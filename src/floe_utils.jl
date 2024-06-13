@@ -59,8 +59,10 @@ union_polys(p1, p2; kwargs...) = GO.union(p1, p2; target = GI.PolygonTrait(), fi
 simplify_poly(p, tol) = GO.simplify(p; tol = tol)
 
 make_polygon(coords::PolyVec) = GI.Polygon(GO.tuples(coords))
+make_polygon(tuple_coords) = GI.Polygon(tuple_coords)
 make_polygon(ring::GI.LinearRing) = GI.Polygon([ring])
 make_multipolygon(coords::Vector{<:PolyVec}) = GI.MultiPolygon(GO.tuples(coords))
+make_multipolygon(tuple_coords) = GI.MultiPolygon(tuple_coords)
 make_multipolygon(polys::Vector{<:GI.Polygon}) = GI.MultiPolygon(polys)
 
 """

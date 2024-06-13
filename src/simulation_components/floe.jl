@@ -233,7 +233,7 @@ function Floe{FT}(
     coords = find_poly_coords(floe)
     coords = [orient_coords(coords[1])]
     moment = _calc_moment_inertia(FT, floe, centroid, height; ρi = floe_settings.ρi)
-    angles = GO.angles(GI.Polygon(coords))
+    angles = GO.angles(make_polygon(coords))
     translate!(coords, -centroid[1], -centroid[2])
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
     status = Status()
@@ -430,7 +430,7 @@ function initialize_floe_field(
     floe_polys = [make_polygon(valid_polyvec!(c)) for c in coords]
     # Remove overlaps with topography
     if !isempty(domain.topography)
-        floe_polys = GO.difference(make_multipolygon(floe_polys), make_multipolygon(domain.topography.coords); target = GI.PolygonTrait(),fix_multipoly = nothing)
+        floe_polys = diff_polys(make_multipolygon(floe_polys), make_multipolygon(domain.topography.coords))
     end
     # Turn polygons into floes
     for p in floe_polys
@@ -511,7 +511,7 @@ function generate_voronoi_coords(
 ) where {FT <: AbstractFloat}
     xpoints = Vector{FT}()
     ypoints = Vector{FT}()
-    domain_poly = GI.MultiPolygon(GO.tuples(domain_coords))
+    domain_poly = make_multipolygon(GO.tuples(domain_coords))
     area_frac = GO.area(domain_poly) / reduce(*, scale_fac)
     # Increase the number of points based on availible percent of bounding box
     npoints = ceil(Int, desired_points / area_frac)
@@ -651,11 +651,6 @@ function initialize_floe_field(
                 # Open water in cell
                 cell_init = make_polygon(rect_coords(xmin, xmin + collen, ymin, ymin + rowlen))
                 open_cell = intersect_polys(cell_init, open_water_mp)
-                # open_cell = if !isempty(domain.topography)
-                #     diff_polys(open_cell_init, topography_poly)
-                # else
-                #     [open_cell_init]
-                # end
                 open_cell_mpoly = make_multipolygon(open_cell)
                 open_coords = [GI.coordinates(c) for c in open_cell]
                 open_area = sum(GO.area, open_cell; init = 0.0)
