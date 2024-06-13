@@ -443,7 +443,7 @@ struct TopographyElement{FT}<:AbstractDomainElement{FT}
             throw(ArgumentError("Topography element maximum radius must be \
                 positive and non-zero."))
         end
-        topo_poly = GI.Polygon(rmholes(coords))
+        topo_poly = make_polygon(rmholes(coords))
         topo_poly = GO.ClosedRing()(topo_poly)
         new{FT}(GI.coordinates(topo_poly), centroid, rmax)
     end

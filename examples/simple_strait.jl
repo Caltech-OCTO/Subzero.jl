@@ -46,7 +46,7 @@ floe_settings = FloeSettings(
 # Floe creation
 floe_arr = initialize_floe_field(
     FT,
-    75,
+    500,
     [0.7],
     domain,
     hmean,

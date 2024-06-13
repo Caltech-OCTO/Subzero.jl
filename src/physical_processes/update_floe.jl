@@ -48,7 +48,11 @@ function replace_floe!(
         floe.height;
         ρi = floe_settings.ρi,
     )
+<<<<<<< HEAD
     floe.angles = GO.angles(GI.Polygon(floe.coords))
+=======
+    floe.angles = GO.angles(make_polygon(floe.coords))
+>>>>>>> main
     floe.α = FT(0)
     translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
     floe.rmax = sqrt(maximum([sum(c.^2) for c in floe.coords[1]]))
@@ -460,9 +464,9 @@ tendencies calculated at previous timesteps. Height, mass, stress, and strain
 also updated based on previous timestep thermodynamics and interactions with
 other floes. 
 Input:
-        floe        <Floe>
-        Δt          <Int> simulation timestep in second
-        max_height  <AbstractFloat> maximum floe height
+        floe            <Floe>
+        Δt              <Int> simulation timestep in second
+        floe_settings   <FloeSettings> floe creation settings
 Output:
         None. Floe's fields are updated with values.
 """
@@ -470,7 +474,7 @@ function timestep_floe_properties!(
     floes,
     tstep,
     Δt,
-    max_height,
+    floe_settings,
 )
     Threads.@threads for i in eachindex(floes)
         cforce = floes.collision_force[i]
@@ -480,9 +484,9 @@ function timestep_floe_properties!(
             calc_stress!(LazyRow(floes, i))
         end
         # Ensure no extreem values due to model instability
-        if floes.height[i] > max_height
-            @warn "Reducing height to 10 m"
-            floes.height[i] = max_height
+        if floes.height[i] > floe_settings.max_floe_height
+            @warn "Reducing height to $(floe_settings.max_floe_height) m"
+            floes.height[i] = floe_settings.max_floe_height
         end
 
         while maximum(abs.(cforce)) > floes.mass[i]/(5Δt)
@@ -538,9 +542,9 @@ function timestep_floe_properties!(
         end
         if frac != 1
             @warn "Adjusting u and v velocities to prevent too high"
+            dudt = frac*dudt
+            dvdt = frac*dvdt
         end
-        dudt = frac*dudt
-        dvdt = frac*dvdt
         floes.u[i] += 1.5Δt*dudt-0.5Δt*floes.p_dudt[i]
         floes.v[i] += 1.5Δt*dvdt-0.5Δt*floes.p_dvdt[i]
         floes.p_dudt[i] = dudt
@@ -549,9 +553,9 @@ function timestep_floe_properties!(
         dξdt = (floes.trqOA[i] + ctrq)/floes.moment[i]
         dξdt = frac*dξdt
         ξ = floes.ξ[i] + 1.5Δt*dξdt-0.5Δt*floes.p_dξdt[i]
-        if abs(ξ) > 1e-5
+        if abs(ξ) > floe_settings.maximum_ξ
             @warn "Shrinking ξ" tstep = tstep
-            ξ = sign(ξ) * 1e-5
+            ξ = sign(ξ) * floe_settings.maximum_ξ
         end
         floes.ξ[i] = ξ
         floes.p_dξdt[i] = dξdt

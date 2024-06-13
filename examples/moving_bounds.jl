@@ -20,8 +20,8 @@ ocean = Ocean(grid, 0.0, 0.0, 0.0)
 atmos = Atmos(grid, 0.0, 0.0, -1.0)
 
 # Domain creation
-nboundary = MovingBoundary(North, grid, 0.2, 0.0)
-sboundary = MovingBoundary(South, grid, 0.2, 0.0)
+nboundary = MovingBoundary(North, grid, 0.0, -0.1)
+sboundary = MovingBoundary(South, grid, 0.0, 0.1)
 eboundary = PeriodicBoundary(East, grid)
 wboundary = PeriodicBoundary(West, grid)
 
@@ -30,7 +30,7 @@ domain = Domain(nboundary, sboundary, eboundary, wboundary)
 # Floe creation
 floe_arr = initialize_floe_field(
     FT,
-    75,
+    500,
     [1.0],
     domain,
     hmean,
@@ -49,7 +49,7 @@ consts = Constants(E = modulus, Cd_io = 0.0, f = 0.0, turnθ = 0.0)
 
 # Run simulation
 run_time!(simulation) = @time run!(simulation)
-dir = "output/packed_compression"
+dir = "output/moving_bounds"
 
 # Output setup
 initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
@@ -57,24 +57,18 @@ floewriter = FloeOutputWriter(40, dir = dir, overwrite = true)
 writers = OutputWriters(initwriter, floewriter)
 
 # Simulation settings 
-# ridgeraft_settings = RidgeRaftSettings(
-#     ridge_raft_on = true,
-#     Δt = 150,
-#     domain_gain_probability = 0.5
-# )
+ridgeraft_settings = RidgeRaftSettings(
+    ridge_raft_on = true,
+    Δt = 150,
+    domain_gain_probability = 0.5
+)
 weld_settings = WeldSettings(
     weld_on = true,
     Δts = [150, 300, 600],
     Nxs = [2, 1, 1],
     Nys = [2, 2, 1],
 )
-weld_on::Bool = false
-    Δts::Vector{Int} = Vector{Int}()
-    Nxs::Vector{Int} = Vector{Int}()
-    Nys::Vector{Int} = Vector{Int}()
-    min_weld_area::FT = 1e6
-    max_weld_area::FT = 2e10
-    welding_coeff::FT = 150
+
 coupling_settings = CouplingSettings(two_way_coupling_on = true)
 
 
@@ -87,12 +81,13 @@ simulation = Simulation(
     writers = writers,
     rng = Xoshiro(1),
     coupling_settings = coupling_settings,
+    ridgeraft_settings = ridgeraft_settings,
 )
 run_time!(simulation)
 
 Subzero.plot_sim(
-    "output/packed_compression/floes.jld2",
-    "output/packed_compression/initial_state.jld2",
+    joinpath(dir, "floes.jld2"),
+    joinpath(dir, "initial_state.jld2"),
     20,
-    "output/packed_compression/packed_compression.mp4",
+    joinpath(dir, "moving_bounds.mp4"),
 )

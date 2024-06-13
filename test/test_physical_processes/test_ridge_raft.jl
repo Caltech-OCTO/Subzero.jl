@@ -271,7 +271,7 @@
         PeriodicBoundary(East, grid),
         PeriodicBoundary(West, grid),
     )
-    boundary_poly = GO.UnionIntersectingPolygons()(GI.MultiPolygon([
+    boundary_poly = GO.UnionIntersectingPolygons()(Subzero.make_multipolygon([
         collision_domain.north.coords, collision_domain.south.coords,
         collision_domain.east.coords, collision_domain.west.coords]))
         

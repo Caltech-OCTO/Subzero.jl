@@ -302,7 +302,7 @@ function determine_fractures(
 )
     # Determine if floe stresses are in or out of criteria allowable regions
     update_criteria!(criteria, floes)
-    critical_poly = GI.Polygon(GO.tuples(criteria.vertices))
+    critical_poly = make_polygon(GO.tuples(criteria.vertices))
     # If stresses are outside of criteria regions, we will fracture the floe
     frac_idx = [!GO.coveredby(eigvals(s), critical_poly) for s in floes.stress]
     frac_idx[floes.area .< min_floe_area] .= false

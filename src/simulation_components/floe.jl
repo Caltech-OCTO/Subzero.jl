@@ -234,7 +234,11 @@ function Floe{FT}(
     coords = find_poly_coords(floe)
     coords = [orient_coords(coords[1])]
     moment = _calc_moment_inertia(FT, floe, centroid, height; ρi = floe_settings.ρi)
+<<<<<<< HEAD
     angles = GO.angles(GI.Polygon(coords))
+=======
+    angles = GO.angles(make_polygon(coords))
+>>>>>>> main
     translate!(coords, -centroid[1], -centroid[2])
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
     status = Status()
@@ -304,8 +308,13 @@ Floe{FT}(
     rng = Xoshiro(),
     kwargs...,
 ) where {FT <: AbstractFloat} =
+<<<<<<< HEAD
     Floe{FT}(
         make_polygon(valid_polyvec!(rmholes(coords))),
+=======
+    Floe{FT}( # Polygon convert is needed since LibGEOS only takes Float64
+        make_polygon(convert(PolyVec{Float64}, valid_polyvec!(rmholes(coords)))),
+>>>>>>> main
         hmean,
         Δh;
         floe_settings = floe_settings,
@@ -432,7 +441,11 @@ function initialize_floe_field(
     floe_polys = [make_polygon(valid_polyvec!(c)) for c in coords]
     # Remove overlaps with topography
     if !isempty(domain.topography)
+<<<<<<< HEAD
         floe_polys = GO.difference(make_multipolygon(floe_polys), make_multipolygon(domain.topography.coords); target = GI.PolygonTrait(),fix_multipoly = nothing)
+=======
+        floe_polys = diff_polys(make_multipolygon(floe_polys), make_multipolygon(domain.topography.coords))
+>>>>>>> main
     end
     # Turn polygons into floes
     for p in floe_polys
@@ -513,7 +526,11 @@ function generate_voronoi_coords(
 ) where {FT <: AbstractFloat}
     xpoints = Vector{FT}()
     ypoints = Vector{FT}()
+<<<<<<< HEAD
     domain_poly = GI.MultiPolygon(GO.tuples(domain_coords))
+=======
+    domain_poly = make_multipolygon(GO.tuples(domain_coords))
+>>>>>>> main
     area_frac = GO.area(domain_poly) / reduce(*, scale_fac)
     # Increase the number of points based on availible percent of bounding box
     npoints = ceil(Int, desired_points / area_frac)
@@ -600,9 +617,12 @@ Inputs:
     hmean           <Float> average floe height
     Δh              <Float> height range - floes will range in height from
                         hmean - Δh to hmean + Δh
-    floe_settings       <FloeSettings> settings needed to initialize floes
-    rng                 <RNG> random number generator to generate random floe
-                            attributes - default uses Xoshiro256++
+    floe_bounds     <PolyVec> coordinates of boundary within which to populate floes. This
+                        can be smaller that the domain, but will be limited to open space
+                        within the domain
+    floe_settings   <FloeSettings> settings needed to initialize floes
+    rng             <RNG> random number generator to generate random floe
+                        attributes - default uses Xoshiro256++
 Output:
     floe_arr <StructArray> list of floes created using Voronoi Tesselation
         of the domain with given concentrations.
@@ -614,20 +634,28 @@ function initialize_floe_field(
     domain,
     hmean,
     Δh;
+    floe_bounds = rect_coords(domain.west.val, domain.east.val, domain.south.val, domain.north.val),
     floe_settings = FloeSettings(min_floe_area = 0.0),
     rng = Xoshiro(),
 ) where {FT <: AbstractFloat}
     floe_arr = StructArray{Floe{FT}}(undef, 0)
     nfloes_added = 0
+    # Availible space in domain
+    domain_poly = make_polygon(rect_coords(domain.west.val, domain.east.val, domain.south.val, domain.north.val))
+    open_water = intersect_polys(make_polygon(floe_bounds), domain_poly)
+    if !isempty(domain.topography)
+        open_water = diff_polys(make_multipolygon(open_water), make_multipolygon(domain.topography.coords))
+    end
+    open_water_mp = make_multipolygon(open_water)
+    (bounds_xmin, bounds_xmax), (bounds_ymin, bounds_ymax) = GI.extent(open_water_mp)
+    open_water_area = GO.area(open_water_mp, FT)
+
     # Split domain into cells with given concentrations
     nrows, ncols = size(concentrations[:, :])
-    Lx = domain.east.val - domain.west.val
-    Ly = domain.north.val - domain.south.val
+    Lx = bounds_xmax - bounds_xmin
+    Ly = bounds_ymax - bounds_ymin
     rowlen = Ly / nrows
     collen = Lx / ncols
-    # Availible space in whole domain
-    topography_list = [make_polygon(t) for t in domain.topography.coords]
-    open_water_area = (Lx * Ly) - sum(GO.area, topography_list; init = 0.0)
     # Loop over cells
     for j in range(1, ncols)
         for i in range(1, nrows)
@@ -635,17 +663,13 @@ function initialize_floe_field(
             if c > 0
                 c = c > 1 ? 1 : c
                 # Grid cell bounds
-                xmin = domain.west.val + collen * (j - 1)
-                ymin = domain.south.val + rowlen * (i - 1)
+                xmin = bounds_xmin + collen * (j - 1)
+                ymin = bounds_ymin + rowlen * (i - 1)
                 trans_vec = [xmin, ymin]
                 # Open water in cell
-                open_cell_init = make_polygon(rect_coords(xmin, xmin + collen, ymin, ymin + rowlen))
-                open_cell = if !isempty(domain.topography)
-                    diff_polys(open_cell_init, GI.MultiPolygon(domain.topography.coords); fix_multipoly = nothing)
-                else
-                    [open_cell_init]
-                end
-                open_cell_mpoly = GI.MultiPolygon(open_cell)
+                cell_init = make_polygon(rect_coords(xmin, xmin + collen, ymin, ymin + rowlen))
+                open_cell = intersect_polys(cell_init, open_water_mp)
+                open_cell_mpoly = make_multipolygon(open_cell)
                 open_coords = [GI.coordinates(c) for c in open_cell]
                 open_area = sum(GO.area, open_cell; init = 0.0)
                 # Generate coords with voronoi tesselation and make into floes
