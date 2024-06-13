@@ -48,45 +48,74 @@ function calc_normal_force(
         Δx = FT(coords[1][idx2][1] - coords[1][idx1][1])
         Δy = FT(coords[1][idx2][2] - coords[1][idx1][2])
         Δl = sqrt(Δx^2 + Δy^2)
-        if Δl > 0.1  # should match our scale
+        if Δl > 0.1  # If overlap is large enough to consider
             force_dir .= [-Δy/Δl; Δx/Δl]
         end
     elseif m != 0  # Unusual number of intersection points
-        x, y = separate_xy(coords)
-        Δx = diff(x)
-        xmid = (x[2:end] .+ x[1:end-1]) ./ 2
-        Δy = diff(y)
-        ymid = (y[2:end] .+ y[1:end-1]) ./ 2
-        mag = sqrt.(Δx.^2 .+ Δy.^2)  # vector magniture
-        uvec = [-Δy./mag Δx./mag]  # unit vector
-        xt = xmid.+uvec[:, 1]./100
-        yt = ymid+uvec[:, 2]./100  # should match our scale
-        in_idx = points_in_poly(hcat(xt, yt), coords)
-        uvec[in_idx, :] *= -1
-        Fn = -force_factor * (mag * ones(FT, 1, 2)) .* uvec
-        dmin_lst = calc_point_poly_dist(xmid, ymid, c1)
-        on_idx = findall(d->abs(d)<1e-8, dmin_lst)
-        if 0 < length(on_idx) < length(dmin_lst)
-            Δl = mean(mag[on_idx])
-            if Δl > 0.1
-                Fn_tot = sum(Fn[on_idx, :], dims = 1)
-                force_dir .= Fn_tot'/sqrt(Fn_tot*Fn_tot')[1]
-            end
-        end
+        Δl = _many_intersect_normal_force!(FT, force_dir, region, make_polygon(c1), force_factor)
     end
     # Check if direction of the force desceases overlap, else negate direction
     if Δl > 0.1
         c1new = translate(c1, force_dir[1], force_dir[2])
         # Floe/boudary intersection after being moved in force direction
-        new_regions_list = intersect_coords(c1new, c2)
+        new_regions_list = intersect_polys(make_polygon(c1new), make_polygon(c2))
         # See if the area of overlap has increased in corresponding region
         for new_region in new_regions_list
-            if LG.intersects(new_region, region) && LG.area(new_region)/area > 1
+            if GO.intersects(new_region, region) && GO.area(new_region)/area > 1
                 force_dir .*= -1 
             end
         end
     end
     return force_dir * area * force_factor, Δl
+end
+
+#=
+    _many_intersect_normal_force!(::Type{T}, force_dir, region, poly, force_factor)
+    
+Calculate the force direction (`force_dir`) given more than two points of intersection
+within the region between two polygons (the first of which is `poly`).
+=#
+function _many_intersect_normal_force!(::Type{T}, force_dir, region, poly, force_factor) where T
+    x1, y1 = zero(T), zero(T)
+    Δl, n_pts = zero(T), 0
+    Fn_tot = (zero(T), zero(T))
+    # Loop over each edge within the overlap region
+    for (i, p) in enumerate(GI.getpoint(GI.getexterior(region)))
+        x2, y2 = T(GI.x(p)), T(GI.y(p))
+        if i == 1
+            x1, y1 = x2, y2
+            continue
+        end
+        # Find the edge midpoint and calculate distance to first polygon
+        xmid, ymid = 0.5 * (x2 + x1), 0.5 * (y2 + y1)
+        dist = abs(GO.signed_distance((xmid, ymid), poly, T))
+        if dist < 1e-8  # Only consider region edge points on first polygon
+            Δx, Δy = x2 - x1, y2 - y1
+            mag = sqrt(Δx^2 + Δy^2)
+            #= If force would push edge points closer to second polygon (past and out of the
+            overlap region), switch the force direction =#
+            xt = xmid + (-Δy / 100mag)
+            yt = ymid + (Δx / 100mag)
+            in_region = GO.coveredby((xt, yt), region) 
+            f_sign = in_region ? 1 : -1
+            # Calculate force from given edge and incorporate it into the total forces
+            Fn = (f_sign * force_factor) .* (-Δy, Δx)
+            Δl += mag
+            n_pts += 1
+            Fn_tot = Fn_tot .+ Fn
+        end
+        x1, y1 = x2, y2
+    end
+    # Take the average of the summed values
+    if 0 < n_pts < (GI.npoint(region) - 1)
+        Δl /= n_pts
+        if Δl > 0.1  # If overlap is large enough to consider, set new force direction
+            norm_Fn = sqrt(GI.x(Fn_tot)^2 + GI.y(Fn_tot)^2)
+            force_dir[1] = GI.x(Fn_tot) / norm_Fn
+            force_dir[2] = GI.y(Fn_tot) / norm_Fn
+        end
+    end
+    return Δl
 end
 
 """
@@ -104,7 +133,7 @@ regions created from floe collisions
 Inputs:
     c1              <PolyVec> first floe's coordinates in collision
     c2              <PolyVec> second floe's coordinates in collision
-    regions         <Vector{LibGEOS.Polygon}> polygon regions of overlap during
+    regions         <Vector{Polygon}> polygon regions of overlap during
                         collision
     region_areas    <Vector{Float}> area of each polygon in regions
     force_factor    <Float> Spring constant equivalent for collisions
@@ -147,7 +176,7 @@ function calc_elastic_forces(
     Δl_lst = zeros(FT, ncontact)
     for k in 1:ncontact
         if region_areas[k] != 0
-            cx, cy = find_poly_centroid(regions[k])::Vector{Float64}
+            cx, cy = GO.centroid(regions[k])
             fpoint[k, 1] = cx
             fpoint[k, 2] = cy
             normal_force, Δl = calc_normal_force(
@@ -355,11 +384,11 @@ function floe_floe_interaction!(
     Δt,
     max_overlap::FT,
 ) where {FT<:AbstractFloat}
-    inter_regions = intersect_coords(ifloe.coords, jfloe.coords)
+    inter_regions = intersect_polys(make_polygon(ifloe.coords), make_polygon(jfloe.coords))
     region_areas = Vector{FT}(undef, length(inter_regions))
     total_area = FT(0)
     for i in eachindex(inter_regions)
-        a = FT(LG.area(inter_regions[i]))
+        a = FT(GO.area(inter_regions[i]))
         region_areas[i] = a
         total_area += a
     end
@@ -434,10 +463,11 @@ function floe_domain_element_interaction!(
     Δt,
     max_overlap,
 )
-    floe_poly = LG.Polygon(floe.coords)
-    bounds_poly = LG.Polygon(boundary.coords)
+    floe_poly = make_polygon(floe.coords)
+    bounds_poly = make_polygon(boundary.coords)
     # Check if the floe and boundary actually overlap
-    if LG.area(LG.intersection(floe_poly, bounds_poly)) > 0
+    inter_area = sum(GO.area, intersect_polys(floe_poly, bounds_poly); init = 0.0)
+    if inter_area > 0
         floe.status.tag = remove
     end
     return
@@ -617,11 +647,11 @@ function floe_domain_element_interaction!(
     Δt,
     max_overlap::FT,
 ) where {FT}
-    inter_regions = intersect_coords(floe.coords, element.coords)
+    inter_regions = intersect_polys(make_polygon(floe.coords), make_polygon(element.coords))
     region_areas = Vector{FT}(undef, length(inter_regions))
     max_area = FT(0)
     for i in eachindex(inter_regions)
-        a = FT(LG.area(inter_regions[i]))
+        a = GO.area(inter_regions[i], FT)
         region_areas[i] = a
         if a > max_area
             max_area = a
@@ -1047,7 +1077,7 @@ function ghosts_on_bounds!(
 )
     nfloes = length(floes)
     nghosts = 1
-    if !isempty(intersect_coords(floes.coords[elem_idx], boundary.coords))
+    if !isempty(intersect_polys(make_polygon(floes.coords[elem_idx]), make_polygon(boundary.coords)))
         # ghosts of existing ghosts and original element
         for i in floes.ghosts[elem_idx]
             push!(

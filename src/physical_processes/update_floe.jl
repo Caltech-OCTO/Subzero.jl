@@ -16,7 +16,7 @@ Updates existing floe shape and related physical properties based of the polygon
 defining the floe.
 Inputs:
     floe        <Union{Floe, LazyRow{Floe}}> floe to update
-    new_poly    <LG.Polygon> polygon representing new outline of floe
+    new_poly    <Polygon> polygon representing new outline of floe
     new_mass    <AbstractFloat> mass of floe
     floe_settings   <FloeSettings> simulation's settings for making floes
     rng         <RNG> random number generator
@@ -31,22 +31,23 @@ function replace_floe!(
     rng,
 ) where {FT}
     # Floe shape
-    floe.centroid = find_poly_centroid(new_poly)
+    floe.centroid = collect(GO.centroid(new_poly))
     floe.coords = find_poly_coords(new_poly)::PolyVec{FT}
     floe.coords = [orient_coords(floe.coords[1])]
     if floe.coords[1][1] != floe.coords[1][end]
         push!(floe.coords, floe.coords[1][1])
     end
-    floe.area = LG.area(new_poly)
+    floe.area = GO.area(new_poly)
     floe.height = new_mass/(floe.area * floe_settings.ρi)
     floe.mass = new_mass
-    floe.moment = calc_moment_inertia(
-        floe.coords,
+    floe.moment = _calc_moment_inertia(
+        FT,
+        new_poly,
         floe.centroid,
         floe.height;
         ρi = floe_settings.ρi,
     )
-    floe.angles = calc_poly_angles(floe.coords)
+    floe.angles = GO.angles(make_polygon(floe.coords))
     floe.α = FT(0)
     translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
     floe.rmax = sqrt(maximum([sum(c.^2) for c in floe.coords[1]]))

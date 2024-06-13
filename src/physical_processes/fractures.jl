@@ -302,10 +302,9 @@ function determine_fractures(
 )
     # Determine if floe stresses are in or out of criteria allowable regions
     update_criteria!(criteria, floes)
-    σvals = combinedims(sort.(eigvals.(floes.stress)))'
-    in_idx = points_in_poly(σvals, criteria.vertices)
+    critical_poly = make_polygon(GO.tuples(criteria.vertices))
     # If stresses are outside of criteria regions, we will fracture the floe
-    frac_idx = .!(in_idx)
+    frac_idx = [!GO.coveredby(eigvals(s), critical_poly) for s in floes.stress]
     frac_idx[floes.area .< min_floe_area] .= false
     return range(1, length(floes))[frac_idx]
 end
@@ -332,30 +331,29 @@ Outputs:
 """
 function deform_floe!(
     floe,
-    deformer_coords,
+    deformer_coords::PolyVec{FT},
     deforming_forces,
     floe_settings,
     Δt,
     rng,
-)
-    poly = LG.Polygon(floe.coords)
-    deformer_poly = LG.Polygon(deformer_coords)
-    overlap_region = sortregions(LG.intersection(poly, deformer_poly))[1]
+) where FT
+    poly = make_polygon(floe.coords)
+    deformer_poly = make_polygon(deformer_coords)
+    overlap_regions =intersect_polys(poly, deformer_poly)
+    max_overlap_area, max_overlap_idx = findmax(GO.area, overlap_regions)
+    overlap_region = overlap_regions[max_overlap_idx]
     # If floe and the deformer floe have an overlap area
-    if LG.area(overlap_region) > 0
+    if max_overlap_area > 0
         # Determine displacement of deformer floe
-        rcent = find_poly_centroid(overlap_region)
-        dist = calc_point_poly_dist(
-            [rcent[1]],
-            [rcent[2]],
-            find_poly_coords(overlap_region),
-        )
+        region_cent = GO.centroid(overlap_region)
+        dist = GO.signed_distance(region_cent,overlap_region, FT)
         force_fracs = deforming_forces ./ 2norm(deforming_forces)
         Δx, Δy = abs.(dist)[1] .* force_fracs
         # Temporarily move deformer floe to find new shape of floe
-        deformer_poly = LG.Polygon(translate(deformer_coords, Δx, Δy))
-        new_floe_poly = sortregions(LG.difference(poly, deformer_poly))[1]
-        new_floe_area = LG.area(new_floe_poly)
+        deformer_poly = make_polygon(translate(deformer_coords, Δx, Δy))
+        new_floes = diff_polys(poly, deformer_poly)
+        new_floe_area, new_floe_idx = findmax(GO.area, new_floes)
+        new_floe_poly = new_floes[new_floe_idx]
         # If didn't change floe area by more than 90%
         if new_floe_area > 0 && new_floe_area/floe.area > 0.9
             # Update floe shape and conserve mass
@@ -422,36 +420,29 @@ function split_floe(
     )
     if !isempty(pieces)
         # Intersect voronoi tesselation pieces with floe
-        floe_poly = LG.Polygon(rmholes(floe.coords))
-        pieces_polys = Vector{LG.Polygon}()
-        for p in pieces
-            append!(
-                pieces_polys,
-                get_polygons(
-                    LG.intersection(LG.Polygon(p), floe_poly)
-                ),
-            )
-        end
+        floe_poly = make_polygon(rmholes(floe.coords))
+        pieces_polys = mapreduce(p -> intersect_polys(make_polygon(p), floe_poly), append!, pieces; init = Vector{Polys{FT}}())
         # Conserve mass within pieces
-        pieces_areas = [LG.area(p) for p in pieces_polys]
+        pieces_areas = [GO.area(p) for p in pieces_polys]
         total_area = sum(pieces_areas)
         # Create floes out of each piece
         for i in eachindex(pieces_polys)
             if pieces_areas[i] > 0
                 mass = floe.mass * (pieces_areas[i]/total_area)
                 height = mass / (floe_settings.ρi * pieces_areas[i])
-                pieces_floes = poly_to_floes(
+                poly_to_floes!(
                     FT,
+                    new_floes,
                     pieces_polys[i],
                     height,
-                    0;  # Δh - range of random height difference between floes
+                    0,  # Δh - range of random height difference between floes
+                    floe.rmax;
                     floe_settings = floe_settings,
                     rng = rng,
                     u = floe.u,
                     v = floe.v,
                     ξ = floe.ξ,
                 )
-                append!(new_floes, pieces_floes)
             end
         end
     end

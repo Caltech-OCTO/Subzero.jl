@@ -183,9 +183,9 @@ function generate_subfloe_points(
     mc_y = zeros(FT, point_generator.npoints)
     mc_in = fill(false, point_generator.npoints)
     # Find bounding box
-    xmin, xmax, ymin, ymax = polyvec_extrema(coords)
-    Δx = xmax - xmin
-    Δy = ymax - ymin
+    poly = make_polygon(GO.tuples(coords))
+    (xmin, xmax), (ymin, ymax) = GI.extent(poly)
+    Δx, Δy = xmax - xmin, ymax - ymin
     while err > point_generator.err
         if count > 10
             err = 0.0
@@ -193,7 +193,7 @@ function generate_subfloe_points(
         else
             mc_x .= xmin .+ Δx * rand(rng, FT, point_generator.npoints)
             mc_y .= ymin .+ Δy * rand(rng, FT, point_generator.npoints)
-            mc_in .= points_in_poly(hcat(mc_x, mc_y), coords)
+            mc_in .= [GO.coveredby((mc_x[i], mc_y[i]), poly) for i in eachindex(mc_x)]
             err = abs(sum(mc_in)/point_generator.npoints * (Δx * Δy) - area)/area
             count += 1
         end
@@ -324,7 +324,8 @@ function generate_subfloe_points(
     end
     x_sub_floe = repeat(x_interior_points, n_ypoints)
     y_sub_floe = repeat(y_interior_points, inner = n_xpoints)
-    in_floe = points_in_poly(hcat(x_sub_floe, y_sub_floe), coords)
+    poly = make_polygon(GO.tuples(coords))
+    in_floe = [GO.coveredby((x_sub_floe[i], y_sub_floe[i]), poly) for i in eachindex(x_sub_floe)]
 
     append!(xpoints, x_sub_floe[in_floe])
     append!(ypoints, y_sub_floe[in_floe])
@@ -1653,21 +1654,17 @@ function calc_two_way_coupling!(
                 domain.north,
                 domain.east
             )
-            cell_poly = LG.Polygon(cell_coords)
+            cell_poly = make_polygon(cell_coords)
             for i in eachindex(floe_locations.floeidx)
                 floe_coords = translate(
                     floes.coords[floe_locations.floeidx[i]],
                     floe_locations.Δx[i],
                     floe_locations.Δy[i],
                 )
-                floe_poly = LG.Polygon(floe_coords)
-                floe_area_in_cell = FT(sum(
-                    LG.area.(intersect_polys(cell_poly, floe_poly))
-                ))
-                # floe_area_in_cell = FT(LG.area(LG.intersection(
-                #     cell_poly,
-                #     floe_poly,
-                # )))
+                floe_poly = make_polygon(floe_coords)
+                floe_area_in_cell = sum(
+                    GO.area.(intersect_polys(cell_poly, floe_poly), FT)
+                )
                 if floe_area_in_cell > 0
                     # Add forces and area to ocean fields
                     ocean.τx[cartidx] += (τocn.τx[i]/τocn.npoints[i]) * floe_area_in_cell

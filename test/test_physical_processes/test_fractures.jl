@@ -11,14 +11,14 @@
         ) isa HiblerYieldCurve
         # Test calculate_hibler
         hibler_verts = Subzero.calculate_hibler(0.5, 5e5, -1)
-        hibler_poly = LG.Polygon(hibler_verts)
-        @test isapprox(LG.area(hibler_poly), 49054437859.374, atol = -1e3)
+        hibler_poly = Subzero.make_polygon(hibler_verts)
+        @test isapprox(GO.area(hibler_poly), 49054437859.374, atol = -1e3)
         @test all(isapprox.(
-            Subzero.find_poly_centroid(hibler_poly),
-            [-1.25e5, -1.25e5],
+            GO.centroid(hibler_poly),
+            (-1.25e5, -1.25e5),
             atol = 1e-3
         ))
-        x_verts, y_verts = Subzero.separate_xy(hibler_verts)
+        x_verts, y_verts = first.(hibler_verts[1]), last.(hibler_verts[1])
         @test all(isapprox.(
             extrema(x_verts),
             [-264743.588, 14727.999],
@@ -30,14 +30,14 @@
             atol = 1e-3
         ))
         hibler_verts = Subzero.calculate_hibler(0.25, 2.25e5, 20.0)
-        hibler_poly = LG.Polygon(hibler_verts)
-        @test isapprox(LG.area(hibler_poly), 2483380916.630, atol = -1e3)
+        hibler_poly = Subzero.make_polygon(hibler_verts)
+        @test isapprox(GO.area(hibler_poly), 2483380916.630, atol = -1e3)
         @test all(isapprox.(
-            Subzero.find_poly_centroid(hibler_poly),
-            [-28125, -28125],
+            GO.centroid(hibler_poly),
+            (-28125, -28125),
             atol = 1e-3
         ))
-        x_verts, y_verts = Subzero.separate_xy(hibler_verts)
+        x_verts, y_verts = first.(hibler_verts[1]), last.(hibler_verts[1])
         @test all(isapprox.(
             extrema(x_verts),
             [-59567.307, 3313.799],
@@ -185,10 +185,7 @@
         floe1_copy = deepcopy(floes[1])
         colliding_coords = no_frac_floe.coords
         deforming_forces = frac_deform_floe.interactions[xforce:yforce]
-        init_overlap = LG.area(LG.intersection(
-            LG.Polygon(floe1_copy.coords),
-            LG.Polygon(colliding_coords),
-        ))
+        init_overlap = sum(GO.area, Subzero.intersect_polys(Subzero.make_polygon(floe1_copy.coords), Subzero.make_polygon(colliding_coords)); init = 0.0)
         Subzero.deform_floe!(
             floe1_copy,
             colliding_coords,
@@ -197,10 +194,8 @@
             10,
             Xoshiro(1),
         )
-        @test init_overlap > LG.area(LG.intersection(
-            LG.Polygon(floe1_copy.coords),  # These coords have changed
-            LG.Polygon(colliding_coords),
-        ))
+        post_deform_overlap = sum(GO.area, Subzero.intersect_polys(Subzero.make_polygon(floe1_copy.coords), Subzero.make_polygon(colliding_coords)); init = 0.0)
+        @test init_overlap > post_deform_overlap
         
         @test all(isapprox.( 
             floe1_copy.centroid,
@@ -223,11 +218,11 @@
             10,
         ) 
         # Test that the pieces all fit within original floe
-        og_floe_poly = LG.Polygon(floes.coords[1])
-        new_floes_polys = LG.MultiPolygon(new_floes.coords)
+        og_floe_poly = Subzero.make_polygon(floes.coords[1])
+        new_floes_polys = Subzero.make_multipolygon(new_floes.coords)
         @test isapprox(
-            LG.area(LG.intersection(new_floes_polys, og_floe_poly)),
-            LG.area(og_floe_poly),
+            sum(GO.area, Subzero.intersect_polys(new_floes_polys, og_floe_poly); init = 0.0),
+            GO.area(og_floe_poly),
             atol = 1e-6,
         )
         # Conserve mass

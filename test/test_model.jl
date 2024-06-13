@@ -214,7 +214,7 @@
 
     @testset "Topography" begin
         coords = [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]]
-        poly = LG.Polygon(coords)
+        poly = Subzero.make_polygon(coords)
         # Polygon Constructor
         topo1 = Subzero.TopographyElement(poly)
         @test topo1.coords == coords
@@ -244,7 +244,7 @@
 
         # Create field of topography
         coords_w_hole = [
-            [[0.0, 10.0], [0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]],
+            [[0.5, 10.0], [0.5, 0.0], [10.0, 0.0], [10.0, 10.0], [0.5, 10.0]],
             [[2.0, 8.0], [2.0, 4.0], [8.0, 4.0], [8.0, 8.0], [2.0, 8.0]]
             ]
         topo_field_64 = initialize_topography_field(

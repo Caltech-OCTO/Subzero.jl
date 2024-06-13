@@ -62,19 +62,17 @@ function smooth_floes!(
     Δt,
     rng,
 ) where {FT <: AbstractFloat}
-    topo_coords = topography.coords
     for i in eachindex(floes)
         if length(floes.coords[i][1]) > simp_settings.max_vertices
-            poly = LG.simplify(LG.Polygon(floes.coords[i]), simp_settings.tol)
-            if !isempty(topo_coords)
-                poly = LG.difference(poly, LG.MultiPolygon(topo_coords))
+            poly_list = [simplify_poly(make_polygon(floes.coords[i]), simp_settings.tol)]
+            if !isempty(topography)
+                poly_list = diff_polys(make_multipolygon(poly_list), make_multipolygon(topography.coords); fix_multipoly = nothing)
             end
-            poly_list = get_polygons(rmholes(poly))::Vector{LG.Polygon}
             simp_poly =
                 if length(poly_list) == 1
                     poly_list[1]
                 else
-                    areas = [LG.area(p) for p in poly_list]
+                    areas = [GO.area(p) for p in poly_list]
                     _, max_idx = findmax(areas)
                     poly_list[max_idx]
                 end
@@ -108,9 +106,9 @@ function smooth_floes!(
                         floes.status[i].tag = fuse
                         push!(floes.status[i].fuse_idx, j)
                     else
-                        jpoly = LG.Polygon(floes.coords[j])
-                        intersect_area = LG.area(LG.intersection(simp_poly, jpoly))
-                        if intersect_area/LG.area(jpoly) > collision_settings.floe_floe_max_overlap
+                        jpoly = make_polygon(floes.coords[j])
+                        intersect_area = sum(GO.area, intersect_polys(simp_poly, jpoly); init = 0.0)
+                        if intersect_area/GO.area(jpoly) > collision_settings.floe_floe_max_overlap
                             floes.status[i].tag = fuse
                             push!(floes.status[i].fuse_idx, j)
                         end
@@ -156,9 +154,9 @@ function fuse_two_floes!(
     # Create new polygon if they fuse
     rmholes!(keep_floe.coords)
     rmholes!(remove_floe.coords)
-    poly1 = LG.Polygon(keep_floe.coords)::LG.Polygon
-    poly2 = LG.Polygon(remove_floe.coords)::LG.Polygon
-    new_poly_list = get_polygons(LG.union(poly1, poly2))::Vector{LG.Polygon}
+    poly1 = make_polygon(keep_floe.coords)
+    poly2 = make_polygon(remove_floe.coords)
+    new_poly_list = union_polys(poly1, poly2)
     if length(new_poly_list) == 1  # if they fused, they will make one polygon
         new_poly = rmholes(new_poly_list[1])
         # mark smaller floe for removal

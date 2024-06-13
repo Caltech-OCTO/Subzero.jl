@@ -1,7 +1,7 @@
-using DataStructures, GeometryBasics, JLD2, Logging, NCDatasets,
-    PolygonInbounds, Random, SplitApplyCombine, Statistics, StructArrays,
-    Subzero, VoronoiCells
-import LibGEOS as LG
+using DataStructures, GeometryBasics, JLD2, Logging, NCDatasets, Random, SplitApplyCombine,
+    Statistics, StructArrays, Subzero, VoronoiCells
+import GeometryOps as GO
+import GeometryOps.GeoInterface as GI
 using Test
 
 @testset "Subzero.jl" begin

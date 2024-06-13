@@ -421,7 +421,7 @@ const NonPeriodicBoundary = Union{
 }
 
 """
-    TopographyE{FT}<:AbstractDomainElement{FT}
+    TopographyElement{FT}<:AbstractDomainElement{FT}
 
 Singular topographic element with coordinates field storing where the element is
 within the grid. These are used to create the desired topography within the
@@ -443,7 +443,9 @@ struct TopographyElement{FT}<:AbstractDomainElement{FT}
             throw(ArgumentError("Topography element maximum radius must be \
                 positive and non-zero."))
         end
-        new{FT}(valid_polyvec!(rmholes(coords)), centroid, rmax)
+        topo_poly = make_polygon(rmholes(coords))
+        topo_poly = GO.ClosedRing()(topo_poly)
+        new{FT}(GI.coordinates(topo_poly), centroid, rmax)
     end
 end
 
@@ -468,31 +470,31 @@ TopographyElement(args...) = TopographyElement{Float64}(args...)
 """
     TopographyElement{FT}(poly)
 
-Constructor for topographic element with LibGEOS Polygon
+Constructor for topographic element with Polygon
 Inputs:
-    poly    <LibGEOS.Polygon>
+    poly    <Polygon>
 Output:
     Topographic element of abstract float type FT
 """
-function TopographyElement{FT}(poly::LG.Polygon) where {FT <: AbstractFloat}
+function TopographyElement{FT}(poly::Polys) where {FT <: AbstractFloat}
     topo = rmholes(poly)
-    centroid = find_poly_centroid(topo)
+    cx, cy = GO.centroid(topo)
     coords = find_poly_coords(topo)
     # Move coordinates to be centered at origin to calculate maximum radius
     translate!(
         coords,
-        -centroid[1],
-        -centroid[2],
+        -cx,
+        -cy,
     )
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
     translate!(
         coords,
-        centroid[1],
-        centroid[2],
+        cx,
+        cy,
     )
     return TopographyElement{FT}(
         coords,
-        centroid,
+        [cx, cy],
         rmax,
     )
 end
@@ -509,11 +511,7 @@ Output:
 function TopographyElement{FT}(
     coords::PolyVec,
 ) where {FT <: AbstractFloat} 
-    return TopographyElement{FT}(
-        LG.Polygon(
-            convert(PolyVec{Float64}, coords),
-        ),
-    )
+    return TopographyElement{FT}(make_polygon(convert(PolyVec{Float64}, coords)))
 end
 
 """
@@ -544,10 +542,10 @@ function initialize_topography_field(
     ::Type{FT},
     coords,
 ) where {FT <: AbstractFloat}
-    topo_arr = StructArray{TopographyElement{FT}}(undef, length(coords))
-    for i in eachindex(coords)
-        c = Subzero.rmholes(coords[i])
-        topo_arr[i] = TopographyElement{FT}(c)
+    topo_multipoly = GO.DiffIntersectingPolygons()(GI.MultiPolygon(coords))
+    topo_arr = StructArray{TopographyElement{FT}}(undef, GI.npolygon(topo_multipoly))
+    for (i, p) in enumerate(GI.getpolygon(topo_multipoly))
+        topo_arr[i] = TopographyElement{FT}(p)
     end
     return topo_arr
 end

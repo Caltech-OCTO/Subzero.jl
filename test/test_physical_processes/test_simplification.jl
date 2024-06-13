@@ -464,11 +464,9 @@
         # Test mass is conserved
         @test total_mass == sum(floe_set2.mass)
         # Test first floe was cut by topography and only larger piece was kept
-        @test LG.area(LG.intersection(
-                LG.Polygon(floe_set2.coords[1]),
-                LG.Polygon(open_domain_with_topo.topography.coords[1]),
-        )) == 0
-        @test LG.area(LG.Polygon(floe_set2.coords[1])) > 2og_f1_area/3
+        @test sum(GO.area, Subzero.intersect_polys(Subzero.make_polygon(floe_set2.coords[1]), Subzero.make_polygon(open_domain_with_topo.topography.coords[1])); init = 0.0) == 0
+        
+        @test GO.area(Subzero.make_polygon(floe_set2.coords[1])) > 2og_f1_area/3
         # Test that both floes are tagged for fusion
         @test floe_set2.status[1].fuse_idx == [2]
         @test floe_set2.status[2].fuse_idx == [1]

@@ -88,13 +88,15 @@ function remove_floe_overlap!(
     simp_settings,
     rng,  
 ) where {FT <: AbstractFloat}
-    # Find new floe shape and regions
-    new_floe_poly = LG.difference(
-        LG.Polygon(floes.coords[shrink_idx]),
-        LG.Polygon(grow_floe_coords),
-    )
-    new_floe_poly = LG.simplify(new_floe_poly, simp_settings.tol)
-    total_area = LG.area(new_floe_poly)
+    # Find new floe shapes and regions
+    regions = diff_polys(make_polygon(floes.coords[shrink_idx]), make_polygon(grow_floe_coords))
+    total_area = zero(FT)
+    nregions = 0
+    for (i, region) in enumerate(regions)
+        regions[i] = simplify_poly(region, simp_settings.tol)
+        total_area += GO.area(region)
+        nregions += 1
+    end
     floe_num = 0  # How many new floes have been created from the regions
     # Changes in area / volume
     transfer_area = floes.area[shrink_idx] - total_area
@@ -102,9 +104,6 @@ function remove_floe_overlap!(
     # If the transfer area is sufficent, create new floes
     if transfer_area > ridgeraft_settings.min_overlap_frac * floes.area[shrink_idx]
         transfer_vol = floes.area[shrink_idx] * floes.height[shrink_idx]
-        # Find regions
-        regions = get_polygons(new_floe_poly)
-        nregions = length(regions)
         # Reset shrinking index to parent floe and determine floe shift
         parent_Δx = floes.centroid[shrink_parent_idx][1] -
             floes.centroid[shrink_idx][1]
@@ -113,11 +112,10 @@ function remove_floe_overlap!(
         parent_centroid = floes.centroid[shrink_parent_idx]
         # Update existing floes/ghosts regions
         for region in regions
-            region_area = LG.area(region)
+            region_area = GO.area(region)
             new_coords = find_poly_coords(region)::PolyVec{FT}
-            xmin, xmax, ymin, ymax = polyvec_extrema(new_coords)
-            Δx = xmax - xmin
-            Δy = ymax - ymin
+            (xmin, xmax), (ymin, ymax) = GI.extent(region)
+            Δx, Δy = xmax - xmin, ymax - ymin
             # Region is big enought to be a floe and has okay aspect ratio
             if (
                 region_area > floe_settings.min_floe_area &&
@@ -130,7 +128,7 @@ function remove_floe_overlap!(
                     parent_Δy,
                 )
                 rmholes!(new_coords)  # remove holes in floe
-                new_poly = LG.Polygon(new_coords)  # parent floe new region poly
+                new_poly = make_polygon(new_coords)  # parent floe new region poly
                 new_vol = region_area * floes.height[shrink_idx]
                 transfer_vol -= new_vol
                 buffer_length = length(pieces_buffer)

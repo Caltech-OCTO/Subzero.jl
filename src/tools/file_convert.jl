@@ -53,9 +53,8 @@ end
 # JLD2 to MATLAB
 
 function julfloe2matfloe(floes, Δg, out_fn)
-    coords = Subzero.separate_xy.(floes.coords)
-    xcoords = first.(coords)
-    ycoords = last.(coords)
+    xcoords = first.(floes.coords[1])
+    ycoords = last.(floes.coords[1])
     reshaped_x = Vector{Matrix{Float64}}()
     reshaped_y = Vector{Matrix{Float64}}()
     for i in range(1, length(xcoords))
