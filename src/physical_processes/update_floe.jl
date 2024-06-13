@@ -50,18 +50,18 @@ function replace_floe!(
     )
     floe.angles = GO.angles(make_polygon(floe.coords))
     floe.α = FT(0)
-    translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
-    floe.rmax = sqrt(maximum([sum(c.^2) for c in floe.coords[1]]))
+    # translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
+    floe.rmax = calc_max_radius(floe.poly, floe.centroid, FT)#sqrt(maximum([sum(c.^2) for c in floe.coords[1]]))
     # Floe monte carlo points
     x_subfloe_points, y_subfloe_points, status = generate_subfloe_points(
         floe_settings.subfloe_point_generator,
-        floe.coords,
-        floe.rmax,
+        floe.poly,
+        floe.centroid,
         floe.area,
         floe.status,
         rng,
     )
-    translate!(floe.coords, floe.centroid[1], floe.centroid[2])
+    # translate!(floe.coords, floe.centroid[1], floe.centroid[2])
     floe.x_subfloe_points = x_subfloe_points
     floe.y_subfloe_points = y_subfloe_points
     # Floe status / identification

@@ -146,8 +146,8 @@ SubGridPointsGenerator{FT}(
 """
     generate_subfloe_points(
         point_generator
-        coords,
-        rmax,
+        poly,
+        centroid,
         area,
         status,
         rng
@@ -157,8 +157,8 @@ Generate monte carlo points centered on the origin within the floe according to
 parameters defined in the point_generator argument.
 Inputs:
     point_generator     <MonteCarloPointsGenerator> monte carlo point generator
-    coords              <PolyVec> PolyVec of floe coords centered on origin
-    rmax                <AbstractFloat> floe's maximum radius
+    poly                <Polygon> Polygon representing floe shape
+    centroid            <Matrix> floe's centroid
     area                <AbstractFloat> floe's area
     status              <Status> floe status (i.e. active, fuse in simulation)
     rng                 <AbstractRNG> random number generator to generate monte
@@ -171,8 +171,8 @@ Ouputs:
 """
 function generate_subfloe_points(
     point_generator::MonteCarloPointsGenerator{FT},
-    coords,
-    rmax,
+    poly,
+    centroid,
     area,
     status,
     rng
@@ -183,7 +183,8 @@ function generate_subfloe_points(
     mc_y = zeros(FT, point_generator.npoints)
     mc_in = fill(false, point_generator.npoints)
     # Find bounding box
-    poly = make_polygon(GO.tuples(coords))
+    poly = translate_poly(poly, -GI.x(centroid), -GI.y(centroid))
+    # poly = make_polygon(GO.tuples(coords))
     (xmin, xmax), (ymin, ymax) = GI.extent(poly)
     Δx, Δy = xmax - xmin, ymax - ymin
     while err > point_generator.err
@@ -210,8 +211,8 @@ end
 """
     generate_subfloe_points(
         point_generator,
-        coords,
-        rmax,
+        poly,
+        centroid,
         area,
         status,
         rng
@@ -221,8 +222,8 @@ Generate evenly spaced points within given floe coordinates to be used for
 coupling. If only one point falls within the floe, return the floe's centroid.
 Inputs:
     point_generator     <SubGridPointsGenerator> sub-grid point generator
-    coords              <PolyVec> PolyVec of floe coords centered on origin
-    rmax                <AbstractFloat> floe's maximum radius
+    poly                <Polygon> Polygon representing floe shape
+    centroid            <Matrix> floe's centroid
     area                <AbstractFloat> floe's area
     status              <Status> floe status (i.e. active, fuse in simulation)
     rng                 <AbstractRNG> random number generator is not used in
@@ -234,44 +235,32 @@ Ouputs:
 """
 function generate_subfloe_points(
     point_generator::SubGridPointsGenerator{FT},
-    coords,
-    rmax,
+    poly,
+    centroid,
     area,
     status,
     rng
 ) where {FT <: AbstractFloat}
-    xmax = coords[1][1][1]
-    xmin = coords[1][1][1]
-    ymax = coords[1][1][2]
-    ymin = coords[1][1][2]
-    nverts = length(coords[1])
-
+    poly = translate_poly(poly, -GI.x(centroid), -GI.y(centroid))
+    (xmin, xmax), (ymin, ymax) = GI.extent(poly)
     xpoints = Vector{FT}()
     ypoints = Vector{FT}()
-    # Add points along edges
-    for i in 1:(nverts - 1)
+    local x1, y1
+    for (i, p) in enumerate(GI.getpoint(GI.getexterior(poly)))
         # Determine points on edges
-        x1, y1 = coords[1][i]
-        x2, y2 = coords[1][i+1]
-        Δx = x2 - x1
-        Δy = y2 - y1
+        x2, y2 = GI.x(p), GI.y(p)
+        if i == 1
+            x1, y1 = x2, y2
+            continue
+        end
+        Δx, Δy = x2 - x1, y2 - y1
         l = sqrt((Δx)^2 + (Δy)^2)
-        # Find maximum and minimum x and y points
-        if x1 > xmax
-            xmax = x1
-        elseif x1 < xmin
-            xmin = x1
-        end
-        if y1 > ymax
-            ymax = y1
-        elseif y1 < ymin
-            ymin = y1
-        end
         # Add current vertex
         push!(xpoints, x1)
         push!(ypoints, y1)
         # If distance between i and i+1 vertex is less than 2 sub-grid cells
         # but greater than one, add a point inbetween those two vertices
+        x2_unshifted, y2_unshifted = x2, y2
         if l <= 2point_generator.Δg
             if l > point_generator.Δg
                 push!(xpoints, x1 + Δx/2)
@@ -298,13 +287,14 @@ function generate_subfloe_points(
             append!(xpoints, range(x1, x2, length = n_edge_points))
             append!(ypoints, range(y1, y2, length = n_edge_points))
         end
+        x1, y1 = x2_unshifted, y2_unshifted
     end
     # Add points in the interior of the floe
     n_xpoints = ceil(Int, (xmax - xmin) / point_generator.Δg)
     n_ypoints = ceil(Int, (ymax - ymin) / point_generator.Δg)
     x_interior_points = if n_xpoints < 3
         n_xpoints = 1
-        FT(0):FT(0)  # coords are centered at the origin
+        FT(0):FT(0)  # polygon is centered at the origin
     else
         range(
             xmin + point_generator.Δg/2,
@@ -324,9 +314,8 @@ function generate_subfloe_points(
     end
     x_sub_floe = repeat(x_interior_points, n_ypoints)
     y_sub_floe = repeat(y_interior_points, inner = n_xpoints)
-    poly = make_polygon(GO.tuples(coords))
+    # Check which points are within the polygon and add to list
     in_floe = [GO.coveredby((x_sub_floe[i], y_sub_floe[i]), poly) for i in eachindex(x_sub_floe)]
-
     append!(xpoints, x_sub_floe[in_floe])
     append!(ypoints, y_sub_floe[in_floe])
     return xpoints, ypoints, status

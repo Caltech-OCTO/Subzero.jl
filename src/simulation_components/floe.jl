@@ -235,19 +235,19 @@ function Floe{FT}(
     coords = [orient_coords(coords[1])]
     moment = _calc_moment_inertia(FT, floe, centroid, height; ρi = floe_settings.ρi)
     angles = GO.angles(make_polygon(coords))
-    translate!(coords, -centroid[1], -centroid[2])
-    rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
+    rmax = calc_max_radius(floe, centroid, FT)
     status = Status()
+    # translate!(coords, -centroid[1], -centroid[2])
     # Generate Monte Carlo Points
     x_subfloe_points, y_subfloe_points, status = generate_subfloe_points(
         floe_settings.subfloe_point_generator,
-        coords,
-        rmax,
+        floe,
+        centroid,
         area_tot,
         status,
         rng,
     )
-    translate!(coords, centroid[1], centroid[2])
+    # translate!(coords, centroid[1], centroid[2])
     # Generate Stress History
     stress_history = StressCircularBuffer{FT}(floe_settings.nhistory)
     fill!(stress_history, zeros(FT, 2, 2))

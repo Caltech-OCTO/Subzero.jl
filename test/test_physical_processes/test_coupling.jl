@@ -14,13 +14,14 @@
             -centroid1[2],
         )
         origin_poly = Subzero.make_polygon(origin_coords)
+        origin_centroid = GO.centroid(origin_poly)
         xo, yo = first.(origin_coords[1]), last.(origin_coords[1])
         rmax = sqrt(maximum([sum(xo[i]^2 + yo[i]^2) for i in eachindex(xo)]))
         area = GO.area(poly1)
         mc_x, mc_y, status = Subzero.generate_subfloe_points(
             MonteCarloPointsGenerator(),
-            origin_coords,
-            rmax,
+            origin_poly,
+            origin_centroid,
             area,
             Subzero.Status(),
             Xoshiro(1)
@@ -35,8 +36,8 @@
         # Test that random number generator is working
         mc_x2, mc_y2, status2 = Subzero.generate_subfloe_points(
             MonteCarloPointsGenerator(),
-            origin_coords,
-            rmax,
+            origin_poly,
+            origin_centroid,
             area,
             Subzero.Status(),
             Xoshiro(1)
@@ -47,8 +48,8 @@
     
         mc_x3, mc_y3, status3 = Subzero.generate_subfloe_points(
             MonteCarloPointsGenerator{Float32}(),
-            origin_coords,
-            rmax,
+            origin_poly,
+            origin_centroid,
             area,
             Subzero.Status(),
             Xoshiro(1)
@@ -59,17 +60,18 @@
         # test generating sub-grid points for grid with Δx = Δy = 10
         point_generator = SubGridPointsGenerator{Float64}(10/sqrt(2))
         # Floe is smaller than grid cells --> centroid and vertices added
-        square = [[
+        square = Subzero.make_polygon([[
             [-2.5, -2.5],
             [-2.5, 2.5],
             [2.5, 2.5],
             [2.5, -2.5],
             [-2.5, -2.5],
-        ]]
+        ]])
+        square_centroid = GO.centroid(square)
         xpoints, ypoints = Subzero.generate_subfloe_points(
             point_generator,
             square,
-            0.0, # Not used
+            square_centroid,
             0.0, # Not used
             Subzero.Status(),
             Xoshiro(), # Not random
@@ -77,17 +79,18 @@
         @test xpoints == [-2.5, -2.5, 2.5, 2.5, 0.0]
         @test ypoints == [-2.5, 2.5, 2.5, -2.5, 0.0]
         # Floe is larger than grid cell
-        tall_rect = [[
+        tall_rect = Subzero.make_polygon([[
             [-2.0, -10.0],
             [-2.0, 10.0],
             [2.0, 10.0],
             [2.0, -10.0],
             [-2.0, -10.0],
-        ]]
+        ]])
+        tall_rect_centroid = GO.centroid(tall_rect)
         xpoints, ypoints = Subzero.generate_subfloe_points(
             point_generator,
             tall_rect,
-            0.0, # Not used
+            tall_rect_centroid,
             0.0, # Not used
             Subzero.Status(),
             Xoshiro(), # Not random
@@ -100,17 +103,18 @@
             ],
             atol = 1e-5))
 
-        wide_rect = [[
+        wide_rect = Subzero.make_polygon([[
             [-10.0, -2.0],
             [-10.0, 2.0],
             [10.0, 2.0],
             [10.0, -2.0],
             [-10.0, -2.0],
-        ]]
+        ]])
+        wide_rect_centroid = GO.centroid(wide_rect)
         xpoints, ypoints = Subzero.generate_subfloe_points(
             point_generator,
             wide_rect,
-            0.0, # Not used
+            wide_rect_centroid,
             0.0, # Not used
             Subzero.Status(),
             Xoshiro(), # Not random
@@ -123,21 +127,23 @@
             atol = 1e-5
         ))
         @test ypoints == [-2; repeat([2], 5); repeat([-2], 4); repeat([0], 3)] 
-        trapeziod = [[
+        trapeziod = Subzero.make_polygon([[
             [-8.0, -8.0],
             [-4.0, 8.0],
             [4.0, 8.0],
             [8.0, -8.0],
             [-8.0, -8.0],
-        ]]
+        ]])
+        trapeziod_centroid = GO.centroid(trapeziod)
         xpoints, ypoints = Subzero.generate_subfloe_points(
             point_generator,
             trapeziod,
-            0.0, # Not used
+            trapeziod_centroid,
             0.0, # Not used
             Subzero.Status(),
             Xoshiro(), # Not random
         )
+        ypoints .+= trapeziod_centroid[2]  # y-point of centroid is not centered on the origin
         @test all(isapprox.(
             xpoints,
             [-8, -7.14251, -6.0, -4.85749, -4.0, 0.0, 4.0, 4.85749, 6.0,
@@ -154,7 +160,6 @@
             ],
             atol = 1e-5
         ))
-
     end
 
     @testset "Coupling Helper Functions" begin

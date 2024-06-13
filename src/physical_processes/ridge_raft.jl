@@ -113,7 +113,6 @@ function remove_floe_overlap!(
         # Update existing floes/ghosts regions
         for region in regions
             region_area = GO.area(region)
-            new_coords = find_poly_coords(region)::PolyVec{FT}
             (xmin, xmax), (ymin, ymax) = GI.extent(region)
             Δx, Δy = xmax - xmin, ymax - ymin
             # Region is big enought to be a floe and has okay aspect ratio
@@ -122,13 +121,8 @@ function remove_floe_overlap!(
                 (Δx > Δy ? Δy/Δx : Δx/Δy) > floe_settings.min_aspect_ratio
             )
                 floe_num += 1
-                translate!(  # shift region coords to parent floe location
-                    new_coords,
-                    parent_Δx,
-                    parent_Δy,
-                )
-                rmholes!(new_coords)  # remove holes in floe
-                new_poly = make_polygon(new_coords)  # parent floe new region poly
+                new_poly = translate_poly(region, parent_Δx, parent_Δy)
+                rmholes!(new_poly)  # remove holes in floe
                 new_vol = region_area * floes.height[shrink_idx]
                 transfer_vol -= new_vol
                 buffer_length = length(pieces_buffer)
