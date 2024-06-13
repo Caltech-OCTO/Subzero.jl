@@ -234,11 +234,7 @@ function Floe{FT}(
     coords = find_poly_coords(floe)
     coords = [orient_coords(coords[1])]
     moment = _calc_moment_inertia(FT, floe, centroid, height; ρi = floe_settings.ρi)
-<<<<<<< HEAD
-    angles = GO.angles(GI.Polygon(coords))
-=======
     angles = GO.angles(make_polygon(coords))
->>>>>>> main
     translate!(coords, -centroid[1], -centroid[2])
     rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
     status = Status()
@@ -308,13 +304,8 @@ Floe{FT}(
     rng = Xoshiro(),
     kwargs...,
 ) where {FT <: AbstractFloat} =
-<<<<<<< HEAD
     Floe{FT}(
         make_polygon(valid_polyvec!(rmholes(coords))),
-=======
-    Floe{FT}( # Polygon convert is needed since LibGEOS only takes Float64
-        make_polygon(convert(PolyVec{Float64}, valid_polyvec!(rmholes(coords)))),
->>>>>>> main
         hmean,
         Δh;
         floe_settings = floe_settings,
@@ -441,11 +432,7 @@ function initialize_floe_field(
     floe_polys = [make_polygon(valid_polyvec!(c)) for c in coords]
     # Remove overlaps with topography
     if !isempty(domain.topography)
-<<<<<<< HEAD
-        floe_polys = GO.difference(make_multipolygon(floe_polys), make_multipolygon(domain.topography.coords); target = GI.PolygonTrait(),fix_multipoly = nothing)
-=======
         floe_polys = diff_polys(make_multipolygon(floe_polys), make_multipolygon(domain.topography.coords))
->>>>>>> main
     end
     # Turn polygons into floes
     for p in floe_polys
@@ -526,11 +513,7 @@ function generate_voronoi_coords(
 ) where {FT <: AbstractFloat}
     xpoints = Vector{FT}()
     ypoints = Vector{FT}()
-<<<<<<< HEAD
-    domain_poly = GI.MultiPolygon(GO.tuples(domain_coords))
-=======
     domain_poly = make_multipolygon(GO.tuples(domain_coords))
->>>>>>> main
     area_frac = GO.area(domain_poly) / reduce(*, scale_fac)
     # Increase the number of points based on availible percent of bounding box
     npoints = ceil(Int, desired_points / area_frac)

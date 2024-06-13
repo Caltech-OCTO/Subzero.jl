@@ -254,14 +254,11 @@ function rmholes(poly::Polys)
     return poly
 end
 
-<<<<<<< HEAD
 function rmholes!(poly::Polys)
     deleteat!(poly.geom, 2:GI.nring(poly))
     return
 end
 
-=======
->>>>>>> main
 #=
     _calc_moment_inertia(::Type{T} poly, cent, h; ρi = 920.0)
 
@@ -290,7 +287,6 @@ function _calc_moment_inertia(
         if i == 1
             x1, y1 = x2, y2 
             continue
-<<<<<<< HEAD
         end
         wi = (x1 - xc) * (y2 - yc) - (x2 - xc) * (y1 - yc)
         Ixx += wi * (y1^2 + y1 * y2 + y2^2)
@@ -313,30 +309,6 @@ function _calc_max_radius(::Type{T}, poly, cent) where T
         if rad_sqrd > max_rad_sqrd
             max_rad_sqrd = rad_sqrd
         end
-=======
-        end
-        wi = (x1 - xc) * (y2 - yc) - (x2 - xc) * (y1 - yc)
-        Ixx += wi * (y1^2 + y1 * y2 + y2^2)
-        Iyy += wi * (x1^2 + x1 * x2 + x2^2)
-        x1, y1 = x2, y2 
-    end
-    Ixx *= 1/12
-    Iyy *= 1/12
-    return abs(Ixx + Iyy) * T(height) * T(ρi) 
-end
-
-# Find the length of the maximum radius of a given polygon
-function _calc_max_radius(::Type{T}, poly, cent) where T
-    max_rad_sqrd = zero(T)
-    Δx, Δy = GO._tuple_point(cent, T)
-    for pt in GI.getpoint(GI.getexterior(poly))
-        x, y = GO._tuple_point(pt, T)
-        x, y = x - Δx, y - Δy
-        rad_sqrd = x^2 + y^2
-        if rad_sqrd > max_rad_sqrd
-            max_rad_sqrd = rad_sqrd
-        end
->>>>>>> main
     end
     return sqrt(max_rad_sqrd)
 end

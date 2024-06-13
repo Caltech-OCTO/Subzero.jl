@@ -183,11 +183,7 @@ function generate_subfloe_points(
     mc_y = zeros(FT, point_generator.npoints)
     mc_in = fill(false, point_generator.npoints)
     # Find bounding box
-<<<<<<< HEAD
-    poly = GI.Polygon(GO.tuples(coords))
-=======
     poly = make_polygon(GO.tuples(coords))
->>>>>>> main
     (xmin, xmax), (ymin, ymax) = GI.extent(poly)
     Δx, Δy = xmax - xmin, ymax - ymin
     while err > point_generator.err
