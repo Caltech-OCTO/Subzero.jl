@@ -38,6 +38,7 @@
                 Subzero.translate!(floes.coords[i], Δx[i], Δy[i])
                 floes.centroid[i][1] += Δx[i]
                 floes.centroid[i][2] += Δy[i]
+                floes.poly[i] = Subzero.translate_poly(floes.poly[i], Δx[i], Δy[i])
             end
         end
         assign_random_velocities!(floes)

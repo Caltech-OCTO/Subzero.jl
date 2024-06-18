@@ -85,6 +85,7 @@ Coordinates are vector of vector of vector of points of the form:
 """
 const PolyVec{T} = Vector{Vector{Vector{T}}} where T<:Real
 
+
 """
 Coordinates are vector of vector of points of the form:
 [[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]] where the xy coordinates form a
@@ -98,6 +99,9 @@ const RingVec{T} = R where {
 }
 
 const Polys{T} = GI.Polygon{false, false, Vector{GI.LinearRing{false, false, Vector{Tuple{T, T}}, Nothing, Nothing}}, Nothing, Nothing} where T <: AbstractFloat
+
+Base.convert(::Type{Polys{Float32}}, p::Polys{Float64}) = GO.tuples(p, Float32)
+Base.convert(::Type{Polys{Float64}}, p::Polys{Float32}) = GO.tuples(p, Float64)
 
 # Model
 include("simulation_components/floe.jl")

@@ -45,7 +45,7 @@ end
     remove_floe_overlap!(
         floes,
         shrink_idx,
-        grow_floe_coords,
+        grow_floe_poly,
         pieces_buffer,
         max_floe_id,
         broken,
@@ -58,7 +58,7 @@ Removes area/volume of overlap from floe that loses area during ridging/rafting
 Inputs:
     floes               <StructArray{Floe}> list of floes
     shrink_idx       <Int> index of floe that loses area
-    grow_floe_coords <PolyVec> coordinate of floe/domain that subsumes area
+    grow_floe_poly   <Polys> polygon of floe/domain that subsumes area
     pieces_buffer       <StructArray{Floe}> list of new floe pieces caused by
                             breakage of floes
     max_floe_id         <Int> maximum floe ID before this ridging/rafting
@@ -79,7 +79,7 @@ function remove_floe_overlap!(
     floes::StructArray{<:Floe{FT}},
     shrink_idx,
     shrink_parent_idx,
-    grow_floe_coords,
+    grow_floe_poly,
     pieces_buffer,
     max_floe_id,
     broken,
@@ -89,7 +89,7 @@ function remove_floe_overlap!(
     rng,  
 ) where {FT <: AbstractFloat}
     # Find new floe shapes and regions
-    regions = diff_polys(make_polygon(floes.coords[shrink_idx]), make_polygon(grow_floe_coords))
+    regions = diff_polys(make_polygon(floes.coords[shrink_idx]), grow_floe_poly)
     total_area = zero(FT)
     nregions = 0
     for (i, region) in enumerate(regions)
@@ -153,6 +153,7 @@ function remove_floe_overlap!(
                             translate!(floes.coords[gidx], g_Δx, g_Δy)
                             floes.centroid[gidx][1] += g_Δx
                             floes.centroid[gidx][1] += g_Δy
+                            floes.poly[gidx] = translate_poly(floes.poly[gidx], g_Δx, g_Δy)
                         end
                     else
                         # if floe breaks, mark floe and ghosts as broken
@@ -292,7 +293,7 @@ function floe_floe_ridge!(
             floes,
             lose_mass_idx,
             lose_parent_idx,
-            floes.coords[gain_mass_idx],
+            floes.poly[gain_mass_idx],
             pieces_buffer,
             max_floe_id,
             broken,
@@ -406,7 +407,7 @@ function floe_domain_ridge!(
         floes,
         idx,
         parent_idx,
-        domain_element.coords,
+        domain_element.poly,
         pieces_buffer,
         max_floe_id,
         broken,
@@ -538,7 +539,7 @@ function floe_floe_raft!(
         floes,
         lose_mass_idx,
         lose_parent_idx,
-        floes.coords[gain_mass_idx],
+        floes.poly[gain_mass_idx],
         pieces_buffer,
         max_floe_id,
         broken,

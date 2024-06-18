@@ -465,9 +465,8 @@ function floe_domain_element_interaction!(
     max_overlap,
 )
     floe_poly = make_polygon(floe.coords)
-    bounds_poly = make_polygon(boundary.coords)
     # Check if the floe and boundary actually overlap
-    inter_area = sum(GO.area, intersect_polys(floe_poly, bounds_poly); init = 0.0)
+    inter_area = sum(GO.area, intersect_polys(floe_poly, boundary.poly); init = 0.0)
     if inter_area > 0
         floe.status.tag = remove
     end
@@ -648,7 +647,7 @@ function floe_domain_element_interaction!(
     Δt,
     max_overlap::FT,
 ) where {FT}
-    inter_regions = intersect_polys(make_polygon(floe.coords), make_polygon(element.coords))
+    inter_regions = intersect_polys(make_polygon(floe.coords), element.poly)
     region_areas = Vector{FT}(undef, length(inter_regions))
     max_area = FT(0)
     for i in eachindex(inter_regions)
@@ -725,7 +724,8 @@ function update_boundary!(
 ) where {D <: Union{North, South}, FT <: AbstractFloat}
     Δd = boundary.v * Δt
     boundary.val += Δd
-    translate!(boundary.coords, FT(0), Δd)
+    translate!(boundary.coords, zero(FT), Δd)
+    translate_poly(boundary.poly, zero(FT), Δd)
 end
 """
     update_boundary!(boundary, Δt)
@@ -745,7 +745,8 @@ function update_boundary!(
 ) where {D <: Union{East, West}, FT <: AbstractFloat}
     Δd = boundary.u * Δt
     boundary.val += Δd
-    translate!(boundary.coords, Δd, FT(0))
+    translate!(boundary.coords, Δd, zero(FT))
+    translate_poly(boundary.poly, Δd, zero(FT))
 end
 
 """
@@ -1078,22 +1079,17 @@ function ghosts_on_bounds!(
 )
     nfloes = length(floes)
     nghosts = 1
-    if !isempty(intersect_polys(make_polygon(floes.coords[elem_idx]), make_polygon(boundary.coords)))
+    if !isempty(intersect_polys(make_polygon(floes.coords[elem_idx]), boundary.poly))
         # ghosts of existing ghosts and original element
         for i in floes.ghosts[elem_idx]
-            push!(
-                floes,
-                deepcopy_floe(LazyRow(floes, i)),
-            )
+            push!(floes, deepcopy_floe(LazyRow(floes, i)))
             nghosts += 1
         end
-        push!(
-                floes,
-                deepcopy_floe(LazyRow(floes, elem_idx)),
-            )
+        push!(floes, deepcopy_floe(LazyRow(floes, elem_idx)))
         for i in (nfloes + 1):(nfloes + nghosts)
-            translate!(floes.coords[i], trans_vec[1], trans_vec[2])
+            translate!(floes.coords[i], trans_vec...)
             floes.centroid[i] .+= trans_vec
+            floes.poly[i] = translate_poly(floes.poly[i], trans_vec...)
         end
     end
     return
@@ -1151,13 +1147,17 @@ function find_ghosts(
         if floes.centroid[elem_idx][1] < wbound.val
             translate!(floes.coords[elem_idx], Lx, FT(0))
             floes.centroid[elem_idx][1] += Lx
+            floes.poly[elem_idx] = translate_poly(floes.poly[elem_idx], Lx, FT(0))
             translate!(floes.coords[end], -Lx, FT(0))
             floes.centroid[end][1] -= Lx
+            floes.poly[end] = translate_poly(floes.poly[end], -Lx, FT(0))
         elseif ebound.val < floes.centroid[elem_idx][1]
             translate!(floes.coords[elem_idx], -Lx, FT(0))
             floes.centroid[elem_idx][1] -= Lx
+            floes.poly[elem_idx] = translate_poly(floes.poly[elem_idx], -Lx, FT(0))
             translate!(floes.coords[end], Lx, FT(0))
             floes.centroid[end][1] += Lx
+            floes.poly[end] = translate_poly(floes.poly[end], Lx, FT(0))
         end
     end
     return
@@ -1215,13 +1215,17 @@ function find_ghosts(
         if floes.centroid[elem_idx][2] < sbound.val
             translate!(floes.coords[elem_idx], FT(0), Ly)
             floes.centroid[elem_idx][2] += Ly
+            floes.poly[elem_idx] = translate_poly(floes.poly[elem_idx], FT(0), Ly)
             translate!(floes.coords[end], FT(0), -Ly)
             floes.centroid[end][2] -= Ly
+            floes.poly[end] = translate_poly(floes.poly[end], FT(0), -Ly)
         elseif nbound.val < floes.centroid[elem_idx][2]
             translate!(floes.coords[elem_idx], FT(0), -Ly)
             floes.centroid[elem_idx][2] -= Ly
+            floes.poly[elem_idx] = translate_poly(floes.poly[elem_idx], FT(0), -Ly)
             translate!(floes.coords[end], FT(0), Ly)
             floes.centroid[end][2] += Ly
+            floes.poly[end] = translate_poly(floes.poly[end], FT(0), Ly)
         end
     end
     return

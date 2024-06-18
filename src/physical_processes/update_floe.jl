@@ -33,6 +33,7 @@ function replace_floe!(
     # Floe shape
     floe.poly = new_poly
     floe.centroid = collect(GO.centroid(new_poly))
+    # TODO: can't replace until we remove coords from floe entirely
     floe.coords = find_poly_coords(new_poly)::PolyVec{FT}
     floe.coords = [orient_coords(floe.coords[1])]
     if floe.coords[1][1] != floe.coords[1][end]
@@ -48,7 +49,7 @@ function replace_floe!(
         floe.height;
         ρi = floe_settings.ρi,
     )
-    floe.angles = GO.angles(make_polygon(floe.coords))
+    floe.angles = GO.angles(make_polygon(floe.coords), FT)
     floe.α = FT(0)
     # translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
     floe.rmax = calc_max_radius(floe.poly, floe.centroid, FT)#sqrt(maximum([sum(c.^2) for c in floe.coords[1]]))
@@ -506,18 +507,10 @@ function timestep_floe_properties!(
         Δα = 1.5Δt*floes.ξ[i] - 0.5Δt*floes.p_dαdt[i]
         floes.α[i] += Δα
 
-        translate!(
-            floes.coords[i],
-            -floes.centroid[i][1],
-            -floes.centroid[i][2],
-        )
+        translate!(floes.coords[i], -floes.centroid[i][1], -floes.centroid[i][2])
         rotate_radians!(floes.coords[i], Δα)
         floes.centroid[i] .+= [Δx, Δy]
-        translate!(
-            floes.coords[i],
-            floes.centroid[i][1],
-            floes.centroid[i][2],
-        )
+        translate!(floes.coords[i], floes.centroid[i][1], floes.centroid[i][2],)
         floes.p_dxdt[i] = floes.u[i]
         floes.p_dydt[i] = floes.v[i]
         floes.p_dαdt[i] = floes.ξ[i]

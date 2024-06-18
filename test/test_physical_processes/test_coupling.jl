@@ -288,7 +288,7 @@
         )
         cell_poly = Subzero.make_polygon(cell)
         @test GO.area(cell_poly)::Float64 == 8
-        @test GI.coordinates(cell_poly) == 
+        @test Subzero.find_poly_coords(cell_poly) == 
             [[[-9, -2], [-9, 2], [-7, 2], [-7, -2], [-9, -2]]]
         @test Subzero.center_cell_coords(
             1,

@@ -843,7 +843,7 @@ function calc_eulerian_data!(floes, topography, writer)
             if sum(pint) > 0
                 cell_poly_list = [make_polygon(rect_coords(writer.xg[j], writer.xg[j+1], writer.yg[i], writer.yg[i+1]))]
                 if length(topography) > 0
-                    cell_poly_list = diff_polys(make_multipolygon(cell_poly_list), make_multipolygon(topography.coords))
+                    cell_poly_list = diff_polys(make_multipolygon(cell_poly_list), make_multipolygon(topography.poly))
                 end
                 
                 if length(cell_poly_list) == 0

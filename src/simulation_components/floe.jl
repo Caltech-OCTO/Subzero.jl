@@ -432,7 +432,7 @@ function initialize_floe_field(
     floe_polys = [make_polygon(valid_polyvec!(c)) for c in coords]
     # Remove overlaps with topography
     if !isempty(domain.topography)
-        floe_polys = diff_polys(make_multipolygon(floe_polys), make_multipolygon(domain.topography.coords))
+        floe_polys = diff_polys(make_multipolygon(floe_polys), make_multipolygon(domain.topography.poly))
     end
     # Turn polygons into floes
     for p in floe_polys
@@ -627,7 +627,7 @@ function initialize_floe_field(
     domain_poly = make_polygon(rect_coords(domain.west.val, domain.east.val, domain.south.val, domain.north.val))
     open_water = intersect_polys(make_polygon(floe_bounds), domain_poly)
     if !isempty(domain.topography)
-        open_water = diff_polys(make_multipolygon(open_water), make_multipolygon(domain.topography.coords))
+        open_water = diff_polys(make_multipolygon(open_water), make_multipolygon(domain.topography.poly))
     end
     open_water_mp = make_multipolygon(open_water)
     (bounds_xmin, bounds_xmax), (bounds_ymin, bounds_ymax) = GI.extent(open_water_mp)
@@ -653,7 +653,7 @@ function initialize_floe_field(
                 cell_init = make_polygon(rect_coords(xmin, xmin + collen, ymin, ymin + rowlen))
                 open_cell = intersect_polys(cell_init, open_water_mp)
                 open_cell_mpoly = make_multipolygon(open_cell)
-                open_coords = [GI.coordinates(c) for c in open_cell]
+                open_coords = [find_poly_coords(c) for c in open_cell]
                 open_area = sum(GO.area, open_cell; init = 0.0)
                 # Generate coords with voronoi tesselation and make into floes
                 ncells = ceil(Int, nfloes * open_area / open_water_area / c)

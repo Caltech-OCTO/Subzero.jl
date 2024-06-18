@@ -66,7 +66,7 @@ function smooth_floes!(
         if length(floes.coords[i][1]) > simp_settings.max_vertices
             poly_list = [simplify_poly(make_polygon(floes.coords[i]), simp_settings.tol)]
             if !isempty(topography)
-                poly_list = diff_polys(make_multipolygon(poly_list), make_multipolygon(topography.coords); fix_multipoly = nothing)
+                poly_list = diff_polys(make_multipolygon(poly_list), make_multipolygon(topography.poly); fix_multipoly = nothing)
             end
             simp_poly =
                 if length(poly_list) == 1
