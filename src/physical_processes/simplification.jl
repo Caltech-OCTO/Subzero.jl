@@ -79,7 +79,7 @@ function smooth_floes!(
             x_tmp, y_tmp = floes.centroid[i]
             moment_tmp = floes.moment[i]
             replace_floe!(
-                LazyRow(floes, i),
+                get_floe(floes, i),
                 simp_poly,
                 floes.mass[i],
                 floe_settings,
@@ -92,7 +92,7 @@ function smooth_floes!(
                 x_tmp,
                 y_tmp,
                 Δt,
-                LazyRow(floes, i),
+                get_floe(floes, i),
             )
             # Mark interactions for fusion
             for j in eachindex(floes)
@@ -293,7 +293,7 @@ function remove_floes!(
         )
             # Dissolve small/thin floes and add mass to ocean
             dissolve_floe!(
-                LazyRow(floes, i),
+                get_floe(floes, i),
                 grid,
                 domain,
                 dissolved,

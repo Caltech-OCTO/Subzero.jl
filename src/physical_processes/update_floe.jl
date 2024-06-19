@@ -51,8 +51,7 @@ function replace_floe!(
     )
     floe.angles = GO.angles(make_polygon(floe.coords), FT)
     floe.α = FT(0)
-    # translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
-    floe.rmax = calc_max_radius(floe.poly, floe.centroid, FT)#sqrt(maximum([sum(c.^2) for c in floe.coords[1]]))
+    floe.rmax = calc_max_radius(floe.poly, floe.centroid, FT)
     # Floe monte carlo points
     x_subfloe_points, y_subfloe_points, status = generate_subfloe_points(
         floe_settings.subfloe_point_generator,
@@ -62,7 +61,6 @@ function replace_floe!(
         floe.status,
         rng,
     )
-    # translate!(floe.coords, floe.centroid[1], floe.centroid[2])
     floe.x_subfloe_points = x_subfloe_points
     floe.y_subfloe_points = y_subfloe_points
     # Floe status / identification
@@ -394,7 +392,7 @@ Inputs:
 Outputs:
     Caculates stress on floe at current timestep from interactions
 """
-function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}) where {FT}
+function calc_stress!(floe::FloeType{FT}) where {FT}
     # Stress calcultions
     xi, yi = floe.centroid
     inters = floe.interactions
@@ -425,7 +423,7 @@ Inputs:
 Outputs:
     strain      <Matrix{AbstractFloat}> 2x2 matrix for floe strain 
 """
-function calc_strain!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}) where {FT}
+function calc_strain!(floe::FloeType{FT}) where {FT}
     # coordinates of floe centered at centroid
     translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
     fill!(floe.strain, FT(0))
@@ -478,7 +476,7 @@ function timestep_floe_properties!(
         ctrq = floes.collision_trq[i]
         # Update stress
         if floes.num_inters[i] > 0
-            calc_stress!(LazyRow(floes, i))
+            calc_stress!(get_floe(floes, i))
         end
         # Ensure no extreem values due to model instability
         if floes.height[i] > floe_settings.max_floe_height
@@ -550,7 +548,7 @@ function timestep_floe_properties!(
         floes.p_dξdt[i] = dξdt
 
         # Update strain
-        calc_strain!(LazyRow(floes, i))
+        calc_strain!(get_floe(floes, i))
     end
     return
 end

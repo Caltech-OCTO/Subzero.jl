@@ -1499,7 +1499,7 @@ function calc_one_way_coupling!(
     for i in eachindex(floes)
         # Monte carlo point cartesian coordinates and grid cell indices
         npoints = calc_subfloe_values!(
-            LazyRow(floes, i),
+            get_floe(floes, i),
             grid,
             domain,
             cart_vals,

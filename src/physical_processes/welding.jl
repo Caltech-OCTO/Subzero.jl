@@ -159,8 +159,8 @@ function timestep_welding!(
                 new_area > weld_settings.max_weld_area && break
                 # Weld floe i and j, replacing floe i with welded floe
                 fuse_two_floes!(
-                    LazyRow(floes, i),
-                    LazyRow(floes, j),
+                    get_floe(floes, i),
+                    get_floe(floes, j),
                     Δt,
                     floe_settings,
                     max_floe_id,

@@ -63,12 +63,23 @@ function translate_poly(p, Δx, Δy)
     return GO.tuples(GO.transform(t, p))
 end
 
+function translate_floe!(floe, Δx, Δy)
+    translate!(floe.coords, Δx, Δy)
+    floe.centroid[1] += Δx
+    floe.centroid[2] += Δy
+    floe.poly = translate_poly(floe.poly, Δx, Δy)
+    return
+end
+
 make_polygon(coords::PolyVec) = GI.Polygon(GO.tuples(coords))
 make_polygon(tuple_coords) = GI.Polygon(tuple_coords)
 make_polygon(ring::GI.LinearRing) = GI.Polygon([ring])
 make_multipolygon(coords::Vector{<:PolyVec}) = GI.MultiPolygon(GO.tuples(coords))
 make_multipolygon(tuple_coords) = GI.MultiPolygon(tuple_coords)
 make_multipolygon(polys::Vector{<:GI.Polygon}) = GI.MultiPolygon(polys)
+
+const FloeType{FT} = Union{LazyRow{Floe{FT}}, Floe{FT}} where FT
+get_floe(floes::StructArray, i::Int) = LazyRow(floes, i)
 
 """
     deepcopy_floe(floe::LazyRow{Floe{FT}})
@@ -372,6 +383,10 @@ Outputs:
     <Set{Tuple{Float, Float}}> Set of points that are at the intersection of the
         two line segments.
 """
+
+intersect_lines(poly1::Polys{FT}, poly2) where FT = GO.intersection_points(poly1, poly2, FT)
+
+
 function intersect_lines(l1::PolyVec{FT}, l2) where {FT}
     points = Vector{Tuple{FT, FT}}()
     for i in 1:(length(l1[1]) - 1)

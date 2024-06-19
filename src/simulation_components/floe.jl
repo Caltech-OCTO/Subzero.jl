@@ -237,7 +237,6 @@ function Floe{FT}(
     angles = GO.angles(make_polygon(coords))
     rmax = calc_max_radius(floe, centroid, FT)
     status = Status()
-    # translate!(coords, -centroid[1], -centroid[2])
     # Generate Monte Carlo Points
     x_subfloe_points, y_subfloe_points, status = generate_subfloe_points(
         floe_settings.subfloe_point_generator,
@@ -247,7 +246,6 @@ function Floe{FT}(
         status,
         rng,
     )
-    # translate!(coords, centroid[1], centroid[2])
     # Generate Stress History
     stress_history = StressCircularBuffer{FT}(floe_settings.nhistory)
     fill!(stress_history, zeros(FT, 2, 2))
@@ -427,6 +425,7 @@ function initialize_floe_field(
     Δh;
     floe_settings = FloeSettings(min_floe_area = 0.0),
     rng = Xoshiro(),
+    supress_warnings = false,
 ) where {FT <: AbstractFloat}
     floe_arr = StructArray{Floe{FT}}(undef, 0)
     floe_polys = [make_polygon(valid_polyvec!(c)) for c in coords]
@@ -454,7 +453,7 @@ function initialize_floe_field(
             4 * (domain.east.val - domain.west.val) *
             (domain.north.val - domain.south.val) / 1e4
         )
-    if any(floe_arr.area .< min_floe_area)
+    if any(floe_arr.area .< min_floe_area) && !supress_warnings
         @warn "Some user input floe areas are less than the suggested minimum \
             floe area."
     end
@@ -462,7 +461,7 @@ function initialize_floe_field(
     if !all(
         domain.west.val .< first.(floe_arr.centroid) .< domain.east.val) &&
         !all(domain.south.val .< last.(floe_arr.centroid) .< domain.north.val
-    )
+    ) && !supress_warnings
         @warn "Some floe centroids are out of the domain."
     end
     # Initialize floe IDs

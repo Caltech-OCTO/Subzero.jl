@@ -490,18 +490,6 @@ function TopographyElement{FT}(poly::Polys) where {FT <: AbstractFloat}
     centroid = collect(GO.centroid(poly)) # TODO: Remove collect once type is changed
     coords = find_poly_coords(poly)
     rmax = calc_max_radius(poly, centroid, FT)
-    # Move coordinates to be centered at origin to calculate maximum radius
-    # translate!(
-    #     coords,
-    #     -cx,
-    #     -cy,
-    # )
-    # rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
-    # translate!(
-    #     coords,
-    #     cx,
-    #     cy,
-    # )
     return TopographyElement{FT}(
         poly,
         coords,

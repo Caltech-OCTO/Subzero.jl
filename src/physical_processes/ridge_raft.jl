@@ -150,10 +150,7 @@ function remove_floe_overlap!(
                                 rng,
                             )
                             # shift ghost floe
-                            translate!(floes.coords[gidx], g_Δx, g_Δy)
-                            floes.centroid[gidx][1] += g_Δx
-                            floes.centroid[gidx][1] += g_Δy
-                            floes.poly[gidx] = translate_poly(floes.poly[gidx], g_Δx, g_Δy)
+                            translate_floe!(get_floe(floes, gidx), g_Δx, g_Δy)
                         end
                     else
                         # if floe breaks, mark floe and ghosts as broken
