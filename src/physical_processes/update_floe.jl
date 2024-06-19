@@ -426,7 +426,7 @@ Outputs:
 function calc_strain!(floe::FloeType{FT}) where {FT}
     fill!(floe.strain, zero(FT))
     # coordinates of floe centered at centroid
-    trans_poly = translate_poly(floe.poly, -floe.centroid[1], -floe.centroid[2])
+    trans_poly = translate_poly(floe.poly, -floe.centroid[1], -floe.centroid[2])::Polys{FT}
     local x1, y1
     for (i, p2) in enumerate(GI.getpoint(GI.getexterior(trans_poly)))
         x2, y2 = GO._tuple_point(p2, FT)

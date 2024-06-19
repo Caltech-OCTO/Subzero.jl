@@ -86,7 +86,6 @@ Coordinates are vector of vector of vector of points of the form:
 """
 const PolyVec{T} = Vector{Vector{Vector{T}}} where T<:Real
 
-
 """
 Coordinates are vector of vector of points of the form:
 [[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]] where the xy coordinates form a

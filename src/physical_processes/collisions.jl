@@ -56,7 +56,7 @@ function calc_normal_force(
     end
     # Check if direction of the force desceases overlap, else negate direction
     if Δl > 0.1
-        p1new = translate_poly(p1, force_dir[1], force_dir[2])
+        p1new = translate_poly(p1, force_dir[1], force_dir[2])::Polys{FT}
         # Floe/boudary intersection after being moved in force direction
         new_regions_list = intersect_polys(p1new, p2)
         # See if the area of overlap has increased in corresponding region

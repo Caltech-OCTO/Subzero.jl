@@ -1,4 +1,4 @@
-using JLD2, Random, Statistics, Subzero
+using JLD2, Random, Statistics, Subzero, PProf, Profile, ProfileView
 
 # User Inputs
 const FT = Float64
@@ -72,7 +72,7 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 2000,
+    nΔt = 10000,
     verbose = true,
     writers = writers,
     rng = Xoshiro(1),
@@ -80,9 +80,14 @@ simulation = Simulation(
 )
 run_time!(simulation)
 
-plot_sim(
-    "output/shear_flow/floes.jld2",
-    "output/shear_flow/initial_state.jld2",
-    20,
-    "output/shear_flow/shear_flow.mp4",
-)
+# Profile.Allocs.clear()
+# Profile.Allocs.@profile run!(simulation)
+# PProf.Allocs.pprof(from_c = false)
+
+# ProfileView.@profview run!(simulation)
+# plot_sim(
+#     "output/shear_flow/floes.jld2",
+#     "output/shear_flow/initial_state.jld2",
+#     20,
+#     "output/shear_flow/shear_flow.mp4",
+# )

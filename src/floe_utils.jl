@@ -63,10 +63,10 @@ function translate_poly(p, Δx, Δy)
     return GO.tuples(GO.transform(t, p))
 end
 
-function rotate_floe(p, Δα)
-    f_rad = Rotations.Angle2d(Δα)
+function rotate_floe(p::Polys{FT}, Δα, c_x = zero(FT), c_y = zero(FT)) where FT
+    f_rad = CoordinateTransformations.recenter(Rotations.Angle2d(Δα), (c_x, c_y))
     # TODO: can remove the tuples call after GO SVPoint PR
-    return GO.tuples(GO.transform(pt -> f_rad * pt, p))
+    return GO.tuples(GO.transform(f_rad, p))
 end
 
 function translate_floe!(floe, Δx, Δy)
@@ -78,15 +78,18 @@ function translate_floe!(floe, Δx, Δy)
 end
 
 function move_floe!(floe, Δx, Δy, Δα)
+    cx, cy = floe.centroid
     # Move coordinates and centroid
-    translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
+    translate!(floe.coords, -cx, -cy)
     rotate_radians!(floe.coords, Δα)
     floe.centroid[1] += Δx
     floe.centroid[2] += Δy
-    translate!(floe.coords, floe.centroid[1], floe.centroid[2])
+    translate!(floe.coords, cx + Δx, cy + Δy)
     # Move Polygon
-    floe.poly = rotate_floe(floe.poly, Δα)
-    floe.poly = translate_poly(floe.poly, Δx, Δy)
+    rot = CoordinateTransformations.LinearMap(Rotations.Angle2d(Δα))
+    cent_rot = CoordinateTransformations.recenter(rot, (cx, cy))
+    trans = CoordinateTransformations.Translation(Δx, Δy)
+    floe.poly = GO.tuples(GO.transform(trans ∘ cent_rot, floe.poly))
     return 
 end
 
@@ -362,10 +365,6 @@ Outputs:
     <Set{Tuple{Float, Float}}> Set of points that are at the intersection of the
         two line segments.
 """
-
-intersect_lines(poly1::Polys{FT}, poly2) where FT = GO.intersection_points(poly1, poly2, FT)
-
-
 function intersect_lines(l1::PolyVec{FT}, l2) where {FT}
     points = Vector{Tuple{FT, FT}}()
     for i in 1:(length(l1[1]) - 1)

@@ -183,7 +183,7 @@ function generate_subfloe_points(
     mc_y = zeros(FT, point_generator.npoints)
     mc_in = fill(false, point_generator.npoints)
     # Find bounding box
-    poly = translate_poly(poly, -GI.x(centroid), -GI.y(centroid))
+    poly = translate_poly(poly, -GI.x(centroid), -GI.y(centroid))::Polys{FT}
     (xmin, xmax), (ymin, ymax) = GI.extent(poly)
     Δx, Δy = xmax - xmin, ymax - ymin
     while err > point_generator.err
@@ -240,7 +240,7 @@ function generate_subfloe_points(
     status,
     rng
 ) where {FT <: AbstractFloat}
-    poly = translate_poly(poly, -GI.x(centroid), -GI.y(centroid))
+    poly = translate_poly(poly, -GI.x(centroid), -GI.y(centroid))::Polys{FT}
     (xmin, xmax), (ymin, ymax) = GI.extent(poly)
     xpoints = Vector{FT}()
     ypoints = Vector{FT}()
@@ -1627,7 +1627,7 @@ function calc_two_way_coupling!(
 ) where {FT}
     # Determine force from floe on each grid cell it is in
     cell_area = grid.Δx * grid.Δy
-    Threads.@threads for cartidx in CartesianIndices(ocean.scells)
+    for cartidx in CartesianIndices(ocean.scells)  # TODO: re add Threads.@threads 
         ocean.τx[cartidx] = FT(0)
         ocean.τy[cartidx] = FT(0)
         ocean.si_frac[cartidx] = FT(0)
@@ -1644,12 +1644,11 @@ function calc_two_way_coupling!(
             )
             cell_poly = make_polygon(cell_coords)
             for i in eachindex(floe_locations.floeidx)
-                floe_coords = translate(
-                    floes.coords[floe_locations.floeidx[i]],
+                floe_poly = translate_poly(
+                    floes.poly[floe_locations.floeidx[i]],
                     floe_locations.Δx[i],
                     floe_locations.Δy[i],
-                )
-                floe_poly = make_polygon(floe_coords)
+                )::Polys{FT}
                 floe_area_in_cell = sum(
                     GO.area.(intersect_polys(cell_poly, floe_poly), FT)
                 )
