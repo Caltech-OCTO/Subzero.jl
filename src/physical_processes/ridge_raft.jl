@@ -89,7 +89,7 @@ function remove_floe_overlap!(
     rng,  
 ) where {FT <: AbstractFloat}
     # Find new floe shapes and regions
-    regions = diff_polys(make_polygon(floes.coords[shrink_idx]), grow_floe_poly)
+    regions = diff_polys(floes.poly[shrink_idx], grow_floe_poly)
     total_area = zero(FT)
     nregions = 0
     for (i, region) in enumerate(regions)

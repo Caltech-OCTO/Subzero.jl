@@ -859,7 +859,7 @@ function calc_eulerian_data!(floes, topography, writer)
                 =#
                 pic_area = zeros(length(floeidx))
                 for (i, idx) in enumerate(floeidx)
-                    floe_poly = make_polygon(floes.coords[idx])
+                    floe_poly = floes.poly[idx]
                     pic_area[i] = mapreduce(x -> sum(GO.area, Subzero.intersect_polys(floe_poly, x); init = 0.0), +, cell_poly_list; init = 0.0)
                 end
                 

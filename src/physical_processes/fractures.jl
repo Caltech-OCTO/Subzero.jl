@@ -337,7 +337,7 @@ function deform_floe!(
     Δt,
     rng,
 ) where FT
-    poly = make_polygon(floe.coords)
+    poly = floe.poly
     deformer_poly = make_polygon(deformer_coords)
     overlap_regions =intersect_polys(poly, deformer_poly)
     max_overlap_area, max_overlap_idx = findmax(GO.area, overlap_regions)
@@ -420,8 +420,8 @@ function split_floe(
     )
     if !isempty(pieces)
         # Intersect voronoi tesselation pieces with floe
-        floe_poly = make_polygon(rmholes(floe.coords))
-        pieces_polys = mapreduce(p -> intersect_polys(make_polygon(p), floe_poly), append!, pieces; init = Vector{Polys{FT}}())
+        rmholes!(floe.poly)
+        pieces_polys = mapreduce(p -> intersect_polys(make_polygon(p), floe.poly), append!, pieces; init = Vector{Polys{FT}}())
         # Conserve mass within pieces
         pieces_areas = [GO.area(p) for p in pieces_polys]
         total_area = sum(pieces_areas)

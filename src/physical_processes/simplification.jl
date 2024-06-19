@@ -64,7 +64,7 @@ function smooth_floes!(
 ) where {FT <: AbstractFloat}
     for i in eachindex(floes)
         if length(floes.coords[i][1]) > simp_settings.max_vertices
-            poly_list = [simplify_poly(make_polygon(floes.coords[i]), simp_settings.tol)]
+            poly_list = [simplify_poly(floes.poly[i], simp_settings.tol)]
             if !isempty(topography)
                 poly_list = diff_polys(make_multipolygon(poly_list), make_multipolygon(topography.poly); fix_multipoly = nothing)
             end
@@ -106,7 +106,7 @@ function smooth_floes!(
                         floes.status[i].tag = fuse
                         push!(floes.status[i].fuse_idx, j)
                     else
-                        jpoly = make_polygon(floes.coords[j])
+                        jpoly = floes.poly[j]
                         intersect_area = sum(GO.area, intersect_polys(simp_poly, jpoly); init = 0.0)
                         if intersect_area/GO.area(jpoly) > collision_settings.floe_floe_max_overlap
                             floes.status[i].tag = fuse
@@ -154,8 +154,8 @@ function fuse_two_floes!(
     # Create new polygon if they fuse
     rmholes!(keep_floe.coords)
     rmholes!(remove_floe.coords)
-    poly1 = make_polygon(keep_floe.coords)
-    poly2 = make_polygon(remove_floe.coords)
+    poly1 = keep_floe.poly
+    poly2 = remove_floe.poly
     new_poly_list = union_polys(poly1, poly2)
     if length(new_poly_list) == 1  # if they fused, they will make one polygon
         new_poly = rmholes(new_poly_list[1])

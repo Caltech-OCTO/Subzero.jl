@@ -378,7 +378,7 @@ function floe_floe_interaction!(
     Δt,
     max_overlap::FT,
 ) where {FT<:AbstractFloat}
-    inter_regions = intersect_polys(make_polygon(ifloe.coords), make_polygon(jfloe.coords))
+    inter_regions = intersect_polys(ifloe.poly, jfloe.poly)
     region_areas = Vector{FT}(undef, length(inter_regions))
     total_area = FT(0)
     for i in eachindex(inter_regions)
@@ -460,8 +460,7 @@ function floe_domain_element_interaction!(
     max_overlap,
 )
     # Check if the floe and boundary actually overlap
-    floe_poly = make_polygon(floe.coords)
-    inter_area = sum(GO.area, intersect_polys(floe_poly, boundary.poly); init = 0.0)
+    inter_area = sum(GO.area, intersect_polys(floe.poly, boundary.poly); init = 0.0)
     if inter_area > 0
         floe.status.tag = remove
     end
@@ -642,7 +641,7 @@ function floe_domain_element_interaction!(
     Δt,
     max_overlap::FT,
 ) where {FT}
-    inter_regions = intersect_polys(make_polygon(floe.coords), element.poly)
+    inter_regions = intersect_polys(floe.poly, element.poly)
     region_areas = Vector{FT}(undef, length(inter_regions))
     max_area = FT(0)
     for i in eachindex(inter_regions)
@@ -1076,7 +1075,7 @@ function ghosts_on_bounds!(
 )
     nfloes = length(floes)
     nghosts = 1
-    if !isempty(intersect_polys(make_polygon(floes.coords[elem_idx]), boundary.poly))
+    if !isempty(intersect_polys(floes.poly[elem_idx], boundary.poly))
         # ghosts of existing ghosts and original element
         for i in floes.ghosts[elem_idx]
             push!(floes, deepcopy_floe(get_floe(floes, i)))

@@ -49,7 +49,7 @@ function replace_floe!(
         floe.height;
         ρi = floe_settings.ρi,
     )
-    floe.angles = GO.angles(make_polygon(floe.coords), FT)
+    floe.angles = GO.angles(floe.poly, FT)
     floe.α = FT(0)
     floe.rmax = calc_max_radius(floe.poly, floe.centroid, FT)
     # Floe monte carlo points
