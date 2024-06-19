@@ -40,15 +40,13 @@
     @test Subzero.hashole(poly_hole1)
     @test Subzero.hashole(poly_hole2)
 
-    # Test removing holes from polygons and multipolygons
-    @test [ext] == Subzero.rmholes([ext])
-    @test [ext] == Subzero.rmholes([ext, hole1])
+    # Test removing holes from polygons
     copy_holes = [ext, hole1]
+    poly_copy_holes = Subzero.make_polygon(copy_holes)
     Subzero.rmholes!(copy_holes)
     @test copy_holes == [ext]
-    @test GO.equals(Subzero.rmholes(poly_nohole), poly_nohole)
-    @test GO.equals(Subzero.rmholes(poly_hole1), poly_nohole)
-    @test GO.equals(Subzero.rmholes(poly_hole2), poly_nohole)
+    Subzero.rmholes!(poly_copy_holes)
+    @test GI.nhole(poly_copy_holes) == 0
 
     # Test translating coordinates and polygons
     @test Subzero.translate([ext], 0.0, 0.0) == [ext]

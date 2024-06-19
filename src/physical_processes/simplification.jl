@@ -158,7 +158,8 @@ function fuse_two_floes!(
     poly2 = remove_floe.poly
     new_poly_list = union_polys(poly1, poly2)
     if length(new_poly_list) == 1  # if they fused, they will make one polygon
-        new_poly = rmholes(new_poly_list[1])
+        new_poly = new_poly_list[1]
+        rmholes!(new_poly)
         # mark smaller floe for removal
         remove_floe.status.tag = remove
         # record as value will change with replace

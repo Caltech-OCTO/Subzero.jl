@@ -221,7 +221,8 @@ function Floe{FT}(
     rng = Xoshiro(),
     kwargs...
 ) where {FT <: AbstractFloat}
-    floe = rmholes(GO.tuples(poly, FT))
+    floe = GO.tuples(poly, FT)
+    rmholes!(floe)
     # Floe physical properties
     centroid = collect(GO.centroid(floe))
     height = clamp(
@@ -294,22 +295,26 @@ Output:
     forcings start at 0 and floe's status is "active" as long as monte carlo
     points were able to be generated.
 """
-Floe{FT}(
+function Floe{FT}(
     coords::PolyVec,
     hmean,
     Δh;
     floe_settings = FloeSettings(),
     rng = Xoshiro(),
     kwargs...,
-) where {FT <: AbstractFloat} =
-    Floe{FT}(
-        make_polygon(valid_polyvec!(rmholes(coords))),
+) where {FT <: AbstractFloat}
+    valid_polyvec!(coords)
+    rmholes!(coords)
+    return Floe{FT}(
+        make_polygon(coords),
         hmean,
         Δh;
         floe_settings = floe_settings,
         rng = rng,
         kwargs...,
     ) 
+
+end
 
 """
     poly_to_floes!(

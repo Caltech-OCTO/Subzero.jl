@@ -235,39 +235,11 @@ function hashole(poly::Polys)
     return GI.nhole(poly) > 0
 end 
 
-"""
-    rmholes(coords::PolyVec{FT})
-
-Remove polygon coordinates's holes if they exist
-Inputs:
-    coords <PolyVec{Float}> polygon coordinates
-Outputs:
-    <PolyVec{Float}> polygonc coordinates after removing holes
-"""
-function rmholes(coords::PolyVec{FT}) where {FT<:AbstractFloat}
-    return [coords[1]]
-end
 
 function rmholes!(coords::PolyVec{FT}) where {FT<:AbstractFloat}
     if length(coords) > 1
         deleteat!(coords, 2:length(coords))
     end
-end
-
-"""
-    rmholes(poly::Polys)
-
-Remove polygon's holes if they exist
-Inputs:
-    poly <Polygon> polygon
-Outputs:
-    <Polygon> polygon without any holes
-"""
-function rmholes(poly::Polys)
-    if hashole(poly)
-        return make_polygon(GI.getexterior(poly))
-    end
-    return poly
 end
 
 function rmholes!(poly::Polys)

@@ -486,7 +486,7 @@ Output:
     Topographic element of abstract float type FT
 """
 function TopographyElement{FT}(poly::Polys) where {FT <: AbstractFloat}
-    poly = rmholes(poly)
+    rmholes!(poly)
     centroid = collect(GO.centroid(poly)) # TODO: Remove collect once type is changed
     coords = find_poly_coords(poly)
     rmax = calc_max_radius(poly, centroid, FT)
