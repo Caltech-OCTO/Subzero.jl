@@ -71,9 +71,10 @@ export
 import Base.@kwdef # this is being exported as of version 1.9
 import GeometryOps as GO
 import GeometryOps.GeoInterface as GI
-using CairoMakie, CoordinateTransformations, DataStructures, Dates, Extents, GeometryBasics, Interpolations, JLD2,
-    LinearAlgebra, Logging, Makie, Measures, NCDatasets, NetCDF, Printf, Random,
-    SplitApplyCombine, StaticArrays, Statistics, StructArrays, VoronoiCells
+using CairoMakie, CoordinateTransformations, DataStructures, Dates, Extents, GeometryBasics,
+    Interpolations, JLD2, LinearAlgebra, Logging, Makie, Measures, NCDatasets, NetCDF,
+    Printf, Random, Rotations, SplitApplyCombine, StaticArrays, Statistics, StructArrays,
+    VoronoiCells
 
 """
 Coordinates are vector of vector of vector of points of the form:

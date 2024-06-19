@@ -106,7 +106,7 @@ function calculate_hibler(mean_height, pstar, c)
     x = a*cos.(t)
     y = b*sin.(t)
     vertices = [splitdims([x'; y'])]
-    rotate_degrees!(vertices, 45)
+    rotate_radians!(vertices, π/4)
     translate!(vertices, -p/2, -p/2)
     return valid_polyvec!(vertices)
 end

@@ -424,30 +424,32 @@ Outputs:
     strain      <Matrix{AbstractFloat}> 2x2 matrix for floe strain 
 """
 function calc_strain!(floe::FloeType{FT}) where {FT}
+    fill!(floe.strain, zero(FT))
     # coordinates of floe centered at centroid
-    translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
-    fill!(floe.strain, FT(0))
-    for i in 1:(length(floe.coords[1]) - 1)
-        xdiff = floe.coords[1][i + 1][1] - floe.coords[1][i][1]
-        ydiff = floe.coords[1][i + 1][2] - floe.coords[1][i][2]
-        rad1 = sqrt(floe.coords[1][i][1]^2 + floe.coords[1][i][2]^2)
-        θ1 = atan(floe.coords[1][i][2], floe.coords[1][i][1])
-        rad2 = sqrt(floe.coords[1][i + 1][1]^2 + floe.coords[1][i + 1][2]^2)
-        θ2 = atan(floe.coords[1][i + 1][2], floe.coords[1][i + 1][1])
+    trans_poly = translate_poly(floe.poly, -floe.centroid[1], -floe.centroid[2])
+    local x1, y1
+    for (i, p2) in enumerate(GI.getpoint(GI.getexterior(trans_poly)))
+        x2, y2 = GO._tuple_point(p2, FT)
+        if i == 1
+            x1, y1 = x2, y2
+            continue
+        end
+        xdiff, ydiff = x2 - x1, y2 - y1
+        rad1, rad2 = sqrt(x1^2 + y1^2), sqrt(x2^2 + y2^2)
+        θ1, θ2 = atan(y1, x1), atan(y2, x2)
         u1 = floe.u - floe.ξ * rad1 * sin(θ1)
         u2 = floe.u - floe.ξ * rad2 * sin(θ2)
         v1 = floe.u + floe.ξ * rad1 * cos(θ1)
         v2 = floe.u + floe.ξ * rad2 * cos(θ2)
-        udiff = u2 - u1
-        vdiff = v2 - v1
+        udiff, vdiff = u2 - u1, v2 - v1
         floe.strain[1, 1] += udiff * ydiff
         floe.strain[1, 2] += udiff * xdiff + vdiff * ydiff
         floe.strain[2, 2] += vdiff * xdiff
+        x1, y1 = x2, y2
     end
     floe.strain[1, 2] *= FT(0.5)
     floe.strain[2, 1] = floe.strain[1, 2]
     floe.strain ./= 2floe.area
-    translate!(floe.coords, floe.centroid[1], floe.centroid[2])
     return
 end
 
@@ -505,10 +507,7 @@ function timestep_floe_properties!(
         Δα = 1.5Δt*floes.ξ[i] - 0.5Δt*floes.p_dαdt[i]
         floes.α[i] += Δα
 
-        translate!(floes.coords[i], -floes.centroid[i][1], -floes.centroid[i][2])
-        rotate_radians!(floes.coords[i], Δα)
-        floes.centroid[i] .+= [Δx, Δy]
-        translate!(floes.coords[i], floes.centroid[i][1], floes.centroid[i][2],)
+        move_floe!(get_floe(floes, i), Δx, Δy, Δα)
         floes.p_dxdt[i] = floes.u[i]
         floes.p_dydt[i] = floes.v[i]
         floes.p_dαdt[i] = floes.ξ[i]

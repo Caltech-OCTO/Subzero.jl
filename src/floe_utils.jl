@@ -63,12 +63,31 @@ function translate_poly(p, Δx, Δy)
     return GO.tuples(GO.transform(t, p))
 end
 
+function rotate_floe(p, Δα)
+    f_rad = Rotations.Angle2d(Δα)
+    # TODO: can remove the tuples call after GO SVPoint PR
+    return GO.tuples(GO.transform(pt -> f_rad * pt, p))
+end
+
 function translate_floe!(floe, Δx, Δy)
     translate!(floe.coords, Δx, Δy)
     floe.centroid[1] += Δx
     floe.centroid[2] += Δy
     floe.poly = translate_poly(floe.poly, Δx, Δy)
     return
+end
+
+function move_floe!(floe, Δx, Δy, Δα)
+    # Move coordinates and centroid
+    translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
+    rotate_radians!(floe.coords, Δα)
+    floe.centroid[1] += Δx
+    floe.centroid[2] += Δy
+    translate!(floe.coords, floe.centroid[1], floe.centroid[2])
+    # Move Polygon
+    floe.poly = rotate_floe(floe.poly, Δα)
+    floe.poly = translate_poly(floe.poly, Δx, Δy)
+    return 
 end
 
 make_polygon(coords::PolyVec) = GI.Polygon(GO.tuples(coords))
@@ -196,18 +215,6 @@ function rotate_radians!(coords::PolyVec, α)
     end
     return
 end
-
-"""
-    rotate_degrees!(coords::PolyVec, α)
-
-Rotate a polygon's coordinates by α degrees around the origin.
-Inputs:
-    coords <PolyVec{AbstractFloat}> polygon coordinates
-    α       <Real> degrees to rotate the coordinates
-Outputs:
-    Updates coordinates in place
-"""
-rotate_degrees!(coords::PolyVec, α) = rotate_radians!(coords, α * π/180)
 
 """
     hashole(coords::PolyVec{FT})
