@@ -286,40 +286,9 @@ function run!(sim; logger = nothing, messages_per_tstep = 1)
     startup_sim(sim, logger, messages_per_tstep)
     tstep = 0
     while tstep <= sim.nΔt
-    # while (length(sim.model.floes) <= 1) && (tstep <= 1000)
-        # Timestep the simulation forward
         timestep_sim!(sim, tstep)
         tstep+=1
     end
-    # write_data!(sim, tstep)
     teardown_sim(sim)
     return tstep
 end
-
-# """
-#     run_until_break!(sim)
-
-# Run given simulation and generate output for given writers.
-# Simulation calculations will be done with Floats of type T (Float64 of Float32).
-
-# Inputs:
-#     sim                 <Simulation> simulation to Run
-#     logger              <AbstractLogger> logger for simulation - default is
-#                             Subzero logger
-#     messages_per_tstep  <Int> number of messages to print per timestep if using
-#                             default SubzeroLogger, else not needed
-# Outputs:
-#     None. The simulation will be run and outputs will be saved in the output
-#     folder. 
-# """
-# function run_until_break!(sim; logger = nothing, messages_per_tstep = 1)
-#     startup_sim(sim, logger, messages_per_tstep)
-#     tstep = 0
-#     while length(floe_arr <= 1)
-#         # Timestep the simulation forward
-#         timestep_sim!(sim, tstep)
-#         tstep+=1
-#     end
-#     teardown_sim(sim)
-#     return
-# end

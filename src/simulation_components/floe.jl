@@ -22,7 +22,6 @@ Status() = Status(active, Vector{Int}())  # active floe
 Singular sea ice floe with fields describing current state.
 """
 @kwdef mutable struct Floe{FT<:AbstractFloat}
-
     # Physical Properties -------------------------------------------------
     centroid::Vector{FT}    # center of mass of floe (might not be in floe!)
     coords::PolyVec{FT}     # floe coordinates
@@ -178,7 +177,7 @@ function Floe{FT}(
     )
     translate!(coords, centroid[1], centroid[2])
     # Generate Stress History
-    stress_instant = _generateStressHistory(floe_settings.stress_calculator, FT)
+    stress_instant = zeros(FT, 2, 2)
 
     return Floe{FT}(;
         centroid = centroid,
@@ -195,11 +194,6 @@ function Floe{FT}(
         status = status,
         kwargs...
     )
-end
-
-# Can change how stress_instant is initialized based on stress calculator
-function _generateStressHistory(stress_calculator, FT)
-    return zeros(FT, 2, 2)
 end
 
 """
@@ -293,7 +287,6 @@ function poly_to_floes(
 ) where {FT <: AbstractFloat}
     floes = StructArray{Floe{FT}}(undef, 0)
     regions = LG.getGeometries(floe_poly)::Vector{LG.Polygon}
-    # TODO WRITE THIS FUNCTIOn
     initial_damage = calc_initial_damage(floe_settings.stress_calculator, Δt)
     while !isempty(regions)
         r = pop!(regions)
@@ -321,9 +314,20 @@ function poly_to_floes(
     return floes
 end
 
-calc_initial_damage(stress_calculator, Δt) = ones(2,2)*Δt/stress_calculator.τ
+# When using DecayAreaScaledCalculator, we initialize stress to dt/τ, which is the timestep
+# over a parameter that we set when creating the stress calculator. This setup is 
+# necessary to calculate stress in the same way that Georgy Manucharyan and Brandon Montemuro
+# do in their code.
 calc_initial_damage(stress_calculator::DecayAreaScaledCalculator, Δt) = ones(2,2)*Δt/stress_calculator.τ
-calc_initial_damage(stress_calculator::DamageStressCalculator, Δt) = zeros(2, 2)
+
+# This is a place holder untio DamageStressCalculator is fully implemented. This should be
+# replaced with a physical interprea=tation of what the damage parameter should start as.
+# Damage does not necessary need to be a matrix, it has just been implemented this way to
+# be able to mimic Manucharyan's and Montemuro's code.
+function calc_initial_damage(stress_calculator::DamageStressCalculator, Δt)
+    @warn "DamageStressCalculator not fully implemented. Initializing damage to zero." 
+    zeros(2, 2)
+end
 
 """
     initialize_floe_field(args...)

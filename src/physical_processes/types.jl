@@ -1,5 +1,5 @@
 """
-Structs and functions for fracturing floes
+Structs and functions for calculating stress
 """
 
 """
@@ -13,7 +13,9 @@ abstract type AbstractStressCalculator end
     DecayAreaScaledCalculator{FT<:AbstractFloat}<:AbstractStressCalculator
 
 Type of AbstractStressCalculator that implements stress calculations the same way that 
-Brandon Montemuro and Georgy Manucharyan do in the MatLab version.
+Brandon Montemuro and Georgy Manucharyan do in the MatLab versio of the code. The area-scaling
+part of the stress calculations keep a record of previous stress (and implicity damage). The
+decay aspect increases importance placed on new damage.
 Fields:
     τ      <AbstractFloat> Difference between current and previous stress scaled by Δt/τ
     α      <AbstractFloat> Adjusts ellipse in stress space by raising area ratio to the α
@@ -35,10 +37,16 @@ DecayAreaScaledCalculator(args...; kwargs...) = DecayAreaScaledCalculator{Float6
 """
     DamageStressCalculator
 
-Type of AbstractStressCalculator that calculates stress with damage*curre_stress, as suggested
-by Mukund Gupta.
-    τ      <AbstractFloat> Difference between current and previous stress scaled by Δt/τ
+Type of AbstractStressCalculator that calculates stress with damage*currstress, as suggested
+by Mukund Gupta. This method keeps track of damage directly and rather than modifying the 
+"accumulated stress" to store damage, as done in DecayAreaScaledCalculator. This calculator
+keeps track of an explicit parameter for damage.
+Fields:
+    τ      <AbstractFloat> Difference between current and previous stress scaled by Δt/τ.
+                           This field should represent damage.
 Note:
+    This method is not fully implemented. The infrastructure for the damage calculator is
+    provided, but functions that depend on this calculator,  
     There is no α parameter in this calculator because currently it does not adjust the
     boundary in stress space by multiplying the eigenvalues of stress_accum by something.
     This could be implemented if the user desires.

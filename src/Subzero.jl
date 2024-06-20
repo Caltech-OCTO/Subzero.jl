@@ -100,7 +100,7 @@ const RingVec{T} = R where {
     R <: AbstractArray{V},
 }
 
-# Types?
+# Types
 include("physical_processes/types.jl")
 # Model
 include("simulation_components/floe.jl")

@@ -28,7 +28,6 @@ Settings needed to create floes within the model.
     max_floe_height::FT = 10.0
     min_aspect_ratio::FT = 0.05
     subfloe_point_generator::GT = MonteCarloPointsGenerator()
-    # Eventually change to DecayStressCalcultor
     stress_calculator::CT = DecayAreaScaledCalculator()
 
     function FloeSettings{FT, GT, CT}(

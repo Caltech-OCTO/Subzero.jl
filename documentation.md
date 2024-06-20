@@ -214,8 +214,8 @@ The fifth catagory is **forces and collisions**. These fields hold information a
 | collision_force   | forces on floe from collisions in [N]            | Float64 or Float32|
 | collision_trq     | torque on floe from collisions in [N m]          | Float64 or Float32|
 | interactions      | each row holds one collision's information, see below for more information | `n`x7 Matrix of Float64 or Float32 <br> where `n` is the number of collisions|
-| stress_accum      | stress experienced by floe at current timestep where it is of the form [xx yx; xy yy] | 2x2 Matrix{AbstractFloat}|
-| stress_instant    | instantaneous stress on floe | 2x2 Matrix{AbstractFloat} 
+| stress_accum      | stress accumulated over the floe over past timesteps given StressCalculator, where it is of the form [xx yx; xy yy] | 2x2 Matrix{AbstractFloat}|
+| stress_instant    | instantaneous stress on floe in current timestep | 2x2 Matrix{AbstractFloat} 
 | strain            | strain on floe where it is of the form [ux vx; uy vy] | 2x2 Matrix of Float64 or Float32|
 
 The `interactions` field is a matrix where every row is a different collision that the floe has experienced in the given timestep. There are then seven columns, which are as follows:

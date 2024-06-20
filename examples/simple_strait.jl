@@ -41,7 +41,7 @@ coupling_settings = CouplingSettings(
 )
 floe_settings = FloeSettings(
     subfloe_point_generator = SubGridPointsGenerator(grid, 2),
-    stress_calculator = DamageStressCalculator(),
+    stress_calculator = DecayAreaScaledCalculator(),
 )
 
 # Floe creation
@@ -77,7 +77,7 @@ ridgeraft_settings = RidgeRaftSettings(
 )
 
 # Output setup
-dir = "output/simple_strait_damage"
+dir = "output/simple_strait"
 run_time!(simulation) = @time run!(simulation)
 
 initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)

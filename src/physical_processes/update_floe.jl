@@ -412,6 +412,8 @@ function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}, floe_settings, �
     return
 end
  
+# This function updates the damage parameter based on the type of calculator we are working
+# with. It is empty because the DamageStressCalculator is not fully implemented
 function update_damage!(stress_calculator, curr_stress, floe, Δt)
     return
 end
@@ -419,6 +421,8 @@ end
 # This is where one would implement a different method of updating the damage parameter.
 # currently this effectively carries out the same math as update_stress! for DecayAreaScaledCalculator
 function update_damage!(stress_calculator::DamageStressCalculator, curr_stress, floe, Δt)
+    @warn  "Current implementation of DamageStressCalculator is unfinished. Calculating 
+    stress as if using DecayAreaScaledCalculator"
     τ = stress_calculator.τ
     if iszero(curr_stress)
         floe.damage = 0
@@ -427,10 +431,14 @@ function update_damage!(stress_calculator::DamageStressCalculator, curr_stress, 
     end
 end
 
+# Updating stress according to DamageStressCalculator. When DamageStressCalculator is 
+# fully implemented, this function does not have to change.
 function update_stress!(stress_calculator::DamageStressCalculator, curr_stress, floe)
     floe.stress_accum = floe.damage .* curr_stress
 end
 
+# Updating stress in the same way that Brandon Montemuro and Georgy Manucharyan do 
+# in their MatLab code.
 function update_stress!(stress_calculator, curr_stress, floe)
     floe.stress_accum = floe.stress_accum + floe.damage .* (curr_stress - floe.stress_accum)
 end

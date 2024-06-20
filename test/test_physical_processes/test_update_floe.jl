@@ -1,24 +1,5 @@
 @testset "Update floe" begin
     @testset "Stress/Strain" begin
-        # Test Stress History buffer
-        # scb = Subzero.StressCircularBuffer{Float64}(10)
-        # @test scb.cb.capacity == 10
-        # @test scb.cb.length == 0
-        # @test eltype(scb.cb) <: Matrix{Float64}
-        # @test scb.total isa Matrix{Float64}
-        # @test all(scb.total .== 0)
-        # fill!(scb, ones(Float64, 2, 2))
-        # @test scb.cb.length == 10
-        # @test all(scb.total .== 10)
-        # @test scb.cb[1] == scb.cb[end] == ones(Float64, 2, 2)
-        # @test mean(scb) == ones(Float64, 2, 2)
-        # push!(scb, zeros(Float64, 2, 2))
-        # @test scb.cb.length == 10
-        # @test all(scb.total .== 9)
-        # @test scb.cb[end] == zeros(Float64, 2, 2)
-        # @test scb.cb[1] == ones(Float64, 2, 2)
-        # @test all(mean(scb) .== 0.9)
-
         # Test Stress and Strain Calculations
         floe_dict = load(
             "inputs/stress_strain.jld2"  # uses the first 2 element
@@ -42,12 +23,10 @@
             )
             f.interactions = floe_dict["interactions"][i]
             f.num_inters = size(f.interactions, 1)
-            # push!(f.stress_instant, floe_dict["last_stress"][i])
             f.stress_instant = floe_dict["last_stress"][i]
             stress = Subzero.calc_stress!(f, floe_settings, 10)
             @test_broken all(isapprox.(vec(f.stress_accum), stresses[i], atol = 1e-3))
             @test all(isapprox.(
-                # vec(f.stress_instant.cb[end]),
                 vec(f.stress_instant),
                 stress_histories[i],
                 atol = 1e-3

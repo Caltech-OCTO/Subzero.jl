@@ -309,6 +309,9 @@ function determine_fractures(
     return range(1, length(floes))[frac_idx]
 end
 
+# This function scales the stress as an alternative method of adjusting the fracture
+# ellipse in stress space. For DecayAreaScaledCalculator we adjust the stress based on
+# the area of the floe. It should be easier to fracture larger floes.
 function scale_stress!(stress_calculator::DecayAreaScaledCalculator, σvals, min_floe_area, floes)
     stress_calculator.α == 0 && return
     for (idx, floe) in enumerate(floes)
@@ -317,8 +320,11 @@ function scale_stress!(stress_calculator::DecayAreaScaledCalculator, σvals, min
     end
 end
 
-# This can be changed to add some sort of scaling to the DamageStressCalculator
+# This can be changed to add some sort of scaling to the DamageStressCalculator, potentially
+# based on area like the function above.
 function scale_stress!(stress_calculator::DamageStressCalculator, σvals, min_floe_area, floes)
+    @warn  "Current implementation of DamageStressCalculator is unfinished. Currently, stress
+    is not being scaled."
     return
 end   
 
