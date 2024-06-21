@@ -809,7 +809,7 @@ Inputs:
 Output:
     Floe data averaged on eularian grid provided and saved in writer.data field 
 """
-function calc_eulerian_data!(floes, topography, writer)
+function calc_eulerian_data!(floes::FLT, topography, writer) where {FT <: AbstractFloat, FLT <: StructArray{<:Floe{FT}}}
     # Calculate/collect needed values
     Δx = writer.xg[2] - writer.xg[1]
     Δy = writer.yg[2] - writer.yg[1]
@@ -843,7 +843,7 @@ function calc_eulerian_data!(floes, topography, writer)
             if sum(pint) > 0
                 cell_poly_list = [make_polygon(rect_coords(writer.xg[j], writer.xg[j+1], writer.yg[i], writer.yg[i+1]))]
                 if length(topography) > 0
-                    cell_poly_list = diff_polys(make_multipolygon(cell_poly_list), make_multipolygon(topography.poly))
+                    cell_poly_list = diff_polys(make_multipolygon(cell_poly_list), make_multipolygon(topography.poly), FT)
                 end
                 
                 if length(cell_poly_list) == 0
@@ -860,7 +860,7 @@ function calc_eulerian_data!(floes, topography, writer)
                 pic_area = zeros(length(floeidx))
                 for (i, idx) in enumerate(floeidx)
                     floe_poly = floes.poly[idx]
-                    pic_area[i] = mapreduce(x -> sum(GO.area, Subzero.intersect_polys(floe_poly, x); init = 0.0), +, cell_poly_list; init = 0.0)
+                    pic_area[i] = mapreduce(x -> sum(GO.area, Subzero.intersect_polys(floe_poly, x, FT); init = 0.0), +, cell_poly_list; init = 0.0)
                 end
                 
                 floeidx = floeidx[pic_area .> 0]

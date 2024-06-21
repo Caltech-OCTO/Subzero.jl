@@ -52,22 +52,22 @@ Inputs:
 Output:
     Vector of Polygons
 """
-intersect_polys(p1, p2; kwargs...) = GO.intersection(p1, p2; target = GI.PolygonTrait(), fix_multipoly = nothing)
-diff_polys(p1, p2; kwargs...) = GO.difference(p1, p2; target = GI.PolygonTrait(), fix_multipoly = nothing) 
-union_polys(p1, p2; kwargs...) = GO.union(p1, p2; target = GI.PolygonTrait(), fix_multipoly = nothing)
+intersect_polys(p1, p2, ::Type{FT} = Float64; kwargs...) where FT = GO.intersection(p1, p2, FT; target = GI.PolygonTrait(), fix_multipoly = nothing)
+diff_polys(p1, p2, ::Type{FT} = Float64; kwargs...) where FT = GO.difference(p1, p2, FT; target = GI.PolygonTrait(), fix_multipoly = nothing) 
+union_polys(p1, p2, ::Type{FT} = Float64; kwargs...) where FT = GO.union(p1, p2, FT; target = GI.PolygonTrait(), fix_multipoly = nothing)
 simplify_poly(p, tol) = GO.simplify(p; tol = tol)
 
-function translate_poly(p, Δx, Δy)
+function translate_poly(p::Polys{FT}, Δx, Δy) where FT
     t = CoordinateTransformations.Translation(Δx, Δy)
     # TODO: can remove the tuples call after GO SVPoint PR
-    return GO.tuples(GO.transform(t, p))
+    return GO.tuples(GO.transform(t, p), FT)
 end
 
-function rotate_floe(p::Polys{FT}, Δα, c_x = zero(FT), c_y = zero(FT)) where FT
-    f_rad = CoordinateTransformations.recenter(Rotations.Angle2d(Δα), (c_x, c_y))
-    # TODO: can remove the tuples call after GO SVPoint PR
-    return GO.tuples(GO.transform(f_rad, p))
-end
+# function rotate_floe(p::Polys{FT}, Δα, c_x = zero(FT), c_y = zero(FT)) where FT
+#     f_rad = CoordinateTransformations.recenter(Rotations.Angle2d(Δα), (c_x, c_y))
+#     # TODO: can remove the tuples call after GO SVPoint PR
+#     return GO.tuples(GO.transform(f_rad, p), FT)
+# end
 
 function translate_floe!(floe, Δx, Δy)
     translate!(floe.coords, Δx, Δy)
@@ -100,7 +100,6 @@ make_multipolygon(coords::Vector{<:PolyVec}) = GI.MultiPolygon(GO.tuples(coords)
 make_multipolygon(tuple_coords) = GI.MultiPolygon(tuple_coords)
 make_multipolygon(polys::Vector{<:GI.Polygon}) = GI.MultiPolygon(polys)
 
-const FloeType{FT} = Union{LazyRow{Floe{FT}}, Floe{FT}} where FT
 get_floe(floes::StructArray, i::Int) = LazyRow(floes, i)
 
 """
@@ -114,10 +113,11 @@ Outputs:
     they share values, but not referance.
 """
 function deepcopy_floe(floe::LazyRow{Floe{FT}}) where {FT}
+    poly = GO.tuples(floe.poly, FT)
     f = Floe{FT}(
-        poly = make_polygon(floe.coords),
+        poly = poly,
         centroid = copy(floe.centroid),
-        coords = translate(floe.coords, 0, 0),
+        coords = GI.coordinates(poly),
         height = floe.height,
         area = floe.area,
         mass = floe.mass,
@@ -365,6 +365,7 @@ Outputs:
     <Set{Tuple{Float, Float}}> Set of points that are at the intersection of the
         two line segments.
 """
+
 function intersect_lines(l1::PolyVec{FT}, l2) where {FT}
     points = Vector{Tuple{FT, FT}}()
     for i in 1:(length(l1[1]) - 1)

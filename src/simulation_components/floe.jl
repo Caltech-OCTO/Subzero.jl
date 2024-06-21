@@ -150,6 +150,8 @@ Singular sea ice floe with fields describing current state.
     p_dαdt::FT = 0.0        # previous timestep angular-velocity
 end
 
+const FloeType{FT} = Union{LazyRow{Floe{FT}}, Floe{FT}} where FT
+
 """
     Floe(::Type{FT}, args...; kwargs...)
 
@@ -436,7 +438,7 @@ function initialize_floe_field(
     floe_polys = [make_polygon(valid_polyvec!(c)) for c in coords]
     # Remove overlaps with topography
     if !isempty(domain.topography)
-        floe_polys = diff_polys(make_multipolygon(floe_polys), make_multipolygon(domain.topography.poly))
+        floe_polys = diff_polys(make_multipolygon(floe_polys), make_multipolygon(domain.topography.poly), FT)
     end
     # Turn polygons into floes
     for p in floe_polys
@@ -515,8 +517,8 @@ function generate_voronoi_coords(
     min_to_warn::Int;
     max_tries::Int = 10,
 ) where {FT <: AbstractFloat}
-    xpoints = Vector{FT}()
-    ypoints = Vector{FT}()
+    xpoints = Vector{Float64}()
+    ypoints = Vector{Float64}()
     domain_poly = make_multipolygon(GO.tuples(domain_coords))
     area_frac = GO.area(domain_poly) / reduce(*, scale_fac)
     # Increase the number of points based on availible percent of bounding box
@@ -524,7 +526,7 @@ function generate_voronoi_coords(
     current_points = 0
     tries = 0
     while current_points < desired_points && tries <= max_tries
-        x = rand(rng, FT, npoints)
+        x = rand(rng, npoints)
         y = rand(rng, FT, npoints)
         # Check which of the scaled and translated points are within the domain coords
         in_idx = [GO.coveredby(
@@ -558,13 +560,8 @@ function generate_voronoi_coords(
         # Scale and translate voronoi coordinates
         tcoords = Vector{PolyVec{FT}}(undef, length(tess_cells))
         for i in eachindex(tess_cells)
-            perturb_vec = [
-                (-1)^rand(rng, 0:1) * rand(rng, FT)*1e-10,
-                (-1)^rand(rng, 0:1) * rand(rng, FT)*1e-10,
-            ]
             tcoords[i] = [valid_ringvec!([
-                Vector(c) .* scale_fac .+
-                trans_vec #.+ perturb_vec
+                Vector(c) .* scale_fac .+ trans_vec
                 for c in tess_cells[i]
             ])]
         end
@@ -629,9 +626,9 @@ function initialize_floe_field(
     nfloes_added = 0
     # Availible space in domain
     domain_poly = make_polygon(rect_coords(domain.west.val, domain.east.val, domain.south.val, domain.north.val))
-    open_water = intersect_polys(make_polygon(floe_bounds), domain_poly)
+    open_water = intersect_polys(make_polygon(floe_bounds), domain_poly, FT)
     if !isempty(domain.topography)
-        open_water = diff_polys(make_multipolygon(open_water), make_multipolygon(domain.topography.poly))
+        open_water = diff_polys(make_multipolygon(open_water), make_multipolygon(domain.topography.poly), FT)
     end
     open_water_mp = make_multipolygon(open_water)
     (bounds_xmin, bounds_xmax), (bounds_ymin, bounds_ymax) = GI.extent(open_water_mp)
@@ -655,7 +652,7 @@ function initialize_floe_field(
                 trans_vec = [xmin, ymin]
                 # Open water in cell
                 cell_init = make_polygon(rect_coords(xmin, xmin + collen, ymin, ymin + rowlen))
-                open_cell = intersect_polys(cell_init, open_water_mp)
+                open_cell = intersect_polys(cell_init, open_water_mp, FT)
                 open_cell_mpoly = make_multipolygon(open_cell)
                 open_coords = [find_poly_coords(c) for c in open_cell]
                 open_area = sum(GO.area, open_cell; init = 0.0)

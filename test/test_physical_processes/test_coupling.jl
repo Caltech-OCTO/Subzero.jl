@@ -48,7 +48,7 @@
     
         mc_x3, mc_y3, status3 = Subzero.generate_subfloe_points(
             MonteCarloPointsGenerator{Float32}(),
-            origin_poly,
+            GO.tuples(origin_poly, Float32),
             origin_centroid,
             area,
             Subzero.Status(),

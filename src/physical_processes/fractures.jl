@@ -339,7 +339,7 @@ function deform_floe!(
 ) where FT
     poly = floe.poly
     deformer_poly = make_polygon(deformer_coords)
-    overlap_regions =intersect_polys(poly, deformer_poly)
+    overlap_regions =intersect_polys(poly, deformer_poly, FT)
     max_overlap_area, max_overlap_idx = findmax(GO.area, overlap_regions)
     overlap_region = overlap_regions[max_overlap_idx]
     # If floe and the deformer floe have an overlap area
@@ -351,7 +351,7 @@ function deform_floe!(
         Δx, Δy = abs.(dist)[1] .* force_fracs
         # Temporarily move deformer floe to find new shape of floe
         deformer_poly = make_polygon(translate(deformer_coords, Δx, Δy))
-        new_floes = diff_polys(poly, deformer_poly)
+        new_floes = diff_polys(poly, deformer_poly, FT)
         new_floe_area, new_floe_idx = findmax(GO.area, new_floes)
         new_floe_poly = new_floes[new_floe_idx]
         # If didn't change floe area by more than 90%
@@ -421,7 +421,7 @@ function split_floe(
     if !isempty(pieces)
         # Intersect voronoi tesselation pieces with floe
         rmholes!(floe.poly)
-        pieces_polys = mapreduce(p -> intersect_polys(make_polygon(p), floe.poly), append!, pieces; init = Vector{Polys{FT}}())
+        pieces_polys = mapreduce(p -> intersect_polys(make_polygon(p), floe.poly, FT), append!, pieces; init = Vector{Polys{FT}}())
         # Conserve mass within pieces
         pieces_areas = [GO.area(p) for p in pieces_polys]
         total_area = sum(pieces_areas)
@@ -519,7 +519,7 @@ function fracture_floes!(
                 deforming_floe_idx = Int(deforming_inter[floeidx])
                 if deforming_floe_idx <= length(floes)
                     deform_floe!(
-                        LazyRow(floes, frac_idx[i]), 
+                        get_floe(floes, frac_idx[i]), 
                         floes.coords[deforming_floe_idx],
                         deforming_inter[xforce:yforce],
                         floe_settings,
@@ -531,7 +531,7 @@ function fracture_floes!(
         end
         # Split flie into pieces
         new_floes = split_floe(
-            LazyRow(floes, frac_idx[i]),
+            get_floe(floes, frac_idx[i]),
             rng,
             fracture_settings,
             floe_settings,

@@ -58,7 +58,7 @@ function calc_normal_force(
     if Δl > 0.1
         p1new = translate_poly(p1, force_dir[1], force_dir[2])::Polys{FT}
         # Floe/boudary intersection after being moved in force direction
-        new_regions_list = intersect_polys(p1new, p2)
+        new_regions_list = intersect_polys(p1new, p2, FT)
         # See if the area of overlap has increased in corresponding region
         for new_region in new_regions_list
             if GO.intersects(new_region, region) && GO.area(new_region)/area > 1
@@ -156,6 +156,8 @@ function calc_elastic_forces(
     force_factor::FT,
 ) where {FT<:AbstractFloat}
     ipoints = intersect_lines(c1, c2)  # TODO: switch to using polygons
+    i_points_new = GO.intersection_points(p1, p2)
+    @assert length(ipoints) == length(i_points_new) "$c1, $c2"
     ncontact = 0
     if !isempty(ipoints) && length(ipoints) >= 2
         # Find overlapping regions greater than minumum area
@@ -378,7 +380,7 @@ function floe_floe_interaction!(
     Δt,
     max_overlap::FT,
 ) where {FT<:AbstractFloat}
-    inter_regions = intersect_polys(ifloe.poly, jfloe.poly)
+    inter_regions = intersect_polys(ifloe.poly, jfloe.poly, FT)
     region_areas = Vector{FT}(undef, length(inter_regions))
     total_area = FT(0)
     for i in eachindex(inter_regions)
@@ -452,15 +454,15 @@ Output:
     remove. Else, nothing is changed. 
 """
 function floe_domain_element_interaction!(
-    floe,
+    floe::FloeType{FT},
     boundary::OpenBoundary,
     element_idx,
     consts,
     Δt,
     max_overlap,
-)
+) where FT
     # Check if the floe and boundary actually overlap
-    inter_area = sum(GO.area, intersect_polys(floe.poly, boundary.poly); init = 0.0)
+    inter_area = sum(GO.area, intersect_polys(floe.poly, boundary.poly, FT); init = 0.0)
     if inter_area > 0
         floe.status.tag = remove
     end
@@ -641,7 +643,7 @@ function floe_domain_element_interaction!(
     Δt,
     max_overlap::FT,
 ) where {FT}
-    inter_regions = intersect_polys(floe.poly, element.poly)
+    inter_regions = intersect_polys(floe.poly, element.poly, FT)
     region_areas = Vector{FT}(undef, length(inter_regions))
     max_area = FT(0)
     for i in eachindex(inter_regions)
@@ -1003,7 +1005,7 @@ function timestep_collisions!(
                 if j <= length(floes) && j > i
                     jidx = Int(j)
                     # add matching interaction (j with i)
-                    add_interactions!(1, LazyRow(floes, jidx), FT(i),
+                    add_interactions!(1, get_floe(floes, jidx), FT(i),
                         i_inters[inter_idx:inter_idx, xforce:yforce],
                         i_inters[inter_idx:inter_idx, xpoint:ypoint],
                         i_inters[inter_idx:inter_idx, overlap:overlap]
@@ -1068,20 +1070,20 @@ Outputs:
     are added to the floe list
 """
 function ghosts_on_bounds!(
-    floes,
+    floes::FLT,
     elem_idx,
     boundary,
     trans_vec,
-)
+) where {FT <: AbstractFloat, FLT <: StructArray{<:Floe{FT}}}
     nfloes = length(floes)
     nghosts = 1
-    if !isempty(intersect_polys(floes.poly[elem_idx], boundary.poly))
+    if !isempty(intersect_polys(floes.poly[elem_idx], boundary.poly, FT))
         # ghosts of existing ghosts and original element
         for i in floes.ghosts[elem_idx]
             push!(floes, deepcopy_floe(get_floe(floes, i)))
             nghosts += 1
         end
-        push!(floes, deepcopy_floe(LazyRow(floes, elem_idx)))
+        push!(floes, deepcopy_floe(get_floe(floes, elem_idx)))
         for i in (nfloes + 1):(nfloes + nghosts)
             translate_floe!(get_floe(floes, i), trans_vec...)
         end

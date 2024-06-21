@@ -653,7 +653,7 @@ function get_domain_element(domain, idx)
         return domain.west
     else
         topo_idx = -(idx + 4)
-        return LazyRow(domain.topography, topo_idx)
+        return get_floe(domain.topography, topo_idx)
     end
 end
 

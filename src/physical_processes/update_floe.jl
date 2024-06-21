@@ -211,7 +211,6 @@ function update_new_rotation_conserve!(
     Δt,
 )
     # Find radius of each polygon to shared midpoint
-    #x, y = find_shared_edges_midpoint(floe1.coords, floe2.coords)
     rad1 = sqrt(
         (floe1.centroid[1] - x)^2 +
         (floe1.centroid[2] - y)^2
