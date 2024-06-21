@@ -1114,12 +1114,13 @@ Output:
     outside of grid, could return a line at the edge of the boundary. 
 """
 function center_cell_coords(
+    ::Type{FT},
     xidx::Int,
     yidx::Int,
     grid::RegRectilinearGrid,
     ns_bound,
     ew_bound,
-)
+) where FT
     xmin = (xidx - 1.5) * grid.Δx + grid.x0
     xmax = xmin + grid.Δx
     ymin = (yidx - 1.5) * grid.Δy + grid.y0
@@ -1135,9 +1136,7 @@ function center_cell_coords(
         ns_bound,
         ew_bound,
     )
-    return [[[xmin, ymin], [xmin, ymax],
-    [xmax, ymax], [xmax, ymin],
-    [xmin, ymin]]]
+    return _make_bounding_box_polygon(FT, xmin, xmax, ymin, ymax)
 end
 
 """
@@ -1635,14 +1634,14 @@ function calc_two_way_coupling!(
         floe_locations = grid.floe_locations[cartidx]
         if !isempty(floe_locations.floeidx)
             # Coordinates of grid cell
-            cell_coords = center_cell_coords(
+            cell_poly = center_cell_coords(
+                FT,
                 cartidx[1],
                 cartidx[2],
                 grid,
                 domain.north,
                 domain.east
             )
-            cell_poly = make_polygon(cell_coords)
             for i in eachindex(floe_locations.floeidx)
                 floe_poly = translate_poly(
                     floes.poly[floe_locations.floeidx[i]],

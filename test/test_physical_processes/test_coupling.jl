@@ -279,52 +279,18 @@
         ) == (0:10:80, 1:9)
 
         #Test cell_coords
-        cell = Subzero.center_cell_coords(
-            2,
-            3,
-            grid,
-            periodic_bound,
-            periodic_bound,
-        )
-        cell_poly = Subzero.make_polygon(cell)
-        @test GO.area(cell_poly)::Float64 == 8
-        @test Subzero.find_poly_coords(cell_poly) == 
-            [[[-9, -2], [-9, 2], [-7, 2], [-7, -2], [-9, -2]]]
-        @test Subzero.center_cell_coords(
-            1,
-            1,
-            grid,
-            open_bound,
-            open_bound,
-        ) == [[[-10, -8], [-10, -6], [-9, -6], [-9, -8], [-10, -8]]]
-        @test Subzero.center_cell_coords(
-            11,
-            6,
-            grid,
-            periodic_bound,
-            periodic_bound,
-        ) == [[[9, 10], [9, 14], [11, 14], [11, 10], [9, 10]]]
-        @test Subzero.center_cell_coords(
-            11,
-            6,
-            grid,
-            open_bound,
-            open_bound,
-        ) == [[[9, 8], [9, 8], [10, 8], [10, 8], [9, 8]]]
-        @test Subzero.center_cell_coords(
-            11,
-            6,
-            grid,
-            open_bound,
-            periodic_bound,
-        ) == [[[9, 8], [9, 8], [11, 8], [11, 8], [9, 8]]]
-        @test Subzero.center_cell_coords(
-            11,
-            6,
-            grid,
-            periodic_bound,
-            open_bound,
-        ) == [[[9, 10], [9, 14], [10, 14], [10, 10], [9, 10]]]
+         @test GO.equals(Subzero.center_cell_coords(Float64, 2, 3, grid, periodic_bound, periodic_bound),
+            GI.Polygon([[[-9, -2], [-9, 2], [-7, 2], [-7, -2], [-9, -2]]]))
+        @test GO.equals(Subzero.center_cell_coords(Float64, 1, 1, grid, open_bound, open_bound),
+            GI.Polygon([[[-10, -8], [-10, -6], [-9, -6], [-9, -8], [-10, -8]]]))
+        @test GO.equals(Subzero.center_cell_coords(Float64, 11, 6, grid, periodic_bound, periodic_bound),
+            GI.Polygon([[[9, 10], [9, 14], [11, 14], [11, 10], [9, 10]]]))
+        @test GO.equals(Subzero.center_cell_coords(Float64, 11, 6, grid, open_bound, open_bound),
+            GI.Polygon([[[9, 8], [9, 8], [10, 8], [10, 8], [9, 8]]]))
+        @test GO.equals(Subzero.center_cell_coords(Float64, 11, 6, grid, open_bound, periodic_bound),
+            GI.Polygon([[[9, 8], [9, 8], [11, 8], [11, 8], [9, 8]]]))
+        @test GO.equals(Subzero.center_cell_coords(Float64, 11, 6, grid, periodic_bound, open_bound),
+            GI.Polygon([[[9, 10], [9, 14], [10, 14], [10, 10], [9, 10]]]))
 
         # Test aggregate_grid_stress!
         function test_floe_to_grid(

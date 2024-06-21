@@ -19,7 +19,7 @@ Settings needed to create floes within the model.
 """
 @kwdef struct FloeSettings{
     FT <: AbstractFloat,
-    GT <: AbstractSubFloePointsGenerator,
+    GT <: AbstractSubFloePointsGenerator{FT},
 }
     ρi::FT = 920.0
     min_floe_area::FT = 1e6

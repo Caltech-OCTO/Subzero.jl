@@ -765,24 +765,6 @@ function auto_extension(filename, ext)
 end
 
 """
-    rect_coords(xmin, xmax, ymin, ymax)
-
-PolyVec coordinates of a rectangle given minimum and maximum x and y coordinates
-Inputs:
-    xmin    <Float> minimum x coordinate of rectangle
-    xmax    <Float> maximum x coordinate of rectangle
-    ymin    <Float> minimum y coordiante of rectangle
-    ymax    <Float> maximum y coordiante of rectangle
-Output:
-    PolyVect coordinates for edges of rectangle with given minimums and maximums
-"""
-function rect_coords(xmin, xmax, ymin, ymax)
-return [[[xmin, ymin], [xmin, ymax],
-         [xmax, ymax], [xmax, ymin],
-         [xmin, ymin]]]
-end
-
-"""
 grids_from_lines(xlines, ylines)
 
 Creates x-grid and y-grid. Assume xlines has length n and ylines has length m.
@@ -841,7 +823,7 @@ function calc_eulerian_data!(floes::FLT, topography, writer) where {FT <: Abstra
             pint = potential_interactions[i,j,:]
             # If there are any potential interactions
             if sum(pint) > 0
-                cell_poly_list = [make_polygon(rect_coords(writer.xg[j], writer.xg[j+1], writer.yg[i], writer.yg[i+1]))]
+                cell_poly_list = [_make_bounding_box_polygon(FT, writer.xg[j], writer.xg[j+1], writer.yg[i], writer.yg[i+1])]
                 if length(topography) > 0
                     cell_poly_list = diff_polys(make_multipolygon(cell_poly_list), make_multipolygon(topography.poly), FT)
                 end

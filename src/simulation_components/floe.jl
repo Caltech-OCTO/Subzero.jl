@@ -527,7 +527,7 @@ function generate_voronoi_coords(
     tries = 0
     while current_points < desired_points && tries <= max_tries
         x = rand(rng, npoints)
-        y = rand(rng, FT, npoints)
+        y = rand(rng, npoints)
         # Check which of the scaled and translated points are within the domain coords
         in_idx = [GO.coveredby(
             (scale_fac[1] * x[i] .+ trans_vec[1], scale_fac[2] * y[i] .+ trans_vec[2]),
@@ -618,15 +618,15 @@ function initialize_floe_field(
     domain,
     hmean,
     Δh;
-    floe_bounds = rect_coords(domain.west.val, domain.east.val, domain.south.val, domain.north.val),
-    floe_settings = FloeSettings(min_floe_area = 0.0),
+    floe_bounds = _make_bounding_box_polygon(FT, domain.west.val, domain.east.val, domain.south.val, domain.north.val),
+    floe_settings = FloeSettings(FT, min_floe_area = 0),
     rng = Xoshiro(),
 ) where {FT <: AbstractFloat}
     floe_arr = StructArray{Floe{FT}}(undef, 0)
     nfloes_added = 0
     # Availible space in domain
-    domain_poly = make_polygon(rect_coords(domain.west.val, domain.east.val, domain.south.val, domain.north.val))
-    open_water = intersect_polys(make_polygon(floe_bounds), domain_poly, FT)
+    domain_poly = _make_bounding_box_polygon(FT, domain.west.val, domain.east.val, domain.south.val, domain.north.val)
+    open_water = intersect_polys(floe_bounds, domain_poly, FT)
     if !isempty(domain.topography)
         open_water = diff_polys(make_multipolygon(open_water), make_multipolygon(domain.topography.poly), FT)
     end
@@ -651,7 +651,7 @@ function initialize_floe_field(
                 ymin = bounds_ymin + rowlen * (i - 1)
                 trans_vec = [xmin, ymin]
                 # Open water in cell
-                cell_init = make_polygon(rect_coords(xmin, xmin + collen, ymin, ymin + rowlen))
+                cell_init = _make_bounding_box_polygon(FT, xmin, xmin + collen, ymin, ymin + rowlen)
                 open_cell = intersect_polys(cell_init, open_water_mp, FT)
                 open_cell_mpoly = make_multipolygon(open_cell)
                 open_coords = [find_poly_coords(c) for c in open_cell]

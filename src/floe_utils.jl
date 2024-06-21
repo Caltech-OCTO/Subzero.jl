@@ -40,7 +40,7 @@ Input:
 Output:
     <PolyVec> representing the floe's coordinates xy plane
 """
-find_poly_coords(poly::Polys) = GI.coordinates(poly)
+find_poly_coords(poly::GI.Polygon) = GI.coordinates(poly)
 
 """
     intersect_polys(p1, p2)
@@ -101,6 +101,12 @@ make_multipolygon(tuple_coords) = GI.MultiPolygon(tuple_coords)
 make_multipolygon(polys::Vector{<:GI.Polygon}) = GI.MultiPolygon(polys)
 
 get_floe(floes::StructArray, i::Int) = LazyRow(floes, i)
+
+function _make_bounding_box_polygon(::Type{FT}, xmin, xmax, ymin, ymax) where FT
+    points = ((xmin, ymin),  (xmin, ymax), (xmax, ymax), (xmax, ymin), (xmin, ymin))
+    ring = GI.LinearRing(SA.SVector{5, Tuple{FT, FT}}(points))
+    return  GI.Polygon(SA.SVector(ring))
+end
 
 """
     deepcopy_floe(floe::LazyRow{Floe{FT}})
