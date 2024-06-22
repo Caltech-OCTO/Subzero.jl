@@ -70,38 +70,6 @@
     tri_moment = Subzero._calc_moment_inertia(Float64, tri_poly, GO.centroid(tri_poly), 0.5)
     @test isapprox(tri_moment, 50581.145, atol = 0.001)
 
-    # Test orient_coords
-    c1 = [
-        [9.75e4, 7e4],
-        [9.75e4, 5e4],
-        [9.75e4, 5e4],
-        [10.05e4, 5e4],
-        [10.05e4, 7e4],
-    ]
-    c1_new = Subzero.orient_coords(c1)
-    @test c1_new == [
-        [97500.0, 50000.0],
-        [97500.0, 70000.0],
-        [100500.0, 70000.0],
-        [100500.0, 50000.0],
-        [97500.0, 50000.0],
-    ]
-    c2 = [
-        [6.5e4, 6.5e4],
-        [8.5e4, 6.5e4],
-        [8.5e4, 4.5e4],
-        [8.5e4, 4.5e4],
-        [6.5e4, 4.5e4],
-    ]
-    c2_new = Subzero.orient_coords(c2)
-    @test c2_new == [
-        [6.5e4, 4.5e4],
-        [6.5e4, 6.5e4],
-        [8.5e4, 6.5e4],
-        [8.5e4, 4.5e4],
-        [6.5e4, 4.5e4],
-    ]
-
     # ------------------------- Test intersection of lines ---------------------
     l1 = [[[0.0, 0.0], [2.5, 0.0], [5.0, 0.0]]]
     l2 = [[[2.0, -3.0], [3.0, 0.0], [4.0, 3.0]]]

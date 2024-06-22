@@ -149,7 +149,7 @@ end
     coupling_settings = CouplingSettings()
     coords = [
         [[[0.0, 0.0], [0.0, 5e4], [6e4, 5e4], [6e4, 0.0], [0.0, 0.0]]],
-        [[[4e4, 0.0], [4e4, 5e4], [1e5, 5e4], [1e5, 0.0], [0.0, 0.0]]],
+        [[[4e4, 0.0], [4e4, 5e4], [1e5, 5e4], [1e5, 0.0], [4e4, 0.0]]],
         [[[2e4, 4e4], [2e4, 8e4], [3e4, 8e4], [3e4, 4e4], [2e4, 4e4]]]
     ]
     floe_base = initialize_floe_field(

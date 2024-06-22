@@ -235,9 +235,8 @@ function Floe{FT}(
     area_tot = GO.area(floe)
     mass = area_tot * height * floe_settings.ρi
     coords = find_poly_coords(floe)
-    coords = [orient_coords(coords[1])]
     moment = _calc_moment_inertia(FT, floe, centroid, height; ρi = floe_settings.ρi)
-    angles = GO.angles(make_polygon(coords))
+    angles = GO.angles(floe, FT)
     rmax = calc_max_radius(floe, centroid, FT)
     status = Status()
     # Generate Monte Carlo Points

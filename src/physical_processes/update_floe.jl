@@ -35,7 +35,6 @@ function replace_floe!(
     floe.centroid = collect(GO.centroid(new_poly))
     # TODO: can't replace until we remove coords from floe entirely
     floe.coords = find_poly_coords(new_poly)::PolyVec{FT}
-    floe.coords = [orient_coords(floe.coords[1])]
     if floe.coords[1][1] != floe.coords[1][end]
         push!(floe.coords, floe.coords[1][1])
     end

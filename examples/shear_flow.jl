@@ -44,7 +44,7 @@ floe_settings = FloeSettings(
 # Floe creation
 floe_arr = initialize_floe_field(
     FT,
-    50,
+    500,
     [0.8],
     domain,
     hmean,
@@ -72,7 +72,7 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 10000,
+    nΔt = 5000,
     verbose = true,
     writers = writers,
     rng = Xoshiro(1),
@@ -85,9 +85,9 @@ run_time!(simulation)
 # PProf.Allocs.pprof(from_c = false)
 
 # ProfileView.@profview run!(simulation)
-# plot_sim(
-#     "output/shear_flow/floes.jld2",
-#     "output/shear_flow/initial_state.jld2",
-#     20,
-#     "output/shear_flow/shear_flow.mp4",
-# )
+plot_sim(
+    "output/shear_flow/floes.jld2",
+    "output/shear_flow/initial_state.jld2",
+    20,
+    "output/shear_flow/shear_flow.mp4",
+)

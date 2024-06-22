@@ -318,47 +318,6 @@ function calc_max_radius(poly, cent, ::Type{T}) where T
 end
 
 """
-    orient_coords(coords)
-
-Take given coordinates and make it so that the first point has the smallest
-x-coordiante and so that the coordinates are ordered in a clockwise sequence.
-Duplicates vertices will be removed and the coordiantes will be closed (first
-and last point are the same).
-
-Input:
-    coords  <RingVec> vector of points [x, y]
-Output:
-    coords  <RingVec> oriented clockwise with smallest x-coordinate first
-"""
-function orient_coords(coords::RingVec)
-    # extreem_idx is point with smallest x-value - if tie, choose lowest y-value
-    extreem_idx = 1
-    for i in eachindex(coords)
-        ipoint = coords[i]
-        epoint = coords[extreem_idx]
-        if ipoint[1] < epoint[1]
-            extreem_idx = i
-        elseif ipoint[1] == epoint[1] && ipoint[2] < epoint[2]
-            extreem_idx = i
-        end
-    end
-    # extreem point must be first point in list
-    new_coords = similar(coords)
-    circshift!(new_coords, coords, -extreem_idx + 1)
-    valid_ringvec!(new_coords)
-
-    # if coords are counterclockwise, switch to clockwise
-    orient_matrix = hcat(
-        ones(3),
-        vcat(new_coords[1]', new_coords[2]', new_coords[end-1]') # extreem/adjacent points
-    )
-    if det(orient_matrix) > 0
-        reverse!(new_coords)
-    end
-    return new_coords
-end
-
-"""
     intersect_lines(l1, l2)
 
 Finds the intersection points of two curves l1 and l2. The curves l1, l2 can be
