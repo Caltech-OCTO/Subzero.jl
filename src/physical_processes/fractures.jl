@@ -45,22 +45,7 @@ Note:
 mutable struct HiblerYieldCurve{FT<:AbstractFloat}<:AbstractFractureCriteria
     pstar::FT
     c::FT
-    vertices::PolyVec{FT}
-
-    function HiblerYieldCurve{FT}(
-        pstar::Real,
-        c::Real,
-        vertices::PolyVec
-    ) where {FT<:AbstractFloat}
-        try
-            valid_polyvec!(vertices)
-        catch
-            throw(ArgumentError("The given vertices for the HiblerYieldCurve \
-                can't be made into a valid polygon and thus the initial yield \
-                curve can't be created."))
-        end
-        new{FT}(pstar, c, vertices)
-    end
+    poly::Polys{FT}
 end
 
 """
@@ -82,7 +67,7 @@ correct constructor will be called with all other arguments.
 HiblerYieldCurve(args...) = HiblerYieldCurve{Float64}(args...)
 
 """
-    calculate_hibler(floes, pstar, c)
+    _calculate_hibler(FT, floes, pstar, c)
 
 Calculate Hibler's Elliptical Yield Curve as described in his 1979 paper
 "A Dynamic Thermodynamic Sea Ice Model".
@@ -97,18 +82,17 @@ Note:
     ice thickness and compactness. c is determined to that 10% open water
     reduces the strength substantially and pstar is considered a free parameter. 
 """
-function calculate_hibler(mean_height, pstar, c)
+function _calculate_hibler(::Type{FT}, mean_height, pstar, c) where FT
     compactness = 1  # Could be a user input with future development
     p = pstar*mean_height*exp(-c*(1-compactness))
-    t = range(0, 2π, length = 100)
+    α_range = range(zero(FT), FT(2π), length = 100)
     a = p*sqrt(2)/2
     b = a/2
-    x = a*cos.(t)
-    y = b*sin.(t)
-    vertices = [splitdims([x'; y'])]
-    rotate_radians!(vertices, π/4)
-    translate!(vertices, -p/2, -p/2)
-    return valid_polyvec!(vertices)
+    ring_coords = [(a*cos(α), b*sin(α)) for α in α_range]
+    ring_coords[end] = ring_coords[1] # make sure first and last element are exactly the same
+    # TODO: eventually make with SVectors! 
+    poly = GI.Polygon([ring_coords])
+    return _move_poly(FT, poly, -p/2, -p/2,  π/4)
 end
 
 """
@@ -121,18 +105,18 @@ Inputs:
     pstar   <AbstractFloat> used to tune ellipse for optimal fracturing
     c       <AbstractFloat> used to tune ellipse for optimal fracturing
 Outputs:
-    HiblerYieldCurve struct with vertices determined using the calculate_hibler
+    HiblerYieldCurve struct with vertices determined using the _calculate_hibler
     function.
 """
 HiblerYieldCurve{FT}(
-    floes,
+    floes::StructArray{<:Floe{FT}},
     pstar = 2.25e5,
     c = 20.0,
-) where {FT <: AbstractFloat}=
+) where {FT <: AbstractFloat} =
     HiblerYieldCurve{FT}(
         pstar,
         c,
-        calculate_hibler(mean(floes.height), pstar, c),
+        _calculate_hibler(FT, mean(floes.height), pstar, c),
     )
 
 """
@@ -150,20 +134,7 @@ Note:
     Applied Physics 42.21 (2009): 214017.
 """
 struct MohrsCone{FT<:AbstractFloat}<:AbstractFractureCriteria
-    vertices::PolyVec
-    
-    function MohrsCone{FT}(
-        vertices::PolyVec
-    ) where {FT <: AbstractFloat}
-        try
-            valid_polyvec!(vertices)
-        catch
-            throw(ArgumentError("The given vertices for the Mohr's Cone can't \
-            be made into a valid polygon and thus the initial yield \
-            curve can't be created."))
-        end
-        new{FT}(vertices)
-    end
+    poly::Polys{FT}
 end
 
 """
@@ -185,7 +156,7 @@ constructor will be called with all other arguments.
 MohrsCone(args...) = MohrsCone{Float64}(args...)
 
 """
-    calculate_mohrs(σ1, σ2, σ11, σ22)
+    _calculate_mohrs(FT, σ1, σ2, σ11, σ22)
 
 Creates PolyVec from vertex values for Mohr's Cone (triangle in 2D)
 Inputs:
@@ -198,15 +169,15 @@ Inputs:
 Output:
     Mohr's Cone vertices (triangle since we are in 2D) in principal stress space
 """
-calculate_mohrs(σ1, σ2, σ11, σ22) = valid_polyvec!([[
-    [σ1, σ2],
-    [σ11, σ22],
-    [σ22, σ11],
-    [σ1, σ2],
-]])
+function _calculate_mohrs(::Type{FT}, σ1, σ2, σ11, σ22) where FT
+    # TODO: eventually make with SVectors! 
+    points = [(σ1, σ2),  (σ11, σ22), (σ22, σ11), (σ1, σ2)]
+    return GI.Polygon([points])
+end
 
 """
-    calculate_mohrs(
+    _calculate_mohrs(
+        FT,
         q,
         σc,
         σ11;
@@ -232,23 +203,24 @@ Note:
     Applied Physics 42.21 (2009): 214017.
     Equations taken from original version of Subzero written in MATLAB
 """
-function calculate_mohrs(
+function _calculate_mohrs(
+    ::Type{FT},
     q = 5.2,
     σc = 2.5e5,
     σ11 = -3.375e4,
-)
+) where FT
     σ1 = ((1/q) + 1) * σc / ((1/q) - q)
     σ2 = q * σ1 + σc
     σ22 = q * σ11 + σc
-    return calculate_mohrs(-σ1, -σ2, -σ11, -σ22)
+    return _calculate_mohrs(FT, -σ1, -σ2, -σ11, -σ22)
 end
 
 """
     MohrsCone{FT}(val::AbstractFloat, args...)
 
-Calculate Mohr's Cone vertices given calculate_mohrs arguments.
+Calculate Mohr's Cone vertices given _calculate_mohrs arguments.
 """
-MohrsCone{FT}(args...) where FT = MohrsCone{FT}(calculate_mohrs(args...))
+MohrsCone{FT}(args...) where FT = MohrsCone{FT}(_calculate_mohrs(FT, args...))
 
 """
     update_criteria!(criteria::HiblerYieldCurve, floes)
@@ -261,8 +233,9 @@ Inputs:
 Outputs:
     None. Updates the criteria's vertices field to update new criteria. 
 """
-function update_criteria!(criteria::HiblerYieldCurve, floes)
-    criteria.vertices = calculate_hibler(
+function update_criteria!(criteria::HiblerYieldCurve{FT}, floes) where FT
+    criteria.poly = _calculate_hibler(
+        FT,
         mean(floes.height),
         criteria.pstar,
         criteria.c
@@ -302,9 +275,8 @@ function determine_fractures(
 )
     # Determine if floe stresses are in or out of criteria allowable regions
     update_criteria!(criteria, floes)
-    critical_poly = make_polygon(GO.tuples(criteria.vertices))
     # If stresses are outside of criteria regions, we will fracture the floe
-    frac_idx = [!GO.coveredby(eigvals(s), critical_poly) for s in floes.stress]
+    frac_idx = [!GO.coveredby(eigvals(s), criteria.poly) for s in floes.stress]
     frac_idx[floes.area .< min_floe_area] .= false
     return range(1, length(floes))[frac_idx]
 end
@@ -312,7 +284,7 @@ end
 """
     deform_floe!(
         floe,
-        deformer_coords,
+        deformer_poly,
         deforming_forces,
     )
 
@@ -331,15 +303,14 @@ Outputs:
 """
 function deform_floe!(
     floe,
-    deformer_coords::PolyVec{FT},
+    deformer_poly::Polys{FT},
     deforming_forces,
     floe_settings,
     Δt,
     rng,
 ) where FT
     poly = floe.poly
-    deformer_poly = make_polygon(deformer_coords)
-    overlap_regions =intersect_polys(poly, deformer_poly, FT)
+    overlap_regions = intersect_polys(poly, deformer_poly, FT)
     max_overlap_area, max_overlap_idx = findmax(GO.area, overlap_regions)
     overlap_region = overlap_regions[max_overlap_idx]
     # If floe and the deformer floe have an overlap area
@@ -350,7 +321,7 @@ function deform_floe!(
         force_fracs = deforming_forces ./ 2norm(deforming_forces)
         Δx, Δy = abs.(dist)[1] .* force_fracs
         # Temporarily move deformer floe to find new shape of floe
-        deformer_poly = make_polygon(translate(deformer_coords, Δx, Δy))
+        deformer_poly = _translate_poly(FT, deformer_poly, Δx, Δy)
         new_floes = diff_polys(poly, deformer_poly, FT)
         new_floe_area, new_floe_idx = findmax(GO.area, new_floes)
         new_floe_poly = new_floes[new_floe_idx]
@@ -520,7 +491,7 @@ function fracture_floes!(
                 if deforming_floe_idx <= length(floes)
                     deform_floe!(
                         get_floe(floes, frac_idx[i]), 
-                        floes.coords[deforming_floe_idx],
+                        floes.poly[deforming_floe_idx],
                         deforming_inter[xforce:yforce],
                         floe_settings,
                         Δt,

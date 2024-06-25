@@ -70,25 +70,6 @@
     tri_moment = Subzero._calc_moment_inertia(Float64, tri_poly, GO.centroid(tri_poly), 0.5)
     @test isapprox(tri_moment, 50581.145, atol = 0.001)
 
-    # ------------------------- Test intersection of lines ---------------------
-    l1 = [[[0.0, 0.0], [2.5, 0.0], [5.0, 0.0]]]
-    l2 = [[[2.0, -3.0], [3.0, 0.0], [4.0, 3.0]]]
-    @test issetequal(
-        Subzero.intersect_lines(l1, l2),
-        Set([(3.0, 0.0)]),
-    )
-    l1 = [[[0., -1], [1, 1], [2, -1], [3, 1]]]
-    l2 = [[[0., 0], [1, 0], [3, 0]]]
-    @test issetequal(
-        Subzero.intersect_lines(l1, l2),
-        Set([(0.5, -0.0), (1.5, 0), (2.5, -0.0)]),
-    )
-    l2 = [[[10., 10]]]
-    @test issetequal(
-        Subzero.intersect_lines(l1, l2),
-        Set{Tuple{Float64, Float64}}(),
-    )
-
     # ------------------------- Test finding shared points ---------------------
     two_shared_v = [
         [[[0.0, 0.0], [0.0, 20.0], [20.0, 20.0], [20.0, 0.0], [0.0, 0.0]]],

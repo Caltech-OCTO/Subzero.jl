@@ -424,7 +424,7 @@ Outputs:
 function calc_strain!(floe::FloeType{FT}) where {FT}
     fill!(floe.strain, zero(FT))
     # coordinates of floe centered at centroid
-    trans_poly = translate_poly(floe.poly, -floe.centroid[1], -floe.centroid[2])::Polys{FT}
+    trans_poly = _translate_poly(FT, floe.poly, -floe.centroid[1], -floe.centroid[2])::Polys{FT}
     local x1, y1
     for (i, p2) in enumerate(GI.getpoint(GI.getexterior(trans_poly)))
         x2, y2 = GO._tuple_point(p2, FT)
@@ -466,11 +466,11 @@ Output:
         None. Floe's fields are updated with values.
 """
 function timestep_floe_properties!(
-    floes,
+    floes::StructArray{<:Floe{FT}},
     tstep,
     Δt,
     floe_settings,
-)
+) where FT
     Threads.@threads for i in eachindex(floes)
         cforce = floes.collision_force[i]
         ctrq = floes.collision_trq[i]
@@ -505,7 +505,7 @@ function timestep_floe_properties!(
         Δα = 1.5Δt*floes.ξ[i] - 0.5Δt*floes.p_dαdt[i]
         floes.α[i] += Δα
 
-        move_floe!(get_floe(floes, i), Δx, Δy, Δα)
+        _move_floe!(FT, get_floe(floes, i), Δx, Δy, Δα)
         floes.p_dxdt[i] = floes.u[i]
         floes.p_dydt[i] = floes.v[i]
         floes.p_dαdt[i] = floes.ξ[i]

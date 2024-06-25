@@ -1,4 +1,5 @@
 @testset "Ridging and Rafting" begin
+    FT = Float64
     function update_height(floes, i, new_height, floe_settings)
         floes.height[i] = new_height
         floes.mass[i] = floes.area[i] * floes.height[i] * floe_settings.ρi
@@ -24,7 +25,7 @@
         return
     end
     function setup_floes_with_inters(coords, domain, consts,
-        collision_settings, lock,  Δx = nothing, Δy = nothing,
+        collision_settings, lock, FT = Float64, Δx = nothing, Δy = nothing,
     )
         floes = initialize_floe_field(
             Float64,
@@ -38,7 +39,7 @@
                 Subzero.translate!(floes.coords[i], Δx[i], Δy[i])
                 floes.centroid[i][1] += Δx[i]
                 floes.centroid[i][2] += Δy[i]
-                floes.poly[i] = Subzero.translate_poly(floes.poly[i], Δx[i], Δy[i])
+                floes.poly[i] = Subzero._translate_poly(FT, floes.poly[i], Δx[i], Δy[i])
             end
         end
         assign_random_velocities!(floes)
@@ -411,7 +412,7 @@
             [[[3e4, 3e4], [3e4, 5e4], [5e4, 5e4], [5e4, 3e4], [3e4, 3e4]]]
         ]
         floes_base = setup_floes_with_inters(coords, collision_domain, consts,
-            collision_settings, lock, [0.0, 0.5e4], [0.0, 0.5e4],
+            collision_settings, lock, FT, [0.0, 0.5e4], [0.0, 0.5e4],
         )
         bounds_polys = Subzero.intersect_polys(Subzero.make_polygon(floes_base.coords[1]), boundary_poly)
         bounds_overlap_area = sum(GO.area, bounds_polys; init = 0.0)

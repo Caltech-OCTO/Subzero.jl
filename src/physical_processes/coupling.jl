@@ -183,7 +183,7 @@ function generate_subfloe_points(
     mc_y = zeros(FT, point_generator.npoints)
     mc_in = fill(false, point_generator.npoints)
     # Find bounding box
-    poly = translate_poly(poly, -GI.x(centroid), -GI.y(centroid))::Polys{FT}
+    poly = _translate_poly(FT, poly, -GI.x(centroid), -GI.y(centroid))::Polys{FT}
     (xmin, xmax), (ymin, ymax) = GI.extent(poly)
     Δx, Δy = xmax - xmin, ymax - ymin
     while err > point_generator.err
@@ -240,7 +240,7 @@ function generate_subfloe_points(
     status,
     rng
 ) where {FT <: AbstractFloat}
-    poly = translate_poly(poly, -GI.x(centroid), -GI.y(centroid))::Polys{FT}
+    poly = _translate_poly(FT, poly, -GI.x(centroid), -GI.y(centroid))::Polys{FT}
     (xmin, xmax), (ymin, ymax) = GI.extent(poly)
     xpoints = Vector{FT}()
     ypoints = Vector{FT}()
@@ -1643,7 +1643,7 @@ function calc_two_way_coupling!(
                 domain.east
             )
             for i in eachindex(floe_locations.floeidx)
-                floe_poly = translate_poly(
+                floe_poly = _translate_poly(FT,
                     floes.poly[floe_locations.floeidx[i]],
                     floe_locations.Δx[i],
                     floe_locations.Δy[i],

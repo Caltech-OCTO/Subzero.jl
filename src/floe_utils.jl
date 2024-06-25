@@ -57,27 +57,28 @@ diff_polys(p1, p2, ::Type{FT} = Float64; kwargs...) where FT = GO.difference(p1,
 union_polys(p1, p2, ::Type{FT} = Float64; kwargs...) where FT = GO.union(p1, p2, FT; target = GI.PolygonTrait(), fix_multipoly = nothing)
 simplify_poly(p, tol) = GO.simplify(p; tol = tol)
 
-function translate_poly(p::Polys{FT}, Δx, Δy) where FT
+function _translate_poly(::Type{FT}, p, Δx, Δy) where FT
     t = CoordinateTransformations.Translation(Δx, Δy)
     # TODO: can remove the tuples call after GO SVPoint PR
     return GO.tuples(GO.transform(t, p), FT)
 end
 
-# function rotate_floe(p::Polys{FT}, Δα, c_x = zero(FT), c_y = zero(FT)) where FT
-#     f_rad = CoordinateTransformations.recenter(Rotations.Angle2d(Δα), (c_x, c_y))
-#     # TODO: can remove the tuples call after GO SVPoint PR
-#     return GO.tuples(GO.transform(f_rad, p), FT)
-# end
-
-function translate_floe!(floe, Δx, Δy)
+function _translate_floe!(::Type{FT}, floe, Δx, Δy) where FT
     translate!(floe.coords, Δx, Δy)
     floe.centroid[1] += Δx
     floe.centroid[2] += Δy
-    floe.poly = translate_poly(floe.poly, Δx, Δy)
+    floe.poly = _translate_poly(FT, floe.poly, Δx, Δy)
     return
 end
 
-function move_floe!(floe, Δx, Δy, Δα)
+function _move_poly(::Type{FT}, poly, Δx, Δy, Δα, cx = zero(FT), cy = zero(FT)) where FT
+    rot = CoordinateTransformations.LinearMap(Rotations.Angle2d(Δα))
+    cent_rot = CoordinateTransformations.recenter(rot, (cx, cy))
+    trans = CoordinateTransformations.Translation(Δx, Δy)
+    return GO.tuples(GO.transform(trans ∘ cent_rot, poly), FT)
+end
+
+function _move_floe!(::Type{FT}, floe, Δx, Δy, Δα) where FT
     cx, cy = floe.centroid
     # Move coordinates and centroid
     translate!(floe.coords, -cx, -cy)
@@ -86,10 +87,7 @@ function move_floe!(floe, Δx, Δy, Δα)
     floe.centroid[2] += Δy
     translate!(floe.coords, cx + Δx, cy + Δy)
     # Move Polygon
-    rot = CoordinateTransformations.LinearMap(Rotations.Angle2d(Δα))
-    cent_rot = CoordinateTransformations.recenter(rot, (cx, cy))
-    trans = CoordinateTransformations.Translation(Δx, Δy)
-    floe.poly = GO.tuples(GO.transform(trans ∘ cent_rot, floe.poly))
+    floe.poly = _move_poly(FT, floe.poly, Δx, Δy, Δα, cx, cy)
     return 
 end
 
@@ -315,62 +313,6 @@ function calc_max_radius(poly, cent, ::Type{T}) where T
         end
     end
     return sqrt(max_rad_sqrd)
-end
-
-"""
-    intersect_lines(l1, l2)
-
-Finds the intersection points of two curves l1 and l2. The curves l1, l2 can be
-either closed or open. In this version, l1 and l2 must be distinct. If no
-intersections are found, the returned P is empty.
-Inputs:
-    l1 <PolyVec{Float}> line/polygon coordinates
-    l2 <PolyVec{Float}> line/polygon coordinates
-Outputs:
-    <Set{Tuple{Float, Float}}> Set of points that are at the intersection of the
-        two line segments.
-"""
-
-function intersect_lines(l1::PolyVec{FT}, l2) where {FT}
-    points = Vector{Tuple{FT, FT}}()
-    for i in 1:(length(l1[1]) - 1)
-         # First line represented as a1x + b1y = c1
-         x11 = l1[1][i][1]
-         x12 = l1[1][i+1][1]
-         y11 = l1[1][i][2]
-         y12 = l1[1][i+1][2]
-         a1 = y12 - y11
-         b1 = x11 - x12
-         c1 = a1 * x11 + b1 * y11
-        for j in 1:(length(l2[1]) - 1)
-            # Second line represented as a2x + b2y = c2
-            x21 = l2[1][j][1]
-            x22 = l2[1][j+1][1]
-            y21 = l2[1][j][2]
-            y22 = l2[1][j+1][2]
-            a2 = y22 - y21
-            b2 = x21 - x22
-            c2 = a2 * x21 + b2 * y21
-
-            determinant = a1 * b2 - a2 * b1
-            # Find place there two lines cross
-            # Note that lines extend beyond given line segments
-            if determinant != 0
-                x = (b2*c1 - b1*c2)/determinant
-                y = (a1*c2 - a2*c1)/determinant
-                p = (x, y)
-                # Make sure intersection is on given line segments
-                if min(x11, x12) <= x <= max(x11, x12) &&
-                    min(x21, x22) <= x <= max(x21, x22) &&
-                    min(y11, y12) <= y <= max(y11, y12) &&
-                    min(y21, y22) <= y <= max(y21, y22) &&
-                    !(p in points)
-                    push!(points, p)
-                end
-            end
-        end
-    end
-    return points
 end
 
 """

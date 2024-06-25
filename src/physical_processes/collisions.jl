@@ -56,7 +56,7 @@ function calc_normal_force(
     end
     # Check if direction of the force desceases overlap, else negate direction
     if Δl > 0.1
-        p1new = translate_poly(p1, force_dir[1], force_dir[2])::Polys{FT}
+        p1new = _translate_poly(FT, p1, force_dir[1], force_dir[2])::Polys{FT}
         # Floe/boudary intersection after being moved in force direction
         new_regions_list = intersect_polys(p1new, p2, FT)
         # See if the area of overlap has increased in corresponding region
@@ -155,9 +155,7 @@ function calc_elastic_forces(
     region_areas,
     force_factor::FT,
 ) where {FT<:AbstractFloat}
-    ipoints = intersect_lines(c1, c2)  # TODO: switch to using polygons
-    i_points_new = GO.intersection_points(p1, p2)
-    @assert length(ipoints) == length(i_points_new) "$c1, $c2"
+    ipoints = GO.intersection_points(p1, p2)
     ncontact = 0
     if !isempty(ipoints) && length(ipoints) >= 2
         # Find overlapping regions greater than minumum area
@@ -723,7 +721,7 @@ function update_boundary!(
     Δd = boundary.v * Δt
     boundary.val += Δd
     translate!(boundary.coords, zero(FT), Δd)
-    translate_poly(boundary.poly, zero(FT), Δd)
+    _translate_poly(FT, boundary.poly, zero(FT), Δd)
 end
 """
     update_boundary!(boundary, Δt)
@@ -744,7 +742,7 @@ function update_boundary!(
     Δd = boundary.u * Δt
     boundary.val += Δd
     translate!(boundary.coords, Δd, zero(FT))
-    translate_poly(boundary.poly, Δd, zero(FT))
+    _translate_poly(FT, boundary.poly, Δd, zero(FT))
 end
 
 """
@@ -1085,7 +1083,7 @@ function ghosts_on_bounds!(
         end
         push!(floes, deepcopy_floe(get_floe(floes, elem_idx)))
         for i in (nfloes + 1):(nfloes + nghosts)
-            translate_floe!(get_floe(floes, i), trans_vec...)
+            _translate_floe!(FT, get_floe(floes, i), trans_vec...)
         end
     end
     return
@@ -1132,11 +1130,11 @@ function find_ghosts!(
     new_nfloes = length(floes)
     if new_nfloes > nfloes
         if floes.centroid[elem_idx][1] < wbound.val
-            translate_floe!(get_floe(floes, elem_idx), Lx, zero(FT))
-            translate_floe!(get_floe(floes, new_nfloes), -Lx, zero(FT))
+            _translate_floe!(FT, get_floe(floes, elem_idx), Lx, zero(FT))
+            _translate_floe!(FT, get_floe(floes, new_nfloes), -Lx, zero(FT))
         elseif ebound.val < floes.centroid[elem_idx][1]
-            translate_floe!(get_floe(floes, elem_idx), -Lx, zero(FT))
-            translate_floe!(get_floe(floes, new_nfloes), Lx, zero(FT))
+            _translate_floe!(FT, get_floe(floes, elem_idx), -Lx, zero(FT))
+            _translate_floe!(FT, get_floe(floes, new_nfloes), Lx, zero(FT))
         end
     end
     return
@@ -1183,11 +1181,11 @@ function find_ghosts!(
     new_nfloes = length(floes)
     if new_nfloes > nfloes
         if floes.centroid[elem_idx][2] < sbound.val
-            translate_floe!(get_floe(floes, elem_idx), zero(FT), Ly)
-            translate_floe!(get_floe(floes, new_nfloes), zero(FT), -Ly)
+            _translate_floe!(FT, get_floe(floes, elem_idx), zero(FT), Ly)
+            _translate_floe!(FT, get_floe(floes, new_nfloes), zero(FT), -Ly)
         elseif nbound.val < floes.centroid[elem_idx][2]
-            translate_floe!(get_floe(floes, elem_idx), zero(FT), -Ly)
-            translate_floe!(get_floe(floes, new_nfloes), zero(FT), Ly)
+            _translate_floe!(FT, get_floe(floes, elem_idx), zero(FT), -Ly)
+            _translate_floe!(FT, get_floe(floes, new_nfloes), zero(FT), Ly)
         end
     end
     return

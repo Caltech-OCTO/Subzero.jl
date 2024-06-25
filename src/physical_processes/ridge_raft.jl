@@ -121,7 +121,7 @@ function remove_floe_overlap!(
                 (Δx > Δy ? Δy/Δx : Δx/Δy) > floe_settings.min_aspect_ratio
             )
                 floe_num += 1
-                new_poly = translate_poly(region, parent_Δx, parent_Δy)::Polys{FT}
+                new_poly = _translate_poly(FT, region, parent_Δx, parent_Δy)::Polys{FT}
                 rmholes!(new_poly)  # remove holes in floe
                 new_vol = region_area * floes.height[shrink_idx]
                 transfer_vol -= new_vol
@@ -150,7 +150,7 @@ function remove_floe_overlap!(
                                 rng,
                             )
                             # shift ghost floe
-                            translate_floe!(get_floe(floes, gidx), g_Δx, g_Δy)
+                            _translate_floe!(FT, get_floe(floes, gidx), g_Δx, g_Δy)
                         end
                     else
                         # if floe breaks, mark floe and ghosts as broken
