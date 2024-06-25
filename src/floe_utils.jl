@@ -40,7 +40,7 @@ Input:
 Output:
     <PolyVec> representing the floe's coordinates xy plane
 """
-find_poly_coords(poly::Polys) = GI.coordinates(poly)
+find_poly_coords(poly) = GI.coordinates(poly)
 
 """
     intersect_polys(p1, p2)
@@ -52,11 +52,45 @@ Inputs:
 Output:
     Vector of Polygons
 """
-intersect_polys(p1, p2; kwargs...) = GO.intersection(p1, p2; target = GI.PolygonTrait(), fix_multipoly = nothing)
-diff_polys(p1, p2; kwargs...) = GO.difference(p1, p2; target = GI.PolygonTrait(), fix_multipoly = nothing) 
-union_polys(p1, p2; kwargs...) = GO.union(p1, p2; target = GI.PolygonTrait(), fix_multipoly = nothing)
-
+intersect_polys(p1, p2, ::Type{FT} = Float64; kwargs...) where FT = GO.intersection(p1, p2, FT; target = GI.PolygonTrait(), fix_multipoly = nothing)
+diff_polys(p1, p2, ::Type{FT} = Float64; kwargs...) where FT = GO.difference(p1, p2, FT; target = GI.PolygonTrait(), fix_multipoly = nothing) 
+union_polys(p1, p2, ::Type{FT} = Float64; kwargs...) where FT = GO.union(p1, p2, FT; target = GI.PolygonTrait(), fix_multipoly = nothing)
 simplify_poly(p, tol) = GO.simplify(p; tol = tol)
+
+function _translate_poly(::Type{FT}, p, Δx, Δy) where FT
+    t = CoordinateTransformations.Translation(Δx, Δy)
+    # TODO: can remove the tuples call after GO SVPoint PR
+    return GO.tuples(GO.transform(t, p), FT)
+end
+
+function _translate_floe!(::Type{FT}, floe, Δx, Δy) where FT
+    translate!(floe.coords, Δx, Δy)
+    floe.centroid[1] += Δx
+    floe.centroid[2] += Δy
+    floe.poly = _translate_poly(FT, floe.poly, Δx, Δy)
+    return
+end
+
+function _move_poly(::Type{FT}, poly, Δx, Δy, Δα, cx = zero(FT), cy = zero(FT)) where FT
+    rot = CoordinateTransformations.LinearMap(Rotations.Angle2d(Δα))
+    cent_rot = CoordinateTransformations.recenter(rot, (cx, cy))
+    trans = CoordinateTransformations.Translation(Δx, Δy)
+    # TODO: can remove the tuples call after GO SVPoint PR
+    return GO.tuples(GO.transform(trans ∘ cent_rot, poly), FT)
+end
+
+function _move_floe!(::Type{FT}, floe, Δx, Δy, Δα) where FT
+    cx, cy = floe.centroid
+    # Move coordinates and centroid
+    translate!(floe.coords, -cx, -cy)
+    rotate_radians!(floe.coords, Δα)
+    floe.centroid[1] += Δx
+    floe.centroid[2] += Δy
+    translate!(floe.coords, cx + Δx, cy + Δy)
+    # Move Polygon
+    floe.poly = _move_poly(FT, floe.poly, Δx, Δy, Δα, cx, cy)
+    return 
+end
 
 make_polygon(coords::PolyVec) = GI.Polygon(GO.tuples(coords))
 make_polygon(tuple_coords) = GI.Polygon(tuple_coords)
@@ -64,6 +98,14 @@ make_polygon(ring::GI.LinearRing) = GI.Polygon([ring])
 make_multipolygon(coords::Vector{<:PolyVec}) = GI.MultiPolygon(GO.tuples(coords))
 make_multipolygon(tuple_coords) = GI.MultiPolygon(tuple_coords)
 make_multipolygon(polys::Vector{<:GI.Polygon}) = GI.MultiPolygon(polys)
+
+get_floe(floes::StructArray, i::Int) = LazyRow(floes, i)
+
+function _make_bounding_box_polygon(::Type{FT}, xmin, xmax, ymin, ymax) where FT
+    points = ((xmin, ymin),  (xmin, ymax), (xmax, ymax), (xmax, ymin), (xmin, ymin))
+    ring = GI.LinearRing(SA.SVector{5, Tuple{FT, FT}}(points))
+    return  GI.Polygon(SA.SVector(ring))
+end
 
 """
     deepcopy_floe(floe::LazyRow{Floe{FT}})
@@ -76,9 +118,11 @@ Outputs:
     they share values, but not referance.
 """
 function deepcopy_floe(floe::LazyRow{Floe{FT}}) where {FT}
+    poly = GO.tuples(floe.poly, FT)
     f = Floe{FT}(
+        poly = poly,
         centroid = copy(floe.centroid),
-        coords = translate(floe.coords, 0, 0),
+        coords = find_poly_coords(poly),
         height = floe.height,
         area = floe.area,
         mass = floe.mass,
@@ -181,18 +225,6 @@ function rotate_radians!(coords::PolyVec, α)
 end
 
 """
-    rotate_degrees!(coords::PolyVec, α)
-
-Rotate a polygon's coordinates by α degrees around the origin.
-Inputs:
-    coords <PolyVec{AbstractFloat}> polygon coordinates
-    α       <Real> degrees to rotate the coordinates
-Outputs:
-    Updates coordinates in place
-"""
-rotate_degrees!(coords::PolyVec, α) = rotate_radians!(coords, α * π/180)
-
-"""
     hashole(coords::PolyVec{FT})
 
 Determine if polygon coordinates have one or more holes
@@ -218,18 +250,6 @@ function hashole(poly::Polys)
     return GI.nhole(poly) > 0
 end 
 
-"""
-    rmholes(coords::PolyVec{FT})
-
-Remove polygon coordinates's holes if they exist
-Inputs:
-    coords <PolyVec{Float}> polygon coordinates
-Outputs:
-    <PolyVec{Float}> polygonc coordinates after removing holes
-"""
-function rmholes(coords::PolyVec{FT}) where {FT<:AbstractFloat}
-    return [coords[1]]
-end
 
 function rmholes!(coords::PolyVec{FT}) where {FT<:AbstractFloat}
     if length(coords) > 1
@@ -237,20 +257,9 @@ function rmholes!(coords::PolyVec{FT}) where {FT<:AbstractFloat}
     end
 end
 
-"""
-    rmholes(poly::Polys)
-
-Remove polygon's holes if they exist
-Inputs:
-    poly <Polygon> polygon
-Outputs:
-    <Polygon> polygon without any holes
-"""
-function rmholes(poly::Polys)
-    if hashole(poly)
-        return make_polygon(GI.getexterior(poly))
-    end
-    return poly
+function rmholes!(poly::Polys)
+    deleteat!(poly.geom, 2:GI.nring(poly))
+    return
 end
 
 #=
@@ -293,7 +302,7 @@ function _calc_moment_inertia(
 end
 
 # Find the length of the maximum radius of a given polygon
-function _calc_max_radius(::Type{T}, poly, cent) where T
+function calc_max_radius(poly, cent, ::Type{T}) where T
     max_rad_sqrd = zero(T)
     Δx, Δy = GO._tuple_point(cent, T)
     for pt in GI.getpoint(GI.getexterior(poly))
@@ -308,109 +317,13 @@ function _calc_max_radius(::Type{T}, poly, cent) where T
 end
 
 """
-    orient_coords(coords)
-
-Take given coordinates and make it so that the first point has the smallest
-x-coordiante and so that the coordinates are ordered in a clockwise sequence.
-Duplicates vertices will be removed and the coordiantes will be closed (first
-and last point are the same).
-
-Input:
-    coords  <RingVec> vector of points [x, y]
-Output:
-    coords  <RingVec> oriented clockwise with smallest x-coordinate first
-"""
-function orient_coords(coords::RingVec)
-    # extreem_idx is point with smallest x-value - if tie, choose lowest y-value
-    extreem_idx = 1
-    for i in eachindex(coords)
-        ipoint = coords[i]
-        epoint = coords[extreem_idx]
-        if ipoint[1] < epoint[1]
-            extreem_idx = i
-        elseif ipoint[1] == epoint[1] && ipoint[2] < epoint[2]
-            extreem_idx = i
-        end
-    end
-    # extreem point must be first point in list
-    new_coords = similar(coords)
-    circshift!(new_coords, coords, -extreem_idx + 1)
-    valid_ringvec!(new_coords)
-
-    # if coords are counterclockwise, switch to clockwise
-    orient_matrix = hcat(
-        ones(3),
-        vcat(new_coords[1]', new_coords[2]', new_coords[end-1]') # extreem/adjacent points
-    )
-    if det(orient_matrix) > 0
-        reverse!(new_coords)
-    end
-    return new_coords
-end
-
-"""
-    intersect_lines(l1, l2)
-
-Finds the intersection points of two curves l1 and l2. The curves l1, l2 can be
-either closed or open. In this version, l1 and l2 must be distinct. If no
-intersections are found, the returned P is empty.
-Inputs:
-    l1 <PolyVec{Float}> line/polygon coordinates
-    l2 <PolyVec{Float}> line/polygon coordinates
-Outputs:
-    <Set{Tuple{Float, Float}}> Set of points that are at the intersection of the
-        two line segments.
-"""
-function intersect_lines(l1::PolyVec{FT}, l2) where {FT}
-    points = Vector{Tuple{FT, FT}}()
-    for i in 1:(length(l1[1]) - 1)
-         # First line represented as a1x + b1y = c1
-         x11 = l1[1][i][1]
-         x12 = l1[1][i+1][1]
-         y11 = l1[1][i][2]
-         y12 = l1[1][i+1][2]
-         a1 = y12 - y11
-         b1 = x11 - x12
-         c1 = a1 * x11 + b1 * y11
-        for j in 1:(length(l2[1]) - 1)
-            # Second line represented as a2x + b2y = c2
-            x21 = l2[1][j][1]
-            x22 = l2[1][j+1][1]
-            y21 = l2[1][j][2]
-            y22 = l2[1][j+1][2]
-            a2 = y22 - y21
-            b2 = x21 - x22
-            c2 = a2 * x21 + b2 * y21
-
-            determinant = a1 * b2 - a2 * b1
-            # Find place there two lines cross
-            # Note that lines extend beyond given line segments
-            if determinant != 0
-                x = (b2*c1 - b1*c2)/determinant
-                y = (a1*c2 - a2*c1)/determinant
-                p = (x, y)
-                # Make sure intersection is on given line segments
-                if min(x11, x12) <= x <= max(x11, x12) &&
-                    min(x21, x22) <= x <= max(x21, x22) &&
-                    min(y11, y12) <= y <= max(y11, y12) &&
-                    min(y21, y22) <= y <= max(y21, y22) &&
-                    !(p in points)
-                    push!(points, p)
-                end
-            end
-        end
-    end
-    return points
-end
-
-"""
     which_vertices_match_points(ipoints, coords, atol)
 
 Find which vertices in coords match given points
 Inputs:
     points <Vector{Tuple{Float, Float} or Vector{Vector{Float}}}> points to
                 match to vertices within polygon
-    coords  <PolVec> polygon coordinates
+    region  <Polygon> polygon 
     atol    <Float> distance vertex can be away from target point before being
                 classified as different points
 Output:
@@ -419,24 +332,17 @@ Note:
     If last coordinate is a repeat of first coordinate, last coordinate index is
     NOT recorded.
 """
-function which_vertices_match_points(
-    points,
-    coords::PolyVec{FT},
-    atol = 1,
-) where {FT}
+function which_vertices_match_points(points, region::Polys{FT}, atol = 1) where FT
     idxs = Vector{Int}()
     npoints = length(points)
     if points[1] == points[end]
         npoints -= 1
     end
-    @views for i in 1:npoints  # find which vertex matches point
+    for i in 1:npoints  # find which vertex matches point
         min_dist = FT(Inf)
         min_vert = 1
-        for j in eachindex(coords[1])
-            dist = sqrt(
-                (coords[1][j][1] - points[i][1])^2 +
-                (coords[1][j][2] - points[i][2])^2,
-            )
+        for (j, pt) in enumerate(GI.getpoint(GI.getexterior(region)))
+            dist = sqrt(GO.distance(pt, points[i], FT))
             if dist < min_dist
                 min_dist = dist
                 min_vert = j

@@ -181,6 +181,7 @@ A sub-type of AbstractBoundary that allows a floe to pass out of the domain edge
 without any effects on the floe.
 """
 struct OpenBoundary{D, FT}<:AbstractBoundary{D, FT}
+    poly::Polys{FT}
     coords::PolyVec{FT}
     val::FT
 end
@@ -222,6 +223,7 @@ function OpenBoundary{D, FT}(
 ) where {D <: AbstractDirection, FT <: AbstractFloat}
     val, coords = boundary_coords(grid, D)
     OpenBoundary{D, FT}(
+        make_polygon(convert(PolyVec{FT}, coords)),
         coords,
         val,
     )
@@ -235,6 +237,7 @@ the opposite side of the domain when it crosses the boundary, bringing the floe
 back into the domain.
 """
 struct PeriodicBoundary{D, FT}<:AbstractBoundary{D, FT}
+    poly::Polys{FT}
     coords::PolyVec{FT}
     val::FT
 end
@@ -276,6 +279,7 @@ function PeriodicBoundary{D, FT}(
 ) where {D <: AbstractDirection, FT <: AbstractFloat}
     val, coords = boundary_coords(grid, D)
     PeriodicBoundary{D, FT}(
+        make_polygon(convert(PolyVec{FT}, coords)),
         coords,
         val,
     )
@@ -289,6 +293,7 @@ having the floe collide with the boundary. The boundary acts as an immovable,
 unbreakable ice floe in the collision. 
 """
 struct CollisionBoundary{D, FT}<:AbstractBoundary{D, FT}
+    poly::Polys{FT}
     coords::PolyVec{FT}
     val::FT
 end
@@ -332,6 +337,7 @@ function CollisionBoundary{D, FT}(
 ) where {D <: AbstractDirection, FT <: AbstractFloat}
     val, coords = boundary_coords(grid, D)
     CollisionBoundary{D, FT}(
+        make_polygon(convert(PolyVec{FT}, coords)),
         coords,
         val,
     )
@@ -353,6 +359,7 @@ the the combination of u and v velocities. The same, but opposite is true for th
 and south walls.
 """
 mutable struct MovingBoundary{D, FT}<:AbstractBoundary{D, FT}
+    poly::Polys{FT}
     coords::PolyVec{FT}
     val::FT
     u::FT
@@ -402,6 +409,7 @@ function MovingBoundary{D, FT}(
 ) where {D <: AbstractDirection, FT <: AbstractFloat}
     val, coords = boundary_coords(grid, D)
     MovingBoundary{D, FT}(
+        make_polygon(convert(PolyVec{FT}, coords)),
         coords,
         val,
         u,
@@ -430,12 +438,14 @@ in that they will not move or break due to floe interactions, but they will
 affect floes.
 """
 struct TopographyElement{FT}<:AbstractDomainElement{FT}
+    poly::Polys{FT}
     coords::PolyVec{FT}
     centroid::Vector{FT}
     rmax::FT
 
     function TopographyElement{FT}(
-        coords,
+        poly,
+        coords,  # TODO: Can remove when not used anymore in other parts of the code
         centroid,
         rmax,
     ) where {FT <: AbstractFloat}
@@ -443,9 +453,8 @@ struct TopographyElement{FT}<:AbstractDomainElement{FT}
             throw(ArgumentError("Topography element maximum radius must be \
                 positive and non-zero."))
         end
-        topo_poly = make_polygon(rmholes(coords))
-        topo_poly = GO.ClosedRing()(topo_poly)
-        new{FT}(GI.coordinates(topo_poly), centroid, rmax)
+        poly = GO.ClosedRing()(poly)
+        new{FT}(poly, find_poly_coords(poly), centroid, rmax)
     end
 end
 
@@ -477,24 +486,14 @@ Output:
     Topographic element of abstract float type FT
 """
 function TopographyElement{FT}(poly::Polys) where {FT <: AbstractFloat}
-    topo = rmholes(poly)
-    cx, cy = GO.centroid(topo)
-    coords = find_poly_coords(topo)
-    # Move coordinates to be centered at origin to calculate maximum radius
-    translate!(
-        coords,
-        -cx,
-        -cy,
-    )
-    rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
-    translate!(
-        coords,
-        cx,
-        cy,
-    )
+    rmholes!(poly)
+    centroid = collect(GO.centroid(poly)) # TODO: Remove collect once type is changed
+    coords = find_poly_coords(poly)
+    rmax = calc_max_radius(poly, centroid, FT)
     return TopographyElement{FT}(
+        poly,
         coords,
-        [cx, cy],
+        centroid,
         rmax,
     )
 end
@@ -508,11 +507,8 @@ Inputs:
 Output:
     Topographic element of abstract float type FT
 """
-function TopographyElement{FT}(
-    coords::PolyVec,
-) where {FT <: AbstractFloat} 
-    return TopographyElement{FT}(make_polygon(convert(PolyVec{Float64}, coords)))
-end
+TopographyElement{FT}(coords::PolyVec) where {FT <: AbstractFloat} =
+    TopographyElement{FT}(make_polygon(convert(PolyVec{FT}, coords)))
 
 """
     initialize_topography_field(args...)
@@ -657,7 +653,7 @@ function get_domain_element(domain, idx)
         return domain.west
     else
         topo_idx = -(idx + 4)
-        return LazyRow(domain.topography, topo_idx)
+        return get_floe(domain.topography, topo_idx)
     end
 end
 

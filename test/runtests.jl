@@ -1,4 +1,4 @@
-using DataStructures, GeometryBasics, JLD2, Logging, NCDatasets, Random, SplitApplyCombine,
+using DataStructures, JLD2, Logging, NCDatasets, Random, SplitApplyCombine,
     Statistics, StructArrays, Subzero, VoronoiCells
 import GeometryOps as GO
 import GeometryOps.GeoInterface as GI

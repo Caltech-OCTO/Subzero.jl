@@ -230,6 +230,7 @@
         @test topo2.rmax == sqrt(0.5)
         # Basic constructor
         topo3 = TopographyElement(
+            Subzero.make_polygon(coords),
             coords,
             [0.5, 0.5],
             sqrt(0.5),
@@ -237,6 +238,7 @@
         @test topo3.coords == coords
         # check when radius is less than  or equal to 0
         @test_throws ArgumentError TopographyElement(
+            Subzero.make_polygon(coords),
             coords,
             [0.5, 0.5],
             -sqrt(0.5),
@@ -306,11 +308,13 @@
             Subzero.PeriodicBoundary(West, g),
         )
         # domain with north < south
+        p_placeholder = GI.Polygon([[(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (0.0, 0.0)]])
         @test_throws ArgumentError Subzero.Domain(
             b1,
             Subzero.OpenBoundary(
                 South,
-                Subzero.PolyVec{Float64}(undef, 0),
+                p_placeholder,
+                GI.coordinates(p_placeholder),
                 6e5,
             ),
             b2,
@@ -323,7 +327,8 @@
             b2,
             Subzero.OpenBoundary(
                 West,
-                Subzero.PolyVec{Float64}(undef, 0),
+                p_placeholder,
+                GI.coordinates(p_placeholder),
                 6e5,
             ),
         )

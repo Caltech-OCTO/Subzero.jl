@@ -40,15 +40,13 @@
     @test Subzero.hashole(poly_hole1)
     @test Subzero.hashole(poly_hole2)
 
-    # Test removing holes from polygons and multipolygons
-    @test [ext] == Subzero.rmholes([ext])
-    @test [ext] == Subzero.rmholes([ext, hole1])
+    # Test removing holes from polygons
     copy_holes = [ext, hole1]
+    poly_copy_holes = Subzero.make_polygon(copy_holes)
     Subzero.rmholes!(copy_holes)
     @test copy_holes == [ext]
-    @test GO.equals(Subzero.rmholes(poly_nohole), poly_nohole)
-    @test GO.equals(Subzero.rmholes(poly_hole1), poly_nohole)
-    @test GO.equals(Subzero.rmholes(poly_hole2), poly_nohole)
+    Subzero.rmholes!(poly_copy_holes)
+    @test GI.nhole(poly_copy_holes) == 0
 
     # Test translating coordinates and polygons
     @test Subzero.translate([ext], 0.0, 0.0) == [ext]
@@ -72,57 +70,6 @@
     tri_moment = Subzero._calc_moment_inertia(Float64, tri_poly, GO.centroid(tri_poly), 0.5)
     @test isapprox(tri_moment, 50581.145, atol = 0.001)
 
-    # Test orient_coords
-    c1 = [
-        [9.75e4, 7e4],
-        [9.75e4, 5e4],
-        [9.75e4, 5e4],
-        [10.05e4, 5e4],
-        [10.05e4, 7e4],
-    ]
-    c1_new = Subzero.orient_coords(c1)
-    @test c1_new == [
-        [97500.0, 50000.0],
-        [97500.0, 70000.0],
-        [100500.0, 70000.0],
-        [100500.0, 50000.0],
-        [97500.0, 50000.0],
-    ]
-    c2 = [
-        [6.5e4, 6.5e4],
-        [8.5e4, 6.5e4],
-        [8.5e4, 4.5e4],
-        [8.5e4, 4.5e4],
-        [6.5e4, 4.5e4],
-    ]
-    c2_new = Subzero.orient_coords(c2)
-    @test c2_new == [
-        [6.5e4, 4.5e4],
-        [6.5e4, 6.5e4],
-        [8.5e4, 6.5e4],
-        [8.5e4, 4.5e4],
-        [6.5e4, 4.5e4],
-    ]
-
-    # ------------------------- Test intersection of lines ---------------------
-    l1 = [[[0.0, 0.0], [2.5, 0.0], [5.0, 0.0]]]
-    l2 = [[[2.0, -3.0], [3.0, 0.0], [4.0, 3.0]]]
-    @test issetequal(
-        Subzero.intersect_lines(l1, l2),
-        Set([(3.0, 0.0)]),
-    )
-    l1 = [[[0., -1], [1, 1], [2, -1], [3, 1]]]
-    l2 = [[[0., 0], [1, 0], [3, 0]]]
-    @test issetequal(
-        Subzero.intersect_lines(l1, l2),
-        Set([(0.5, -0.0), (1.5, 0), (2.5, -0.0)]),
-    )
-    l2 = [[[10., 10]]]
-    @test issetequal(
-        Subzero.intersect_lines(l1, l2),
-        Set{Tuple{Float64, Float64}}(),
-    )
-
     # ------------------------- Test finding shared points ---------------------
     two_shared_v = [
         [[[0.0, 0.0], [0.0, 20.0], [20.0, 20.0], [20.0, 0.0], [0.0, 0.0]]],
@@ -130,7 +77,7 @@
     ]
     @test Subzero.which_vertices_match_points(
         two_shared_v[1][1],
-        two_shared_v[2],
+        Subzero.make_polygon(two_shared_v[2]),
     ) == [1, 2]
 
     @test Subzero.which_points_on_edges(
@@ -144,7 +91,7 @@
     ]
     @test Subzero.which_vertices_match_points(
         three_shared_v[1][1],
-        three_shared_v[2],
+        Subzero.make_polygon(three_shared_v[2]),
     ) == [3, 4, 5]
 
     @test Subzero.which_points_on_edges(
@@ -164,7 +111,7 @@
     ]
     @test Subzero.which_vertices_match_points(
         four_shared_v[1][1],
-        four_shared_v[2],
+        Subzero.make_polygon(four_shared_v[2]),
     ) == [1, 2, 5, 6]
 
     offset_shared_v = [
@@ -186,7 +133,7 @@
     ]
     @test Subzero.which_vertices_match_points(
         triange_shared_v[1][1],
-        triange_shared_v[2],
+        Subzero.make_polygon(triange_shared_v[2]),
     ) == [1, 2, 3]
 
     @test Subzero.which_points_on_edges(

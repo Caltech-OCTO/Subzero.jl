@@ -31,9 +31,10 @@ function replace_floe!(
     rng,
 ) where {FT}
     # Floe shape
+    floe.poly = new_poly
     floe.centroid = collect(GO.centroid(new_poly))
+    # TODO: can't replace until we remove coords from floe entirely
     floe.coords = find_poly_coords(new_poly)::PolyVec{FT}
-    floe.coords = [orient_coords(floe.coords[1])]
     if floe.coords[1][1] != floe.coords[1][end]
         push!(floe.coords, floe.coords[1][1])
     end
@@ -47,20 +48,18 @@ function replace_floe!(
         floe.height;
         ρi = floe_settings.ρi,
     )
-    floe.angles = GO.angles(make_polygon(floe.coords))
+    floe.angles = GO.angles(floe.poly, FT)
     floe.α = FT(0)
-    translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
-    floe.rmax = sqrt(maximum([sum(c.^2) for c in floe.coords[1]]))
+    floe.rmax = calc_max_radius(floe.poly, floe.centroid, FT)
     # Floe monte carlo points
     x_subfloe_points, y_subfloe_points, status = generate_subfloe_points(
         floe_settings.subfloe_point_generator,
-        floe.coords,
-        floe.rmax,
+        floe.poly,
+        floe.centroid,
         floe.area,
         floe.status,
         rng,
     )
-    translate!(floe.coords, floe.centroid[1], floe.centroid[2])
     floe.x_subfloe_points = x_subfloe_points
     floe.y_subfloe_points = y_subfloe_points
     # Floe status / identification
@@ -211,7 +210,6 @@ function update_new_rotation_conserve!(
     Δt,
 )
     # Find radius of each polygon to shared midpoint
-    #x, y = find_shared_edges_midpoint(floe1.coords, floe2.coords)
     rad1 = sqrt(
         (floe1.centroid[1] - x)^2 +
         (floe1.centroid[2] - y)^2
@@ -392,7 +390,7 @@ Inputs:
 Outputs:
     Caculates stress on floe at current timestep from interactions
 """
-function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}) where {FT}
+function calc_stress!(floe::FloeType{FT}) where {FT}
     # Stress calcultions
     xi, yi = floe.centroid
     inters = floe.interactions
@@ -423,31 +421,33 @@ Inputs:
 Outputs:
     strain      <Matrix{AbstractFloat}> 2x2 matrix for floe strain 
 """
-function calc_strain!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}) where {FT}
+function calc_strain!(floe::FloeType{FT}) where {FT}
+    fill!(floe.strain, zero(FT))
     # coordinates of floe centered at centroid
-    translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
-    fill!(floe.strain, FT(0))
-    for i in 1:(length(floe.coords[1]) - 1)
-        xdiff = floe.coords[1][i + 1][1] - floe.coords[1][i][1]
-        ydiff = floe.coords[1][i + 1][2] - floe.coords[1][i][2]
-        rad1 = sqrt(floe.coords[1][i][1]^2 + floe.coords[1][i][2]^2)
-        θ1 = atan(floe.coords[1][i][2], floe.coords[1][i][1])
-        rad2 = sqrt(floe.coords[1][i + 1][1]^2 + floe.coords[1][i + 1][2]^2)
-        θ2 = atan(floe.coords[1][i + 1][2], floe.coords[1][i + 1][1])
+    trans_poly = _translate_poly(FT, floe.poly, -floe.centroid[1], -floe.centroid[2])::Polys{FT}
+    local x1, y1
+    for (i, p2) in enumerate(GI.getpoint(GI.getexterior(trans_poly)))
+        x2, y2 = GO._tuple_point(p2, FT)
+        if i == 1
+            x1, y1 = x2, y2
+            continue
+        end
+        xdiff, ydiff = x2 - x1, y2 - y1
+        rad1, rad2 = sqrt(x1^2 + y1^2), sqrt(x2^2 + y2^2)
+        θ1, θ2 = atan(y1, x1), atan(y2, x2)
         u1 = floe.u - floe.ξ * rad1 * sin(θ1)
         u2 = floe.u - floe.ξ * rad2 * sin(θ2)
         v1 = floe.u + floe.ξ * rad1 * cos(θ1)
         v2 = floe.u + floe.ξ * rad2 * cos(θ2)
-        udiff = u2 - u1
-        vdiff = v2 - v1
+        udiff, vdiff = u2 - u1, v2 - v1
         floe.strain[1, 1] += udiff * ydiff
         floe.strain[1, 2] += udiff * xdiff + vdiff * ydiff
         floe.strain[2, 2] += vdiff * xdiff
+        x1, y1 = x2, y2
     end
     floe.strain[1, 2] *= FT(0.5)
     floe.strain[2, 1] = floe.strain[1, 2]
     floe.strain ./= 2floe.area
-    translate!(floe.coords, floe.centroid[1], floe.centroid[2])
     return
 end
 
@@ -466,17 +466,17 @@ Output:
         None. Floe's fields are updated with values.
 """
 function timestep_floe_properties!(
-    floes,
+    floes::StructArray{<:Floe{FT}},
     tstep,
     Δt,
     floe_settings,
-)
+) where FT
     Threads.@threads for i in eachindex(floes)
         cforce = floes.collision_force[i]
         ctrq = floes.collision_trq[i]
         # Update stress
         if floes.num_inters[i] > 0
-            calc_stress!(LazyRow(floes, i))
+            calc_stress!(get_floe(floes, i))
         end
         # Ensure no extreem values due to model instability
         if floes.height[i] > floe_settings.max_floe_height
@@ -505,18 +505,7 @@ function timestep_floe_properties!(
         Δα = 1.5Δt*floes.ξ[i] - 0.5Δt*floes.p_dαdt[i]
         floes.α[i] += Δα
 
-        translate!(
-            floes.coords[i],
-            -floes.centroid[i][1],
-            -floes.centroid[i][2],
-        )
-        rotate_radians!(floes.coords[i], Δα)
-        floes.centroid[i] .+= [Δx, Δy]
-        translate!(
-            floes.coords[i],
-            floes.centroid[i][1],
-            floes.centroid[i][2],
-        )
+        _move_floe!(FT, get_floe(floes, i), Δx, Δy, Δα)
         floes.p_dxdt[i] = floes.u[i]
         floes.p_dydt[i] = floes.v[i]
         floes.p_dαdt[i] = floes.ξ[i]
@@ -556,7 +545,7 @@ function timestep_floe_properties!(
         floes.p_dξdt[i] = dξdt
 
         # Update strain
-        calc_strain!(LazyRow(floes, i))
+        calc_strain!(get_floe(floes, i))
     end
     return
 end

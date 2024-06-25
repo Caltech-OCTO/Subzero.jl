@@ -71,9 +71,11 @@ export
 import Base.@kwdef # this is being exported as of version 1.9
 import GeometryOps as GO
 import GeometryOps.GeoInterface as GI
-using CairoMakie, DataStructures, Dates, Extents, GeometryBasics, Interpolations, JLD2,
-    LinearAlgebra, Logging, Makie, Measures, NCDatasets, NetCDF, Printf, Random,
-    SplitApplyCombine, StaticArrays, Statistics, StructArrays, VoronoiCells
+import StaticArrays as SA
+using CairoMakie, CoordinateTransformations, DataStructures, Dates, Extents,
+    Interpolations, JLD2, LinearAlgebra, Logging, Makie, Measures, NCDatasets, NetCDF,
+    Printf, Random, Rotations, SplitApplyCombine, Statistics, StructArrays,
+    VoronoiCells
 
 """
 Coordinates are vector of vector of vector of points of the form:
@@ -98,6 +100,9 @@ const RingVec{T} = R where {
 }
 
 const Polys{T} = GI.Polygon{false, false, Vector{GI.LinearRing{false, false, Vector{Tuple{T, T}}, Nothing, Nothing}}, Nothing, Nothing} where T <: AbstractFloat
+
+Base.convert(::Type{Polys{Float32}}, p::Polys{Float64}) = GO.tuples(p, Float32)
+Base.convert(::Type{Polys{Float64}}, p::Polys{Float32}) = GO.tuples(p, Float64)
 
 # Model
 include("simulation_components/floe.jl")

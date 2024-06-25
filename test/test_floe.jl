@@ -1,12 +1,22 @@
 @testset "Floe" begin
+    # Test Setup
     FT = Float64
-    # test generating monte carlo points
+    Lx = 8e4
+    Ly = Lx
+    Δgrid = 1e4
+    hmean = 0.5
+    Δh = 0.01
+    rng = Xoshiro(1)
+    fs_small_min_area = FloeSettings(min_floe_area = 55)
+
+    # Test generating monte carlo points
     file = jldopen("inputs/floe_shapes.jld2", "r")
     floe_coords = file["floe_vertices"][1:end]
     close(file)
+
     poly1 = Subzero.make_polygon(Subzero.valid_polyvec!(floe_coords[1]))
     centroid1 = GO.centroid(poly1)
-    area = GO.area(poly1)
+    area1 = GO.area(poly1)
 
     # Test InteractionFields enum
     interactions = range(1, 7)'
@@ -15,87 +25,51 @@
     @test interactions[overlap] == 7
 
     # Test with coords inputs
-    floe_from_coords = Floe(
-        floe_coords[1],
-        0.5,
-        0.01,
-        u = 0.2,
-        rng = Xoshiro(1),
-    )
+    floe_from_coords = Floe(floe_coords[1], hmean, Δh; u = 0.2, rng = rng)
     @test typeof(floe_from_coords) <: Floe
     @test floe_from_coords.u == 0.2
     @test 0.49 <= floe_from_coords.height <= 0.51
     @test floe_from_coords.centroid == collect(centroid1)
-    @test floe_from_coords.area == area
+    @test floe_from_coords.area == area1
     @test floe_from_coords.status.tag == Subzero.active
     
     # Test with polygon input
-    floe_from_poly = Floe(
-        poly1,
-        0.5,
-        0.01,
-        v = -0.2,
-        rng = Xoshiro(1),
-    )
+    floe_from_poly = Floe(poly1, hmean, Δh; v = -0.2, rng = Xoshiro(1))
     @test typeof(floe_from_poly) <: Floe
     @test floe_from_poly.u == 0.0
     @test floe_from_poly.v == -0.2
     @test 0.49 <= floe_from_poly.height <= 0.51
     @test floe_from_poly.centroid == collect(centroid1)
-    @test floe_from_poly.area == area
+    @test floe_from_poly.area == area1
     @test floe_from_poly.status.tag == Subzero.active
 
     # Test poly_to_floes
-    rect_poly = [[[0.0, 0.0], [0.0, 5.0], [10.0, 5.0], [10.0, 0.0], [0.0, 0.0]]]
+    rect_coords = [[[0.0, 0.0], [0.0, 5.0], [10.0, 5.0], [10.0, 0.0], [0.0, 0.0]]]
+    rect_poly = Subzero.make_polygon(rect_coords)
     rmax_rect = 2sqrt(5^2 + 2.5^2)
-    c_poly_hole = [[[0.0, 0.0], [0.0, 10.0], [10.0, 10.0], [10.0, 0.0],
-        [4.0, 0.0], [4.0, 6.0], [2.0, 6.0], [2.0, 0.0], [0.0, 0.0]],
-        [[6.0, 4.0], [6.0, 6.0], [7.0, 6.0], [7.0, 4.0], [6.0, 4.0]]]
+    c_hole_coords = [
+        [[0.0, 0.0], [0.0, 10.0], [10.0, 10.0], [10.0, 0.0],[4.0, 0.0], [4.0, 6.0], [2.0, 6.0], [2.0, 0.0], [0.0, 0.0]],
+        [[6.0, 4.0], [6.0, 6.0], [7.0, 6.0], [7.0, 4.0], [6.0, 4.0]],
+    ]
+    c_hole_poly = Subzero.make_polygon(c_hole_coords)
     rmax_cpoly = 2sqrt(5^2 + 5^2)
     # Test polygon with no holes
     floe_arr = StructArray{Floe{FT}}(undef, 0)
-    n_new = Subzero.poly_to_floes!(
-        FT,
-        floe_arr,
-        Subzero.make_polygon(rect_poly),
-        0.25,
-        0.01,
-        rmax_rect;
-    )
+    n_new = Subzero.poly_to_floes!(FT, floe_arr, rect_poly, hmean, Δh, rmax_rect)
     @test n_new == 1 && length(floe_arr) == 1
     @test !Subzero.hashole(floe_arr.coords[1])
 
     # Test with polygon below minimum floe area
-    n_new = Subzero.poly_to_floes!(
-        FT,
-        floe_arr,
-        Subzero.make_polygon(rect_poly),
-        0.25,
-        0.01,
-        rmax_rect;
-        floe_settings = FloeSettings(min_floe_area = 55),
-    )
+    n_new = Subzero.poly_to_floes!(FT, floe_arr, rect_poly, hmean, Δh, rmax_rect; floe_settings = fs_small_min_area)
     @test n_new == 0 && length(floe_arr) == 1
 
     # Test with polygon with a hole that is split into 3 polyons
-    n_new = Subzero.poly_to_floes!(
-        FT,
-        floe_arr,
-        Subzero.make_polygon(c_poly_hole),
-        0.25,
-        0.01,
-        rmax_cpoly,
-    )
+    n_new = Subzero.poly_to_floes!(FT, floe_arr, c_hole_poly, hmean, Δh, rmax_cpoly)
     @test n_new == 3 && length(floe_arr) == 4
     @test !any(Subzero.hashole.(floe_arr.coords))
 
     # Test initialize_floe_field from coord list
-    grid = RegRectilinearGrid(
-        (-8e4, 8e4),
-        (-8e4, 8e4),
-        1e4,
-        1e4,
-    )
+    grid = RegRectilinearGrid((-Lx, Lx), (-Ly, Ly), Δgrid, Δgrid)
     nbound = CollisionBoundary(North, grid)
     sbound = CollisionBoundary(South, grid)
     ebound = CollisionBoundary(East, grid)
@@ -126,12 +100,7 @@
     @test all(floe_arr.id .== range(1, nfloes))
 
     # From file with small domain -> floes outside of domain
-    small_grid = RegRectilinearGrid(
-        (-5e4, 5e4),
-        (-5e4, 5e4),
-        1e4,
-        1e4,
-    )
+    small_grid = RegRectilinearGrid((-Lx/2, Lx/2), (-Ly/2, Ly), Δgrid, Δgrid)
     small_domain_no_topo = Domain(
         CollisionBoundary(North, small_grid),
         CollisionBoundary(South, small_grid),
@@ -142,8 +111,8 @@
         FT,
         floe_coords,
         small_domain_no_topo,
-        0.5,
-        0.1;
+        hmean,
+        Δh;
         floe_settings = FloeSettings(min_floe_area = 1e5),
     ))
     @test typeof(floe_arr) <: StructArray{<:Floe}
@@ -154,8 +123,8 @@
         FT,
         floe_coords,
         domain_with_topo,
-        0.5,
-        0.1;
+        hmean,
+        Δh;
         floe_settings = FloeSettings(min_floe_area = 10),
         rng = Xoshiro(0)
     )

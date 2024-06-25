@@ -12,12 +12,11 @@ Functions needed for collisions between floes, boundaries, and topography
         force_factor,
     )
 
-Calculate normal force for collision between polygons with coordinates c1 and c2
-given an overlapping region, the area of that region, their intersection points
-in the region, and a force factor. 
+Calculate normal force for collision between polygons p1 and p2 given an overlapping region,
+the area of that region, their intersection points in the region, and a force factor. 
 Inputs:
-    c1           <PolyVec{Float64}> first polygon coordinates
-    c2           <PolyVec{Float64}> second polygon coordinates
+    p1           <Polys> first polygon
+    p2           <Polys> second polygon
     region       <PolyVec{Float64}> coordiantes for one region of intersection
                     between the polygons
     area         <Float> area of region
@@ -29,36 +28,37 @@ Outputs:
         Δl <Float> mean length of distance between intersection points
 """
 function calc_normal_force(
-    c1,
-    c2,
+    p1,
+    p2,
     region,
     area,
     ipoints,
     force_factor::FT,
 ) where {FT<:AbstractFloat}
     force_dir = zeros(FT, 2)
-    coords = find_poly_coords(region)
     # Identify which region coordinates are the intersection points (ipoints)
-    p = which_vertices_match_points(ipoints, coords)
+    p = which_vertices_match_points(ipoints, region)
     m = length(p)
     # Calculate force direction
     Δl = FT(0)
     if m == 2  # Two intersection points
         idx1, idx2 = p
-        Δx = FT(coords[1][idx2][1] - coords[1][idx1][1])
-        Δy = FT(coords[1][idx2][2] - coords[1][idx1][2])
+        pt1 = GI.getpoint(GI.getexterior(region), idx1)
+        pt2 = GI.getpoint(GI.getexterior(region), idx2)
+        Δx = FT(GI.x(pt2) - GI.x(pt1))
+        Δy = FT(GI.y(pt2) - GI.y(pt1))
         Δl = sqrt(Δx^2 + Δy^2)
         if Δl > 0.1  # If overlap is large enough to consider
             force_dir .= [-Δy/Δl; Δx/Δl]
         end
     elseif m != 0  # Unusual number of intersection points
-        Δl = _many_intersect_normal_force!(FT, force_dir, region, make_polygon(c1), force_factor)
+        Δl = _many_intersect_normal_force!(FT, force_dir, region, p1, force_factor)
     end
     # Check if direction of the force desceases overlap, else negate direction
     if Δl > 0.1
-        c1new = translate(c1, force_dir[1], force_dir[2])
+        p1new = _translate_poly(FT, p1, force_dir[1], force_dir[2])::Polys{FT}
         # Floe/boudary intersection after being moved in force direction
-        new_regions_list = intersect_polys(make_polygon(c1new), make_polygon(c2))
+        new_regions_list = intersect_polys(p1new, p2, FT)
         # See if the area of overlap has increased in corresponding region
         for new_region in new_regions_list
             if GO.intersects(new_region, region) && GO.area(new_region)/area > 1
@@ -120,8 +120,8 @@ end
 
 """
     calc_elastic_forces(
-        floe1,
-        floe2,
+        p1,
+        p2,
         regions,
         region_areas,
         force_factor,
@@ -131,8 +131,8 @@ end
 Calculate normal forces, the point the force is applied, and the overlap area of
 regions created from floe collisions 
 Inputs:
-    c1              <PolyVec> first floe's coordinates in collision
-    c2              <PolyVec> second floe's coordinates in collision
+    p1              <Polygon> first floe's polygon in collision
+    p2              <Polygon> second floe's polygon in collision
     regions         <Vector{Polygon}> polygon regions of overlap during
                         collision
     region_areas    <Vector{Float}> area of each polygon in regions
@@ -147,18 +147,17 @@ Outputs:
     Δl      <Float> mean length of distance between intersection points
 """
 function calc_elastic_forces(
-    c1,
-    c2,
+    p1,
+    p2,
     regions,
     region_areas,
     force_factor::FT,
 ) where {FT<:AbstractFloat}
-    ipoints = intersect_lines(c1, c2)  # Intersection points
+    ipoints = GO.intersection_points(p1, p2)
     ncontact = 0
     if !isempty(ipoints) && length(ipoints) >= 2
         # Find overlapping regions greater than minumum area
-        n1 = length(c1[1]) - 1
-        n2 = length(c2[1]) - 1
+        n1, n2 = GI.npoint(p1) - 1, GI.npoint(p2) - 1
         min_area = min(n1, n2) * 100 / 1.75
         for i in reverse(eachindex(region_areas))
             if region_areas[i] < min_area
@@ -179,14 +178,7 @@ function calc_elastic_forces(
             cx, cy = GO.centroid(regions[k])
             fpoint[k, 1] = cx
             fpoint[k, 2] = cy
-            normal_force, Δl = calc_normal_force(
-                c1,
-                c2,
-                regions[k],
-                region_areas[k],
-                ipoints,
-                force_factor
-            )
+            normal_force, Δl = calc_normal_force(p1, p2, regions[k], region_areas[k], ipoints, force_factor)
             force[k, 1] = normal_force[1]
             force[k, 2] = normal_force[2]
             Δl_lst[k] = Δl
@@ -212,7 +204,7 @@ Outputs:
     v   <AbstractFloat> v velocity at point (x, y) assuming it is on given floe
 """
 function get_velocity(
-    floe::Union{LazyRow{Floe{FT}}, Floe{FT}},
+    floe::FloeType{FT},
     x::FT,
     y::FT,
 ) where {FT}
@@ -384,7 +376,7 @@ function floe_floe_interaction!(
     Δt,
     max_overlap::FT,
 ) where {FT<:AbstractFloat}
-    inter_regions = intersect_polys(make_polygon(ifloe.coords), make_polygon(jfloe.coords))
+    inter_regions = intersect_polys(ifloe.poly, jfloe.poly, FT)
     region_areas = Vector{FT}(undef, length(inter_regions))
     total_area = FT(0)
     for i in eachindex(inter_regions)
@@ -410,8 +402,8 @@ function floe_floe_interaction!(
             end
             # Calculate normal forces, force points, and overlap areas
             normal_forces, fpoints, overlaps, Δl = calc_elastic_forces(
-                ifloe.coords,
-                jfloe.coords,
+                ifloe.poly,
+                jfloe.poly,
                 inter_regions,
                 region_areas,
                 force_factor
@@ -456,17 +448,15 @@ Output:
     remove. Else, nothing is changed. 
 """
 function floe_domain_element_interaction!(
-    floe,
+    floe::FloeType{FT},
     boundary::OpenBoundary,
     element_idx,
     consts,
     Δt,
     max_overlap,
-)
-    floe_poly = make_polygon(floe.coords)
-    bounds_poly = make_polygon(boundary.coords)
+) where FT
     # Check if the floe and boundary actually overlap
-    inter_area = sum(GO.area, intersect_polys(floe_poly, bounds_poly); init = 0.0)
+    inter_area = sum(GO.area, intersect_polys(floe.poly, boundary.poly, FT); init = 0.0)
     if inter_area > 0
         floe.status.tag = remove
     end
@@ -647,7 +637,7 @@ function floe_domain_element_interaction!(
     Δt,
     max_overlap::FT,
 ) where {FT}
-    inter_regions = intersect_polys(make_polygon(floe.coords), make_polygon(element.coords))
+    inter_regions = intersect_polys(floe.poly, element.poly, FT)
     region_areas = Vector{FT}(undef, length(inter_regions))
     max_area = FT(0)
     for i in eachindex(inter_regions)
@@ -667,8 +657,8 @@ function floe_domain_element_interaction!(
             force_factor = consts.E * floe.height / sqrt(floe.area)
             # Calculate normal forces, force points, and overlap areas
             normal_forces, fpoints, overlaps, Δl =  calc_elastic_forces(
-                floe.coords,
-                element.coords,
+                floe.poly,
+                element.poly,
                 inter_regions,
                 region_areas,
                 force_factor,
@@ -724,7 +714,8 @@ function update_boundary!(
 ) where {D <: Union{North, South}, FT <: AbstractFloat}
     Δd = boundary.v * Δt
     boundary.val += Δd
-    translate!(boundary.coords, FT(0), Δd)
+    translate!(boundary.coords, zero(FT), Δd)
+    _translate_poly(FT, boundary.poly, zero(FT), Δd)
 end
 """
     update_boundary!(boundary, Δt)
@@ -744,7 +735,8 @@ function update_boundary!(
 ) where {D <: Union{East, West}, FT <: AbstractFloat}
     Δd = boundary.u * Δt
     boundary.val += Δd
-    translate!(boundary.coords, Δd, FT(0))
+    translate!(boundary.coords, Δd, zero(FT))
+    _translate_poly(FT, boundary.poly, Δd, zero(FT))
 end
 
 """
@@ -965,9 +957,9 @@ function timestep_collisions!(
                     (ghost_id_pair[1] == g1) ⊻ (ghost_id_pair[2] == g2)
                 )
                     floe_floe_interaction!(
-                        LazyRow(floes, i),
+                        get_floe(floes, i),
                         i,
-                        LazyRow(floes, j),
+                        get_floe(floes, j),
                         j,
                         consts,
                         Δt,
@@ -977,7 +969,7 @@ function timestep_collisions!(
             end
         end
         floe_domain_interaction!(
-            LazyRow(floes, i),
+            get_floe(floes, i),
             domain,
             consts,
             Δt,
@@ -1005,7 +997,7 @@ function timestep_collisions!(
                 if j <= length(floes) && j > i
                     jidx = Int(j)
                     # add matching interaction (j with i)
-                    add_interactions!(1, LazyRow(floes, jidx), FT(i),
+                    add_interactions!(1, get_floe(floes, jidx), FT(i),
                         i_inters[inter_idx:inter_idx, xforce:yforce],
                         i_inters[inter_idx:inter_idx, xpoint:ypoint],
                         i_inters[inter_idx:inter_idx, overlap:overlap]
@@ -1028,7 +1020,7 @@ function timestep_collisions!(
                 floes.interactions[g][1:gnp, ypoint] .-=
                     floes.centroid[g][2] - floes.centroid[i][2]
                 # add interactions
-                add_interactions!(gnp, LazyRow(floes, i), i,
+                add_interactions!(gnp, get_floe(floes, i), i,
                     floes.interactions[g][1:gnp, xforce:yforce],
                     floes.interactions[g][1:gnp, xpoint:ypoint],
                     floes.interactions[g][1:gnp, overlap]
@@ -1040,7 +1032,7 @@ function timestep_collisions!(
             end
         end
         # calculate interactions torque and total forces / torque
-        calc_torque!(LazyRow(floes, i))
+        calc_torque!(get_floe(floes, i))
         floes.collision_force[i][1] += sum(
             @view floes.interactions[i][1:floes.num_inters[i], xforce]
         )
@@ -1070,36 +1062,29 @@ Outputs:
     are added to the floe list
 """
 function ghosts_on_bounds!(
-    floes,
+    floes::FLT,
     elem_idx,
     boundary,
     trans_vec,
-)
+) where {FT <: AbstractFloat, FLT <: StructArray{<:Floe{FT}}}
     nfloes = length(floes)
     nghosts = 1
-    if !isempty(intersect_polys(make_polygon(floes.coords[elem_idx]), make_polygon(boundary.coords)))
+    if !isempty(intersect_polys(floes.poly[elem_idx], boundary.poly, FT))
         # ghosts of existing ghosts and original element
         for i in floes.ghosts[elem_idx]
-            push!(
-                floes,
-                deepcopy_floe(LazyRow(floes, i)),
-            )
+            push!(floes, deepcopy_floe(get_floe(floes, i)))
             nghosts += 1
         end
-        push!(
-                floes,
-                deepcopy_floe(LazyRow(floes, elem_idx)),
-            )
+        push!(floes, deepcopy_floe(get_floe(floes, elem_idx)))
         for i in (nfloes + 1):(nfloes + nghosts)
-            translate!(floes.coords[i], trans_vec[1], trans_vec[2])
-            floes.centroid[i] .+= trans_vec
+            _translate_floe!(FT, get_floe(floes, i), trans_vec...)
         end
     end
     return
 end
 
 """
-    find_ghosts(
+    find_ghosts!(
         floes,
         elem_idx,
         ebound::PeriodicBoundary,
@@ -1120,7 +1105,7 @@ Outputs:
     the domain, else it is swapped with one of its ghost's which has a centroid
     within the domain.
 """
-function find_ghosts(
+function find_ghosts!(
     floes,
     elem_idx,
     ebound::PeriodicBoundary{East, FT},
@@ -1130,40 +1115,27 @@ function find_ghosts(
     nfloes = length(floes)
     # passing through western boundary
     if (floes.centroid[elem_idx][1] - floes.rmax[elem_idx] < wbound.val)
-        ghosts_on_bounds!(
-            floes,
-            elem_idx,
-            wbound,
-            [Lx, FT(0)],
-        )
+        ghosts_on_bounds!(floes, elem_idx, wbound, [Lx, FT(0)])
     # passing through eastern boundary
     elseif (floes.centroid[elem_idx][1] + floes.rmax[elem_idx] > ebound.val)
-        ghosts_on_bounds!(
-            floes,
-            elem_idx,
-            ebound,
-            [-Lx, FT(0)],
-        )
+        ghosts_on_bounds!(floes, elem_idx, ebound, [-Lx, FT(0)])
     end
     # if element centroid isn't in domain's east/west direction, swap with ghost
-    if length(floes) > nfloes
+    new_nfloes = length(floes)
+    if new_nfloes > nfloes
         if floes.centroid[elem_idx][1] < wbound.val
-            translate!(floes.coords[elem_idx], Lx, FT(0))
-            floes.centroid[elem_idx][1] += Lx
-            translate!(floes.coords[end], -Lx, FT(0))
-            floes.centroid[end][1] -= Lx
+            _translate_floe!(FT, get_floe(floes, elem_idx), Lx, zero(FT))
+            _translate_floe!(FT, get_floe(floes, new_nfloes), -Lx, zero(FT))
         elseif ebound.val < floes.centroid[elem_idx][1]
-            translate!(floes.coords[elem_idx], -Lx, FT(0))
-            floes.centroid[elem_idx][1] -= Lx
-            translate!(floes.coords[end], Lx, FT(0))
-            floes.centroid[end][1] += Lx
+            _translate_floe!(FT, get_floe(floes, elem_idx), -Lx, zero(FT))
+            _translate_floe!(FT, get_floe(floes, new_nfloes), Lx, zero(FT))
         end
     end
     return
 end
 
 """
-    find_ghosts(
+    find_ghosts!(
         floes,
         elem_idx,
         nbound::PeriodicBoundary{North, <:AbstractFloat},
@@ -1184,7 +1156,7 @@ Outputs:
     the domain, else it is swapped with one of its ghost's which has a centroid
     within the domain.
 """
-function find_ghosts(
+function find_ghosts!(
     floes,
     elem_idx,
     nbound::PeriodicBoundary{North, FT},
@@ -1194,33 +1166,20 @@ function find_ghosts(
     nfloes = length(floes)
         # passing through southern boundary
     if (floes.centroid[elem_idx][2] - floes.rmax[elem_idx] < sbound.val)
-        ghosts_on_bounds!(
-            floes,
-            elem_idx,
-            sbound,
-            [FT(0), Ly],
-        )
+        ghosts_on_bounds!(floes, elem_idx, sbound, [FT(0), Ly])
     # passing through northern boundary
     elseif (floes.centroid[elem_idx][2] + floes.rmax[elem_idx] > nbound.val) 
-        ghosts_on_bounds!(
-            floes,
-            elem_idx,
-            nbound,
-            [FT(0), -Ly],
-        )
+        ghosts_on_bounds!(floes, elem_idx, nbound, [FT(0), -Ly])
     end
     # if element centroid isn't in domain's north/south direction, swap with ghost
-    if length(floes) > nfloes
+    new_nfloes = length(floes)
+    if new_nfloes > nfloes
         if floes.centroid[elem_idx][2] < sbound.val
-            translate!(floes.coords[elem_idx], FT(0), Ly)
-            floes.centroid[elem_idx][2] += Ly
-            translate!(floes.coords[end], FT(0), -Ly)
-            floes.centroid[end][2] -= Ly
+            _translate_floe!(FT, get_floe(floes, elem_idx), zero(FT), Ly)
+            _translate_floe!(FT, get_floe(floes, new_nfloes), zero(FT), -Ly)
         elseif nbound.val < floes.centroid[elem_idx][2]
-            translate!(floes.coords[elem_idx], FT(0), -Ly)
-            floes.centroid[elem_idx][2] -= Ly
-            translate!(floes.coords[end], FT(0), Ly)
-            floes.centroid[end][2] += Ly
+            _translate_floe!(FT, get_floe(floes, elem_idx), zero(FT), -Ly)
+            _translate_floe!(FT, get_floe(floes, new_nfloes), zero(FT), Ly)
         end
     end
     return
@@ -1248,7 +1207,7 @@ function add_floe_ghosts!(
     for i in eachindex(floes)
         # the floe is active in the simulation and a parent floe
         if floes.status[i].tag == active && floes.ghost_id[i] == 0
-            find_ghosts(
+            find_ghosts!(
                 floes,
                 i,
                 max_boundary,

@@ -44,7 +44,7 @@ floe_settings = FloeSettings(
 # Floe creation
 floe_arr = initialize_floe_field(
     FT,
-    50,
+    500,
     [0.8],
     domain,
     hmean,
@@ -72,14 +72,13 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 2000,
+    nΔt = 5000,
     verbose = true,
     writers = writers,
     rng = Xoshiro(1),
     coupling_settings = coupling_settings,
 )
 run_time!(simulation)
-
 plot_sim(
     "output/shear_flow/floes.jld2",
     "output/shear_flow/initial_state.jld2",

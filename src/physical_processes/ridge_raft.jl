@@ -45,7 +45,7 @@ end
     remove_floe_overlap!(
         floes,
         shrink_idx,
-        grow_floe_coords,
+        grow_floe_poly,
         pieces_buffer,
         max_floe_id,
         broken,
@@ -58,7 +58,7 @@ Removes area/volume of overlap from floe that loses area during ridging/rafting
 Inputs:
     floes               <StructArray{Floe}> list of floes
     shrink_idx       <Int> index of floe that loses area
-    grow_floe_coords <PolyVec> coordinate of floe/domain that subsumes area
+    grow_floe_poly   <Polys> polygon of floe/domain that subsumes area
     pieces_buffer       <StructArray{Floe}> list of new floe pieces caused by
                             breakage of floes
     max_floe_id         <Int> maximum floe ID before this ridging/rafting
@@ -79,7 +79,7 @@ function remove_floe_overlap!(
     floes::StructArray{<:Floe{FT}},
     shrink_idx,
     shrink_parent_idx,
-    grow_floe_coords,
+    grow_floe_poly,
     pieces_buffer,
     max_floe_id,
     broken,
@@ -89,7 +89,7 @@ function remove_floe_overlap!(
     rng,  
 ) where {FT <: AbstractFloat}
     # Find new floe shapes and regions
-    regions = diff_polys(make_polygon(floes.coords[shrink_idx]), make_polygon(grow_floe_coords))
+    regions = diff_polys(floes.poly[shrink_idx], grow_floe_poly, FT)
     total_area = zero(FT)
     nregions = 0
     for (i, region) in enumerate(regions)
@@ -113,7 +113,6 @@ function remove_floe_overlap!(
         # Update existing floes/ghosts regions
         for region in regions
             region_area = GO.area(region)
-            new_coords = find_poly_coords(region)::PolyVec{FT}
             (xmin, xmax), (ymin, ymax) = GI.extent(region)
             Δx, Δy = xmax - xmin, ymax - ymin
             # Region is big enought to be a floe and has okay aspect ratio
@@ -122,20 +121,15 @@ function remove_floe_overlap!(
                 (Δx > Δy ? Δy/Δx : Δx/Δy) > floe_settings.min_aspect_ratio
             )
                 floe_num += 1
-                translate!(  # shift region coords to parent floe location
-                    new_coords,
-                    parent_Δx,
-                    parent_Δy,
-                )
-                rmholes!(new_coords)  # remove holes in floe
-                new_poly = make_polygon(new_coords)  # parent floe new region poly
+                new_poly = _translate_poly(FT, region, parent_Δx, parent_Δy)::Polys{FT}
+                rmholes!(new_poly)  # remove holes in floe
                 new_vol = region_area * floes.height[shrink_idx]
                 transfer_vol -= new_vol
                 buffer_length = length(pieces_buffer)
                 # If this is the first region created, replace original floe
                 if floe_num == 1
                     replace_floe!(  # replace parent floe
-                        LazyRow(floes, shrink_parent_idx),
+                        get_floe(floes, shrink_parent_idx),
                         new_poly,
                         new_vol * floe_settings.ρi,
                         floe_settings,
@@ -149,16 +143,14 @@ function remove_floe_overlap!(
                             g_Δy = floes.centroid[gidx][2] - parent_centroid[2]
                             # replace ghost floe
                             replace_floe!(
-                                LazyRow(floes, gidx),
+                                get_floe(floes, gidx),
                                 new_poly,
                                 new_vol * floe_settings.ρi,
                                 floe_settings,
                                 rng,
                             )
                             # shift ghost floe
-                            translate!(floes.coords[gidx], g_Δx, g_Δy)
-                            floes.centroid[gidx][1] += g_Δx
-                            floes.centroid[gidx][1] += g_Δy
+                            _translate_floe!(FT, get_floe(floes, gidx), g_Δx, g_Δy)
                         end
                     else
                         # if floe breaks, mark floe and ghosts as broken
@@ -179,11 +171,11 @@ function remove_floe_overlap!(
                 else  # >1 region, so floe must break and add pieces to buffer
                     push!(
                         pieces_buffer,
-                        deepcopy_floe(LazyRow(floes, shrink_parent_idx))
+                        deepcopy_floe(get_floe(floes, shrink_parent_idx))
                     )
                     buffer_length += 1
                     replace_floe!(
-                        LazyRow(pieces_buffer, buffer_length),
+                        get_floe(pieces_buffer, buffer_length),
                         new_poly,
                         new_vol * floe_settings.ρi,
                         floe_settings,
@@ -298,7 +290,7 @@ function floe_floe_ridge!(
             floes,
             lose_mass_idx,
             lose_parent_idx,
-            floes.coords[gain_mass_idx],
+            floes.poly[gain_mass_idx],
             pieces_buffer,
             max_floe_id,
             broken,
@@ -319,8 +311,8 @@ function floe_floe_ridge!(
             if nregions < 1
                 conserve_momentum_change_floe_shape!(
                     mg, Ig, xg, yg, Δt,
-                    LazyRow(floes, gain_mass_idx),
-                    LazyRow(floes, lose_mass_idx),
+                    get_floe(floes, gain_mass_idx),
+                    get_floe(floes, lose_mass_idx),
                 )
             elseif nregions == 1
                 conserve_momentum_transfer_mass!(floes,
@@ -412,7 +404,7 @@ function floe_domain_ridge!(
         floes,
         idx,
         parent_idx,
-        domain_element.coords,
+        domain_element.poly,
         pieces_buffer,
         max_floe_id,
         broken,
@@ -456,7 +448,7 @@ function floe_domain_ridge!(
                 x_tmp,
                 y_tmp,
                 Δt,
-                LazyRow(floes, idx),
+                get_floe(floes, idx),
             )
         end
         if !broken[idx]
@@ -544,7 +536,7 @@ function floe_floe_raft!(
         floes,
         lose_mass_idx,
         lose_parent_idx,
-        floes.coords[gain_mass_idx],
+        floes.poly[gain_mass_idx],
         pieces_buffer,
         max_floe_id,
         broken,
@@ -565,8 +557,8 @@ function floe_floe_raft!(
         if nregions == 0
             conserve_momentum_change_floe_shape!(
                 mg, Ig, xg, yg, Δt,
-                LazyRow(floes, gain_mass_idx),
-                LazyRow(floes, lose_mass_idx),
+                get_floe(floes, gain_mass_idx),
+                get_floe(floes, lose_mass_idx),
             )
         elseif nregions == 1
             conserve_momentum_transfer_mass!(floes,
