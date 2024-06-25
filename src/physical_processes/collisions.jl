@@ -120,8 +120,8 @@ end
 
 """
     calc_elastic_forces(
-        floe1,
-        floe2,
+        p1,
+        p2,
         regions,
         region_areas,
         force_factor,
@@ -131,8 +131,8 @@ end
 Calculate normal forces, the point the force is applied, and the overlap area of
 regions created from floe collisions 
 Inputs:
-    c1              <PolyVec> first floe's coordinates in collision
-    c2              <PolyVec> second floe's coordinates in collision
+    p1              <Polygon> first floe's polygon in collision
+    p2              <Polygon> second floe's polygon in collision
     regions         <Vector{Polygon}> polygon regions of overlap during
                         collision
     region_areas    <Vector{Float}> area of each polygon in regions
@@ -147,9 +147,7 @@ Outputs:
     Δl      <Float> mean length of distance between intersection points
 """
 function calc_elastic_forces(
-    c1,
     p1,
-    c2,
     p2,
     regions,
     region_areas,
@@ -404,9 +402,7 @@ function floe_floe_interaction!(
             end
             # Calculate normal forces, force points, and overlap areas
             normal_forces, fpoints, overlaps, Δl = calc_elastic_forces(
-                ifloe.coords,
                 ifloe.poly,
-                jfloe.coords,
                 jfloe.poly,
                 inter_regions,
                 region_areas,
@@ -661,9 +657,7 @@ function floe_domain_element_interaction!(
             force_factor = consts.E * floe.height / sqrt(floe.area)
             # Calculate normal forces, force points, and overlap areas
             normal_forces, fpoints, overlaps, Δl =  calc_elastic_forces(
-                floe.coords,
                 floe.poly,
-                element.coords,
                 element.poly,
                 inter_regions,
                 region_areas,

@@ -40,7 +40,7 @@ Input:
 Output:
     <PolyVec> representing the floe's coordinates xy plane
 """
-find_poly_coords(poly::GI.Polygon) = GI.coordinates(poly)
+find_poly_coords(poly) = GI.coordinates(poly)
 
 """
     intersect_polys(p1, p2)
@@ -75,6 +75,7 @@ function _move_poly(::Type{FT}, poly, Δx, Δy, Δα, cx = zero(FT), cy = zero(F
     rot = CoordinateTransformations.LinearMap(Rotations.Angle2d(Δα))
     cent_rot = CoordinateTransformations.recenter(rot, (cx, cy))
     trans = CoordinateTransformations.Translation(Δx, Δy)
+    # TODO: can remove the tuples call after GO SVPoint PR
     return GO.tuples(GO.transform(trans ∘ cent_rot, poly), FT)
 end
 
@@ -121,7 +122,7 @@ function deepcopy_floe(floe::LazyRow{Floe{FT}}) where {FT}
     f = Floe{FT}(
         poly = poly,
         centroid = copy(floe.centroid),
-        coords = GI.coordinates(poly),
+        coords = find_poly_coords(poly),
         height = floe.height,
         area = floe.area,
         mass = floe.mass,
@@ -322,7 +323,7 @@ Find which vertices in coords match given points
 Inputs:
     points <Vector{Tuple{Float, Float} or Vector{Vector{Float}}}> points to
                 match to vertices within polygon
-    coords  <PolVec> polygon coordinates
+    region  <Polygon> polygon 
     atol    <Float> distance vertex can be away from target point before being
                 classified as different points
 Output:
@@ -331,36 +332,6 @@ Note:
     If last coordinate is a repeat of first coordinate, last coordinate index is
     NOT recorded.
 """
-# function which_vertices_match_points(
-#     points,
-#     coords::PolyVec{FT},
-#     atol = 1,
-# ) where {FT}
-#     idxs = Vector{Int}()
-#     npoints = length(points)
-#     if points[1] == points[end]
-#         npoints -= 1
-#     end
-#     @views for i in 1:npoints  # find which vertex matches point
-#         min_dist = FT(Inf)
-#         min_vert = 1
-#         for j in eachindex(coords[1])
-#             dist = sqrt(
-#                 (coords[1][j][1] - points[i][1])^2 +
-#                 (coords[1][j][2] - points[i][2])^2,
-#             )
-#             if dist < min_dist
-#                 min_dist = dist
-#                 min_vert = j
-#             end
-#         end
-#         if min_dist < atol
-#             push!(idxs, min_vert)
-#         end
-#     end
-#     return sort!(idxs)
-# end
-
 function which_vertices_match_points(points, region::Polys{FT}, atol = 1) where FT
     idxs = Vector{Int}()
     npoints = length(points)

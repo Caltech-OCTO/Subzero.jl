@@ -1626,7 +1626,7 @@ function calc_two_way_coupling!(
 ) where {FT}
     # Determine force from floe on each grid cell it is in
     cell_area = grid.Δx * grid.Δy
-    for cartidx in CartesianIndices(ocean.scells)  # TODO: re add Threads.@threads 
+    Threads.@threads  for cartidx in CartesianIndices(ocean.scells)
         ocean.τx[cartidx] = FT(0)
         ocean.τy[cartidx] = FT(0)
         ocean.si_frac[cartidx] = FT(0)

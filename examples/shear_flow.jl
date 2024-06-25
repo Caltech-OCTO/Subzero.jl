@@ -1,4 +1,4 @@
-using JLD2, Random, Statistics, Subzero, PProf, Profile, ProfileView
+using JLD2, Random, Statistics, Subzero
 
 # User Inputs
 const FT = Float64
@@ -79,12 +79,6 @@ simulation = Simulation(
     coupling_settings = coupling_settings,
 )
 run_time!(simulation)
-
-# Profile.Allocs.clear()
-# Profile.Allocs.@profile run!(simulation)
-# PProf.Allocs.pprof(from_c = false)
-
-# ProfileView.@profview run!(simulation)
 plot_sim(
     "output/shear_flow/floes.jld2",
     "output/shear_flow/initial_state.jld2",
