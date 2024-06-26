@@ -55,6 +55,24 @@ function InitialStateOutputWriter(
 end
 
 """
+    InitialStateOutputWriter(writer::InitialStateOutputWriter; kwargs...)
+
+Creates an initial state output writer from an existing writer, copying all fields unless 
+new field values are explicity provided through keyword arguments.
+"""
+InitialStateOutputWriter(writer::InitialStateOutputWriter;
+    dir = dirname(writer.filepath),
+    filename = basename(writer.filepath),
+    overwrite = writer.overwrite,
+    kwargs...,
+) = InitialStateOutputWriter(;
+    dir = dir,
+    filename = filename,
+    overwrite = overwrite,
+    kwargs...,
+)
+
+"""
     CheckpointOutputWriter(Δtout, fn){ST<:AbstractString}<:AbstractOutputWriter
 
 Checkpoint subtype of AbstractOutputWriter that holds information for outputting
@@ -111,6 +129,25 @@ function CheckpointOutputWriter(
 end
 
 """
+    CheckpointOutputWriter(writer::CheckpointOutputWriter, [Δtout]; kwargs...)
+
+Creates an checkpoint writer from an existing writer, copying all fields unless new field
+values are explicity provided either as the optional argument Δtout or through keyword
+arguments.
+"""
+CheckpointOutputWriter(writer::CheckpointOutputWriter, Δtout = writer.Δtout;
+    dir = dirname(writer.filepath),
+    filename = basename(writer.filepath),
+    overwrite = writer.overwrite,
+    kwargs...,
+) = CheckpointOutputWriter(Δtout;
+    dir = dir,
+    filename = filename,
+    overwrite = overwrite,
+    kwargs...,
+)
+
+"""
     FloeOutputWriter{ST<:AbstractString}<:AbstractOutputWriter
 
 Floe subtype of AbstractOutputWriter that holds information for outputting floe
@@ -122,16 +159,16 @@ if there is already a file of the given name, it will be overwriten. Else it
 will thrown an error. 
 """
 struct FloeOutputWriter<:AbstractOutputWriter
-    outputs::Vector{Symbol}     # Floe fields to output
     Δtout::Int                  # Number of timesteps between floe outputs
+    outputs::Vector{Symbol}     # Floe fields to output
     filepath::String            # Filename for output file
     overwrite::Bool             # Remove existing files if filenames conflict
 end
 
 """
     function FloeOutputWriter(
-        outputs,
         Δtout;
+        outputs = collect(fieldnames(Floe)),
         dir = ".",
         filename = "floes.jld2",
         overwrite = false,
@@ -141,8 +178,8 @@ end
 FloeOutput writer that outputs provided Floe fields at given timesteps Δtout and
 saves the information in a file of the provided name.
 Inputs:
-    outputs     <Vector{Symbols}> list of floe fields to output
     Δtout       <Int> number of timesteps between output
+    outputs     <Vector{Symbols}> list of floe fields to output
     dir         <String> Directory to save output to - default is "." (current
                     working directory)
     filename    <String> filename to save file to
@@ -152,58 +189,40 @@ Inputs:
 Outputs:
     FloeOutputWriter that outputs provided Floe fields every Δtout timesteps to
     filename
+Note: If floe field's are not specified using `outputs`, all Floe fields will be saved
 """
 function FloeOutputWriter(
-    outputs,
     Δtout;
+    outputs = collect(fieldnames(Floe)),
     dir = ".",
     filename = "floes.jld2",
     overwrite = false,
     jld2_kw = Dict{Symbol, Any}(),
 )
     filepath = initialize_jld2_file!(dir, filename, overwrite, outputs, jld2_kw)
-    return FloeOutputWriter(outputs, Δtout, filepath, overwrite)
+    return FloeOutputWriter(Δtout, outputs, filepath, overwrite)
 end
 
 """
-FloeOutputWriter(
-    Δtout;
-    dir = ".",
-    filename = "floes.jld2",
-    overwrite = false,
-    jld2_kw = Dict{Symbol, Any}(),
-)
-FloeOutput writer that outputs ALL Floe fields at given timesteps Δtout and
-saves the information in a file of the provided name.
-Inputs:
-    outputs     <Vector{Symbols}> list of floe fields to output
-    Δtout       <Int> number of timesteps between output
-    dir         <String> Directory to save output to - default is "." (current
-                    working directory)
-    filename    <String> filename to save file to
-    overwrite   <Bool> if true, exit file of the same name will be deleted, else
-                    an error will be thrown if other file exists
-    jld2_kw     list of JLD2 keywords for the jldopen function
-Outputs:
-    FloeOutputWriter that outputs all Floe fields every Δtout timesteps to
-    filename
-"""
-FloeOutputWriter(
-    Δtout;
-    dir = ".",
-    filename = "floes.jld2",
-    overwrite = false,
-    jld2_kw = Dict{Symbol, Any}(),
-) = 
-    FloeOutputWriter(
-        collect(fieldnames(Floe)),
-        Δtout;
-        dir = dir,
-        filename = filename,
-        overwrite = overwrite,
-        jld2_kw = jld2_kw,
-    )
+    FloeOutputWriter(writer::FloeOutputWriter, [Δtout]; kwargs...)
 
+Creates an floe output writer from an existing writer, copying all fields unless new field
+values are explicity provided either as the optional argument Δtout or through keyword
+arguments.
+"""
+FloeOutputWriter(writer::FloeOutputWriter, Δtout = writer.Δtout;
+    outputs = writer.outputs,
+    dir = dirname(writer.filepath),
+    filename = basename(writer.filepath),
+    overwrite = writer.overwrite,
+    kwargs...,
+) = FloeOutputWriter(Δtout;
+    outputs = outputs,
+    dir = dir,
+    filename = filename,
+    overwrite = overwrite,
+    kwargs...,
+)
 
 """
     GridOutputWriter{FT<:AbstractFloat}<:AbstractOutputWriter
@@ -308,10 +327,10 @@ Output:
     information averaged on this new grid.
 """
 function GridOutputWriter{FT}(
-    outputs::Vector{Symbol},
     Δtout,
     grid::AbstractGrid,
     dims;
+    outputs::Vector{Symbol} = collect(get_known_grid_outputs()),
     dir = ".",
     filename = "gridded_data.nc",
     overwrite = false,
@@ -359,54 +378,30 @@ function GridOutputWriter{FT}(
 end
 
 """
-    GridOutputWriter{FT}(
-        Δtout::Int,
-        grid::AbstractGrid,
-        dims;
-        dir = ".",
-        filename = "gridded_data.nc",
-        overwrite = false,
-        average = false,
-    )
+    GridOutputWriter(writer::GridOutputWriter, [Δtout]; kwargs...)
 
-Create GridOutputWriter for grid of given dimensions to output floe data
-averaged on this re-gridded gird at given frequency of timesteps. Outputs all
-implemented gridded calculations.
-Inputs:
-    Δtout       <Int> number of timesteps between output
-    grid        <Grid> original grid, which we are re-gridding
-    dims        <(Int, Int)> output new grid dimensions for these calculations -
-                rows -> ny, cols -> nx
-    dir         <String> Directory to save output to - default is "." (current
-                    working directory)
-    filename    <String> filename to save file to
-    overwrite   <Bool> if true, exit file of the same name will be deleted, else
-                    an error will be thrown if other file exist
-    average     <Bool> if true, average gridded data over timesteps between
-                    outputs, else just calculate at output timestep
-Output:
-    GridOutputWriter that re-grids grid to given dimensions, and saves floe
-    information averaged on this new grid.
+Creates an grid output writer from an existing writer, copying all fields unless new field
+values are explicity provided through keyword arguments.
 """
-GridOutputWriter{FT}(
-    Δtout::Int,
-    grid::AbstractGrid,
+GridOutputWriter(writer::GridOutputWriter;
+    Δtout = writer.Δtout,
+    grid = writer.grid,
+    dims = writer.dims,
+    outputs = writer.outputs,
+    dir = dirname(writer.filepath),
+    filename = basename(writer.filepath),
+    overwrite = writer.overwrite,
+    average = writer.average
+) = GridOutputWriter(
+    Δtout,
+    grid,
     dims;
-    dir = ".",
-    filename = "gridded_data.nc",
-    overwrite = false,
-    average = false,
-) where {FT <: AbstractFloat} =
-    GridOutputWriter{FT}(
-        collect(get_known_grid_outputs()),
-        Δtout,
-        grid,
-        dims;
-        dir = dir,
-        filename = filename,
-        overwrite = overwrite,
-        average = average,
-    )
+    outputs = outputs,
+    dir = dir,
+    filename = filename,
+    overwrite = overwrite,
+    average = average,
+)
 
 """
     OutputWriters{FT<:AbstractFloat}
@@ -470,18 +465,19 @@ end
 #----------------------- Write Data -----------------------#
 
 """
-    write_data!(sim, tstep)
+    write_data!(sim, tstep, start_tstep)
 
 Writes data for the simulation's writers that are due to write at given tstep.
 Inputs:
-    sim     <Simulation> simulation to run
+    sim         <Simulation> simulation to run
     tstep       <Int> simulation timestep
+    start_tstep <Int> starting timestep of the simulation
 Output:
     Saves writer requested data to files specified in each writer. 
 """
-function write_data!(sim, tstep)
+function write_data!(sim, tstep, start_tstep)
     # write initial state on first timestep
-    if tstep == 0
+    if tstep == start_tstep
         write_init_state_data!(sim)
     end
     # Write checkpoint data
@@ -769,24 +765,6 @@ function auto_extension(filename, ext)
 end
 
 """
-    rect_coords(xmin, xmax, ymin, ymax)
-
-PolyVec coordinates of a rectangle given minimum and maximum x and y coordinates
-Inputs:
-    xmin    <Float> minimum x coordinate of rectangle
-    xmax    <Float> maximum x coordinate of rectangle
-    ymin    <Float> minimum y coordiante of rectangle
-    ymax    <Float> maximum y coordiante of rectangle
-Output:
-    PolyVect coordinates for edges of rectangle with given minimums and maximums
-"""
-function rect_coords(xmin, xmax, ymin, ymax)
-return [[[xmin, ymin], [xmin, ymax],
-         [xmax, ymax], [xmax, ymin],
-         [xmin, ymin]]]
-end
-
-"""
 grids_from_lines(xlines, ylines)
 
 Creates x-grid and y-grid. Assume xlines has length n and ylines has length m.
@@ -813,7 +791,7 @@ Inputs:
 Output:
     Floe data averaged on eularian grid provided and saved in writer.data field 
 """
-function calc_eulerian_data!(floes, topography, writer)
+function calc_eulerian_data!(floes::FLT, topography, writer) where {FT <: AbstractFloat, FLT <: StructArray{<:Floe{FT}}}
     # Calculate/collect needed values
     Δx = writer.xg[2] - writer.xg[1]
     Δy = writer.yg[2] - writer.yg[1]
@@ -845,15 +823,14 @@ function calc_eulerian_data!(floes, topography, writer)
             pint = potential_interactions[i,j,:]
             # If there are any potential interactions
             if sum(pint) > 0
-                cell_poly = LG.Polygon(rect_coords(
-                    writer.xg[j],
-                    writer.xg[j+1],
-                    writer.yg[i],
-                    writer.yg[i+1],
-                ))
+                cell_poly_list = [_make_bounding_box_polygon(FT, writer.xg[j], writer.xg[j+1], writer.yg[i], writer.yg[i+1])]
                 if length(topography) > 0
-                    topography_poly = LG.MultiPolygon(topography.coords)
-                    cell_poly = LG.difference(cell_poly, topography_poly)
+                    cell_poly_list = diff_polys(make_multipolygon(cell_poly_list), make_multipolygon(topography.poly), FT)
+                end
+                
+                if length(cell_poly_list) == 0
+                    writer.data[j, i, :] .= 0.0
+                    continue
                 end
 
                 floeidx = collect(1:length(floes))[pint .== 1]
@@ -862,13 +839,12 @@ function calc_eulerian_data!(floes, topography, writer)
                     pic -> partially in cell - only includes pieces of floes
                         that are within grid bounds
                 =#
-                pic_polys = [
-                    LG.intersection(
-                        cell_poly,
-                        LG.Polygon(floes.coords[idx]),
-                    ) for idx in floeidx]
-
-                pic_area = [LG.area(poly) for poly in pic_polys]
+                pic_area = zeros(length(floeidx))
+                for (i, idx) in enumerate(floeidx)
+                    floe_poly = floes.poly[idx]
+                    pic_area[i] = mapreduce(x -> sum(GO.area, Subzero.intersect_polys(floe_poly, x, FT); init = 0.0), +, cell_poly_list; init = 0.0)
+                end
+                
                 floeidx = floeidx[pic_area .> 0]
                 pic_area = pic_area[pic_area .> 0]
                 fic = floes[floeidx]
@@ -877,11 +853,11 @@ function calc_eulerian_data!(floes, topography, writer)
 
                 area_ratios = pic_area ./ fic_area
                 area_tot = sum(pic_area)
-                mass_tot = sum(floes.mass[floeidx] .* area_ratios)
+                mass_tot = sum(fic_mass .* area_ratios)
 
                 if mass_tot > 0
                     # mass and area ratios
-                    ma_ratios = area_ratios .* (floes.mass[floeidx] ./ mass_tot)
+                    ma_ratios = area_ratios .* (fic_mass ./ mass_tot)
                     outputs = writer.outputs
                     for k in eachindex(outputs)
                         data = if outputs[k] == :u_grid
@@ -893,7 +869,7 @@ function calc_eulerian_data!(floes, topography, writer)
                         elseif outputs[k] == :dvdt_grid
                             sum(floes.p_dvdt[floeidx] .* ma_ratios)
                         elseif outputs[k] == :si_frac_grid
-                            area_tot/LG.area(cell_poly)
+                            area_tot/sum(GO.area, cell_poly_list; init = 0.0)
                         elseif outputs[k] == :overarea_grid
                             sum(floes.overarea[floeidx])/length(floeidx)
                         elseif outputs[k] == :mass_grid
@@ -921,13 +897,13 @@ function calc_eulerian_data!(floes, topography, writer)
                             end
                             stress
                         elseif outputs[k] == :strain_ux_grid
-                            sum([s[1, 1] for s in floes[floeidx].strain] .* ma_ratios)
+                            sum([s[1, 1] for s in fic.strain] .* ma_ratios)
                         elseif outputs[k] == :strain_vx_grid
-                            sum([s[1, 2] for s in floes[floeidx].strain] .* ma_ratios)
+                            sum([s[1, 2] for s in fic.strain] .* ma_ratios)
                         elseif outputs[k] == :strain_uy_grid
-                            sum([s[2, 1] for s in floes[floeidx].strain] .* ma_ratios)
+                            sum([s[2, 1] for s in fic.strain] .* ma_ratios)
                         elseif outputs[k] == :strain_vy_grid
-                            sum([s[2, 2] for s in floes[floeidx].strain] .* ma_ratios)
+                            sum([s[2, 2] for s in fic.strain] .* ma_ratios)
                         end
                         writer.data[j, i, k] = data
                     end

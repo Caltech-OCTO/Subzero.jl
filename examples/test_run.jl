@@ -2,7 +2,7 @@ using JLD2, Random, Statistics, Subzero, BenchmarkTools, StructArrays, SplitAppl
 import LibGEOS as LG
 
 function setup_floes_with_inters(coords, domain, consts,
-    collision_settings, lock,  Δx = nothing, Δy = nothing,
+    collision_settings, lock,  Δt, Δx = nothing, Δy = nothing,
 )
     floes = initialize_floe_field(
         Float64,
@@ -10,7 +10,7 @@ function setup_floes_with_inters(coords, domain, consts,
         domain,
         1.0,
         0.0,
-        10,
+        Δt,
     )
     if !isnothing(Δx)
         for i in eachindex(Δx)
@@ -34,7 +34,7 @@ end
 function update_height(floes, i, new_height, consts)
     floes.height[i] = new_height
     floes.mass[i] = floes.area[i] * floes.height[i] * consts.ρi
-    floes.moment[i] = Subzero.calc_moment_inertia(
+    floes.moment[i] = Subzero._calc_moment_inertia(
         floes.coords[i],
         floes.centroid[i],
         floes.height[i],
@@ -79,7 +79,7 @@ coords = [
     [[[3e4, -0.2e4], [3e4, 0.2e4], [5e4, -0.1e4], [8e4, 0.2e4], [8e4, -0.2e4], [3e4, -0.2e4]]]
 ]
 base_floes = setup_floes_with_inters(coords, collision_domain, consts,
-    collision_settings, lock
+    collision_settings, lock, Δt,
 )
 no_rr_frac_settings = Subzero.RidgeRaftSettings(
     ridge_probability = 1.0,
@@ -115,8 +115,6 @@ max_id = Subzero.timestep_ridging_rafting!(
     consts,
     10,
 )
-
-
 
 # User Inputs
 const FT = Float64

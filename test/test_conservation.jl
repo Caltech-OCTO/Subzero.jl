@@ -101,7 +101,7 @@ end
         open_domain, # Just affects shape, type doesn't matter
         0.25,
         0.0,
-        Δt,
+        Δt;
         rng = rng,
         floe_settings = floe_settings,
     )
@@ -125,7 +125,7 @@ end
         open_domain, # Just affects shape, type doesn't matter
         0.25,
         0.0,
-        Δt,
+        Δt;
         rng = rng,
         floe_settings = floe_settings,
     )
@@ -148,7 +148,7 @@ end
         open_domain, # Just affects shape, type doesn't matter
         0.25,
         0.0,
-        Δt,
+        Δt;
         rng = rng,
         floe_settings = floe_settings,
     )
@@ -177,7 +177,7 @@ end
         open_domain,
         0.25,
         0.0,
-        Δt,
+        Δt;
         rng = rng,
     )
     close(file)
@@ -203,7 +203,7 @@ end
         open_domain_w_topography,
         0.25,
         0.0,
-        Δt,
+        Δt;
         rng = rng,
     )
     close(file)

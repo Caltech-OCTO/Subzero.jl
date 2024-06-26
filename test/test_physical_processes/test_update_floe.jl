@@ -57,7 +57,7 @@
             [10.0, 10.0],
             [0.0, 0.0],
         ]]
-        tri_poly = LG.Polygon(triangle_coords)  # this is a triangle
+        tri_poly = Subzero.make_polygon(triangle_coords)  # this is a triangle
         Subzero.replace_floe!(
             f1,
             tri_poly,
@@ -65,9 +65,9 @@
             FloeSettings(),
             Xoshiro(1)
         )
-        @test f1.centroid == Subzero.find_poly_centroid(tri_poly)
+        @test all(f1.centroid .== GO.centroid(tri_poly))
         @test f1.coords == Subzero.find_poly_coords(tri_poly)
-        @test f1.area == LG.area(tri_poly)
+        @test f1.area == GO.area(tri_poly)
         @test f1.mass == mass1
         @test f1.height * f1.area * 920.0 == f1.mass
         @test f1.α == 0
@@ -247,12 +247,10 @@
         mass1 = sqr_floe.mass
         moment1 = sqr_floe.moment
         x1, y1 = sqr_floe.centroid
+        tri_rect_poly = Subzero.union_polys(Subzero.make_polygon(square_coords), Subzero.make_polygon(triangle_coords))[1]
         Subzero.replace_floe!(
             sqr_floe,
-            LG.union(
-                LG.Polygon(square_coords),
-                LG.Polygon(triangle_coords)
-            ),
+            tri_rect_poly,
             sqr_floe.mass + tri_floe.mass,
             FloeSettings(),
             Xoshiro(1)

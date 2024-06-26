@@ -80,17 +80,17 @@ The user can also define settings for each physical process.
 end
 
 """
-timestep_sim!(sim, tstep, writers)
+timestep_sim!(sim, tstep, start_tstep)
 
 Run one step of the simulation and write output. 
 Inputs:
-    sim     <Simulation> simulation to advance
-    tstep   <Int> current timestep
-    writers <Vector{AbstractOutputWriter}> list of output OutputWriters
+    sim          <Simulation> simulation to advance
+    tstep        <Int> current timestep
+    start_tstep  <Int> timestep simulation started on
 Outputs:
     None. Simulation advances by one timestep. 
 """
-function timestep_sim!(sim, tstep)
+function timestep_sim!(sim, tstep, start_tstep = 0)
     sim.verbose && mod(tstep, 50) == 0 && println(tstep, " timesteps")
     if !isempty(sim.model.floes)
         max_floe_id = maximum(sim.model.floes.id)
@@ -101,7 +101,7 @@ function timestep_sim!(sim, tstep)
         add_ghosts!(sim.model.floes, sim.model.domain)
 
         # Output at given timestep
-        write_data!(sim, tstep)  # Horribly type unstable
+        write_data!(sim, tstep, start_tstep)  # Horribly type unstable
         
         # Collisions
         if sim.collision_settings.collisions_on
@@ -267,7 +267,7 @@ function teardown_sim(sim)
 end
 
 """
-    run!(sim)
+    run!(sim; logger = nothing, messages_per_tstep = 1, start_tstep = 0)
 
 Run given simulation and generate output for given writers.
 Simulation calculations will be done with Floats of type T (Float64 of Float32).
@@ -278,17 +278,62 @@ Inputs:
                             Subzero logger
     messages_per_tstep  <Int> number of messages to print per timestep if using
                             default SubzeroLogger, else not needed
+    start_tstep         <Int> which timestep to start the simulation on
 Outputs:
     None. The simulation will be run and outputs will be saved in the output
     folder. 
 """
-function run!(sim; logger = nothing, messages_per_tstep = 1)
+function run!(sim; logger = nothing, messages_per_tstep = 1, start_tstep = 0)
     startup_sim(sim, logger, messages_per_tstep)
-    tstep = 0
-    while tstep <= sim.nΔt
-        timestep_sim!(sim, tstep)
+    tstep = start_tstep
+    while tstep <= (start_tstep + sim.nΔt)
+        # Timestep the simulation forward
+        timestep_sim!(sim, tstep, start_tstep)
         tstep+=1
     end
     teardown_sim(sim)
-    return tstep
+    return
+end
+
+"""
+    restart!(initial_state_fn, checkpointer_fn, new_nΔt, new_output_writers; start_tstep = 0)
+
+Continue the simulation run started with the given initial state and floe file for an
+additional `new_nΔt` timesteps and with the new output_writers provided. The simulation will
+restart with a recorded timestep of `start_tstep`.
+
+Note that this `restart!` function may not fit your needs and you may need to write your
+own. This function is meant to act as a simplest case and as a template for users to write
+their own restart functions. 
+"""
+function restart!(initial_state_fn, checkpointer_fn, new_nΔt, new_output_writers; start_tstep = 0)
+    is = jldopen(initial_state_fn)
+    cp = jldopen(checkpointer_fn)
+    last_tstep = maximum(parse.(Int, keys(cp["ocean"])))
+
+    # Remove any ghost floes from floe list
+    new_floes = cp["floes"][string(last_tstep)]
+    filter!(f -> f.ghost_id == 0, new_floes)
+    empty!.(new_floes.ghosts)
+
+    new_model = Model(
+        is["sim"].model.grid, 
+        cp["ocean"][string(last_tstep)], 
+        cp["atmos"][string(last_tstep)], 
+        is["sim"].model.domain, 
+        new_floes,
+    )
+
+    new_simulation = Simulation(
+        model = new_model,
+        consts = is["sim"].consts,
+        Δt = is["sim"].Δt,
+        nΔt = new_nΔt,
+        verbose = is["sim"].verbose,
+        writers = new_output_writers,
+        coupling_settings = is["sim"].coupling_settings,
+        simp_settings = is["sim"].simp_settings,
+    )
+    run!(new_simulation; start_tstep = start_tstep)
+    return
 end

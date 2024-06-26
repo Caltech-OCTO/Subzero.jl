@@ -23,6 +23,7 @@ Singular sea ice floe with fields describing current state.
 """
 @kwdef mutable struct Floe{FT<:AbstractFloat}
     # Physical Properties -------------------------------------------------
+    poly::Polys{FT}         # polygon that represents the floe's shape
     centroid::Vector{FT}    # center of mass of floe (might not be in floe!)
     coords::PolyVec{FT}     # floe coordinates
     height::FT              # floe height (m)
@@ -75,6 +76,8 @@ Singular sea ice floe with fields describing current state.
     p_dαdt::FT = 0.0        # previous timestep angular-velocity
 end
 
+const FloeType{FT} = Union{LazyRow{Floe{FT}}, Floe{FT}} where FT
+
 """
     Floe(::Type{FT}, args...; kwargs...)
 
@@ -116,7 +119,7 @@ Base.:(:)(a::InteractionFields, b::InteractionFields) = Int(a):Int(b)
 
 """
     Floe{FT}(
-        poly::LG.Polygon,
+        poly::Polys,
         hmean,
         Δh;
         floe_settings = FloeSettings(),
@@ -124,9 +127,9 @@ Base.:(:)(a::InteractionFields, b::InteractionFields) = Int(a):Int(b)
         kwargs...
     )
 
-Constructor for floe with LibGEOS Polygon
+Constructor for floe with a polygon
 Inputs:
-    poly                <LibGEOS.Polygon> 
+    poly                <Polygon> 
     hmean               <Real> mean height for floes
     Δh                  <Real> variability in height for floes
     floe_settings       <FloeSettings> settings needed to initialize floe        
@@ -139,47 +142,43 @@ Output:
         points were able to be generated.
 """
 function Floe{FT}(
-    poly::LG.Polygon,
+    poly::Polys,
     hmean,
     Δh;
     floe_settings = FloeSettings(),
     rng = Xoshiro(),
     kwargs...
 ) where {FT <: AbstractFloat}
-    floe = rmholes(poly)
+    floe = GO.tuples(poly, FT)
+    rmholes!(floe)
     # Floe physical properties
-    centroid = find_poly_centroid(floe)
+    centroid = collect(GO.centroid(floe))
     height = clamp(
         hmean + (-1)^rand(rng, 0:1) * rand(rng, FT) * Δh,
         floe_settings.min_floe_height,
         floe_settings.max_floe_height,
     )
-    area_tot = LG.area(floe)
+    area_tot = GO.area(floe)
     mass = area_tot * height * floe_settings.ρi
     coords = find_poly_coords(floe)
-    coords = [orient_coords(coords[1])]
-    moment = calc_moment_inertia(
-        coords, centroid, height;
-        ρi = floe_settings.ρi,
-    )
-    angles = calc_poly_angles(coords)
-    translate!(coords, -centroid[1], -centroid[2])
-    rmax = sqrt(maximum([sum(c.^2) for c in coords[1]]))
+    moment = _calc_moment_inertia(FT, floe, centroid, height; ρi = floe_settings.ρi)
+    angles = GO.angles(floe, FT)
+    rmax = calc_max_radius(floe, centroid, FT)
     status = Status()
     # Generate Monte Carlo Points
     x_subfloe_points, y_subfloe_points, status = generate_subfloe_points(
         floe_settings.subfloe_point_generator,
-        coords,
-        rmax,
+        floe,
+        centroid,
         area_tot,
         status,
         rng,
     )
-    translate!(coords, centroid[1], centroid[2])
     # Generate Stress History
     stress_instant = zeros(FT, 2, 2)
 
     return Floe{FT}(;
+        poly = GO.tuples(floe, FT),
         centroid = centroid,
         coords = coords,
         height = height,
@@ -221,21 +220,18 @@ Output:
     forcings start at 0 and floe's status is "active" as long as monte carlo
     points were able to be generated.
 """
-Floe{FT}(
+function Floe{FT}(
     coords::PolyVec,
     hmean,
     Δh;
     floe_settings = FloeSettings(),
     rng = Xoshiro(),
     kwargs...,
-) where {FT <: AbstractFloat} =
-    Floe{FT}( # Polygon convert is needed since LibGEOS only takes Float64
-        LG.Polygon(
-            convert(
-                PolyVec{Float64},
-                valid_polyvec!(rmholes(coords)),
-            ),
-        ),
+) where {FT <: AbstractFloat}
+    valid_polyvec!(coords)
+    rmholes!(coords)
+    return Floe{FT}(
+        make_polygon(coords),
         hmean,
         Δh;
         floe_settings = floe_settings,
@@ -243,90 +239,94 @@ Floe{FT}(
         kwargs...,
     ) 
 
+end
+
 """
-    poly_to_floes(
+    poly_to_floes!(
         ::Type{FT},
-        floe_poly,
+        floes,
+        poly,
         hmean,
         Δh,
-        Δt;
+        Δt,
+        rmax;
         floe_settings,
         rng = Xoshiro(),
         kwargs...
     )
 
-Split a given polygon into regions and split around any holes before turning
-each region with an area greater than the minimum floe area into a floe.
+Split a given polygon around any holes before turning each region with an area greater than
+the minimum floe area into a floe.
 Inputs:
     Type{FT}            <AbstractFloat> Type for grid's numberical fields -
                         determines simulation run type
-    floe_poly           <LibGEOS.Polygon or LibGEOS.MultiPolygon> polygon/
-                        multipolygon to turn into floes
+    floes               <StructArray{Floe}> vector of floes to add new floes to
+    poly                <Polygon> polygons to turn into floes
     hmean               <AbstratFloat> average floe height
     Δh                  <AbstratFloat> height range - floes will range in height
                         from hmean - Δh to hmean + Δh
     Δt                  <Int> timestep of simulation in seconds
+    rmax                <AbstractFloat> maximum radius of floe (could be larger given context)
     floe_settings       <FloeSettings> settings needed to initialize floe
                             settings
     rng                 <RNG> random number generator to generate random floe
                             attributes - default uses Xoshiro256++ algorithm
     kwargs...           Any additional keywords to pass to floe constructor
-Output:
-    <StructArray{Floe}> vector of floes making up input polygon(s) with area
-        above given minimum floe area. Floe's with holes split around holes. 
 """
-function poly_to_floes(
+function poly_to_floes!(
     ::Type{FT},
-    floe_poly,
+    floes,
+    poly,
     hmean,
     Δh,
-    Δt;
+    Δt,
+    rmax;
     floe_settings = FloeSettings(min_floe_area = 0),
     rng = Xoshiro(),
     kwargs...
 ) where {FT <: AbstractFloat}
-    floes = StructArray{Floe{FT}}(undef, 0)
-    regions = LG.getGeometries(floe_poly)::Vector{LG.Polygon}
-    initial_damage = calc_initial_damage(floe_settings.stress_calculator, Δt)
-    while !isempty(regions)
-        r = pop!(regions)
-        a = LG.area(r)
-        if a >= floe_settings.min_floe_area && a > 0
-            if !hashole(r)
-                floe = Floe(
-                    FT,
-                    r::LG.Polygon,
-                    hmean,
-                    Δh;
-                    floe_settings = floe_settings,
-                    rng = rng,
-                    damage = initial_damage,
-                    kwargs...
-                )
-                push!(floes, floe)
-            else
-                region_bottom, region_top = split_polygon_hole(r)
-                append!(regions, region_bottom)
-                append!(regions, region_top)
+    a = GO.area(poly)
+    if a >= floe_settings.min_floe_area && a > 0
+        if !hashole(poly)
+            floe = Floe(
+                FT,
+                poly::Polys,
+                hmean,
+                Δh;
+                damage = calc_initial_damage(floe_settings.stress_calculator, Δt),
+                floe_settings = floe_settings,
+                rng = rng,
+                kwargs...
+            )
+            push!(floes, floe)
+            return 1
+        else
+            cx, cy = GO.centroid(GI.gethole(poly, 1), FT)
+            new_regions = GO.cut(poly, GI.Line([(cx - rmax, cy), (cx + rmax, cy)]), FT)
+            n = 0
+            for r in new_regions
+                n += poly_to_floes!(FT, floes, r, hmean, Δh, Δt, rmax;
+                    floe_settings = floe_settings, rng = rng, kwargs...)
             end
+            return n
         end
     end
-    return floes
+    return 0
 end
 
 # When using DecayAreaScaledCalculator, we initialize stress to dt/τ, which is the timestep
 # over a parameter that we set when creating the stress calculator. This setup is 
 # necessary to calculate stress in the same way that Georgy Manucharyan and Brandon Montemuro
 # do in their code.
-calc_initial_damage(stress_calculator::DecayAreaScaledCalculator, Δt) = ones(2,2)*Δt/stress_calculator.τ
+calc_initial_damage(stress_calculator::DecayAreaScaledCalculator, Δt) = fill(Δt / stress_calculator.τ, 2, 2)
 
 # This is a place holder untio DamageStressCalculator is fully implemented. This should be
-# replaced with a physical interprea=tation of what the damage parameter should start as.
+# replaced with a physical interpretation of what the damage parameter should start as.
 # Damage does not necessary need to be a matrix, it has just been implemented this way to
 # be able to mimic Manucharyan's and Montemuro's code.
 function calc_initial_damage(stress_calculator::DamageStressCalculator, Δt)
     @warn "DamageStressCalculator not fully implemented. Initializing damage to zero." 
-    zeros(2, 2)
+    return zeros(2, 2)
 end
 
 """
@@ -377,27 +377,26 @@ function initialize_floe_field(
     Δt;
     floe_settings = FloeSettings(min_floe_area = 0.0),
     rng = Xoshiro(),
+    supress_warnings = false,
 ) where {FT <: AbstractFloat}
     floe_arr = StructArray{Floe{FT}}(undef, 0)
-    floe_polys = [LG.Polygon(valid_polyvec!(c)) for c in coords]
+    floe_polys = [make_polygon(valid_polyvec!(c)) for c in coords]
     # Remove overlaps with topography
     if !isempty(domain.topography)
-        topo_poly = LG.MultiPolygon(domain.topography.coords)
-        floe_polys = [LG.difference(f, topo_poly) for f in floe_polys]
+        floe_polys = diff_polys(make_multipolygon(floe_polys), make_multipolygon(domain.topography.poly), FT)
     end
     # Turn polygons into floes
     for p in floe_polys
-        append!(
-            floe_arr, 
-            poly_to_floes(
-                FT,
-                p,
-                hmean,
-                Δh,
-                Δt;
-                floe_settings = floe_settings,
-                rng = rng,
-            ),
+        poly_to_floes!(
+            FT,
+            floe_arr,
+            p,
+            hmean,
+            Δh,
+            Δt,
+            domain.east.val - domain.west.val;
+            floe_settings = floe_settings,
+            rng = rng,
         )
     end
     # Warn about floes with area less than minimum floe size
@@ -407,7 +406,7 @@ function initialize_floe_field(
             4 * (domain.east.val - domain.west.val) *
             (domain.north.val - domain.south.val) / 1e4
         )
-    if any(floe_arr.area .< min_floe_area)
+    if any(floe_arr.area .< min_floe_area) && !supress_warnings
         @warn "Some user input floe areas are less than the suggested minimum \
             floe area."
     end
@@ -415,15 +414,13 @@ function initialize_floe_field(
     if !all(
         domain.west.val .< first.(floe_arr.centroid) .< domain.east.val) &&
         !all(domain.south.val .< last.(floe_arr.centroid) .< domain.north.val
-    )
+    ) && !supress_warnings
         @warn "Some floe centroids are out of the domain."
     end
     # Initialize floe IDs
     floe_arr.id .= range(1, length(floe_arr))
     return floe_arr
 end
-
-
 
 """
     generate_voronoi_coords(
@@ -466,23 +463,22 @@ function generate_voronoi_coords(
     min_to_warn::Int;
     max_tries::Int = 10,
 ) where {FT <: AbstractFloat}
-    xpoints = Vector{FT}()
-    ypoints = Vector{FT}()
-    area_frac = LG.area(LG.MultiPolygon(domain_coords)) / reduce(*, scale_fac)
+    xpoints = Vector{Float64}()
+    ypoints = Vector{Float64}()
+    domain_poly = make_multipolygon(GO.tuples(domain_coords))
+    area_frac = GO.area(domain_poly) / reduce(*, scale_fac)
     # Increase the number of points based on availible percent of bounding box
     npoints = ceil(Int, desired_points / area_frac)
     current_points = 0
     tries = 0
     while current_points < desired_points && tries <= max_tries
-        x = rand(rng, FT, npoints)
-        y = rand(rng, FT, npoints)
-        # Scaled and translated points
-        st_xy = hcat(
-            scale_fac[1] * x .+ trans_vec[1],
-            scale_fac[2] * y .+ trans_vec[2]
-        )
-        # Check which of the points are within the domain coords
-        in_idx = points_in_poly(st_xy, domain_coords)
+        x = rand(rng, npoints)
+        y = rand(rng, npoints)
+        # Check which of the scaled and translated points are within the domain coords
+        in_idx = [GO.coveredby(
+            (scale_fac[1] * x[i] .+ trans_vec[1], scale_fac[2] * y[i] .+ trans_vec[2]),
+            domain_poly
+        ) for i in eachindex(x)]
         current_points += sum(in_idx)
         tries += 1
         append!(xpoints, x[in_idx])
@@ -510,13 +506,8 @@ function generate_voronoi_coords(
         # Scale and translate voronoi coordinates
         tcoords = Vector{PolyVec{FT}}(undef, length(tess_cells))
         for i in eachindex(tess_cells)
-            perturb_vec = [
-                (-1)^rand(rng, 0:1) * rand(rng, FT)*1e-10,
-                (-1)^rand(rng, 0:1) * rand(rng, FT)*1e-10,
-            ]
             tcoords[i] = [valid_ringvec!([
-                Vector(c) .* scale_fac .+
-                trans_vec .+ perturb_vec
+                Vector(c) .* scale_fac .+ trans_vec
                 for c in tess_cells[i]
             ])]
         end
@@ -558,9 +549,12 @@ Inputs:
     Δh              <Float> height range - floes will range in height from
                         hmean - Δh to hmean + Δh
     Δt              <Int> simulation timestep in seconds
-    floe_settings       <FloeSettings> settings needed to initialize floes
-    rng                 <RNG> random number generator to generate random floe
-                            attributes - default uses Xoshiro256++
+    floe_bounds     <PolyVec> coordinates of boundary within which to populate floes. This
+                        can be smaller that the domain, but will be limited to open space
+                        within the domain
+    floe_settings   <FloeSettings> settings needed to initialize floes
+    rng             <RNG> random number generator to generate random floe
+                        attributes - default uses Xoshiro256++
 Output:
     floe_arr <StructArray> list of floes created using Voronoi Tesselation
         of the domain with given concentrations.
@@ -573,33 +567,29 @@ function initialize_floe_field(
     hmean,
     Δh,
     Δt;
-    floe_settings = FloeSettings(min_floe_area = 0.0),
+    floe_bounds = _make_bounding_box_polygon(FT, domain.west.val, domain.east.val, domain.south.val, domain.north.val),
+    floe_settings = FloeSettings(FT, min_floe_area = 0),
     rng = Xoshiro(),
-
 ) where {FT <: AbstractFloat}
     τ = floe_settings.stress_calculator.τ
     floe_arr = StructArray{Floe{FT}}(undef, 0)
+    nfloes_added = 0
+    # Availible space in domain
+    domain_poly = _make_bounding_box_polygon(FT, domain.west.val, domain.east.val, domain.south.val, domain.north.val)
+    open_water = intersect_polys(floe_bounds, domain_poly, FT)
+    if !isempty(domain.topography)
+        open_water = diff_polys(make_multipolygon(open_water), make_multipolygon(domain.topography.poly), FT)
+    end
+    open_water_mp = make_multipolygon(open_water)
+    (bounds_xmin, bounds_xmax), (bounds_ymin, bounds_ymax) = GI.extent(open_water_mp)
+    open_water_area = GO.area(open_water_mp, FT)
+
     # Split domain into cells with given concentrations
     nrows, ncols = size(concentrations[:, :])
-    Lx = domain.east.val - domain.west.val
-    Ly = domain.north.val - domain.south.val
+    Lx = bounds_xmax - bounds_xmin
+    Ly = bounds_ymax - bounds_ymin
     rowlen = Ly / nrows
     collen = Lx / ncols
-    # Availible space in whole domain
-    open_water = LG.Polygon(rect_coords(
-        domain.west.val,
-        domain.east.val,
-        domain.south.val,
-        domain.north.val
-    ))
-    if !isempty(domain.topography)
-        open_water = LG.difference(
-            open_water, 
-            LG.MultiPolygon(domain.topography.coords)
-        )
-    end
-    open_water_area = LG.area(open_water)
-
     # Loop over cells
     for j in range(1, ncols)
         for i in range(1, nrows)
@@ -607,19 +597,15 @@ function initialize_floe_field(
             if c > 0
                 c = c > 1 ? 1 : c
                 # Grid cell bounds
-                xmin = domain.west.val + collen * (j - 1)
-                ymin = domain.south.val + rowlen * (i - 1)
-                cell_bounds = rect_coords(
-                    xmin,
-                    xmin + collen,
-                    ymin,
-                    ymin + rowlen,
-                )
+                xmin = bounds_xmin + collen * (j - 1)
+                ymin = bounds_ymin + rowlen * (i - 1)
                 trans_vec = [xmin, ymin]
                 # Open water in cell
-                open_cell = LG.intersection(LG.Polygon(cell_bounds), open_water)
-                open_coords = find_multipoly_coords(open_cell)
-                open_area = LG.area(open_cell)
+                cell_init = _make_bounding_box_polygon(FT, xmin, xmin + collen, ymin, ymin + rowlen)
+                open_cell = intersect_polys(cell_init, open_water_mp, FT)
+                open_cell_mpoly = make_multipolygon(open_cell)
+                open_coords = [find_poly_coords(c) for c in open_cell]
+                open_area = sum(GO.area, open_cell; init = 0.0)
                 # Generate coords with voronoi tesselation and make into floes
                 ncells = ceil(Int, nfloes * open_area / open_water_area / c)
                 floe_coords = generate_voronoi_coords(
@@ -631,26 +617,29 @@ function initialize_floe_field(
                     ncells,
                 )
                 nfloes = length(floe_coords)
-                if nfloes > 0
-                    floes_area = FT(0.0)
+                if !isempty(floe_coords)
+                    floe_poly_list = [make_polygon(c) for c in floe_coords]
+                    nfloes = length(floe_poly_list)
                     floe_idx = shuffle(rng, range(1, nfloes))
+                    floes_area = FT(0.0)
                     while !isempty(floe_idx) && floes_area/open_area <= c
                         idx = pop!(floe_idx)
-                        floe_poly = LG.intersection(
-                            LG.Polygon(floe_coords[idx]),
-                            open_cell
-                        )
-                        floes = poly_to_floes(
-                            FT,
-                            floe_poly,
-                            hmean,
-                            Δh,
-                            Δt;
-                            floe_settings = floe_settings,
-                            rng = rng,
-                        )
-                        append!(floe_arr, floes)
-                        floes_area += sum(floes.area)
+                        poly_pieces_list = intersect_polys(floe_poly_list[idx], open_cell_mpoly)
+                        for piece in poly_pieces_list
+                            n_new_floes = poly_to_floes!(
+                                FT,
+                                floe_arr,
+                                piece,
+                                hmean,
+                                Δh,
+                                Δt,
+                                domain.east.val - domain.west.val;
+                                floe_settings = floe_settings,
+                                rng = rng,
+                            )
+                            floes_area += sum(Iterators.drop(floe_arr.area, nfloes_added))
+                            nfloes_added += n_new_floes
+                        end
                     end
                 end
             end

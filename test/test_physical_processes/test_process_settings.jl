@@ -103,7 +103,7 @@
         criteria = HiblerYieldCurve(
             0.0,
             0.0,
-            [[[0.0, 0.0], [0, 1], [1 ,1], [1, 0]]],
+            Subzero.make_polygon([[[0.0, 0.0], [0, 1], [1 ,1], [1, 0]]]),
         )
         custom_info = FractureSettings(
             fractures_on = true,

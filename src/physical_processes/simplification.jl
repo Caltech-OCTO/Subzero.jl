@@ -62,26 +62,24 @@ function smooth_floes!(
     Δt,
     rng,
 ) where {FT <: AbstractFloat}
-    topo_coords = topography.coords
     for i in eachindex(floes)
-        if length(floes.coords[i][1]) > simp_settings.max_vertices
-            poly = LG.simplify(LG.Polygon(floes.coords[i]), simp_settings.tol)
-            if !isempty(topo_coords)
-                poly = LG.difference(poly, LG.MultiPolygon(topo_coords))
+        if GI.npoint(GI.getexterior(floes.poly[i])) > simp_settings.max_vertices
+            poly_list = [simplify_poly(floes.poly[i], simp_settings.tol)]
+            if !isempty(topography)
+                poly_list = diff_polys(make_multipolygon(poly_list), make_multipolygon(topography.poly), FT)
             end
-            poly_list = get_polygons(rmholes(poly))::Vector{LG.Polygon}
             simp_poly =
                 if length(poly_list) == 1
                     poly_list[1]
                 else
-                    areas = [LG.area(p) for p in poly_list]
+                    areas = [GO.area(p) for p in poly_list]
                     _, max_idx = findmax(areas)
                     poly_list[max_idx]
                 end
             x_tmp, y_tmp = floes.centroid[i]
             moment_tmp = floes.moment[i]
             replace_floe!(
-                LazyRow(floes, i),
+                get_floe(floes, i),
                 simp_poly,
                 floes.mass[i],
                 floe_settings,
@@ -94,7 +92,7 @@ function smooth_floes!(
                 x_tmp,
                 y_tmp,
                 Δt,
-                LazyRow(floes, i),
+                get_floe(floes, i),
             )
             # Mark interactions for fusion
             for j in eachindex(floes)
@@ -108,9 +106,9 @@ function smooth_floes!(
                         floes.status[i].tag = fuse
                         push!(floes.status[i].fuse_idx, j)
                     else
-                        jpoly = LG.Polygon(floes.coords[j])
-                        intersect_area = LG.area(LG.intersection(simp_poly, jpoly))
-                        if intersect_area/LG.area(jpoly) > collision_settings.floe_floe_max_overlap
+                        jpoly = floes.poly[j]
+                        intersect_area = sum(GO.area, intersect_polys(simp_poly, jpoly, FT); init = 0.0)
+                        if intersect_area/GO.area(jpoly) > collision_settings.floe_floe_max_overlap
                             floes.status[i].tag = fuse
                             push!(floes.status[i].fuse_idx, j)
                         end
@@ -146,21 +144,22 @@ Outputs:
     Note that the smaller floe's ID is NOT updated!
 """
 function fuse_two_floes!(
-    keep_floe,
+    keep_floe::FloeType{FT},
     remove_floe,
     Δt,
     floe_settings,
     prefuse_max_floe_id,
     rng,
-)
+) where FT
     # Create new polygon if they fuse
-    rmholes!(keep_floe.coords)
-    rmholes!(remove_floe.coords)
-    poly1 = LG.Polygon(keep_floe.coords)::LG.Polygon
-    poly2 = LG.Polygon(remove_floe.coords)::LG.Polygon
-    new_poly_list = get_polygons(LG.union(poly1, poly2))::Vector{LG.Polygon}
+    rmholes!(keep_floe.poly)
+    rmholes!(remove_floe.poly)
+    poly1 = keep_floe.poly
+    poly2 = remove_floe.poly
+    new_poly_list = union_polys(poly1, poly2, FT)
     if length(new_poly_list) == 1  # if they fused, they will make one polygon
-        new_poly = rmholes(new_poly_list[1])
+        new_poly = new_poly_list[1]
+        rmholes!(new_poly)
         # mark smaller floe for removal
         remove_floe.status.tag = remove
         # record as value will change with replace
@@ -240,8 +239,8 @@ function fuse_floes!(
                     keep_idx, remove_idx = floes.area[i] < floes.area[j] ?
                         (j, i) : (i, j)
                     fuse_two_floes!(
-                        LazyRow(floes, keep_idx),
-                        LazyRow(floes, remove_idx),
+                        get_floe(floes, keep_idx),
+                        get_floe(floes, remove_idx),
                         Δt,
                         floe_settings,
                         prefuse_max_floe_id,
@@ -291,7 +290,7 @@ function remove_floes!(
         )
             # Dissolve small/thin floes and add mass to ocean
             dissolve_floe!(
-                LazyRow(floes, i),
+                get_floe(floes, i),
                 grid,
                 domain,
                 dissolved,

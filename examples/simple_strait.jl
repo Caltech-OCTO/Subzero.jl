@@ -47,12 +47,12 @@ floe_settings = FloeSettings(
 # Floe creation
 floe_arr = initialize_floe_field(
     FT,
-    75,
+    500,
     [0.7],
     domain,
     hmean,
     Δh,
-    Δt,
+    Δt;
     rng = Xoshiro(3),
     floe_settings = floe_settings,
 )
@@ -82,13 +82,14 @@ run_time!(simulation) = @time run!(simulation)
 
 initwriter = InitialStateOutputWriter(dir = dir, overwrite = true)
 floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
-writers = OutputWriters(initwriter, floewriter)
+gridwriter = GridOutputWriter(100, grid, (10, 10), dir = dir, overwrite = true)
+writers = OutputWriters(initwriter, floewriter, gridwriter)
 
 simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 3000,
+    nΔt = 2500,
     verbose = true,
     floe_settings = floe_settings,
     coupling_settings = coupling_settings,
