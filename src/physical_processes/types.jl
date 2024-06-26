@@ -7,7 +7,7 @@ Structs and functions for calculating stress
 
 Abstract type ways of keeping track of stress.
 """
-abstract type AbstractStressCalculator end
+abstract type AbstractStressCalculator{FT<:AbstractFloat}  end
 
 """
     DecayAreaScaledCalculator{FT<:AbstractFloat}<:AbstractStressCalculator
@@ -22,7 +22,7 @@ Fields:
 Note:
     τ is used in calc_stress!(), whereas α is used in determine_fractures().
 """
-@kwdef struct DecayAreaScaledCalculator{FT<:AbstractFloat} <: AbstractStressCalculator
+@kwdef struct DecayAreaScaledCalculator{FT<:AbstractFloat} <: AbstractStressCalculator{FT}
     τ::FT = 20.0
     α::FT = 0.5
 
@@ -51,7 +51,7 @@ Note:
     boundary in stress space by multiplying the eigenvalues of stress_accum by something.
     This could be implemented if the user desires.
 """
-@kwdef struct DamageStressCalculator{FT<:AbstractFloat} <: AbstractStressCalculator
+@kwdef struct DamageStressCalculator{FT<:AbstractFloat} <: AbstractStressCalculator{FT}
     τ::FT = 20.0
 
     function DamageStressCalculator{FT}(τ::FT) where {FT<:AbstractFloat}

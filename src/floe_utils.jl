@@ -76,7 +76,7 @@ function _move_poly(::Type{FT}, poly, Δx, Δy, Δα, cx = zero(FT), cy = zero(F
     cent_rot = CoordinateTransformations.recenter(rot, (cx, cy))
     trans = CoordinateTransformations.Translation(Δx, Δy)
     # TODO: can remove the tuples call after GO SVPoint PR
-    return GO.tuples(GO.transform(trans ∘ cent_rot, poly), FT)
+    return GO.tuples(GO.transform(trans ∘ cent_rot, poly), FT)::Polys{FT}
 end
 
 function _move_floe!(::Type{FT}, floe, Δx, Δy, Δα) where FT
@@ -88,7 +88,7 @@ function _move_floe!(::Type{FT}, floe, Δx, Δy, Δα) where FT
     floe.centroid[2] += Δy
     translate!(floe.coords, cx + Δx, cy + Δy)
     # Move Polygon
-    floe.poly = _move_poly(FT, floe.poly, Δx, Δy, Δα, cx, cy)
+    floe.poly = _move_poly(FT, floe.poly, Δx, Δy, Δα, cx, cy)::Polys{FT}
     return 
 end
 
