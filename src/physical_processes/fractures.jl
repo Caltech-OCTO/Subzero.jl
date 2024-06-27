@@ -300,8 +300,6 @@ end
 # This can be changed to add some sort of scaling to the DamageStressCalculator, potentially
 # based on area like the function above.
 function scale_stress!(::DamageStressCalculator, σvals, min_floe_area, floe_area)
-    @warn "Current implementation of DamageStressCalculator is unfinished. Currently, stress
-    is not being scaled."
     return
 end   
 
@@ -401,7 +399,6 @@ function split_floe(
     floe_settings,
     Δt,
 ) where {FT}
-    τ = floe_settings.stress_calculator.τ
     new_floes = StructArray{Floe{FT}}(undef, 0)
     # Generate voronoi tesselation in floe's bounding box
     scale_fac = fill(2floe.rmax, 2)

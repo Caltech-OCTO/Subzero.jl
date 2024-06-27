@@ -66,7 +66,7 @@ Singular sea ice floe with fields describing current state.
     stress_accum::Matrix{FT} = zeros(2, 2)
     stress_instant::Matrix{FT} = zeros(2, 2)
     strain::Matrix{FT} = zeros(2, 2)
-    damage::Matrix{FT} = zeros(2, 2)
+    damage::FT = 0.0        # damage to the floe (to be used in new stress calculator)
     # Previous values for timestepping  -------------------------------------
     p_dxdt::FT = 0.0        # previous timestep x-velocity
     p_dydt::FT = 0.0        # previous timestep y-velocity
@@ -293,7 +293,6 @@ function poly_to_floes!(
                 poly::Polys,
                 hmean,
                 Δh;
-                damage = calc_initial_damage(floe_settings.stress_calculator, Δt),
                 floe_settings = floe_settings,
                 rng = rng,
                 kwargs...
@@ -312,21 +311,6 @@ function poly_to_floes!(
         end
     end
     return 0
-end
-
-# When using DecayAreaScaledCalculator, we initialize stress to dt/τ, which is the timestep
-# over a parameter that we set when creating the stress calculator. This setup is 
-# necessary to calculate stress in the same way that Georgy Manucharyan and Brandon Montemuro
-# do in their code.
-calc_initial_damage(stress_calculator::DecayAreaScaledCalculator, Δt) = fill(Δt / stress_calculator.τ, 2, 2)
-
-# This is a place holder untio DamageStressCalculator is fully implemented. This should be
-# replaced with a physical interpretation of what the damage parameter should start as.
-# Damage does not necessary need to be a matrix, it has just been implemented this way to
-# be able to mimic Manucharyan's and Montemuro's code.
-function calc_initial_damage(stress_calculator::DamageStressCalculator, Δt)
-    @warn "DamageStressCalculator not fully implemented. Initializing damage to zero." 
-    return zeros(2, 2)
 end
 
 """
@@ -571,7 +555,6 @@ function initialize_floe_field(
     floe_settings = FloeSettings(FT, min_floe_area = 0),
     rng = Xoshiro(),
 ) where {FT <: AbstractFloat}
-    τ = floe_settings.stress_calculator.τ
     floe_arr = StructArray{Floe{FT}}(undef, 0)
     nfloes_added = 0
     # Availible space in domain

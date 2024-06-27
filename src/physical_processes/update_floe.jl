@@ -394,51 +394,47 @@ function calc_stress!(floe::FloeType{FT}, floe_settings, Δt) where {FT}
     xi, yi = floe.centroid
     inters = floe.interactions
     # Calculates timestep stress
-    stress = fill(FT(0), 2, 2)
-    for i in 1:floe.num_inters
-        stress[1, 1] += (inters[i, xpoint] - xi) * inters[i, xforce]
-        stress[1, 2] += (inters[i, ypoint] - yi) * inters[i, xforce] +
-            (inters[i, xpoint] - xi) * inters[i, yforce]
-        stress[2, 2] += (inters[i, ypoint] - yi) * inters[i, yforce]
+    stress = zeros(FT, 2, 2)
+    if floe.num_inters > 0
+        for i in 1:floe.num_inters
+            stress[1, 1] += (inters[i, xpoint] - xi) * inters[i, xforce]
+            stress[1, 2] += (inters[i, ypoint] - yi) * inters[i, xforce] +
+                (inters[i, xpoint] - xi) * inters[i, yforce]
+            stress[2, 2] += (inters[i, ypoint] - yi) * inters[i, yforce]
+        end
+        stress[1, 2] *= FT(0.5)
+        stress[2, 1] = stress[1, 2]
+        stress .*= 1/(floe.area * floe.height)
     end
-    stress[1, 2] *= FT(0.5)
-    stress[2, 1] = stress[1, 2]
-    stress .*= 1/(floe.area * floe.height)
-    update_damage!(floe_settings.stress_calculator, stress, floe, Δt)
+    update_damage!(floe_settings.stress_calculator, stress, floe)
     update_stress!(floe_settings.stress_calculator, stress, floe)
-    floe.stress_instant = stress
     return
 end
  
-# This function updates the damage parameter based on the type of calculator we are working
-# with. It is empty because the DamageStressCalculator is not fully implemented
-function update_damage!(stress_calculator, curr_stress, floe, Δt)
+# The damage parameter isn't used with the DecayAreaScaledCalculator.
+function update_damage!(stress_calculator::DecayAreaScaledCalculator, curr_stress, floe)
     return
 end
 
-# This is where one would implement a different method of updating the damage parameter.
-# currently this effectively carries out the same math as update_stress! for DecayAreaScaledCalculator
-function update_damage!(stress_calculator::DamageStressCalculator, curr_stress, floe, Δt)
-    @warn  "Current implementation of DamageStressCalculator is unfinished. Calculating 
-    stress as if using DecayAreaScaledCalculator"
-    τ = stress_calculator.τ
-    if iszero(curr_stress)
-        floe.damage = 0
-    else
-        floe.damage = (floe.stress_accum + (Δt/τ)*(curr_stress - floe.stress_accum))./curr_stress
-    end
+#= This is where one would implement a different method of updating the damage parameter.
+It is empty because the DamageStressCalculator is not fully implemented but it should
+update the floe.damage parameter. =#
+function update_damage!(stress_calculator::DamageStressCalculator, curr_stress, floe)
+    return
 end
 
-# Updating stress according to DamageStressCalculator. When DamageStressCalculator is 
-# fully implemented, this function does not have to change.
+# Updating stress using a decay equation where the curr_stress is λ
+function update_stress!(stress_calculator::DecayAreaScaledCalculator, curr_stress, floe)
+    λ = stress_calculator.λ
+    floe.stress_accum = (1 - λ) * floe.stress_accum + λ * curr_stress
+    floe.stress_instant = curr_stress
+    return
+end
+
+#= Updating stress according to DamageStressCalculator. This function should use the
+floe.damage parameter. =#
 function update_stress!(stress_calculator::DamageStressCalculator, curr_stress, floe)
-    floe.stress_accum = floe.damage .* curr_stress
-end
-
-# Updating stress in the same way that Brandon Montemuro and Georgy Manucharyan do 
-# in their MatLab code.
-function update_stress!(stress_calculator, curr_stress, floe)
-    floe.stress_accum = floe.stress_accum + floe.damage .* (curr_stress - floe.stress_accum)
+    return
 end
 
 """
