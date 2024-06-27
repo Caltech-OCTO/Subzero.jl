@@ -25,13 +25,28 @@ Note:
 @kwdef struct DecayAreaScaledCalculator{FT<:AbstractFloat} <: AbstractStressCalculator{FT}
     τ::FT = 20.0
     α::FT = 0.5
-
-    function DecayAreaScaledCalculator{FT}(τ::FT, α::FT) where {FT<:AbstractFloat}
-        # Can insert warnings about parameter values here
-        return new{FT}(τ, α)
-    end
 end
 
+"""
+    DecayAreaScaledCalculator(::Type{FT}; kwargs...)
+
+A float type FT can be provided as the first argument of any
+DecayAreaScaledCalculator constructor. A DecayAreaScaledCalculator of type FT
+will be created by passing all other arguments to the correct constructor. 
+"""
+DecayAreaScaledCalculator(
+    ::Type{FT},
+    args...;
+    kwargs...,
+) where {FT <: AbstractFloat} =
+    DecayAreaScaledCalculator{FT}(args...; kwargs...)
+
+"""
+    DecayAreaScaledCalculator(; kwargs...)
+
+If type isn't specified, DecayAreaScaledCalculator(; kwargs...) will be of type
+Float64 and the correct constructor will be called with all other arguments.
+"""
 DecayAreaScaledCalculator(args...; kwargs...) = DecayAreaScaledCalculator{Float64}(args...; kwargs...)
 
 """
@@ -53,12 +68,27 @@ Note:
 """
 @kwdef struct DamageStressCalculator{FT<:AbstractFloat} <: AbstractStressCalculator{FT}
     τ::FT = 20.0
-
-    function DamageStressCalculator{FT}(τ::FT) where {FT<:AbstractFloat}
-        # Can insert parameter warnings here
-
-        return new(τ)
-    end
 end
 
+
+"""
+    DamageStressCalculator(::Type{FT}; kwargs...)
+
+A float type FT can be provided as the first argument of any
+DamageStressCalculator constructor. A DamageStressCalculator of type FT
+will be created by passing all other arguments to the correct constructor. 
+"""
+DamageStressCalculator(
+    ::Type{FT},
+    args...;
+    kwargs...,
+) where {FT <: AbstractFloat} =
+    DamageStressCalculator{FT}(args...; kwargs...)
+
+"""
+    DamageStressCalculator(; kwargs...)
+
+If type isn't specified, DamageStressCalculator(; kwargs...) will be of type
+Float64 and the correct constructor will be called with all other arguments.
+"""
 DamageStressCalculator(args...; kwargs...) = DamageStressCalculator{Float64}(args...; kwargs...)

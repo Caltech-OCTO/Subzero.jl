@@ -109,7 +109,7 @@ arguments to the correct constructor.
 FloeSettings(
     ::Type{FT};
     subfloe_point_generator::GT = MonteCarloPointsGenerator(FT),
-    stress_calculator::CT = DecayAreaScaledCalculator(),
+    stress_calculator::CT = DecayAreaScaledCalculator(FT),
     kwargs...,
 ) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator, CT <: AbstractStressCalculator} =
     FloeSettings{FT, GT, CT}(;
