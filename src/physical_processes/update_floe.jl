@@ -500,9 +500,8 @@ function timestep_floe_properties!(
         cforce = floes.collision_force[i]
         ctrq = floes.collision_trq[i]
         # Update stress
-        if floes.num_inters[i] > 0
-            calc_stress!(get_floe(floes, i), floe_settings, Δt)
-        end
+        calc_stress!(get_floe(floes, i), floe_settings, Δt)
+
         # Ensure no extreem values due to model instability
         if floes.height[i] > floe_settings.max_floe_height
             @warn "Reducing height to $(floe_settings.max_floe_height) m"

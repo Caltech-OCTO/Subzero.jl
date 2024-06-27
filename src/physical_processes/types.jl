@@ -33,7 +33,7 @@ Fields:
                 that stress_accum = stress_accum(1-λ) + stress_instant(λ)
     α      <AbstractFloat> Adjusts ellipse in stress space by raising area ratio to the α
 Note:
-    τ is used in calc_stress!, whereas α is used in determine_fractures.
+    λ is used in calc_stress!, whereas α is used in determine_fractures.
 """
 @kwdef struct DecayAreaScaledCalculator{FT<:AbstractFloat} <: AbstractStressCalculator{FT}
     λ::FT = 0.2
