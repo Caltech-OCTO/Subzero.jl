@@ -23,8 +23,8 @@ Note:
     τ is used in calc_stress!(), whereas α is used in determine_fractures().
 """
 @kwdef struct DecayAreaScaledCalculator{FT<:AbstractFloat} <: AbstractStressCalculator{FT}
-    τ::FT = 20.0
-    α::FT = 0.5
+    τ::FT = 25.0
+    α::FT = 0.0
 end
 
 """
