@@ -54,6 +54,7 @@ want to scale stress in this way can simply skip implementing this function and 
 on this default. =#
 _scale_principal_stress!(::AbstractStressCalculator, σvals, floe, floe_settings) = return
 
+const DECAY_ARG_WARNING = "λ must be between 0 and 1. Resetting to default value of 0.2."
 """
     DecayAreaScaledCalculator{FT<:AbstractFloat} <: AbstractStressCalculator{FT}
 
@@ -80,6 +81,14 @@ take place.
 @kwdef struct DecayAreaScaledCalculator{FT<:AbstractFloat} <: AbstractStressCalculator{FT}
     λ::FT = 0.2
     α::FT = 0.0
+
+    function DecayAreaScaledCalculator{FT}(λ, α) where FT
+        if λ < 0 || λ > 1
+            @warn DECAY_ARG_WARNING
+            λ = FT(0.2)
+        end
+        return new{FT}(λ, α)
+    end
 end
 
 """
