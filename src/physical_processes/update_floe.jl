@@ -406,34 +406,10 @@ function calc_stress!(floe::FloeType{FT}, floe_settings, Δt) where {FT}
         stress[2, 1] = stress[1, 2]
         stress .*= 1/(floe.area * floe.height)
     end
-    update_damage!(floe_settings.stress_calculator, stress, floe)
-    update_stress!(floe_settings.stress_calculator, stress, floe)
-    return
-end
- 
-# The damage parameter isn't used with the DecayAreaScaledCalculator.
-function update_damage!(stress_calculator::DecayAreaScaledCalculator, curr_stress, floe)
-    return
-end
-
-#= This is where one would implement a different method of updating the damage parameter.
-It is empty because the DamageStressCalculator is not fully implemented but it should
-update the floe.damage parameter. =#
-function update_damage!(stress_calculator::DamageStressCalculator, curr_stress, floe)
-    return
-end
-
-# Updating stress using a decay equation where the curr_stress is λ
-function update_stress!(stress_calculator::DecayAreaScaledCalculator, curr_stress, floe)
-    λ = stress_calculator.λ
-    floe.stress_accum = (1 - λ) * floe.stress_accum + λ * curr_stress
-    floe.stress_instant = curr_stress
-    return
-end
-
-#= Updating stress according to DamageStressCalculator. This function should use the
-floe.damage parameter. =#
-function update_stress!(stress_calculator::DamageStressCalculator, curr_stress, floe)
+    # Updates accumulated stress
+    _update_stress_accum!(floe_settings.stress_calculator, stress, floe)
+    # Updates instantanious stress
+    floe.stress_instant .= stress
     return
 end
 

@@ -108,7 +108,7 @@ Base.convert(::Type{Polys{Float32}}, p::Polys{Float64}) = GO.tuples(p, Float32)
 Base.convert(::Type{Polys{Float64}}, p::Polys{Float32}) = GO.tuples(p, Float64)
 
 # Types
-include("physical_processes/types.jl")
+include("simulation_components/stress_calculators.jl")
 # Model
 include("simulation_components/floe.jl")
 include("floe_utils.jl")

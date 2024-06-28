@@ -283,25 +283,9 @@ end
 # fracture criteria. 
 function find_σpoint(floe::FloeType, floe_settings)
     σvals = eigvals(floe.stress_accum)
-    scale_stress!(floe_settings.stress_calculator, σvals, floe_settings.min_floe_area, floe.area)
+    _scale_principal_stress!(floe_settings.stress_calculator, σvals, floe, floe_settings)
     return σvals
 end
-
-# This function scales the stress as an alternative method of adjusting the fracture
-# ellipse in stress space. For DecayAreaScaledCalculator we adjust the stress based on
-# the area of the floe. It should be easier to fracture larger floes.
-function scale_stress!(stress_calculator::DecayAreaScaledCalculator, σvals, min_floe_area, floe_area)
-    stress_calculator.α == 0 && return
-    M = (floe_area/min_floe_area).^stress_calculator.α
-    σvals .*= M
-    return 
-end
-
-# This can be changed to add some sort of scaling to the DamageStressCalculator, potentially
-# based on area like the function above.
-function scale_stress!(::DamageStressCalculator, σvals, min_floe_area, floe_area)
-    return
-end   
 
 """
     deform_floe!(
