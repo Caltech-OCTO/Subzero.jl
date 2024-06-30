@@ -1,6 +1,6 @@
 # # DecayAreaScaledCalculator and DamageStressCalculator
 
-export DecayAreaScaledCalculator, DamageStressCalculator
+export AbstractStressCalculator, DecayAreaScaledCalculator, DamageStressCalculator
 
 #= 
 ## What is a stress calculator? 
