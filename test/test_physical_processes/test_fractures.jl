@@ -147,7 +147,7 @@
             0.25,
             0.0,
         )
-        frac_deform_floe.stress = frac_stress
+        frac_deform_floe.stress_accum = frac_stress
         frac_deform_floe.interactions = collect([
             3,
             -279441968.984,
@@ -159,8 +159,8 @@
         ]')
         frac_deform_floe.num_inters = 1
         frac_deform_floe.p_dudt = 0.11
-        frac_floe.stress = frac_stress
-        no_frac_small.stress = frac_stress
+        frac_floe.stress_accum = frac_stress
+        no_frac_small.stress_accum = frac_stress
 
         floes = StructArray([
             frac_deform_floe, frac_floe, no_frac_floe, no_frac_small
@@ -174,10 +174,11 @@
         )
 
         # Test determine_fractures
+        floe_settings = FloeSettings(min_floe_area = 1e6)
         frac_idx = Subzero.determine_fractures(
              floes,
              HiblerYieldCurve(floes),
-             1e6
+             floe_settings
         )
         # First floe fractures, second is too small, third stress is too small
         @test frac_idx == [1, 2]

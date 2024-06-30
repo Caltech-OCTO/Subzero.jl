@@ -383,32 +383,33 @@ end
 Calculates the stress on a floe for current collisions given interactions and
 floe properties.
 Inputs:
-    inters      <Matrix{AbstractFloat}> matrix of floe interactions
-    centroid    <Vector{AbstractFloat}> floe centroid as [x, y] coordinates
-    area        <AbstractFloat> floe area
-    height      <AbstractFloat> floe height
+    floe          <Union{LazyRow{Floe{AbstractFloat}}, Floe{AbstractFloat}> properties of floe
+    floe_settings <FloeSettings{AbstractFloat}> Settings to create floes within model
+    Δt            <AbstractFloat> Simulation timestep in seconds
 Outputs:
-    Caculates stress on floe at current timestep from interactions
+    Does not return anything, but updates floe.stress_accum and floe.stress_instant
 """
-function calc_stress!(floe::FloeType{FT}) where {FT}
+function calc_stress!(floe::FloeType{FT}, floe_settings, Δt) where {FT}
     # Stress calcultions
     xi, yi = floe.centroid
     inters = floe.interactions
     # Calculates timestep stress
-    stress = fill(FT(0), 2, 2)
-    for i in 1:floe.num_inters
-        stress[1, 1] += (inters[i, xpoint] - xi) * inters[i, xforce]
-        stress[1, 2] += (inters[i, ypoint] - yi) * inters[i, xforce] +
-            (inters[i, xpoint] - xi) * inters[i, yforce]
-        stress[2, 2] += (inters[i, ypoint] - yi) * inters[i, yforce]
+    stress = zeros(FT, 2, 2)
+    if floe.num_inters > 0
+        for i in 1:floe.num_inters
+            stress[1, 1] += (inters[i, xpoint] - xi) * inters[i, xforce]
+            stress[1, 2] += (inters[i, ypoint] - yi) * inters[i, xforce] +
+                (inters[i, xpoint] - xi) * inters[i, yforce]
+            stress[2, 2] += (inters[i, ypoint] - yi) * inters[i, yforce]
+        end
+        stress[1, 2] *= FT(0.5)
+        stress[2, 1] = stress[1, 2]
+        stress .*= 1/(floe.area * floe.height)
     end
-    stress[1, 2] *= FT(0.5)
-    stress[2, 1] = stress[1, 2]
-    stress .*= 1/(floe.area * floe.height)
-    # Add timestep stress to stress history
-    push!(floe.stress_history, stress)
-    # Average stress history to find floe's average stress
-    floe.stress = mean(floe.stress_history)
+    # Updates accumulated stress
+    _update_stress_accum!(floe_settings.stress_calculator, stress, floe)
+    # Updates instantanious stress
+    floe.stress_instant .= stress
     return
 end
 
@@ -461,7 +462,7 @@ other floes.
 Input:
         floe            <Floe>
         Δt              <Int> simulation timestep in second
-        floe_settings   <FloeSettings> floe creation settings
+        floe_settings   <FloeSettings> simulation floe settings
 Output:
         None. Floe's fields are updated with values.
 """
@@ -475,9 +476,8 @@ function timestep_floe_properties!(
         cforce = floes.collision_force[i]
         ctrq = floes.collision_trq[i]
         # Update stress
-        if floes.num_inters[i] > 0
-            calc_stress!(get_floe(floes, i))
-        end
+        calc_stress!(get_floe(floes, i), floe_settings, Δt)
+
         # Ensure no extreem values due to model instability
         if floes.height[i] > floe_settings.max_floe_height
             @warn "Reducing height to $(floe_settings.max_floe_height) m"

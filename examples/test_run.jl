@@ -2,7 +2,7 @@ using JLD2, Random, Statistics, Subzero, BenchmarkTools, StructArrays, SplitAppl
 import LibGEOS as LG
 
 function setup_floes_with_inters(coords, domain, consts,
-    collision_settings, lock,  Δx = nothing, Δy = nothing,
+    collision_settings, lock,  Δt, Δx = nothing, Δy = nothing,
 )
     floes = initialize_floe_field(
         Float64,
@@ -10,6 +10,7 @@ function setup_floes_with_inters(coords, domain, consts,
         domain,
         1.0,
         0.0,
+        Δt,
     )
     if !isnothing(Δx)
         for i in eachindex(Δx)
@@ -78,7 +79,7 @@ coords = [
     [[[3e4, -0.2e4], [3e4, 0.2e4], [5e4, -0.1e4], [8e4, 0.2e4], [8e4, -0.2e4], [3e4, -0.2e4]]]
 ]
 base_floes = setup_floes_with_inters(coords, collision_domain, consts,
-    collision_settings, lock
+    collision_settings, lock, Δt,
 )
 no_rr_frac_settings = Subzero.RidgeRaftSettings(
     ridge_probability = 1.0,
@@ -114,8 +115,6 @@ max_id = Subzero.timestep_ridging_rafting!(
     consts,
     10,
 )
-
-
 
 # User Inputs
 const FT = Float64
@@ -166,7 +165,8 @@ floe_arr = initialize_floe_field(
     [0.8],
     domain,
     0.5,
-    0.0;
+    0.0,
+    Δt;
     floe_settings = floe_settings,
     rng = Xoshiro(1),
 )

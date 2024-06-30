@@ -1,6 +1,8 @@
 @testset "Floe" begin
     # Test Setup
     FT = Float64
+    Δt = 10
+    # test generating monte carlo points
     Lx = 8e4
     Ly = Lx
     Δgrid = 1e4
@@ -55,16 +57,16 @@
     rmax_cpoly = 2sqrt(5^2 + 5^2)
     # Test polygon with no holes
     floe_arr = StructArray{Floe{FT}}(undef, 0)
-    n_new = Subzero.poly_to_floes!(FT, floe_arr, rect_poly, hmean, Δh, rmax_rect)
+    n_new = Subzero.poly_to_floes!(FT, floe_arr, rect_poly, hmean, Δh, Δt, rmax_rect)
     @test n_new == 1 && length(floe_arr) == 1
     @test !Subzero.hashole(floe_arr.coords[1])
 
     # Test with polygon below minimum floe area
-    n_new = Subzero.poly_to_floes!(FT, floe_arr, rect_poly, hmean, Δh, rmax_rect; floe_settings = fs_small_min_area)
+    n_new = Subzero.poly_to_floes!(FT, floe_arr, rect_poly, hmean, Δh, Δt, rmax_rect; floe_settings = fs_small_min_area)
     @test n_new == 0 && length(floe_arr) == 1
 
     # Test with polygon with a hole that is split into 3 polyons
-    n_new = Subzero.poly_to_floes!(FT, floe_arr, c_hole_poly, hmean, Δh, rmax_cpoly)
+    n_new = Subzero.poly_to_floes!(FT, floe_arr, c_hole_poly, hmean, Δh, Δt, rmax_cpoly)
     @test n_new == 3 && length(floe_arr) == 4
     @test !any(Subzero.hashole.(floe_arr.coords))
 
@@ -93,6 +95,7 @@
         domain_no_topo,
         0.5,
         0.1,
+        Δt;
     ))
     nfloes = length(floe_coords)
     @test typeof(floe_arr) <: StructArray{<:Floe}
@@ -112,7 +115,8 @@
         floe_coords,
         small_domain_no_topo,
         hmean,
-        Δh;
+        Δh,
+        Δt;
         floe_settings = FloeSettings(min_floe_area = 1e5),
     ))
     @test typeof(floe_arr) <: StructArray{<:Floe}
@@ -124,7 +128,8 @@
         floe_coords,
         domain_with_topo,
         hmean,
-        Δh;
+        Δh,
+        Δt;
         floe_settings = FloeSettings(min_floe_area = 10),
         rng = Xoshiro(0)
     )
@@ -173,7 +178,8 @@
         [0.5],
         domain_with_topo,
         0.5,
-        0.1;
+        0.1,
+        Δt;
         floe_settings = FloeSettings(min_floe_area = 1e4),
         rng = Xoshiro(1)
     )
@@ -198,7 +204,8 @@
         concentrations,
         domain_with_topo,
         0.5,
-        0.1;
+        0.1,
+        Δt;
         floe_settings = FloeSettings(min_floe_area = 1e4),
         rng = rng
     )
@@ -230,5 +237,6 @@
         domain_with_topo,
         0.5,
         0.1,
+        Δt;
     )) <: StructArray{<:Floe{Float32}}
 end

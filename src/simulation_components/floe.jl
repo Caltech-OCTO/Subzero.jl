@@ -19,81 +19,6 @@ end
 Status() = Status(active, Vector{Int}())  # active floe
 
 """
-    StressCircularBuffer{FT<:AbstractFloat}
-
-Extended circular buffer for the stress history that hold 2x2 matrices of stress
-values and allows for efficently taking the mean of  buffer by keeping an
-element-wise running total of values within circular buffer
-"""
-mutable struct StressCircularBuffer{FT<:AbstractFloat}
-    cb::CircularBuffer{Matrix{FT}}
-    total::Matrix{FT}
-end
-"""
-    StressCircularBuffer{FT}(capacity::Int)
-
-Create a stress buffer with given capacity
-Inputs:
-    capacity    <Int> capacity of circular buffer
-Outputs:
-    StressCircularBuffer with given capacity and a starting total that is a 2x2
-    matrix of zeros.
-"""
-StressCircularBuffer{FT}(capacity::Int) where {FT} =
-    StressCircularBuffer{FT}(
-        CircularBuffer{Matrix{FT}}(capacity),
-        zeros(FT, 2, 2)
-    )
-"""
-    push!(scb::StressCircularBuffer, data)
-
-Adds element to the back of the circular buffer and overwrite front if full.
-Add data to total and remove overwritten value from total if full.
-Inputs:
-    scb     <StressCircularBuffer> stress circular buffer
-    data    <Matrix> 2x2 stress data
-Outputs:
-    Add data to the buffer and update the total to reflect the addition
-"""
-function Base.push!(scb::StressCircularBuffer, data)
-    if scb.cb.length == scb.cb.capacity
-        scb.total .-= scb.cb[1]
-    end
-    scb.total .+= data
-    push!(scb.cb, data)
-end
-
-"""
-fill!(scb::StressCircularBuffer, data)
-
-Grows the buffer up-to capacity, and fills it entirely. It doesn't overwrite
-existing elements. Adds value of added items to total.
-Inputs:
-    scb     <StressCircularBuffer> stress circular buffer
-    data    <Matrix> 2x2 stress data
-Outputs:
-    Fill all empty buffer slots with data and update total to reflect additions
-"""
-function Base.fill!(scb::StressCircularBuffer, data)
-    scb.total .+= (scb.cb.capacity - scb.cb.length) * data
-    fill!(scb.cb, data)
-end
-
-"""
-    mean(scb::StressCircularBuffer)
-
-Calculates mean of buffer, over the capacity of the buffer. If the buffer is not
-full, empty slots are counted as zeros.
-Inputs:
-    scb     <StressCircularBuffer> stress circular buffer
-Outputs:
-    mean of stress circular buffer over the capacity of the buffer
-"""
-function Statistics.mean(scb::StressCircularBuffer)
-    return scb.total / capacity(scb.cb) 
-end
-
-"""
 Singular sea ice floe with fields describing current state.
 """
 @kwdef mutable struct Floe{FT<:AbstractFloat}
@@ -138,9 +63,10 @@ Singular sea ice floe with fields describing current state.
     collision_trq::FT = 0.0
     interactions::Matrix{FT} = zeros(0, 7)
     num_inters::Int = 0
-    stress::Matrix{FT} = zeros(2, 2)
-    stress_history::StressCircularBuffer{FT} = StressCircularBuffer(1000)
+    stress_accum::Matrix{FT} = zeros(2, 2)
+    stress_instant::Matrix{FT} = zeros(2, 2)
     strain::Matrix{FT} = zeros(2, 2)
+    damage::FT = 0.0        # damage to the floe (to be used in new stress calculator)
     # Previous values for timestepping  -------------------------------------
     p_dxdt::FT = 0.0        # previous timestep x-velocity
     p_dydt::FT = 0.0        # previous timestep y-velocity
@@ -249,8 +175,7 @@ function Floe{FT}(
         rng,
     )
     # Generate Stress History
-    stress_history = StressCircularBuffer{FT}(floe_settings.nhistory)
-    fill!(stress_history, zeros(FT, 2, 2))
+    stress_instant = zeros(FT, 2, 2)
 
     return Floe{FT}(;
         poly = GO.tuples(floe, FT),
@@ -264,7 +189,7 @@ function Floe{FT}(
         angles = angles,
         x_subfloe_points = x_subfloe_points,
         y_subfloe_points = y_subfloe_points,
-        stress_history = stress_history,
+        stress_instant = stress_instant,
         status = status,
         kwargs...
     )
@@ -277,7 +202,6 @@ end
         Δh;
         ρi = 920.0,
         mc_n = 1000,
-        nhistory = 1000,
         rng = Xoshiro(),
         kwargs...,
     )
@@ -324,6 +248,7 @@ end
         poly,
         hmean,
         Δh,
+        Δt,
         rmax;
         floe_settings,
         rng = Xoshiro(),
@@ -340,6 +265,7 @@ Inputs:
     hmean               <AbstratFloat> average floe height
     Δh                  <AbstratFloat> height range - floes will range in height
                         from hmean - Δh to hmean + Δh
+    Δt                  <Int> timestep of simulation in seconds
     rmax                <AbstractFloat> maximum radius of floe (could be larger given context)
     floe_settings       <FloeSettings> settings needed to initialize floe
                             settings
@@ -353,6 +279,7 @@ function poly_to_floes!(
     poly,
     hmean,
     Δh,
+    Δt,
     rmax;
     floe_settings = FloeSettings(min_floe_area = 0),
     rng = Xoshiro(),
@@ -377,7 +304,7 @@ function poly_to_floes!(
             new_regions = GO.cut(poly, GI.Line([(cx - rmax, cy), (cx + rmax, cy)]), FT)
             n = 0
             for r in new_regions
-                n += poly_to_floes!(FT, floes, r, hmean, Δh, rmax;
+                n += poly_to_floes!(FT, floes, r, hmean, Δh, Δt, rmax;
                     floe_settings = floe_settings, rng = rng, kwargs...)
             end
             return n
@@ -401,7 +328,8 @@ initialize_floe_field(args...; kwargs...) =
         coords,
         domain,
         hmean,
-        Δh;
+        Δh,
+        Δt;
         floe_settings,
         rng,
     )
@@ -416,6 +344,7 @@ Inputs:
     hmean               <Float> average floe height
     Δh                  <Float> height range - floes will range in height from
                             hmean ± Δh
+    Δt                  <Int> simulation timestep in seconds
     floe_settings       <FloeSettings> settings needed to initialize floes
     rng                 <RNG> random number generator to generate random floe
                             attributes - default uses Xoshiro256++ algorithm
@@ -428,7 +357,8 @@ function initialize_floe_field(
     coords,
     domain,
     hmean,
-    Δh;
+    Δh,
+    Δt;
     floe_settings = FloeSettings(min_floe_area = 0.0),
     rng = Xoshiro(),
     supress_warnings = false,
@@ -447,6 +377,7 @@ function initialize_floe_field(
             p,
             hmean,
             Δh,
+            Δt,
             domain.east.val - domain.west.val;
             floe_settings = floe_settings,
             rng = rng,
@@ -577,7 +508,8 @@ end
         concentrations,
         domain,
         hmean,
-        Δh;
+        Δh,
+        Δt;
         floe_settings,
         rng,
     )
@@ -600,6 +532,7 @@ Inputs:
     hmean           <Float> average floe height
     Δh              <Float> height range - floes will range in height from
                         hmean - Δh to hmean + Δh
+    Δt              <Int> simulation timestep in seconds
     floe_bounds     <PolyVec> coordinates of boundary within which to populate floes. This
                         can be smaller that the domain, but will be limited to open space
                         within the domain
@@ -616,7 +549,8 @@ function initialize_floe_field(
     concentrations,
     domain,
     hmean,
-    Δh;
+    Δh,
+    Δt;
     floe_bounds = _make_bounding_box_polygon(FT, domain.west.val, domain.east.val, domain.south.val, domain.north.val),
     floe_settings = FloeSettings(FT, min_floe_area = 0),
     rng = Xoshiro(),
@@ -681,6 +615,7 @@ function initialize_floe_field(
                                 piece,
                                 hmean,
                                 Δh,
+                                Δt,
                                 domain.east.val - domain.west.val;
                                 floe_settings = floe_settings,
                                 rng = rng,

@@ -76,7 +76,7 @@ function _move_poly(::Type{FT}, poly, Δx, Δy, Δα, cx = zero(FT), cy = zero(F
     cent_rot = CoordinateTransformations.recenter(rot, (cx, cy))
     trans = CoordinateTransformations.Translation(Δx, Δy)
     # TODO: can remove the tuples call after GO SVPoint PR
-    return GO.tuples(GO.transform(trans ∘ cent_rot, poly), FT)
+    return GO.tuples(GO.transform(trans ∘ cent_rot, poly), FT)::Polys{FT}
 end
 
 function _move_floe!(::Type{FT}, floe, Δx, Δy, Δα) where FT
@@ -88,7 +88,7 @@ function _move_floe!(::Type{FT}, floe, Δx, Δy, Δα) where FT
     floe.centroid[2] += Δy
     translate!(floe.coords, cx + Δx, cy + Δy)
     # Move Polygon
-    floe.poly = _move_poly(FT, floe.poly, Δx, Δy, Δα, cx, cy)
+    floe.poly = _move_poly(FT, floe.poly, Δx, Δy, Δα, cx, cy)::Polys{FT}
     return 
 end
 
@@ -147,10 +147,8 @@ function deepcopy_floe(floe::LazyRow{Floe{FT}}) where {FT}
         overarea = floe.overarea,
         collision_force = copy(floe.collision_force),
         collision_trq = floe.collision_trq,
-        stress = copy(floe.stress),
-        stress_history = StressCircularBuffer{FT}(
-            capacity(floe.stress_history.cb),
-        ),
+        stress_accum = copy(floe.stress_accum),
+        stress_instant = copy(floe.stress_instant),
         strain = copy(floe.strain),
         p_dxdt = floe.p_dxdt,
         p_dydt = floe.p_dydt,
@@ -159,8 +157,6 @@ function deepcopy_floe(floe::LazyRow{Floe{FT}}) where {FT}
         p_dξdt = floe.p_dξdt,
         p_dαdt = floe.p_dαdt,
     )
-    f.stress_history.total .= copy(floe.stress_history.total)
-    append!(f.stress_history.cb, copy(floe.stress_history.cb))
     return f
 end
 

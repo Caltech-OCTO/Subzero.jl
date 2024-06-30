@@ -1,6 +1,4 @@
-"""
-Structs and functions for fracturing floes
-"""
+
 
 """
     AbstractFractureCriteria
@@ -263,22 +261,30 @@ Determines which floes will fracture depending on the principal stress criteria.
 Inputs:
     floes           <StructArray{Floe}> model's list of floes
     criteria        <AbstractFractureCriteria> fracture criteria
-    min_floe_area   <AbstractFloat> minimum floe area - floes under this area
-                        will not be fractured
+    floe_settings   <FloeSettings> Floe settings. Contains Floe properties and stress 
+                    calculator.
 Outputs:
     <Vector{Int}> list of indices of floes to fracture 
 """
 function determine_fractures(
     floes,
     criteria::AbstractFractureCriteria,
-    min_floe_area,
+    floe_settings, 
 )
     # Determine if floe stresses are in or out of criteria allowable regions
     update_criteria!(criteria, floes)
     # If stresses are outside of criteria regions, we will fracture the floe
-    frac_idx = [!GO.coveredby(eigvals(s), criteria.poly) for s in floes.stress]
-    frac_idx[floes.area .< min_floe_area] .= false
+    frac_idx = [!GO.coveredby(find_σpoint(get_floe(floes, i), floe_settings), criteria.poly) for i in eachindex(floes)]
+    frac_idx[floes.area .< floe_settings.min_floe_area] .= false
     return range(1, length(floes))[frac_idx]
+end
+
+# Find floe's accumulated stress in principal stress space so that is can be compared to the
+# fracture criteria. 
+function find_σpoint(floe::FloeType, floe_settings)
+    σvals = eigvals(floe.stress_accum)
+    _scale_principal_stress!(floe_settings.stress_calculator, σvals, floe, floe_settings)
+    return σvals
 end
 
 """
@@ -406,7 +412,8 @@ function split_floe(
                     new_floes,
                     pieces_polys[i],
                     height,
-                    0,  # Δh - range of random height difference between floes
+                    0, # Δh - range of random height difference between floes
+                    Δt,
                     floe.rmax;
                     floe_settings = floe_settings,
                     rng = rng,
@@ -464,7 +471,7 @@ function fracture_floes!(
     frac_idx = determine_fractures(
         floes,
         fracture_settings.criteria,
-        floe_settings.min_floe_area,
+        floe_settings,
     )
     # Initialize list for new floes created from fracturing existing floes
     nfloes2frac = length(frac_idx)

@@ -38,11 +38,11 @@ function matfloe2julfloes(filename)
     floe.trqOA = vars["floe"]["torqueOA"]
     floe.collision_force = vars["floe"]["collision_force"]
     floe.collision_trq = vars["floe"]["collision_torque"]
-    floe.stress = vars["floe"]["Stress"]
+    floe.stress_accum = vars["floe"]["Stress"]
     floe.strain = vars["floe"]["strain"]
     for x in eachslice(vars["floe"]["StressH"], dims = 3)
         if sum(x) != 0
-            push!(floe.stress_history, x)
+            push!(floe.stress_instant, x)
         end
     end
     return floe
@@ -62,11 +62,11 @@ function julfloe2matfloe(floes, Δg, out_fn)
         push!(reshaped_y, reshape(ycoords[i], (1, length(ycoords[i]))) .- Δg)
     end
 
-    floe.stress = vars["floe"]["Stress"]
+    floe.stress_accum = vars["floe"]["Stress"]
     floe.strain = vars["floe"]["strain"]
     for x in eachslice(vars["floe"]["StressH"], dims = 3)
         if sum(x) != 0
-            push!(floe.stress_history, x)
+            push!(floe.stress_instant, x)
         end
     end
     out_fn = auto_extension(out_fn, ".mat")
@@ -85,9 +85,9 @@ function julfloe2matfloe(floes, Δg, out_fn)
         "torqueOA" => floes.trqOA,
         "collision_force" => floes.collision_force,
         "collision_toque" => floes.collision_trq,
-        "stress" => floes.stress,
+        "stress" => floes.stress_accum,
         "strain" => floes.strain,
-        "stress_history" => floes.stress_history
+        "stress_instant" => floes.stress_instant
     );)
 end
 

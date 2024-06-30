@@ -48,7 +48,6 @@ export
     overlap, 
     initialize_floe_field,
     initialize_topography_field,
-    AbstractFractureCriteria,
     NoFracture,
     HiblerYieldCurve,
     MohrsCone,
@@ -104,6 +103,8 @@ const Polys{T} = GI.Polygon{false, false, Vector{GI.LinearRing{false, false, Vec
 Base.convert(::Type{Polys{Float32}}, p::Polys{Float64}) = GO.tuples(p, Float32)
 Base.convert(::Type{Polys{Float64}}, p::Polys{Float32}) = GO.tuples(p, Float64)
 
+# Types
+include("simulation_components/stress_calculators.jl")
 # Model
 include("simulation_components/floe.jl")
 include("floe_utils.jl")
@@ -111,10 +112,10 @@ include("simulation_components/domain_and_grid.jl")
 include("simulation_components/ocean_and_atmos.jl")
 include("simulation_components/model.jl")
 # Physical Processes
+include("physical_processes/fractures.jl")
 include("physical_processes/update_floe.jl")
 include("physical_processes/coupling.jl")
 include("physical_processes/collisions.jl")
-include("physical_processes/fractures.jl")
 include("physical_processes/process_settings.jl")
 include("physical_processes/simplification.jl")
 include("physical_processes/ridge_raft.jl")

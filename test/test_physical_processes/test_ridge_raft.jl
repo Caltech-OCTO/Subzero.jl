@@ -1,4 +1,5 @@
 @testset "Ridging and Rafting" begin
+    Δt = 10
     FT = Float64
     function update_height(floes, i, new_height, floe_settings)
         floes.height[i] = new_height
@@ -33,6 +34,7 @@
             domain,
             1.0,
             0.0,
+            Δt;
         )
         if !isnothing(Δx)
             for i in eachindex(Δx)

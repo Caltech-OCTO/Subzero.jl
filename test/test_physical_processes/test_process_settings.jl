@@ -7,7 +7,7 @@
             default_info.min_floe_height == 0.1 &&
             default_info.max_floe_height == 10 &&
             default_info.min_aspect_ratio == 0.05 &&
-            default_info.nhistory == 100 &&
+            default_info.stress_calculator isa DecayAreaScaledCalculator &&
             default_info.subfloe_point_generator isa MonteCarloPointsGenerator
         @test default_info.ρi isa Float64 &&
             default_info.min_floe_area isa Float64 &&

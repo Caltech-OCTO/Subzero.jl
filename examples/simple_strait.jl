@@ -41,6 +41,7 @@ coupling_settings = CouplingSettings(
 )
 floe_settings = FloeSettings(
     subfloe_point_generator = SubGridPointsGenerator(grid, 2),
+    stress_calculator = DecayAreaScaledCalculator(),
 )
 
 # Floe creation
@@ -51,6 +52,7 @@ floe_arr = initialize_floe_field(
     domain,
     hmean,
     Δh,
+    Δt;
     rng = Xoshiro(3),
     floe_settings = floe_settings,
 )
@@ -100,8 +102,8 @@ simulation = Simulation(
 run_time!(simulation)
 
 plot_sim(
-    "output/simple_strait/floes.jld2",
-    "output/simple_strait/initial_state.jld2",
+    dir*"/floes.jld2",
+    dir*"/initial_state.jld2",
     Δt,
-    "output/simple_strait/simple_strait.mp4",
+    dir*"/simple_strait.mp4",
 )

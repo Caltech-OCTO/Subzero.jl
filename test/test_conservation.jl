@@ -5,6 +5,7 @@ function conservation_simulation(
     smoothing = false,
     plot = false,
 )
+    Δt = 10
     ocean = Ocean(grid, 0.0, 0.0, 0.0)
     atmos = Atmos(grid, 0.0, 0.0, 0.0)
     model = Model(grid, ocean, atmos, domain, floes)
@@ -56,6 +57,7 @@ end
 
 
 @testset "Conservation of Energy and Momentum" begin
+    Δt = 10
     FT = Float64
     grid = RegRectilinearGrid(
         (-2e4, 1e5),
@@ -92,13 +94,14 @@ end
 
     # Two blocks crashing head on - no rotation
     rng = Xoshiro(1)
-    floe_settings = FloeSettings(nhistory = 100)
+    floe_settings = FloeSettings()
     head_on_floes = initialize_floe_field(
         FT,
         [floe1, floe2],
         open_domain, # Just affects shape, type doesn't matter
         0.25,
         0.0,
+        Δt;
         rng = rng,
         floe_settings = floe_settings,
     )
@@ -122,6 +125,7 @@ end
         open_domain, # Just affects shape, type doesn't matter
         0.25,
         0.0,
+        Δt;
         rng = rng,
         floe_settings = floe_settings,
     )
@@ -144,6 +148,7 @@ end
         open_domain, # Just affects shape, type doesn't matter
         0.25,
         0.0,
+        Δt;
         rng = rng,
         floe_settings = floe_settings,
     )
@@ -172,6 +177,7 @@ end
         open_domain,
         0.25,
         0.0,
+        Δt;
         rng = rng,
     )
     close(file)
@@ -197,6 +203,7 @@ end
         open_domain_w_topography,
         0.25,
         0.0,
+        Δt;
         rng = rng,
     )
     close(file)
