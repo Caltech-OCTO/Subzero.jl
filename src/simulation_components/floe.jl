@@ -354,7 +354,7 @@ Output:
 """
 function initialize_floe_field(
     ::Type{FT},
-    coords,
+    coords::V,
     domain,
     hmean,
     Δh,
@@ -362,7 +362,7 @@ function initialize_floe_field(
     floe_settings = FloeSettings(min_floe_area = 0.0),
     rng = Xoshiro(),
     supress_warnings = false,
-) where {FT <: AbstractFloat}
+) where {FT <: AbstractFloat, V <: AbstractVector}
     floe_arr = StructArray{Floe{FT}}(undef, 0)
     floe_polys = [make_polygon(valid_polyvec!(c)) for c in coords]
     # Remove overlaps with topography
