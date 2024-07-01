@@ -25,8 +25,8 @@ A float type FT can be provided as the first argument of any Constants
 constructor. A Constants of type FT will be created by passing all other
 arguments to the correct constructor. 
 """
-Constants(::Type{FT}, args...) where {FT <: AbstractFloat} =
-    Constants{FT}(args...)
+Constants(::Type{FT}, args...; kwargs...) where {FT <: AbstractFloat} =
+    Constants{FT}(args...; kwargs...)
 
 """
     Constants(args...)
@@ -34,7 +34,7 @@ Constants(::Type{FT}, args...) where {FT <: AbstractFloat} =
 If a type isn't specified, Constants will be of type Float64 and the correct
 constructor will be called with all other arguments.
 """
-Constants(args...) = Constants{Float64}(args...)
+Constants(args...; kwargs...) = Constants{Float64}(args...; kwargs...)
 
 """
     Simulation{FT<:AbstractFloat, DT<:Domain{FT}}

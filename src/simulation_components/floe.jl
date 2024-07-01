@@ -313,17 +313,28 @@ function poly_to_floes!(
     return 0
 end
 
+
 """
     initialize_floe_field(args...)
 
-If a type isn't specified, the list of Floes will each be of type Float64 and
-the correct constructor will be called with all other arguments.
+A float type FT can be provided as the first argument of the initialize_floe_field
+constructor. A field of floes of type FT will be created by passing all other
+arguments to the correct method. 
 """
 initialize_floe_field(args...; kwargs...) =
-    initialize_floe_field(Float64, args...; kwargs...)
+    _initialize_floe_field(Float64, args...; kwargs...)
 
 """
-    initialize_floe_field(
+    initialize_floe_field(args...)
+
+If a type isn't specified, the field of Floes will each be of type Float64 and
+the correct constructor will be called with all other arguments.
+"""
+initialize_floe_field(::Type{FT}, args...; kwargs...) where FT =
+    _initialize_floe_field(FT, args...; kwargs...)
+
+"""
+    _initialize_floe_field(
         ::Type{FT},
         coords,
         domain,
@@ -352,7 +363,7 @@ Output:
     floe_arr <StructArray{Floe}> list of floes created from given polygon
     coordinates
 """
-function initialize_floe_field(
+function _initialize_floe_field(
     ::Type{FT},
     coords::V,
     domain,
@@ -502,7 +513,7 @@ function generate_voronoi_coords(
 end
 
 """
-    initialize_floe_field(
+    _initialize_floe_field(
         ::Type{FT},
         nfloes,
         concentrations,
@@ -543,7 +554,7 @@ Output:
     floe_arr <StructArray> list of floes created using Voronoi Tesselation
         of the domain with given concentrations.
 """
-function initialize_floe_field(
+function _initialize_floe_field(
     ::Type{FT},
     nfloes::Int,
     concentrations,
