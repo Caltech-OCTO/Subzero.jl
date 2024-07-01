@@ -40,7 +40,7 @@ nfloes = 100
 file = jldopen("examples/floe_shapes.jld2", "r")
 nfloes = nfloes > size(file["floe_vertices"], 1) ? size(file["floe_vertices"], 1) : nfloes
 floe_coords = file["floe_vertices"][1:1]
-floe_arr = initialize_floe_field(FT, floe_coords, domain, hmean, Δh, Δt)
+floe_arr = initialize_floe_field(FT, floe_coords, domain, hmean, Δh)
 close(file)
 
 model = Model(grid, ocean, atmos, domain, floe_arr)

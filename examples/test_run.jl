@@ -9,8 +9,7 @@ function setup_floes_with_inters(coords, domain, consts,
         coords,
         domain,
         1.0,
-        0.0,
-        Δt,
+        0.0;
     )
     if !isnothing(Δx)
         for i in eachindex(Δx)
@@ -165,8 +164,7 @@ floe_arr = initialize_floe_field(
     [0.8],
     domain,
     0.5,
-    0.0,
-    Δt;
+    0.0;
     floe_settings = floe_settings,
     rng = Xoshiro(1),
 )

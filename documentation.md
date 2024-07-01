@@ -321,8 +321,7 @@ floe_field = initialize_floe_field(
   [floe1, floe2],
   domain,
   0.25,  # mean height of 0.25
-  0.0,  # all floes will be the same height
-  Δt; # timestep of simulation in seconds
+  0.0;  # all floes will be the same height
   rng = Xoshiro(1),
   floe_settings = floe_settings,
 )
@@ -336,8 +335,7 @@ floe_arr = initialize_floe_field(
     [1.0; 0.0],  # the top half of the domain is fully packed and the bottom has no floes
     domain,
     0.25,  # mean height of 0.25
-    0.10,  # floe heights will range from 0.15-0.35
-    Δt;    # Simulation timestep in seconds
+    0.10;  # floe heights will range from 0.15-0.35
     floe_settings = floe_settings,
     rng = Xoshiro(1),
 )

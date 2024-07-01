@@ -256,8 +256,7 @@
             [coords1, coords2, coords3, coords4],
             open_domain_no_topo,
             0.5,
-            0.0,
-            Δt;
+            0.0;
             floe_settings = FloeSettings(min_floe_area = 1e6),
             rng = Xoshiro(1),
         )
@@ -309,8 +308,7 @@
             floe_coords,
             open_domain_no_topo,
             0.5,
-            0.0,
-            Δt;
+            0.0;
             floe_settings = FloeSettings(min_floe_area = 1e6),
             rng = Xoshiro(1),
         )
@@ -522,8 +520,7 @@
             [coords1, coords2, coords3, coords4],
             open_domain_no_topo,
             0.5,
-            0.0,
-            Δt;
+            0.0;
             floe_settings = FloeSettings(min_floe_area = 1e6),
             rng = Xoshiro(1),
         )

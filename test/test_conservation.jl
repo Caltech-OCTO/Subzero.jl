@@ -100,8 +100,7 @@ end
         [floe1, floe2],
         open_domain, # Just affects shape, type doesn't matter
         0.25,
-        0.0,
-        Δt;
+        0.0;
         rng = rng,
         floe_settings = floe_settings,
     )
@@ -124,8 +123,7 @@ end
         [floe1, Subzero.translate(floe2, 0.0, 1e4)],
         open_domain, # Just affects shape, type doesn't matter
         0.25,
-        0.0,
-        Δt;
+        0.0;
         rng = rng,
         floe_settings = floe_settings,
     )
@@ -147,8 +145,7 @@ end
         [floe1, floe2, floe3],
         open_domain, # Just affects shape, type doesn't matter
         0.25,
-        0.0,
-        Δt;
+        0.0;
         rng = rng,
         floe_settings = floe_settings,
     )
@@ -176,8 +173,7 @@ end
         ],
         open_domain,
         0.25,
-        0.0,
-        Δt;
+        0.0;
         rng = rng,
     )
     close(file)
@@ -202,8 +198,7 @@ end
         [floe_on_wall_topo],
         open_domain_w_topography,
         0.25,
-        0.0,
-        Δt;
+        0.0;
         rng = rng,
     )
     close(file)

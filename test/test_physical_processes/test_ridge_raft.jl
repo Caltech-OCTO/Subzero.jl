@@ -33,8 +33,7 @@
             coords,
             domain,
             1.0,
-            0.0,
-            Δt;
+            0.0;
         )
         if !isnothing(Δx)
             for i in eachindex(Δx)

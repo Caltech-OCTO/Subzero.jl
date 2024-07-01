@@ -66,8 +66,7 @@ floe_arr = initialize_floe_field(
     [0.4],
     domain,
     hmean,
-    Δh,
-    Δt;
+    Δh;
     floe_bounds = floe_bounds,
     rng = Xoshiro(1),
     floe_settings = floe_settings

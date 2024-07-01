@@ -248,7 +248,6 @@ end
         poly,
         hmean,
         Δh,
-        Δt,
         rmax;
         floe_settings,
         rng = Xoshiro(),
@@ -265,7 +264,6 @@ Inputs:
     hmean               <AbstratFloat> average floe height
     Δh                  <AbstratFloat> height range - floes will range in height
                         from hmean - Δh to hmean + Δh
-    Δt                  <Int> timestep of simulation in seconds
     rmax                <AbstractFloat> maximum radius of floe (could be larger given context)
     floe_settings       <FloeSettings> settings needed to initialize floe
                             settings
@@ -279,7 +277,6 @@ function poly_to_floes!(
     poly,
     hmean,
     Δh,
-    Δt,
     rmax;
     floe_settings = FloeSettings(min_floe_area = 0),
     rng = Xoshiro(),
@@ -304,7 +301,7 @@ function poly_to_floes!(
             new_regions = GO.cut(poly, GI.Line([(cx - rmax, cy), (cx + rmax, cy)]), FT)
             n = 0
             for r in new_regions
-                n += poly_to_floes!(FT, floes, r, hmean, Δh, Δt, rmax;
+                n += poly_to_floes!(FT, floes, r, hmean, Δh, rmax;
                     floe_settings = floe_settings, rng = rng, kwargs...)
             end
             return n
@@ -339,8 +336,7 @@ initialize_floe_field(::Type{FT}, args...; kwargs...) where FT =
         coords,
         domain,
         hmean,
-        Δh,
-        Δt;
+        Δh;
         floe_settings,
         rng,
     )
@@ -355,7 +351,6 @@ Inputs:
     hmean               <Float> average floe height
     Δh                  <Float> height range - floes will range in height from
                             hmean ± Δh
-    Δt                  <Int> simulation timestep in seconds
     floe_settings       <FloeSettings> settings needed to initialize floes
     rng                 <RNG> random number generator to generate random floe
                             attributes - default uses Xoshiro256++ algorithm
@@ -368,8 +363,7 @@ function _initialize_floe_field(
     coords::V,
     domain,
     hmean,
-    Δh,
-    Δt;
+    Δh;
     floe_settings = FloeSettings(min_floe_area = 0.0),
     rng = Xoshiro(),
     supress_warnings = false,
@@ -388,7 +382,6 @@ function _initialize_floe_field(
             p,
             hmean,
             Δh,
-            Δt,
             domain.east.val - domain.west.val;
             floe_settings = floe_settings,
             rng = rng,
@@ -519,8 +512,7 @@ end
         concentrations,
         domain,
         hmean,
-        Δh,
-        Δt;
+        Δh;
         floe_settings,
         rng,
     )
@@ -543,7 +535,6 @@ Inputs:
     hmean           <Float> average floe height
     Δh              <Float> height range - floes will range in height from
                         hmean - Δh to hmean + Δh
-    Δt              <Int> simulation timestep in seconds
     floe_bounds     <PolyVec> coordinates of boundary within which to populate floes. This
                         can be smaller that the domain, but will be limited to open space
                         within the domain
@@ -560,8 +551,7 @@ function _initialize_floe_field(
     concentrations,
     domain,
     hmean,
-    Δh,
-    Δt;
+    Δh;
     floe_bounds = _make_bounding_box_polygon(FT, domain.west.val, domain.east.val, domain.south.val, domain.north.val),
     floe_settings = FloeSettings(FT, min_floe_area = 0),
     rng = Xoshiro(),
@@ -626,7 +616,6 @@ function _initialize_floe_field(
                                 piece,
                                 hmean,
                                 Δh,
-                                Δt,
                                 domain.east.val - domain.west.val;
                                 floe_settings = floe_settings,
                                 rng = rng,

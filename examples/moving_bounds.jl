@@ -34,8 +34,7 @@ floe_arr = initialize_floe_field(
     [1.0],
     domain,
     hmean,
-    Δh,
-    Δt;
+    Δh;
     rng = Xoshiro(1),
 )
 nfloes = length(floe_arr)

@@ -42,8 +42,7 @@
             coords,
             periodic_domain,
             1.0,
-            0.0,
-            Δt;
+            0.0;
         )
     end
 
@@ -160,8 +159,7 @@ end
         coords,
         periodic_domain,
         1.0,
-        0.0,
-        Δt;
+        0.0;
     )
     a1, a2, a3 = floe_base.area
     h1, h2, h3 = floe_base.height

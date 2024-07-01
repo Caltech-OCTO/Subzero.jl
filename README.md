@@ -92,8 +92,7 @@ floe_arr = initialize_floe_field(
   [0.7],  # floe concentration
   domain,
   0.5,  # average floe height
-  0.05,  # floe height variability
-  10;  # length of timestep in seconds
+  0.05;  # floe height variability
   floe_settings = floe_settings,
 ) 
 # Create model
