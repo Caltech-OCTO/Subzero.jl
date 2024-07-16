@@ -1,5 +1,6 @@
 @testset "Simplification" begin
     FT = Float64
+    Δt = 10
     @testset "Dissolve Floes" begin
         grid = RegRectilinearGrid(
             (-1e5, 1e5),
@@ -49,6 +50,7 @@
     end
 
     @testset "Fuse Floes" begin
+        Δt = 10
         coords1 = [[
             [0.0, 0.0],
             [0.0, 10.0],
@@ -74,7 +76,7 @@
         @test f2.coords == coords2
 
         # Test two floes intersecting -> will fuse into floe1 since same size
-        Subzero.Subzero.translate!(coords2, -13.0, 0.0)
+        Subzero.translate!(coords2, -13.0, 0.0)
         f2 = Floe(coords2, 0.75, 0.0)
         f1.id = 1
         f2.id = 2
@@ -94,7 +96,7 @@
         f2.p_dudt = 0.02
         f2.p_dvdt = -0.005
         f2.p_dξdt = 0.05
-        stress1_init = f1.stress
+        stress1_init = f1.stress_accum
         x_momentum_init, y_momentum_init = Subzero.calc_linear_momentum(
             [f1.u, f2.u],
             [f1.v, f2.v],
@@ -180,8 +182,8 @@
             p_spin_momentum_after + p_angular_momentum_after,
             atol = 1e-10,
         )
-        @test mean(f1.stress_history.cb) == f1.stress_history.total/1000 == f1.stress
-        @test f1.stress == (stress1_init * (f2.mass - mass_tot) .+ f2.stress * f2.mass) / mass_tot
+        
+        @test f1.stress_accum == (stress1_init * (f2.mass - mass_tot) .+ f2.stress_accum * f2.mass) / mass_tot
 
         # Test two floes intersecting -> will fuse into floe2 since bigger
         f1 = Floe(coords1, 0.5, 0.0)
@@ -464,11 +466,9 @@
         # Test mass is conserved
         @test total_mass == sum(floe_set2.mass)
         # Test first floe was cut by topography and only larger piece was kept
-        @test LG.area(LG.intersection(
-                LG.Polygon(floe_set2.coords[1]),
-                LG.Polygon(open_domain_with_topo.topography.coords[1]),
-        )) == 0
-        @test LG.area(LG.Polygon(floe_set2.coords[1])) > 2og_f1_area/3
+        @test sum(GO.area, Subzero.intersect_polys(Subzero.make_polygon(floe_set2.coords[1]), open_domain_with_topo.topography.poly[1]); init = 0.0) == 0
+        
+        @test GO.area(Subzero.make_polygon(floe_set2.coords[1])) > 2og_f1_area/3
         # Test that both floes are tagged for fusion
         @test floe_set2.status[1].fuse_idx == [2]
         @test floe_set2.status[2].fuse_idx == [1]

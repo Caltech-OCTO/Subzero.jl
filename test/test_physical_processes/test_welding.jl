@@ -1,4 +1,5 @@
 @testset "Bin floes" begin
+    Δt = 10
     grid = RegRectilinearGrid(
         (0, 1e5),
         (0, 1e5),
@@ -41,7 +42,7 @@
             coords,
             periodic_domain,
             1.0,
-            0.0,
+            0.0;
         )
     end
 
@@ -132,6 +133,7 @@
 end
 
 @testset "Weld floes" begin
+    Δt = 10
     grid = RegRectilinearGrid(
         (0, 1e5),
         (0, 1e5),
@@ -149,7 +151,7 @@ end
     coupling_settings = CouplingSettings()
     coords = [
         [[[0.0, 0.0], [0.0, 5e4], [6e4, 5e4], [6e4, 0.0], [0.0, 0.0]]],
-        [[[4e4, 0.0], [4e4, 5e4], [1e5, 5e4], [1e5, 0.0], [0.0, 0.0]]],
+        [[[4e4, 0.0], [4e4, 5e4], [1e5, 5e4], [1e5, 0.0], [4e4, 0.0]]],
         [[[2e4, 4e4], [2e4, 8e4], [3e4, 8e4], [3e4, 4e4], [2e4, 4e4]]]
     ]
     floe_base = initialize_floe_field(
@@ -157,7 +159,7 @@ end
         coords,
         periodic_domain,
         1.0,
-        0.0,
+        0.0;
     )
     a1, a2, a3 = floe_base.area
     h1, h2, h3 = floe_base.height

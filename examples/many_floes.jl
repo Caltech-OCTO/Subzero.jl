@@ -16,21 +16,22 @@ const coarse_ny = 10
 
 # Model instantiation
 grid = RegRectilinearGrid(
+    FT,
     (-Lx, Lx),
     (-Ly, Ly),
     Δgrid,
     Δgrid,
 )
 
-ocean = Ocean(grid, -0.2, 0.0, -1.0)
+ocean = Ocean(FT, grid, -0.2, 0.0, -1.0)
 
-atmos = Atmos(grid, 0.0, 0.0, -3.0)
+atmos = Atmos(FT, grid, 0.0, 0.0, -3.0)
 
 # Domain creation - boundaries and topography
-nboundary = (North, grid)
-sboundary = OpenBoundary(South, grid)
-eboundary = OpenBoundary(East, grid)
-wboundary = OpenBoundary(West, grid)
+nboundary = OpenBoundary(FT, North, grid)
+sboundary = OpenBoundary(FT, South, grid)
+eboundary = OpenBoundary(FT, East, grid)
+wboundary = OpenBoundary(FT, West, grid)
 
 domain = Subzero.Domain(nboundary, sboundary, eboundary, wboundary)
 
@@ -46,13 +47,13 @@ model = Model(grid, ocean, atmos, domain, floe_arr)
 
 # Simulation setup
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
-consts = Constants(E = modulus)
+consts = Constants(FT; E = modulus)
 #consts = Constants(E = modulus, Cd_io = 0.0, Cd_ia = 0.0, Cd_ao = 0.0, f = 0.0, μ = 0.0)  # collisions without friction 
-simulation = Simulation(model = model, consts = consts, Δt = Δt, nΔt = 4000, COLLISION = true, verbose = true)
+simulation = Simulation(; model, consts, Δt, nΔt = 4000, verbose = true)
 
 # Output setup
-initwriter = InitialStateOutputWriter(dir = "output/voronoi", filename = "initial_state.jld2", overwrite = true)
-floewriter = FloeOutputWriter(10, dir = "output/voronoi", filename = "f.jld2", overwrite = true)
+# initwriter = InitialStateOutputWriter(dir = "output/voronoi", filename = "initial_state.jld2", overwrite = true)
+# floewriter = FloeOutputWriter(10, dir = "output/voronoi", filename = "f.jld2", overwrite = true)
 
-# Run simulation
-run!(simulation, [initwriter, floewriter])
+# # Run simulation
+# run!(simulation, [initwriter, floewriter])

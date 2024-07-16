@@ -1,10 +1,11 @@
-using DataStructures, GeometryBasics, JLD2, Logging, NCDatasets,
-    PolygonInbounds, Random, SplitApplyCombine, Statistics, StructArrays,
-    Subzero, VoronoiCells
-import LibGEOS as LG
+using DataStructures, JLD2, Logging, NCDatasets, Random, SplitApplyCombine,
+    Statistics, StructArrays, Subzero, VoronoiCells
+import GeometryOps as GO
+import GeometryOps.GeoInterface as GI
 using Test
 
 @testset "Subzero.jl" begin
+    include("test_simulation_components/test_stress_calculators.jl")
     include("test_physical_processes/test_update_floe.jl")
     include("test_physical_processes/test_collisions.jl")
     include("test_physical_processes/test_coupling.jl")

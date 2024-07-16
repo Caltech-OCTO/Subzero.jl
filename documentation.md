@@ -214,8 +214,8 @@ The fifth catagory is **forces and collisions**. These fields hold information a
 | collision_force   | forces on floe from collisions in [N]            | Float64 or Float32|
 | collision_trq     | torque on floe from collisions in [N m]          | Float64 or Float32|
 | interactions      | each row holds one collision's information, see below for more information | `n`x7 Matrix of Float64 or Float32 <br> where `n` is the number of collisions|
-| stress            | stress on floe at current timestep where it is of the form [xx yx; xy yy] | 2x2 Matrix of Float64 or Float32|
-| stress_history    | history of stress on floe | Subzer.StressCircularBuffer with capacity `nhistory` where each element is a previous timesteps stress <br> where `nhistory` is the number of previous timesteps to save|
+| stress_accum      | stress accumulated over the floe over past timesteps given StressCalculator, where it is of the form [xx yx; xy yy] | 2x2 Matrix{AbstractFloat}|
+| stress_instant    | instantaneous stress on floe in current timestep | 2x2 Matrix{AbstractFloat} 
 | strain            | strain on floe where it is of the form [ux vx; uy vy] | 2x2 Matrix of Float64 or Float32|
 
 The `interactions` field is a matrix where every row is a different collision that the floe has experienced in the given timestep. There are then seven columns, which are as follows:
@@ -248,10 +248,11 @@ The following fields are part of the floe settings (with default values):
   - min_floe_height: minimum floe height (0.1 m)
   - max_floe_height: maximum floe height (10.0 m)
   - min_aspect_ratio: minimum ratio between floe x-length and y-length by maximum coordiante values (0.05)
-  - nhistory: number of elements to save in floe's stress history (100)
+  - maximum_ξ: the absolute maximum rotational velocity a floe can reach before it is capped at maximum_ξ (1e-5 rad/s)
   - subfloe_point_generator: generates floe's subfloe points (`MonteCarloPointsGenerator()`)
+  - stress_calculator: generates the calculator for stress ('DecayAreaScaledCalculator()')
 
-If any of the minimum / maximum values are exceeded, a floe is removed in the course of the simulation.
+If any of the minimum values are exceeded, a floe is removed in the course of the simulation. If any of the maximum values are reached, the value is capped at the given value.
 
 There are two types of subfloe point generators.
 
@@ -268,8 +269,8 @@ You can make a floe settings object as follows:
 floe_settings = FloeSettings(
   min_floe_area = 1e5,
   max_floe_height = 5,
-  nhistory = 50,
-  subfloe_point_generator = SubGridPointsGenerator(grid, 2)
+  subfloe_point_generator = SubGridPointsGenerator(grid, 2),
+  stress_calculator = DecayAreaScaledCalculator(50),
 )
  ```
  Any fields that aren't specified are assigned their default value.

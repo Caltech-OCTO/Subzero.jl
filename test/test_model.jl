@@ -214,7 +214,7 @@
 
     @testset "Topography" begin
         coords = [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]]
-        poly = LG.Polygon(coords)
+        poly = Subzero.make_polygon(coords)
         # Polygon Constructor
         topo1 = Subzero.TopographyElement(poly)
         @test topo1.coords == coords
@@ -230,6 +230,7 @@
         @test topo2.rmax == sqrt(0.5)
         # Basic constructor
         topo3 = TopographyElement(
+            Subzero.make_polygon(coords),
             coords,
             [0.5, 0.5],
             sqrt(0.5),
@@ -237,6 +238,7 @@
         @test topo3.coords == coords
         # check when radius is less than  or equal to 0
         @test_throws ArgumentError TopographyElement(
+            Subzero.make_polygon(coords),
             coords,
             [0.5, 0.5],
             -sqrt(0.5),
@@ -244,7 +246,7 @@
 
         # Create field of topography
         coords_w_hole = [
-            [[0.0, 10.0], [0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]],
+            [[0.5, 10.0], [0.5, 0.0], [10.0, 0.0], [10.0, 10.0], [0.5, 10.0]],
             [[2.0, 8.0], [2.0, 4.0], [8.0, 4.0], [8.0, 8.0], [2.0, 8.0]]
             ]
         topo_field_64 = initialize_topography_field(
@@ -306,11 +308,13 @@
             Subzero.PeriodicBoundary(West, g),
         )
         # domain with north < south
+        p_placeholder = GI.Polygon([[(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (0.0, 0.0)]])
         @test_throws ArgumentError Subzero.Domain(
             b1,
             Subzero.OpenBoundary(
                 South,
-                Subzero.PolyVec{Float64}(undef, 0),
+                p_placeholder,
+                GI.coordinates(p_placeholder),
                 6e5,
             ),
             b2,
@@ -323,7 +327,8 @@
             b2,
             Subzero.OpenBoundary(
                 West,
-                Subzero.PolyVec{Float64}(undef, 0),
+                p_placeholder,
+                GI.coordinates(p_placeholder),
                 6e5,
             ),
         )

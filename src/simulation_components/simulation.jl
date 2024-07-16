@@ -25,8 +25,8 @@ A float type FT can be provided as the first argument of any Constants
 constructor. A Constants of type FT will be created by passing all other
 arguments to the correct constructor. 
 """
-Constants(::Type{FT}, args...) where {FT <: AbstractFloat} =
-    Constants{FT}(args...)
+Constants(::Type{FT}, args...; kwargs...) where {FT <: AbstractFloat} =
+    Constants{FT}(args...; kwargs...)
 
 """
     Constants(args...)
@@ -34,7 +34,7 @@ Constants(::Type{FT}, args...) where {FT <: AbstractFloat} =
 If a type isn't specified, Constants will be of type Float64 and the correct
 constructor will be called with all other arguments.
 """
-Constants(args...) = Constants{Float64}(args...)
+Constants(args...; kwargs...) = Constants{Float64}(args...; kwargs...)
 
 """
     Simulation{FT<:AbstractFloat, DT<:Domain{FT}}
@@ -50,7 +50,8 @@ The user can also define settings for each physical process.
     FT<:AbstractFloat,
     MT<:Model{FT, <:AbstractGrid, <:Domain},
     CT<:AbstractFractureCriteria,
-    PT<:AbstractSubFloePointsGenerator,
+    PT<:AbstractSubFloePointsGenerator{FT},
+    ST<:AbstractStressCalculator{FT},
     RT<:Random.AbstractRNG,
     OT<:OutputWriters{
         <:StructVector{<:InitialStateOutputWriter},
@@ -68,7 +69,7 @@ The user can also define settings for each physical process.
     Δt::Int = 10                        # Simulation timestep (seconds)
     nΔt::Int = 7500                     # Total timesteps simulation runs for
     # Physical Processes -------------------------------------------------------
-    floe_settings::FloeSettings{FT, PT} = FloeSettings()
+    floe_settings::FloeSettings{FT, PT, ST} = FloeSettings()
     coupling_settings::CouplingSettings = CouplingSettings()
     collision_settings::CollisionSettings{FT} = CollisionSettings()
     fracture_settings::FractureSettings{CT} = FractureSettings()
@@ -165,7 +166,7 @@ function timestep_sim!(sim, tstep, start_tstep = 0)
             sim.model.floes,
             tstep,
             sim.Δt,
-            sim.floe_settings.max_floe_height,
+            sim.floe_settings,
         )
         # Fracture floes
         if sim.fracture_settings.fractures_on && mod(tstep, sim.fracture_settings.Δt) == 0

@@ -13,69 +13,67 @@ Settings needed to create floes within the model.
     can't increase any further
 - min_aspect_ratio is the minimum ratio between the x-length and y-length of any
     floe prior to removal
-- nhistory is how many timesteps of stress history to save within each floe
 - subfloe_point_generator is the method of subfloe point generation for each
     floe within the model
+- stress_calculator is the method of calculating current stress of floe
 """
 @kwdef struct FloeSettings{
     FT <: AbstractFloat,
-    GT <: AbstractSubFloePointsGenerator,
+    GT <: AbstractSubFloePointsGenerator{FT},
+    CT <: AbstractStressCalculator{FT},
 }
     ρi::FT = 920.0
     min_floe_area::FT = 1e6
     min_floe_height::FT = 0.1
     max_floe_height::FT = 10.0
     min_aspect_ratio::FT = 0.05
-    nhistory::Int = 100
+    maximum_ξ::FT = 1e-5
     subfloe_point_generator::GT = MonteCarloPointsGenerator()
+    stress_calculator::CT = DecayAreaScaledCalculator()
 
-    function FloeSettings{FT, GT}(
+    function FloeSettings{FT, GT, CT}(
         ρi,
         min_floe_area,
         min_floe_height,
         max_floe_height,
         min_aspect_ratio,
-        nhistory,
+        maximum_ξ,
         subfloe_point_generator,
-    ) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator{FT}}
+        stress_calculator,
+    ) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator{FT}, CT <: AbstractStressCalculator}
         if ρi < 0
-            @warn "Ice density can't be negative. Resetting to default values \
-            of 920."
+            @warn "Ice density can't be negative. Resetting to default values of 920."
             ρi = FT(920)
         end
         if min_floe_area < 0
-            @warn "Floe area can't be negative. Resetting minimum floe area to \
-            0 m^2."
+            @warn "Floe area can't be negative. Resetting minimum floe area to 0 m^2."
             min_floe_area = FT(0)
         end
         if min_floe_height < 0
-            @warn "Floe height can't be negative. Resetting minimum floe area \
-            to 0,."
+            @warn "Floe height can't be negative. Resetting minimum floe area to 0."
             min_floe_height = FT(0)
         end
         if max_floe_height < 0
-            @warn "Floe height can't be negative. Resetting maximum floe area \
-            to default 10m."
+            @warn "Floe height can't be negative. Resetting to default of 10m."
             min_floe_height = FT(0)
         end
         if min_aspect_ratio < 0 || min_aspect_ratio > 1
-            @warn "Aspect ratio must be between 0 and 1. Resetting to default \
-            0f 0.05."
+            @warn "Aspect ratio must be between 0 and 1. Resetting to default of 0.05."
             min_aspect_ratio = FT(0.05)
         end
-        if nhistory < 1
-            @warn "Need to save at least one timestep of stress history.
-            Resetting to default of 100."
-            nhistory = 100
+        if maximum_ξ < 0
+            @warn "Maximum rotational velocity must be greater than 0. Resetting to default of 1e-5."
+            min_aspect_ratio = FT(0.05)
         end
-        new{FT, GT}(
+        new{FT, GT, CT}(
             ρi,
             min_floe_area,
             min_floe_height,
             max_floe_height,
             min_aspect_ratio,
-            nhistory,
+            maximum_ξ,
             subfloe_point_generator,
+            stress_calculator,
         )
     end
 
@@ -85,17 +83,19 @@ Settings needed to create floes within the model.
         min_floe_height,
         max_floe_height,
         min_aspect_ratio,
-        nhistory,
+        maximum_ξ,
         subfloe_point_generator::GT,
-    ) where {GT <: AbstractSubFloePointsGenerator} = 
-        FloeSettings{Float64, GT}(
+        stress_calculator::CT,
+    ) where {GT <: AbstractSubFloePointsGenerator, CT <: AbstractStressCalculator} = 
+        FloeSettings{Float64, GT, CT}(
             ρi,
             min_floe_area,
             min_floe_height,
             max_floe_height,
             min_aspect_ratio,
-            nhistory,
+            maximum_ξ,
             subfloe_point_generator,
+            stress_calculator,
         )
 end
 
@@ -109,10 +109,12 @@ arguments to the correct constructor.
 FloeSettings(
     ::Type{FT};
     subfloe_point_generator::GT = MonteCarloPointsGenerator(FT),
+    stress_calculator::CT = DecayAreaScaledCalculator(FT),
     kwargs...,
-) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator} =
-    FloeSettings{FT, GT}(;
-        subfloe_point_generator = subfloe_point_generator,
+) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator, CT <: AbstractStressCalculator} =
+    FloeSettings{FT, GT, CT}(;
+        subfloe_point_generator,
+        stress_calculator,
         kwargs...,
     )
 

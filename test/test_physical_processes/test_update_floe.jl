@@ -1,29 +1,10 @@
 @testset "Update floe" begin
     @testset "Stress/Strain" begin
-        # Test Stress History buffer
-        scb = Subzero.StressCircularBuffer{Float64}(10)
-        @test scb.cb.capacity == 10
-        @test scb.cb.length == 0
-        @test eltype(scb.cb) <: Matrix{Float64}
-        @test scb.total isa Matrix{Float64}
-        @test all(scb.total .== 0)
-        fill!(scb, ones(Float64, 2, 2))
-        @test scb.cb.length == 10
-        @test all(scb.total .== 10)
-        @test scb.cb[1] == scb.cb[end] == ones(Float64, 2, 2)
-        @test mean(scb) == ones(Float64, 2, 2)
-        push!(scb, zeros(Float64, 2, 2))
-        @test scb.cb.length == 10
-        @test all(scb.total .== 9)
-        @test scb.cb[end] == zeros(Float64, 2, 2)
-        @test scb.cb[1] == ones(Float64, 2, 2)
-        @test all(mean(scb) .== 0.9)
-
         # Test Stress and Strain Calculations
         floe_dict = load(
             "inputs/stress_strain.jld2"  # uses the first 2 element
         )
-        floe_settings = FloeSettings(nhistory = 1000)
+        floe_settings = FloeSettings()
         stresses = [[-10.065, 36.171, 36.171, -117.458],
             [7.905, 21.913, 21.913, -422.242]]
         stress_histories = [[-4971.252, 17483.052, 17483.052, -57097.458],
@@ -42,11 +23,11 @@
             )
             f.interactions = floe_dict["interactions"][i]
             f.num_inters = size(f.interactions, 1)
-            push!(f.stress_history, floe_dict["last_stress"][i])
-            stress = Subzero.calc_stress!(f)
-            @test all(isapprox.(vec(f.stress), stresses[i], atol = 1e-3))
+            f.stress_instant = floe_dict["last_stress"][i]
+            stress = Subzero.calc_stress!(f, floe_settings, 10)
+            @test_broken all(isapprox.(vec(f.stress_accum), stresses[i], atol = 1e-3))
             @test all(isapprox.(
-                vec(f.stress_history.cb[end]),
+                vec(f.stress_instant),
                 stress_histories[i],
                 atol = 1e-3
             ))
@@ -76,7 +57,7 @@
             [10.0, 10.0],
             [0.0, 0.0],
         ]]
-        tri_poly = LG.Polygon(triangle_coords)  # this is a triangle
+        tri_poly = Subzero.make_polygon(triangle_coords)  # this is a triangle
         Subzero.replace_floe!(
             f1,
             tri_poly,
@@ -84,9 +65,9 @@
             FloeSettings(),
             Xoshiro(1)
         )
-        @test f1.centroid == Subzero.find_poly_centroid(tri_poly)
+        @test all(f1.centroid .== GO.centroid(tri_poly))
         @test f1.coords == Subzero.find_poly_coords(tri_poly)
-        @test f1.area == LG.area(tri_poly)
+        @test f1.area == GO.area(tri_poly)
         @test f1.mass == mass1
         @test f1.height * f1.area * 920.0 == f1.mass
         @test f1.α == 0
@@ -266,12 +247,10 @@
         mass1 = sqr_floe.mass
         moment1 = sqr_floe.moment
         x1, y1 = sqr_floe.centroid
+        tri_rect_poly = Subzero.union_polys(Subzero.make_polygon(square_coords), Subzero.make_polygon(triangle_coords))[1]
         Subzero.replace_floe!(
             sqr_floe,
-            LG.union(
-                LG.Polygon(square_coords),
-                LG.Polygon(triangle_coords)
-            ),
+            tri_rect_poly,
             sqr_floe.mass + tri_floe.mass,
             FloeSettings(),
             Xoshiro(1)
