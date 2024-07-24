@@ -7,7 +7,7 @@
             default_info.min_floe_height == 0.1 &&
             default_info.max_floe_height == 10 &&
             default_info.min_aspect_ratio == 0.05 &&
-            default_info.stress_calculator isa DecayAreaScaledCalculator &&
+            default_info.stress_calculator isa DecayAreaScaledStressCalculator &&
             default_info.subfloe_point_generator isa MonteCarloPointsGenerator
         @test default_info.ρi isa Float64 &&
             default_info.min_floe_area isa Float64 &&
@@ -100,10 +100,10 @@
             !default_info.deform_on &&
             default_info.npieces == 3
         # Test custom correct
-        criteria = HiblerYieldCurve(
-            0.0,
-            0.0,
-            Subzero.make_polygon([[[0.0, 0.0], [0, 1], [1 ,1], [1, 0]]]),
+        criteria = HiblerCurveFractureCriteria(;
+            pstar = 0.0,
+            c = 0.0,
+            poly = Subzero.make_polygon([[[0.0, 0.0], [0, 1], [1 ,1], [1, 0]]]),
         )
         custom_info = FractureSettings(
             fractures_on = true,
@@ -113,7 +113,7 @@
             npieces = 4
         )
         @test custom_info.fractures_on &&
-            custom_info.criteria isa HiblerYieldCurve &&
+            custom_info.criteria isa HiblerCurveFractureCriteria &&
             custom_info.Δt == 200 &&
             custom_info.deform_on &&
             custom_info.npieces == 4

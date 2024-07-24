@@ -1,6 +1,6 @@
-# # DecayAreaScaledCalculator and DamageStressCalculator
+# # DecayAreaScaledStressCalculator and DamageStressCalculator
 
-export AbstractStressCalculator, DecayAreaScaledCalculator, DamageStressCalculator
+export AbstractStressCalculator, DecayAreaScaledStressCalculator, DamageStressCalculator
 
 #= 
 ## What is a stress calculator? 
@@ -8,7 +8,7 @@ export AbstractStressCalculator, DecayAreaScaledCalculator, DamageStressCalculat
 A stress calculator defines how the stress for a floe is calculated from its interactions
 and how that stress is used to determine fracture. 
 
-The `AbstractStressCalculator` is the abstract type, with `DecayAreaScaledCalculator`
+The `AbstractStressCalculator` is the abstract type, with `DecayAreaScaledStressCalculator`
 currently implemented and the infrastructure for `DamageStressCalculator` setup for future
 implementation.
 
@@ -25,7 +25,7 @@ const STRESS_CALCULATOR_DEF = ": calculator to determine floe's stress calculati
     abstract type AbstractStressCalculator{FT <: AbstractFloat}
 
 Abstract super type for stress calculators, which calculate a floe's stress from floe
-interactions. The subtypes serve as dispatch types for the following three calculation
+interactions. The subtypes serve as dispatch types for the following two calculation
 methods.
 
 ## API
@@ -55,8 +55,9 @@ on this default. =#
 _scale_principal_stress!(::AbstractStressCalculator, σvals, floe, floe_settings) = return
 
 const DECAY_ARG_WARNING = "λ must be between 0 and 1. Resetting to default value of 0.2."
+
 """
-    DecayAreaScaledCalculator{FT<:AbstractFloat} <: AbstractStressCalculator{FT}
+    DecayAreaScaledStressCalculator{FT<:AbstractFloat} <: AbstractStressCalculator{FT}
 
 Type of AbstractStressCalculator that implements stress calculations by accumulating each
 timestep of stress using a decay equation. The decay aspect increases importance placed on
@@ -78,11 +79,11 @@ take place.
 ## Note:
 - `λ` is used in `_update_stress_accum!`, whereas α is used in `_scale_principal_stress!`.
 """
-@kwdef struct DecayAreaScaledCalculator{FT<:AbstractFloat} <: AbstractStressCalculator{FT}
+@kwdef struct DecayAreaScaledStressCalculator{FT<:AbstractFloat} <: AbstractStressCalculator{FT}
     λ::FT = 0.2
     α::FT = 0.0
 
-    function DecayAreaScaledCalculator{FT}(λ, α) where FT
+    function DecayAreaScaledStressCalculator{FT}(λ, α) where FT
         if λ < 0 || λ > 1
             @warn DECAY_ARG_WARNING
             λ = FT(0.2)
@@ -92,30 +93,30 @@ take place.
 end
 
 """
-    DecayAreaScaledCalculator(::Type{FT}; kwargs...)
+    DecayAreaScaledStressCalculator(::Type{FT}; kwargs...)
 
 A float type `FT` can be provided as the first argument of any
-`DecayAreaScaledCalculator` constructor. A `DecayAreaScaledCalculator` of type `FT`
-will be created by passing all other arguments to the correct constructor. 
+`DecayAreaScaledStressCalculator` constructor. A `DecayAreaScaledStressCalculator` of type
+`FT` will be created by passing all other arguments to the correct constructor. 
 """
-DecayAreaScaledCalculator(
+DecayAreaScaledStressCalculator(
     ::Type{FT},
     args...;
     kwargs...,
 ) where {FT <: AbstractFloat} =
-    DecayAreaScaledCalculator{FT}(args...; kwargs...)
+    DecayAreaScaledStressCalculator{FT}(args...; kwargs...)
 
 """
-    DecayAreaScaledCalculator(; kwargs...)
+    DecayAreaScaledStressCalculator(; kwargs...)
 
-If type isn't specified as the first argument, `DecayAreaScaledCalculator`(; kwargs...) will
+If type isn't specified as the first argument, `DecayAreaScaledStressCalculator`(; kwargs...) will
 be of type `Float64` and the correct constructor will be called with all other arguments.
 """
-DecayAreaScaledCalculator(args...; kwargs...) = DecayAreaScaledCalculator{Float64}(args...; kwargs...)
+DecayAreaScaledStressCalculator(args...; kwargs...) = DecayAreaScaledStressCalculator{Float64}(args...; kwargs...)
 
 #= Updating `floe`'s accumulated and instantanious stress using a decay equation given the
 current stress at a timestep `curr_stress::Matrix{FT}`.=#
-function _update_stress_accum!(stress_calculator::DecayAreaScaledCalculator, curr_stress, floe)
+function _update_stress_accum!(stress_calculator::DecayAreaScaledStressCalculator, curr_stress, floe)
     λ = stress_calculator.λ
     floe.stress_accum .= (1 - λ) * floe.stress_accum + λ * curr_stress
     return
@@ -124,7 +125,7 @@ end
 #= This function scales a floe's stress in pricipal stress space (eigenvalues of the
 acucmulated stress) by `M = (floe_area/min_floe_area).^α ` as an alternative method of
 adjusting the fracture criteria boundaries in principal stress space.=#
-function _scale_principal_stress!(stress_calculator::DecayAreaScaledCalculator, σvals, floe, floe_settings)
+function _scale_principal_stress!(stress_calculator::DecayAreaScaledStressCalculator, σvals, floe, floe_settings)
     stress_calculator.α == 0 && return
     M = (floe.area/floe_settings.min_floe_area).^stress_calculator.α
     σvals .*= M
@@ -138,7 +139,7 @@ Type of AbstractStressCalculator that calculates stress with each timestep with
 `damage * stress_instant`, as suggested by Mukund Gupta. This method could keep track of
 damage directly within each floe using the `damage` floe field, perhapes as a value between
 0-1, and rather than calculating an "accumulated stress" to store damage, as done in
-`DecayAreaScaledCalculator`.
+`DecayAreaScaledStressCalculator`.
 
 In this calculator, the floe's `damage` field keeps track of an explicit parameter.
 ## Fields:

@@ -85,7 +85,7 @@ domain = Domain(
   CollisionBoundary(West, grid),
 )
 # Create floes
-floe_settings = FloeSettings(stress_calculator = DecayAreaScaledCalculator(), min_floe_area = 1e5)
+floe_settings = FloeSettings(stress_calculator = DecayAreaScaledStressCalculator(), min_floe_area = 1e5)
 floe_arr = initialize_floe_field(
   Float64,
   100,  # number of floes
@@ -104,7 +104,7 @@ consts = Constants(E = modulus)
 
 fracture_settings = FractureSettings( 
   fractures_on = true,
-  criteria = HiblerYieldCurve(floe_arr),
+  criteria = HiblerCurveFractureCriteria(floe_arr),
   Δt = 75,
   npieces = 3,
   deform_on = true, 

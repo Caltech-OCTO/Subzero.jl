@@ -3,12 +3,12 @@
         FT = Float64
         # Test NoFracturee criteria
         @test NoFracture() isa NoFracture
-        # Test HiblerYieldCurve criteria
-        @test HiblerYieldCurve(
-            2.25,
-            20.0,
-            Subzero.make_polygon([[[0.0, 0.0], [0, 1], [1 ,1], [1, 0]]]),
-        ) isa HiblerYieldCurve
+        # Test HiblerCurveFractureCriteria criteria
+        @test HiblerCurveFractureCriteria(;
+            pstar = 2.25,
+            c = 20.0,
+            poly = Subzero.make_polygon([[[0.0, 0.0], [0, 1], [1 ,1], [1, 0]]]),
+        ) isa HiblerCurveFractureCriteria
         # Test _calculate_hibler
         hibler_poly = Subzero._calculate_hibler(FT, 0.5, 5e5, -1)
         @test isapprox(GO.area(hibler_poly), 49054437859.374, atol = -1e3)
@@ -49,8 +49,8 @@
             atol = 1e-3
         ))
         # Test Mohr's Cone
-        @test typeof(Subzero.MohrsCone(Float32)) <: MohrsCone{Float32}
-        @test typeof(Subzero.MohrsCone(Float64)) <: MohrsCone{Float64}
+        @test typeof(Subzero.MohrsConeFractureCriteria(Float32)) <: MohrsConeFractureCriteria{Float32}
+        @test typeof(Subzero.MohrsConeFractureCriteria(Float64)) <: MohrsConeFractureCriteria{Float64}
 
         # Float64 Mohr's Cone with q, σc, σ11
         mohrs_verts_64 = Subzero.find_poly_coords(Subzero._calculate_mohrs(FT, 5.2, 2.5e5, -3.375e4))
@@ -90,17 +90,17 @@
             0.25,  # Floe has a height of 0.25
             0.0,
         )])
-        yield_curve = HiblerYieldCurve(floes)
+        yield_curve = HiblerCurveFractureCriteria(floes)
         old_poly = yield_curve.poly
-        @test yield_curve isa HiblerYieldCurve
+        @test yield_curve isa HiblerCurveFractureCriteria
         @test yield_curve.pstar == 2.25e5 && yield_curve.c == 20
         floes.height .= 0.5
-        Subzero.update_criteria!(yield_curve, floes)
+        Subzero._update_criteria!(yield_curve, floes)
         @test !GO.equals(old_poly, yield_curve.poly)
         # Test update criteria for Mohr's cone
-        cone_curve = MohrsCone()
+        cone_curve = MohrsConeFractureCriteria()
         old_poly = cone_curve.poly
-        Subzero.update_criteria!(cone_curve, floes)
+        Subzero._update_criteria!(cone_curve, floes)
         @test GO.equals(old_poly, cone_curve.poly)
     end
     @testset "Fractures Floes" begin
@@ -168,7 +168,7 @@
         floes.id .= collect(1:4)
         frac_settings = FractureSettings(
             fractures_on = true,
-            criteria = HiblerYieldCurve(floes),
+            criteria = HiblerCurveFractureCriteria(floes),
             Δt = 75,
             deform_on = true,
         )
@@ -177,7 +177,7 @@
         floe_settings = FloeSettings(min_floe_area = 1e6)
         frac_idx = Subzero.determine_fractures(
              floes,
-             HiblerYieldCurve(floes),
+             HiblerCurveFractureCriteria(floes),
              floe_settings
         )
         # First floe fractures, second is too small, third stress is too small
@@ -212,7 +212,7 @@
             FractureSettings(
                 fractures_on = true,
                 npieces = 2,
-                criteria = HiblerYieldCurve(floes),
+                criteria = HiblerCurveFractureCriteria(floes),
                 Δt = 75,
                 deform_on = true,
             ),

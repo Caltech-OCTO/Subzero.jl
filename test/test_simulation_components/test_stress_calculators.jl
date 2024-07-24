@@ -7,17 +7,17 @@ stress_accum = [0.3 0.5; 0.7 0.9]
 floe_settings = FloeSettings(min_floe_area = 2.5e3)
 floe = Floe(poly, hmean, Δh; stress_accum, floe_settings)
 
-# # Test DecayAreaScaledCalculator
-c1 = DecayAreaScaledCalculator()
-c2 = (@test_logs (:warn, Subzero.DECAY_ARG_WARNING) DecayAreaScaledCalculator(λ = 1.1, α = 2.0))
-c3 = DecayAreaScaledCalculator(Float32, λ = 0.2, α = 2)
+# # Test DecayAreaScaledStressCalculator
+c1 = DecayAreaScaledStressCalculator()
+c2 = (@test_logs (:warn, Subzero.DECAY_ARG_WARNING) DecayAreaScaledStressCalculator(λ = 1.1, α = 2.0))
+c3 = DecayAreaScaledStressCalculator(Float32, λ = 0.2, α = 2)
 
 # Test constructors
 @test c1.λ == 0.2 && c1.α == 0
-@test c1 isa DecayAreaScaledCalculator{Float64}
+@test c1 isa DecayAreaScaledStressCalculator{Float64}
 @test c2.λ == 0.2 && c2.α == 2.0
 @test c3.λ == 0.2f0 && c3.α == 2.0f0
-@test c3 isa DecayAreaScaledCalculator{Float32}
+@test c3 isa DecayAreaScaledStressCalculator{Float32}
 
 # Test _update_stress_accum!
 curr_stress = [0.2 0.4; 0.6 0.8]

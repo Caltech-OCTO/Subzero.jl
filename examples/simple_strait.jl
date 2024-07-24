@@ -41,7 +41,7 @@ coupling_settings = CouplingSettings(
 )
 floe_settings = FloeSettings(
     subfloe_point_generator = SubGridPointsGenerator(grid, 2),
-    stress_calculator = DecayAreaScaledCalculator(),
+    stress_calculator = DecayAreaScaledStressCalculator(),
 )
 
 # Floe creation
@@ -58,7 +58,7 @@ floe_arr = initialize_floe_field(
 
 fracture_settings = FractureSettings(
         fractures_on = true,
-        criteria = HiblerYieldCurve(floe_arr),
+        criteria = HiblerCurveFractureCriteria(floe_arr),
         Δt = 75,
         npieces = 3,
         deform_on = false,

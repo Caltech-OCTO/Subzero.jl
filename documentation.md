@@ -250,7 +250,7 @@ The following fields are part of the floe settings (with default values):
   - min_aspect_ratio: minimum ratio between floe x-length and y-length by maximum coordiante values (0.05)
   - maximum_ξ: the absolute maximum rotational velocity a floe can reach before it is capped at maximum_ξ (1e-5 rad/s)
   - subfloe_point_generator: generates floe's subfloe points (`MonteCarloPointsGenerator()`)
-  - stress_calculator: generates the calculator for stress ('DecayAreaScaledCalculator()')
+  - stress_calculator: generates the calculator for stress ('DecayAreaScaledStressCalculator()')
 
 If any of the minimum values are exceeded, a floe is removed in the course of the simulation. If any of the maximum values are reached, the value is capped at the given value.
 
@@ -270,7 +270,7 @@ floe_settings = FloeSettings(
   min_floe_area = 1e5,
   max_floe_height = 5,
   subfloe_point_generator = SubGridPointsGenerator(grid, 2),
-  stress_calculator = DecayAreaScaledCalculator(50),
+  stress_calculator = DecayAreaScaledStressCalculator(50),
 )
  ```
  Any fields that aren't specified are assigned their default value.
@@ -441,7 +441,7 @@ One is Hibler's elliptical yield curve. To learn more about this criteria, see t
 ```julia
 pstar = 2.25e5
 c = 20.0
-criteria = HiblerYieldCurve(FT, floe_arr, pstar, c)
+criteria = HiblerCurveFractureCriteria(FT, floe_arr; pstar, c)
 ```
 
 The other is Mohr's Cone yield curve. To learn more about this critera, see the 2009 paper "Coulombic faulting from the grain scale to the geophysical scale: lessons from ice." This criteria takes in three parameters that define the shape of the cone. They are as follows:
@@ -449,7 +449,7 @@ The other is Mohr's Cone yield curve. To learn more about this critera, see the 
 - σc: uniaxial compressive strength
 - σ11: negative of the x-coordinate of one vertex of cone (triangle in 2D) and negative of the y-coordinate of adjacend vertex in principal stress space
 
-Note that the yield curve does not depend on the floe field. The `MohrsCone` object then has a `vertices` field that holds the coordiantes of the cone in principle stress space.
+Note that the yield curve does not depend on the floe field. The `MohrsConeFractureCriteria` object then has a `vertices` field that holds the coordiantes of the cone in principle stress space.
 
 
 #### Simplification Settings

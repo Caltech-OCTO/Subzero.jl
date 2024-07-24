@@ -49,8 +49,8 @@ export
     initialize_floe_field,
     initialize_topography_field,
     NoFracture,
-    HiblerYieldCurve,
-    MohrsCone,
+    HiblerCurveFractureCriteria,
+    MohrsConeFractureCriteria,
     CollisionSettings,
     FractureSettings,
     CouplingSettings,
@@ -105,6 +105,7 @@ Base.convert(::Type{Polys{Float64}}, p::Polys{Float32}) = GO.tuples(p, Float64)
 
 # Types
 include("simulation_components/stress_calculators.jl")
+include("simulation_components/fracture_criteria.jl")
 # Model
 include("simulation_components/floe.jl")
 include("floe_utils.jl")
