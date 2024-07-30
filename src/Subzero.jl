@@ -70,9 +70,10 @@ export
 import Base.@kwdef # this is being exported as of version 1.9
 import GeometryOps as GO
 import GeometryOps.GeoInterface as GI
+import GeometryOps.GeometryBasics as GB
 import StaticArrays as SA
-using CairoMakie, CoordinateTransformations, Dates, Extents,
-    Interpolations, JLD2, LinearAlgebra, Logging, Makie, Measures, NCDatasets,
+using CoordinateTransformations, Dates, Extents,
+    Interpolations, JLD2, LinearAlgebra, Logging, Measures, NCDatasets,
     Printf, Random, Rotations, SplitApplyCombine, Statistics, StructArrays,
     VoronoiCells
 
