@@ -1,6 +1,7 @@
 module SubzeroMakieExt
 
-using Subzero, Makie, CairoMakie, Printf, GeometryBasics
+using Subzero, Makie, CairoMakie, Printf
+
 
 export plot_sim
 
