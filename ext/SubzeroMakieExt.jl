@@ -2,6 +2,8 @@ module SubzeroMakieExt
 
 using Subzero, Makie, CairoMakie, Printf, GeometryBasics
 
+export plot_sim
+
 function prettytime(t)
     minute = 60
     hour = 3600
@@ -80,6 +82,5 @@ function plot_sim(
     end
     close(file)
 end
-
 
 end  # module
