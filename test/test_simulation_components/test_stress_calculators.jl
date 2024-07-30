@@ -31,7 +31,6 @@ new_σvals = 4σvals
 Subzero._scale_principal_stress!(c2, σvals, floe, floe_settings)
 @test all(σvals .== new_σvals)
 
-
 # # Test DamageStressCalculator
 # TODO: Add tests for DamageStressCalculator when it is implemented
 @test_throws ErrorException DamageStressCalculator()

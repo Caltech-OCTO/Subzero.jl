@@ -632,7 +632,3 @@ function _initialize_floe_field(
     floe_arr.id .= range(1, length(floe_arr))
     return floe_arr
 end
-
-
-
-

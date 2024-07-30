@@ -58,7 +58,7 @@ floe_arr = initialize_floe_field(
 
 fracture_settings = FractureSettings(
         fractures_on = true,
-        criteria = HiblerCurveFractureCriteria(floe_arr),
+        criteria = HiblerCurveFractureCriteria(; floes = floe_arr),
         Δt = 75,
         npieces = 3,
         deform_on = false,

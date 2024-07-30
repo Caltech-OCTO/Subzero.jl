@@ -39,7 +39,7 @@ and updates the `floe`'s `stress_accum` field, which is used when determining fl
 based off of stress. Within the function, other floe fields can be updated as needed.
 
 `_scale_principal_stress!` is called within the `find_σpoint` function which is called
-within the `determine_fractures` function. This function takes the stress calculator, the
+within the `_determine_fractures` function. This function takes the stress calculator, the
 `floe`'s accumulated stress in prinicpal stress space (`σvals = eigvals(stress_accum)`), the
 `floe` itself, and the `floe_settings` and scales `σvals` by some values/ratio using
 physical properties within `floe` and `floe_settings`. This is done to approximate changing

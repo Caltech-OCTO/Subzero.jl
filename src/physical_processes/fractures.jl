@@ -1,41 +1,3 @@
-
-"""
-    determine_fractures(
-        floes,
-        criteria,
-        min_floe_area,
-    )
-
-Determines which floes will fracture depending on the principal stress criteria.
-Inputs:
-    floes           <StructArray{Floe}> model's list of floes
-    criteria        <AbstractFractureCriteria> fracture criteria
-    floe_settings   <FloeSettings> Floe settings. Contains Floe properties and stress 
-                    calculator.
-Outputs:
-    <Vector{Int}> list of indices of floes to fracture 
-"""
-function determine_fractures(
-    floes,
-    criteria::AbstractFractureCriteria,
-    floe_settings, 
-)
-    # Determine if floe stresses are in or out of criteria allowable regions
-    _update_criteria!(criteria, floes)
-    # If stresses are outside of criteria regions, we will fracture the floe
-    frac_idx = [!GO.coveredby(find_σpoint(get_floe(floes, i), floe_settings), criteria.poly) for i in eachindex(floes)]
-    frac_idx[floes.area .< floe_settings.min_floe_area] .= false
-    return range(1, length(floes))[frac_idx]
-end
-
-# Find floe's accumulated stress in principal stress space so that is can be compared to the
-# fracture criteria. 
-function find_σpoint(floe::FloeType, floe_settings)
-    σvals = eigvals(floe.stress_accum)
-    _scale_principal_stress!(floe_settings.stress_calculator, σvals, floe, floe_settings)
-    return σvals
-end
-
 """
     deform_floe!(
         floe,
@@ -215,12 +177,12 @@ function fracture_floes!(
     floe_settings,
     Δt,
 ) where {FT <: AbstractFloat}
+    # Update fracture criteria given pack properties
+    _update_criteria!(fracture_settings.criteria, floes)
     # Determine which floes will fracture
-    frac_idx = determine_fractures(
-        floes,
-        fracture_settings.criteria,
-        floe_settings,
-    )
+    frac_idx = _determine_fractures(fracture_settings.criteria, floes, floe_settings)
+    frac_idx2 = _determine_fractures2(fracture_settings.criteria, floes, floe_settings)
+    @assert all(frac_idx .== frac_idx2) "AAAA"
     # Initialize list for new floes created from fracturing existing floes
     nfloes2frac = length(frac_idx)
     fracture_list = [StructArray{Floe{FT}}(undef, 0) for _ in 1:nfloes2frac]
