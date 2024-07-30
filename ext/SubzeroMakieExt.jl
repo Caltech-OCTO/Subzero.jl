@@ -1,7 +1,7 @@
 module SubzeroMakieExt
 
 using CairoMakie
-using Subzero, Printf
+using Subzero, Printf, JLD2
 import Subzero: prettytime, plot_sim
 
 function prettytime(t)
