@@ -1,10 +1,8 @@
 module SubzeroMakieExt
 
-using Makie, CairoMakie
+using CairoMakie
 using Subzero, Printf
-
-
-export plot_sim
+import Subzero: prettytime, plot_sim
 
 function prettytime(t)
     minute = 60
@@ -32,7 +30,7 @@ function prettytime(t)
     return @sprintf("%d %s", value, units)
 end
 
-Makie.@recipe(CoordPlot, coord_list) do scene
+CairoMakie.@recipe(CoordPlot, coord_list) do scene
     Attributes(
         color = :lightblue,    # floe fill color (could give transparent color)
         strokecolor = :black,  # outline color of floes
@@ -40,7 +38,7 @@ Makie.@recipe(CoordPlot, coord_list) do scene
     )
 end
 
-function Makie.plot!(coordplot::CoordPlot{<:Tuple{<:Vector{<:PolyVec}}})
+function CairoMakie.plot!(coordplot::CoordPlot{<:Tuple{<:Vector{<:PolyVec}}})
     coord_list = coordplot[1]
     poly_list = @lift([[Point2f(verts) for verts in c[1]] for c in $coord_list])
     Makie.poly!(

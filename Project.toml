@@ -25,10 +25,9 @@ VoronoiCells = "e3e34ffb-84e9-5012-9490-92c94d0c60a4"
 
 [weakdeps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
-Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 
 [extensions]
-SubzeroMakieExt = ["CairoMakie", "Makie"]
+SubzeroMakieExt = "CairoMakie"
 
 [compat]
 CairoMakie = "0.12"
@@ -37,7 +36,6 @@ Extents = "0.1"
 GeometryOps = "0.1.10"
 Interpolations = "0.14, 0.15"
 JLD2 = "0.4"
-Makie = "0.19, 0.20, 0.21"
 Measures = "0.3"
 NCDatasets = "0.14"
 Rotations = "1"
