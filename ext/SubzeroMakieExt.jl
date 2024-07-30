@@ -1,4 +1,4 @@
-module PlottingFloesExt
+module SubzeroMakieExt
 
 using Subzero, Makie, CairoMakie, Printf, GeometryBasics
 
