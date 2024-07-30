@@ -29,6 +29,7 @@ VoronoiCells = "e3e34ffb-84e9-5012-9490-92c94d0c60a4"
 
 [compat]
 CairoMakie = "0.12"
+CoordinateTransformations = "0.6"
 DataStructures = "0.18"
 Extents = "0.1"
 GeometryOps = "0.1.10"
@@ -38,12 +39,13 @@ Makie = "0.19, 0.20, 0.21"
 Measures = "0.3"
 NCDatasets = "0.12, 0.13, 0.14"
 NetCDF = "0.11, 0.12"
+Rotations = "1"
 SplitApplyCombine = "1"
 StaticArrays = "1"
 Statistics = "1"
 StructArrays = "0.6"
 VoronoiCells = "0.4"
-julia = "1.6"
+julia = "1.9"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
