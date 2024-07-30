@@ -14,6 +14,7 @@ Note:
     modified from
     https://github.com/JuliaCI/BenchmarkTools.jl/blob/master/src/trials.jl
 """
+function prettytime end
 # function prettytime(t)
 #     minute = 60
 #     hour = 3600
@@ -52,16 +53,16 @@ Inputs:
 Output:
     <Matrix{AbstractFloat}> curl
 """
-function get_curl(fldx,fldy,dx,dy)
-    # fldx must be on the u-grid point and fldy on the v-grid
-    # returns field on the omega grid
-    nx,ny = size(fldx)
-    dvdx = zeros(ny,nx)
-    dudy = zeros(ny,nx)
-    dvdx[1:end-1,:] = diff(fldy,dims=1)/dx
-    dudy[:,1:end-1] = diff(fldx,dims=2)/dy
-    return (dvdx - dudy)
-end
+# function get_curl(fldx,fldy,dx,dy)
+#     # fldx must be on the u-grid point and fldy on the v-grid
+#     # returns field on the omega grid
+#     nx,ny = size(fldx)
+#     dvdx = zeros(ny,nx)
+#     dudy = zeros(ny,nx)
+#     dvdx[1:end-1,:] = diff(fldy,dims=1)/dx
+#     dudy[:,1:end-1] = diff(fldx,dims=2)/dy
+#     return (dvdx - dudy)
+# end
 
 """
     calc_ro_field(ocean_fn)
@@ -146,6 +147,7 @@ Inputs:
 Output:
     Saves video as output_fn
 """
+function plot_sim end
 # function plot_sim(
 #     floe_fn,
 #     initial_state_fn,
