@@ -64,8 +64,7 @@ export
     IceStressCell,
     CellFloes,
     MonteCarloPointsGenerator,
-    SubGridPointsGenerator,
-    plot_sim
+    SubGridPointsGenerator
 
 import Base.@kwdef # this is being exported as of version 1.9
 import GeometryOps as GO
