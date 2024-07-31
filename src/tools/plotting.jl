@@ -1,24 +1,54 @@
-"""
-Plotting functions for Subzero Simulation
-"""
+# # Basic plotting functions (and stub functions) for Subzero simulations
+export plot_sim, plot_sim_with_ocean_field, prettytime, get_curl, calc_ro_field
+
+#= 
+## What plotting functionality is availible for Subzero simulations?
+
+We provide very basic plotting functionalities for Subzero simulations. Given plotting is so
+customizable, we just wanted to provide a roadmap for how a user might plot a simulation and
+provide a few utility functions.
+
+Below are the stubs of functions that require `CairoMakie`. The actual code for these
+functions is in `ext/SubzeroMakieExt`. These functions are only loaded when the user loads
+`CairoMakie`. This prevents unneccesarily long compiling times when the user just wants to
+run simulations. They can then load `CairoMakie` once post simulation runs and create all of
+the needed videos at once, rather than loading `CairoMakie` prior to each simulation.
+
+We also provide a few basic plotting utility functions, like `prettytime` here as they do
+not depend on `CairoMakie` and therefore don't need to be abstracted away into the
+extension.
+=#
+
+# Stub functions that depend on CairoMakie implemented in ext/SubzeroMakieExt.jl
+
+function plot_sim end
+function plot_sim_with_ocean_field end
+
+# Constants used in plotting code
+const FLOE_FN_DEF = "floe outputwriter output file path and name"
+const INITIAL_STATE_FN_DEF = "initial state outputwriter output file path and name"
+const OCEAN_FN_DEF = "`Oceananigans` output surface.nc file"
+const ΔT_DEF = "length of timestep in integer seconds"
+const MP4_OUTPUT_FN = "output video file path and name (should end with .mp4)"
+
+# Utility functions (and example functions) that don't depend on CairoMakie
 
 """
     prettytime(t)
 
 Turn time in seconds into units of minutes, hours, days, or years as appropriate
-Input:
-    t   <Real> number of seconds
-Output:
-    String with value and units
-Note:
-    modified from
-    https://github.com/JuliaCI/BenchmarkTools.jl/blob/master/src/trials.jl
+## Aguments:
+- `t::Real`: number of seconds
+## Returns:
+- `::String`: number of seconds converted to a string value in minutes, hours, days, or years with units
+## Note:
+    This code was modified from the this [source code](https://github.com/JuliaCI/BenchmarkTools.jl/blob/master/src/trials.jl).
 """
 function prettytime(t)
     minute = 60
-    hour = 3600
-    day = 24*3600
-    year = 360*day
+    hour = 60 * minute
+    day = 24 * hour
+    year = 365 * day
 
     iszero(t) && return "0 seconds"
     if t < minute
@@ -44,13 +74,13 @@ end
     get_curl(fldx,fldy,dx,dy)
 
 Calculate curl from ocean u and v velocity fields
-Inputs:
-    fldx    <Matrix{AbstractFloat}> ocean u velocity field
-    fldy    <Matrix{AbstractFloat}> ocean v velocity field
-    dx      <AbstractFloat> x-distance over which velocity fields are provided
-    dy      <AbstractFloat> y-distance over which velocity fields are provided
-Output:
-    <Matrix{AbstractFloat}> curl
+## Arguments:
+-`fldx::Matrix{AbstractFloat}`: ocean `u` velocity field
+-`fldy::Matrix{AbstractFloat}`: ocean `v` velocity field
+-`dx::AbstractFloat`:: x-distance over which velocity fields are provided
+-`dy::AbstractFloat`: y-distance over which velocity fields are provided
+## Returns:
+- `::Matrix{AbstractFloat}`: ocean curl at the center of each grid cell
 """
 function get_curl(fldx,fldy,dx,dy)
     # fldx must be on the u-grid point and fldy on the v-grid
@@ -66,14 +96,14 @@ end
 """
     calc_ro_field(ocean_fn)
 
-Calculate surface vorticity for ocean file.
-Inputs:
-    ocean_fn    <String> filename for ocean NetCDF filename
-Outputs:
-    ro  <Array> 3D array where first two dimensions are ocean size (Nx, Ny) and the third
-            dimension is time over the simulation
-    xc  <Vector> x grid points for ro values
-    yc  <Vector> y grid points for ro values
+Calculate surface vorticity from an Oceananigan's ocean file.
+
+## Arguments:
+- `ocean_fn::String`: $OCEAN_FN_DEF
+Returns:
+- `ro::Array{AbstractFloat}`: 3D array where first two dimensions are ocean size (Nx, Ny) and the third dimension is time over the simulation
+- `xc::Vector{AbstractFloat}`: x grid points for ro values
+- `yc::Vector{AbstractFloat}`: y grid points for ro values
 """
 function calc_ro_field(ocean_fn)
     xc = NetCDF.ncread(ocean_fn, "xC")
@@ -92,167 +122,4 @@ function calc_ro_field(ocean_fn)
         ro[:, :, i] .= get_curl(usurf[:,:,1,i], vsurf[:,:,1,i], dx,dy) ./ f
     end
     return ro, xc, yc
-end
-
-"""
-    CoordPlot
-
-Recipe for plotting list of PolyVecs that creates two new function coordplot and
-coordplot!
-"""
-@recipe(CoordPlot, coord_list) do scene
-    Attributes(
-        color = :lightblue,    # floe fill color (could give transparent color)
-        strokecolor = :black,  # outline color of floes
-        strokewidth = 1,       # width of floe outline
-    )
-end
-
-"""
-    Makie.plot!(coordplot)
-
-Defines coordplot and coordplot! for plotting lists of PolyVecs.
-"""
-function Makie.plot!(coordplot::CoordPlot{<:Tuple{<:Vector{<:PolyVec}}})
-    coord_list = coordplot[1]
-    poly_list = @lift([[Point2f(verts) for verts in c[1]] for c in $coord_list])
-    Makie.poly!(
-        coordplot,
-        poly_list,
-        color = coordplot[:color],
-        strokecolor = coordplot[:strokecolor],
-        strokewidth = coordplot[:strokewidth],    
-    )
-    coordplot
-end
-
-"""
-    plot_sim(
-        floe_fn,
-        initial_state_fn,
-        title,
-        Δt,
-        output_fn
-    )
-
-Basic plotting of sim as an example of how to create video. Does not have
-underlying ocean.
-Inputs:
-    floe_fn           <String> Subzero floe outputwriter output file
-    initial_state_fn  <String> Subzero initial state writer output file
-    title             <String> plot title
-    Δt                <Int> length of timestep in seconds
-    output_fn         <String> output filename (should be .mp4)
-Output:
-    Saves video as output_fn
-"""
-function plot_sim(
-    floe_fn,
-    initial_state_fn,
-    Δt,
-    output_fn;
-)
-    # Open files
-    file = jldopen(floe_fn)
-    domain = load(initial_state_fn)["sim"].model.domain
-    timesteps = keys(file["centroid"])
-    # Set up observables
-    floes = Observable(file["coords"][timesteps[1]])
-    # Plot floes
-    fig, ax, _ = coordplot(floes)
-    # Set axis limits and names
-    xlims!(domain.west.val, domain.east.val)
-    ylims!(domain.south.val, domain.north.val)
-    ax.xlabel =  "Meters"
-    ax.ylabel = "Meters"
-    # Plot topography
-    if !isempty(domain.topography)
-        coordplot!(domain.topography.coords, color = :lightgrey)
-    end
-    # Create movie
-    record(fig, output_fn, timesteps; framerate = 20) do time
-        ax.title = Subzero.prettytime(parse(Float64, time) * Δt)
-        new_coords = file["coords"][time]
-        floes[] = new_coords
-    end
-    close(file)
-end
-
-
-"""
-    plot_sim_with_ocean_field(
-        floe_fn,
-        initial_state_fn,
-        Δt,
-        ocean_fn,
-        ocean_func,
-        output_fn,
-    )
-
-Basic plotting of sim as an example of how to create video. Does not have
-underlying ocean.
-Inputs:
-    floe_fn           <String> Subzero floe outputwriter output file
-    initial_state_fn  <String> Subzero initial state writer output file
-    Δt                <Int> length of timestep in seconds
-    ocean_fn          <String> Oceananigans output surface.nc file
-    ocean_func        <Function> function that takes in ocean_fn and returns a
-                        Nx by Ny by timesteps surface field for plotting as well
-                        as xc and yc fields (see calc_ro_field for example)
-    colorbar_title    <String> name for colorbar associated with ocean_func vals
-    output_fn         <String> output filename (should be .mp4)
-Output:
-    Saves video as output_fn.
-"""
-function plot_sim_with_ocean_field(
-    floe_fn,
-    initial_state_fn,
-    Δt,
-    ocean_fn,
-    ocean_func,
-    colorbar_title,
-    output_fn,
-)
-    # Open files
-    file = jldopen(floe_fn)
-    domain = load(initial_state_fn)["sim"].model.domain
-    timesteps = keys(file["centroid"])
-    ocean_data, xc, yc = ocean_func(ocean_fn)
-    # Set up observables needed for plotting
-    floes = Observable(file["coords"][timesteps[1]])
-    ocean_vals = Observable(@view ocean_data[:, :, 1])
-    min_ocn_val, max_ocn_val = extrema(ocean_data)
-    fig = Figure()
-    # Plot ocean
-    ax, hm = heatmap(
-        fig[1, 1],
-        xc,
-        yc,
-        ocean_vals,
-        colormap = :RdBu_9,
-        colorrange = (min_ocn_val, max_ocn_val)
-    )
-    # Add axis limits and titles
-    xlims!(domain.west.val, domain.east.val)
-    ylims!(domain.south.val, domain.north.val)
-    ax.xlabel =  "Meters"
-    ax.ylabel = "Meters"
-    # Add colorbar
-    Colorbar(fig[1, 2], hm, label = colorbar_title)
-    # Plot floes
-    coordplot!(fig[1, 1], floes)
-    # Plot topography
-    if !isempty(domain.topography)
-        coordplot!(fig[1, 1], domain.topography.coords, color = :lightgrey)
-    end
-
-    # Create movie
-    record(fig, output_fn, 1:length(timesteps), framerate = 20) do i
-        time = timesteps[i]
-        ax.title = prettytime(parse(Float64, time) * Δt)
-        new_coords = file["coords"][time]
-        ocean_vals[] = @view ocean_data[:, :, i]
-        floes[] = new_coords
-    end
-    close(file)
 end

@@ -1,4 +1,4 @@
-using JLD2, Subzero, Random, Statistics
+using JLD2, Subzero, Random, Statistics, CairoMakie
 
 const FT = Float64
 const Δt = 10
