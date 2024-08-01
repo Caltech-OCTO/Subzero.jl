@@ -1,4 +1,4 @@
-using JLD2, Random, Statistics, Subzero, CairoMakie
+using JLD2, Random, Statistics, Subzero, CairoMakie, GeoInterfaceMakie
 
 # User Inputs
 const FT = Float64
@@ -88,7 +88,7 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 2500,
+    nΔt = 500,
     verbose = true,
     floe_settings = floe_settings,
     coupling_settings = coupling_settings,

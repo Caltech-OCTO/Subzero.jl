@@ -1,4 +1,4 @@
-using JLD2, Random, Statistics, Subzero, CairoMakie
+using JLD2, Random, Statistics, Subzero, CairoMakie, GeoInterfaceMakie
 
 # User Inputs
 const FT = Float64
@@ -72,7 +72,7 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 5000,
+    nΔt = 500,
     verbose = true,
     writers = writers,
     rng = Xoshiro(1),

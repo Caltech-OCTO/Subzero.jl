@@ -1,6 +1,6 @@
 module SubzeroMakieExt
 
-using CairoMakie
+using CairoMakie, GeoInterfaceMakie
 using Subzero, JLD2
 import Subzero: prettytime, plot_sim, plot_sim_with_ocean_field
 
@@ -73,9 +73,14 @@ function plot_sim(
     domain = load(initial_state_fn)["sim"].model.domain
     timesteps = keys(file["centroid"])
     # Set up observables
-    floes = Observable(file["coords"][timesteps[1]])
+    floes = Observable(file["poly"][timesteps[1]])
     # Plot floes
-    fig, ax, _ = coordplot(floes)
+    # fig, ax, _ = poly(floes, color = :lightblue, strokecolor = :black, strokewidth = 0.5)
+    Δx, Δy = domain.east.val - domain.west.val, domain.north.val - domain.south.val
+    aspect = Δx / Δy
+    fig = Figure()
+    ax = Axis(fig[1, 1]; aspect)
+    poly!(floes, color = :lightblue, strokecolor = :black, strokewidth = 0.5)
     # Set axis limits and names
     xlims!(domain.west.val, domain.east.val)
     ylims!(domain.south.val, domain.north.val)
@@ -83,13 +88,14 @@ function plot_sim(
     ax.ylabel = "Meters"
     # Plot topography
     if !isempty(domain.topography)
-        coordplot!(domain.topography.coords, color = :lightgrey)
+        topo_mp = domain.topography.poly
+        poly!(topo_mp, color = :lightgrey)
     end
     # Create movie
     record(fig, output_fn, timesteps; framerate = 20) do time
         ax.title = Subzero.prettytime(parse(Float64, time) * Δt)
-        new_coords = file["coords"][time]
-        floes[] = new_coords
+        new_polys = file["poly"][time]
+        floes[] = new_polys
     end
     close(file)
 end
