@@ -121,7 +121,7 @@ include("physical_processes/simplification.jl")
 include("physical_processes/ridge_raft.jl")
 include("physical_processes/welding.jl")
 # Tools
-include("tools/plotting.jl")
+include("plotting.jl")
 include("tools/conservation_em.jl")
 include("tools/compare_files.jl")
 include("logger.jl")

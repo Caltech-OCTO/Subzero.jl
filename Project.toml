@@ -25,15 +25,17 @@ VoronoiCells = "e3e34ffb-84e9-5012-9490-92c94d0c60a4"
 
 [weakdeps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+GeoInterfaceMakie = "0edc0954-3250-4c18-859d-ec71c1660c08"
 
 [extensions]
-SubzeroMakieExt = "CairoMakie"
+SubzeroMakieExt = ["CairoMakie", "GeoInterfaceMakie"]
 
 [compat]
 CairoMakie = "0.12"
 CoordinateTransformations = "0.6"
 Extents = "0.1"
-GeometryOps = "0.1.10"
+GeoInterfaceMakie = "0.1"
+GeometryOps = "0.1"
 Interpolations = "0.14, 0.15"
 JLD2 = "0.4"
 Measures = "0.3"
