@@ -20,14 +20,12 @@ heatmap and colorbar.
 - `initial_state_fn::String`: $(Subzero.INITIAL_STATE_FN_DEF)
 - `Δt::Int`: $(Subzero.ΔT_DEF)
 - `output_fn::String`: $(Subzero.MP4_OUTPUT_FN)
-- `max_side_pixels::Int`: maximum number of pixels for any give size post resize to fit data
 """
 function plot_sim(
     floe_fn,
     initial_state_fn,
     Δt,
-    output_fn;
-    max_side_pixels = 800
+    output_fn
 )
     # Domain Information
     domain = load(initial_state_fn)["sim"].model.domain
@@ -52,7 +50,7 @@ function plot_sim(
     =#
 
     # Set up figure
-    fig = Figure(; size = (max_side_pixels, max_side_pixels))
+    fig = Figure()
     Axis(
         fig[1, 1];
         limits = (xmin, xmax, ymin, ymax),
