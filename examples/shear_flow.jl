@@ -44,7 +44,7 @@ floe_settings = FloeSettings(
 # Floe creation
 floe_arr = initialize_floe_field(
     FT,
-    5000,
+    500,
     [0.8],
     domain,
     hmean,
@@ -72,7 +72,7 @@ simulation = Simulation(
     model = model,
     consts = consts,
     Δt = Δt,
-    nΔt = 500,
+    nΔt = 5000,
     verbose = true,
     writers = writers,
     rng = Xoshiro(1),
