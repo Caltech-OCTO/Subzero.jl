@@ -2,28 +2,32 @@ module SubzeroMakieExt
 
 using CairoMakie, GeoInterfaceMakie
 using Subzero, JLD2
-import Subzero: prettytime, plot_sim, plot_sim_with_ocean_field
+import Subzero: prettytime, plot_sim
 
 """
-    plot_sim(floe_fn, initial_state_fn, title, Δt, output_fn)
+    plot_sim(floe_fn, initial_state_fn, Δt, output_fn;  fig_size = (800, 600))
 
 Basic plotting of a simulation using the simulation's floe and initial state files. This
-function is meant for basic plotting and as an example of how to create video.
-Does not have underlying ocean.
+function is meant for basic plotting during testing and as an example of how to create
+a video using Makie. The user can (and should!) write their own plotting code to their own
+specifications and needs.
+
+This code does not have an underlying ocean, but there are comments on how to add an ocean
+heatmap and colorbar.
 
 ## Arguments:
 - `floe_fn::String`: $(Subzero.FLOE_FN_DEF)
 - `initial_state_fn::String`: $(Subzero.INITIAL_STATE_FN_DEF)
-- `title::String`: plot title
 - `Δt::Int`: $(Subzero.ΔT_DEF)
 - `output_fn::String`: $(Subzero.MP4_OUTPUT_FN)
+- `max_side_pixels::Int`: maximum number of pixels for any give size post resize to fit data
 """
 function plot_sim(
     floe_fn,
     initial_state_fn,
     Δt,
     output_fn;
-    fig_size = (800, 600)
+    max_side_pixels = 800
 )
     # Domain Information
     domain = load(initial_state_fn)["sim"].model.domain
@@ -37,7 +41,7 @@ function plot_sim(
     timesteps = keys(sim_polys)
 
     # Set up observables for recording (updated whenever `time[]` is set to a new value)
-    time = Observable(timesteps[1])
+    time = Observable(timesteps[1])  # note these are strings as we index into a JLD2 file
     time_polys = @lift(sim_polys[$time])
     title_string = @lift(Subzero.prettytime(parse(Float64, $time) * Δt))
 
@@ -48,15 +52,15 @@ function plot_sim(
     =#
 
     # Set up figure
-    fig = Figure(; fig_size)
+    fig = Figure(; size = (max_side_pixels, max_side_pixels))
     Axis(
         fig[1, 1];
         limits = (xmin, xmax, ymin, ymax),
         title = title_string,
         xlabel = "Meters",
-        xticklabelrotation = pi/2,
+        xticklabelrotation = pi/4,
         ylabel = "Meters",
-        yticklabelrotation = pi/2,
+        yticklabelrotation = pi/4,
     )
 
     # Plot starting state (floes + topography)
