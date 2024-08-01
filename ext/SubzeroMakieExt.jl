@@ -5,7 +5,7 @@ using Subzero, JLD2
 import Subzero: prettytime, plot_sim
 
 """
-    plot_sim(floe_fn, initial_state_fn, Δt, output_fn;  fig_size = (800, 600))
+    plot_sim(floe_fn, initial_state_fn, Δt, output_fn; max_side_pixels = 800)
 
 Basic plotting of a simulation using the simulation's floe and initial state files. This
 function is meant for basic plotting during testing and as an example of how to create
