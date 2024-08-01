@@ -1,4 +1,4 @@
-using JLD2, Subzero, Random, Statistics, CairoMakie
+using JLD2, Subzero, Random, Statistics, CairoMakie, GeoInterfaceMakie
 
 const FT = Float64
 const Δt = 10
