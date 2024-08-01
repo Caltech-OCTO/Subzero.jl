@@ -5,50 +5,6 @@ using Subzero, JLD2
 import Subzero: prettytime, plot_sim, plot_sim_with_ocean_field
 
 """
-    CoordPlot
-
-Recipe for plotting list of `PolyVec`s that creates two new functions: `coordplot` and
-`coordplot!`.
-
-These functions each take in a vector of `PolyVec`s to plot the floe field at a given
-timestep.
-
-Note: I would like to remove this recipe and it's corresponding `plot!` function eventually.
-Now that all of the floes' carry around a `GeoInterface` polygon, we can simply use
-`GeoInterfaceMakie` to plot them and not deal with plotting from coordiantes.
-"""
-CairoMakie.@recipe(CoordPlot, coord_list) do scene
-    Attributes(
-        color = :lightblue,    # floe fill color (could give transparent color)
-        strokecolor = :black,  # outline color of floes
-        strokewidth = 1,       # width of floe outline
-    )
-end
-
-"""
-    Makie.plot!(coordplot)
-
-Defines coordplot and coordplot! for plotting vectors of PolyVecs, representing the floe
-field at a given timestep.
-
-Note: I would like to remove this function and it's corresponding `CoordPlot` recipe
-eventually. Now that all of the floes' carry around a `GeoInterface` polygon, we can simply
-use `GeoInterfaceMakie` to plot them and not deal with plotting from coordiantes.
-"""
-function CairoMakie.plot!(coordplot::CoordPlot{<:Tuple{<:Vector{<:PolyVec}}})
-    coord_list = coordplot[1]
-    poly_list = @lift([[Point2f(verts) for verts in c[1]] for c in $coord_list])
-    Makie.poly!(
-        coordplot,
-        poly_list,
-        color = coordplot[:color],
-        strokecolor = coordplot[:strokecolor],
-        strokewidth = coordplot[:strokewidth],    
-    )
-    coordplot
-end
-
-"""
     plot_sim(floe_fn, initial_state_fn, title, Δt, output_fn)
 
 Basic plotting of a simulation using the simulation's floe and initial state files. This
@@ -67,109 +23,65 @@ function plot_sim(
     initial_state_fn,
     Δt,
     output_fn;
+    fig_size = (800, 600)
 )
-    # Open files
-    file = jldopen(floe_fn)
+    # Domain Information
     domain = load(initial_state_fn)["sim"].model.domain
-    timesteps = keys(file["centroid"])
-    # Set up observables
-    floes = Observable(file["poly"][timesteps[1]])
-    # Plot floes
-    # fig, ax, _ = poly(floes, color = :lightblue, strokecolor = :black, strokewidth = 0.5)
-    Δx, Δy = domain.east.val - domain.west.val, domain.north.val - domain.south.val
-    aspect = Δx / Δy
-    fig = Figure()
-    ax = Axis(fig[1, 1]; aspect)
-    poly!(floes, color = :lightblue, strokecolor = :black, strokewidth = 0.5)
-    # Set axis limits and names
-    xlims!(domain.west.val, domain.east.val)
-    ylims!(domain.south.val, domain.north.val)
-    ax.xlabel =  "Meters"
-    ax.ylabel = "Meters"
-    # Plot topography
-    if !isempty(domain.topography)
+    xmax, xmin = domain.east.val, domain.west.val
+    ymax, ymin = domain.north.val, domain.south.val
+    Δx, Δy = xmax - xmin, ymax - ymin
+
+    # Floe Information
+    file = jldopen(floe_fn)
+    sim_polys = file["poly"]
+    timesteps = keys(sim_polys)
+
+    # Set up observables for recording (updated whenever `time[]` is set to a new value)
+    time = Observable(timesteps[1])
+    time_polys = @lift(sim_polys[$time])
+    title_string = @lift(Subzero.prettytime(parse(Float64, $time) * Δt))
+
+    #=
+    Note that if you had Nx by Ny by time ocean data, this would be a good place to connect
+    it to the time observable! To learn more about Observables and how to use them with
+    animations see here: https://docs.makie.org/stable/explanations/animation
+    =#
+
+    # Set up figure
+    fig = Figure(; fig_size)
+    Axis(
+        fig[1, 1];
+        limits = (xmin, xmax, ymin, ymax),
+        title = title_string,
+        xlabel = "Meters",
+        xticklabelrotation = pi/2,
+        ylabel = "Meters",
+        yticklabelrotation = pi/2,
+    )
+
+    # Plot starting state (floes + topography)
+    poly!(time_polys, color = :lightblue, strokecolor = :black, strokewidth = 0.5)  # floes
+    if !isempty(domain.topography)  # topography
         topo_mp = domain.topography.poly
         poly!(topo_mp, color = :lightgrey)
     end
-    # Create movie
-    record(fig, output_fn, timesteps; framerate = 20) do time
-        ax.title = Subzero.prettytime(parse(Float64, time) * Δt)
-        new_polys = file["poly"][time]
-        floes[] = new_polys
-    end
-    close(file)
-end
 
-"""
-    plot_sim_with_ocean_field(floe_fn, initial_state_fn, Δt, ocean_fn, ocean_func, output_fn)
+    #=
+    Note that if you had Nx by Ny by time ocean data, this would be a good place to plot it
+    with a heat map and to add a color bar on the fig[1,2] axis! Check out Makie
+    documentation here: https://docs.makie.org/stable/reference/plots/heatmap 
+    =#
 
-Basic plotting of sim as an example of how to create video. Does not have
-underlying ocean.
-
-Basic plotting of a simulation using the simulation's floe and initial state files, as well
-as an surface data file output by `Oceananigans` that can be run through an `ocean_func` to
-get a gridded output. This function is meant for basic plotting and as an example of how to
-create video.
-
-## Arguments:
-- `floe_fn::String`: $(Subzero.FLOE_FN_DEF)
-- `initial_state_fn::String`: $(Subzero.INITIAL_STATE_FN_DEF)
-- `Δt::Int`: $(Subzero.ΔT_DEF)
-- `ocean_fn::String`: $(Subzero.OCEAN_FN_DEF)
-- `ocean_func::Function`: function that takes in `ocean_fn` and returns an Nx by Ny by timesteps surface field for plotting as well as xc and yc fields (see `calc_ro_field` for example)
-- `colorbar_title::String`: name for colorbar associated with ocean_func vals
-- `output_fn::String`: $(Subzero.MP4_OUTPUT_FN)
-"""
-function plot_sim_with_ocean_field(
-    floe_fn,
-    initial_state_fn,
-    Δt,
-    ocean_fn,
-    ocean_func,
-    colorbar_title,
-    output_fn,
-)
-    # Open files
-    file = jldopen(floe_fn)
-    domain = load(initial_state_fn)["sim"].model.domain
-    timesteps = keys(file["centroid"])
-    ocean_data, xc, yc = ocean_func(ocean_fn)
-    # Set up observables needed for plotting
-    floes = Observable(file["coords"][timesteps[1]])
-    ocean_vals = Observable(@view ocean_data[:, :, 1])
-    min_ocn_val, max_ocn_val = extrema(ocean_data)
-    fig = Figure()
-    # Plot ocean
-    ax, hm = heatmap(
-        fig[1, 1],
-        xc,
-        yc,
-        ocean_vals,
-        colormap = :RdBu_9,
-        colorrange = (min_ocn_val, max_ocn_val)
-    )
-    # Add axis limits and titles
-    xlims!(domain.west.val, domain.east.val)
-    ylims!(domain.south.val, domain.north.val)
-    ax.xlabel =  "Meters"
-    ax.ylabel = "Meters"
-    # Add colorbar
-    Colorbar(fig[1, 2], hm, label = colorbar_title)
-    # Plot floes
-    coordplot!(fig[1, 1], floes)
-    # Plot topography
-    if !isempty(domain.topography)
-        coordplot!(fig[1, 1], domain.topography.coords, color = :lightgrey)
-    end
+    # Resize Figure
+    colsize!(fig.layout, 1, Aspect(1, Δx / Δy))
+    resize_to_layout!(fig)
 
     # Create movie
-    record(fig, output_fn, 1:length(timesteps), framerate = 20) do i
-        time = timesteps[i]
-        ax.title = prettytime(parse(Float64, time) * Δt)
-        new_coords = file["coords"][time]
-        ocean_vals[] = @view ocean_data[:, :, i]
-        floes[] = new_coords
+    record(fig, output_fn, timesteps; framerate = 20) do t
+        time[] = t  # updating the time auto updates the related time_polys
     end
+
+    # End movie and close file
     close(file)
 end
 
