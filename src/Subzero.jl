@@ -64,15 +64,15 @@ export
     IceStressCell,
     CellFloes,
     MonteCarloPointsGenerator,
-    SubGridPointsGenerator,
-    plot_sim
+    SubGridPointsGenerator
 
 import Base.@kwdef # this is being exported as of version 1.9
 import GeometryOps as GO
 import GeometryOps.GeoInterface as GI
+import GeometryOps.GeometryBasics as GB
 import StaticArrays as SA
-using CairoMakie, CoordinateTransformations, DataStructures, Dates, Extents,
-    Interpolations, JLD2, LinearAlgebra, Logging, Makie, Measures, NCDatasets, NetCDF,
+using CoordinateTransformations, Dates, Extents,
+    Interpolations, JLD2, LinearAlgebra, Logging, Measures, NCDatasets,
     Printf, Random, Rotations, SplitApplyCombine, Statistics, StructArrays,
     VoronoiCells
 
@@ -122,7 +122,7 @@ include("physical_processes/simplification.jl")
 include("physical_processes/ridge_raft.jl")
 include("physical_processes/welding.jl")
 # Tools
-include("tools/plotting.jl")
+include("plotting.jl")
 include("tools/conservation_em.jl")
 include("tools/compare_files.jl")
 include("logger.jl")

@@ -1,4 +1,4 @@
-using JLD2, Random, Statistics, Subzero
+using JLD2, Random, Statistics, Subzero, CairoMakie, GeoInterfaceMakie
 
 # User Inputs
 const FT = Float64
