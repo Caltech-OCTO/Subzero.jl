@@ -181,8 +181,8 @@ function fracture_floes!(
     _update_criteria!(fracture_settings.criteria, floes)
     # Determine which floes will fracture
     frac_idx = _determine_fractures(fracture_settings.criteria, floes, floe_settings)
-    frac_idx2 = _determine_fractures2(fracture_settings.criteria, floes, floe_settings)
-    @assert all(frac_idx .== frac_idx2) "AAAA"
+    # frac_idx2 = _determine_fractures2(fracture_settings.criteria, floes, floe_settings)
+    # @assert all(frac_idx .== frac_idx2) "AAAA"
     # Initialize list for new floes created from fracturing existing floes
     nfloes2frac = length(frac_idx)
     fracture_list = [StructArray{Floe{FT}}(undef, 0) for _ in 1:nfloes2frac]
@@ -193,13 +193,13 @@ function fracture_floes!(
             fidx = frac_idx[i]
             max_overlap = FT(0)
             max_overlap_idx = 0
-            for i in 1:floes.num_inters[fidx]
+            for j in 1:floes.num_inters[fidx]
                 if (
-                    floes.interactions[fidx][i, floeidx] > 0 &&
-                    max_overlap < floes.interactions[fidx][i, overlap]
+                    floes.interactions[fidx][j, floeidx] > 0 &&
+                    max_overlap < floes.interactions[fidx][j, overlap]
                 )
-                    max_overlap = floes.interactions[fidx][i, overlap]
-                    max_overlap_idx = i
+                    max_overlap = floes.interactions[fidx][j, overlap]
+                    max_overlap_idx = j
                 end
             end
             if max_overlap > 0

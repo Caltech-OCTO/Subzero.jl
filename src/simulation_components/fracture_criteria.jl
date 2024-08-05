@@ -8,7 +8,7 @@ export AbstractFractureCriteria, NoFracture, HiblerCurveFractureCriteria, MohrsC
 Fracture criteria determines if a floe fractures given it's current physical condition.
 
 The `AbstractFractureCriteria` is the abstract type, with `HiblerCurveFractureCriteria`,
-`MohrsConeFractureCriteria`, and `NoFracture` as implemented concrete types.
+`MohrsConeFractureCriteria`, and `NoFracture` as currently implemented concrete types.
 
 Each of these concrete types represent different method of defining the fracture criteria
 (including a lack of criteria for when fractures aren't enabled), and updating the criteria
@@ -42,6 +42,7 @@ floes fracture. It returns a `Boolean` vector equal in length to the `floes` lis
 """
 abstract type AbstractFractureCriteria end
 
+
 #= Default function to NOT update the fracture criteria before determining floe fractures as
 the simulation progresses. Any criteria that should not update as the simulation runs can
 simply skip implementing this function and fall back on this default. =#
@@ -60,6 +61,57 @@ struct NoFracture <: AbstractFractureCriteria end
 won't even be called due to given the `fractures_on` keyword is `false`. It is defined for
 API completeness. =#
 _determine_fractures(::NoFracture, _, _) = nothing
+
+abstract type AbstractPrincipalStressScaler end
+
+struct NoPrincipalStressScaler end
+
+_scale_principal_stress!(::NoPrincipalStressScaler, σvals, floe, floe_settings) = return
+
+struct AreaFracStressScaler{FT}
+    α::FT
+end
+
+function _scale_principal_stress!(stress_scaler::AreaFracStressScaler{FT}, σvals, floe, floe_settings) where FT
+    M = (floe.area/floe_settings.min_floe_area).^stress_scaler.α
+    σvals .*= M
+    return 
+end
+
+# Find floe's accumulated stress in principal stress space so that is can be compared to the
+# fracture criteria. 
+function find_σpoint(floe, floe_settings)
+    σvals = eigvals(floe.stress_accum)
+    _scale_principal_stress!(floe_settings.stress_calculator, σvals, floe, floe_settings)
+    return σvals
+end
+
+
+# - `_scale_principal_stress!(stress_calculator::AbstractStressCalculator{FT}, σvals::Matrix{FT}, floe::FloeType{FT}, floe_settings::FloeSettings)`
+
+#= 
+`_scale_principal_stress!` is called within the `find_σpoint` function which is called
+within the `_determine_fractures` function. This function takes the stress calculator, the
+`floe`'s accumulated stress in prinicpal stress space (`σvals = eigvals(stress_accum)`), the
+`floe` itself, and the `floe_settings` and scales `σvals` by some values/ratio using
+physical properties within `floe` and `floe_settings`. This is done to approximate changing
+the polygon defining the floe's fracture criteria without having to redefine the fracture 
+criteria for each floe. This is almost like a proxy for damage. 
+
+    #= Default function to NOT scale stress before checking if stress point in principal stress
+space is inside or outside of the fracture criteria polygon. Any calculators that do NOT
+want to scale stress in this way can simply skip implementing this function and fall back
+on this default. =#
+_scale_principal_stress!(::AbstractStressCalculator, σvals, floe, floe_settings) = return
+
+The area-scaling part of the stress calculations comes into play when deciding if a floe
+will be fractured. The accumulated stress can be scaled by a ratio of
+(floe.area/min_floe_area)^α. By changing the α value, either larger or smaller floes
+fracture more eassily. The scaled value will not be saved as this is equivalent to scaling
+the simulation fracture criteria (morh's cone or hibler's ellipse, etc.), but it is less
+computationally intensive. By leaving the default `α = 0`, this extra scaling will not
+take place.
+=#
 
 """
     HiblerCurveFractureCriteria{FT<:AbstractFloat}<:AbstractFractureCriteria
@@ -81,13 +133,13 @@ by taking the minimum and maximum eigenvalues as its coordinates in principal st
 - `h::AbstractFloat`:
 
 The equation of all points within and on the edge of an arbitrary ellipse with the major and
-minor axis defined by `a` and `b`, centered on `(h, k)`, and rotated by `A` radians) is:
+minor axis defined by `a` and `b`, centered on `(h, h)`, and rotated by π/4 radians) is:
 
 ADD LATEXED EQUATION
 `((x-h)cos(A) + (y-k)sin(A))^2 / a^2 + ((x-h)sin(A) + (y-k)cos(A))^2/b^2 ≤ 1`
 
 `pstar` and `c` are used to define calculate the values of `a`, `b`, and `h`. Within
-Hibler's paper `h = k` and `A = π/4`. We use those values here as well.
+Hibler's paper `h = k` and `A = π/4`. Furthermore `a = `
 
 ## Note:
 Hibler's 1979 paper as "A Dynamic Thermodynamic Sea Ice Model" says that:
@@ -95,118 +147,89 @@ Both `pstar` and `c` relate the ice strength to the ice thickness and ice compac
 `c` is determined in that 10% open water reduces the strength substantially and `pstar` is
 considered a free parameter
 """
-@kwdef mutable struct HiblerCurveFractureCriteria{FT<:AbstractFloat}<:AbstractFractureCriteria
-    pstar::FT = 2.25e5
-    c::FT = 20.0
+mutable struct HiblerCurveFractureCriteria{FT<:AbstractFloat, ST<:AbstractPrincipalStressScaler}<:AbstractFractureCriteria
+    pstar::FT
+    c::FT
+    compactness::FT
     a::FT
     b::FT
     h::FT
-    poly::Polys{FT}  # TODO: make this defined by a and b
+    stress_scaler::ST
 end
 
-const HIBLER_ARG_WARNING = "Creation of a HiblerCurveFractureCriteria requires the user to provide either a mean ice pack height or values for a, b, and h to define the elliptical yield curve."
+const HIBLER_ARG_WARNING = "Creation of a HiblerCurveFractureCriteria requires the user to provide a floe field, a mean ice pack height, or values for a and b to define the elliptical yield curve."
 
+"""
+    HiblerCurveFractureCriteria([::Type{FT} = Float64];
+        pstar = 2.25e5,
+        c = 20.0,
+        compactness = 1.0,
+        hmean = nothing,
+        a = zero(FT),
+        b = zero(FT),
+        h = zero(FT),
+    )
+
+Create a `HiblerCurveFractureCriteria` ... [Add writing...]
+
+"""
 function HiblerCurveFractureCriteria(::Type{FT} = Float64;
-    pstar = FT(2.25e5), c = FT(20.0), hmean = nothing,
-    a = zero(FT), b = zero(FT), h = zero(FT),
+    pstar = 2.25e5, c = 20.0, compactness = 1.0, floes = nothing,
+    hmean = nothing, a = zero(FT), b = zero(FT), h = zero(FT),
+    stress_scaler = NoPrincipalStressScaler(),
 ) where FT
+    # If floes input, find mean height of floes
+    if !isnothing(floes)
+        hmean = mean(floes.height)
+    end
+    # If either floes or a mean height are provided, calculate `a`, `b`, and `h`
     if !isnothing(hmean)
-        a, b, h, poly = _calculate_hibler(FT, hmean, pstar, c)
-    elseif a == b == h == 0
+        a, b, h = _calculate_hibler(FT, hmean, pstar, c, compactness)
+    elseif a ==0 || b == 0  # `a` and `b` must be provided if floes or mean height are not
         @warn HIBLER_ARG_WARNING
     end
-    return HiblerCurveFractureCriteria{FT}(; pstar, c, a, b, h, poly)
+    return HiblerCurveFractureCriteria{FT}(pstar, c, compactness, a, b, h, stress_scaler)
 end
-
-# function _create_hibler_curve(::Type{FT}; pstar, c, hmean, a, b, h)
-#     if !isnothing(hmean)
-#         a, b, h, poly = _calculate_hibler(FT, hmean, pstar, c)
-#     elseif a == b == h == 0
-#         @warn HIBLER_ARG_WARNING
-#     end
-#     return a, b, h, poly
-# end
 
 #= Calculate Hibler's Elliptical Yield Curve as described in his 1979 paper "A Dynamic
 Thermodynamic Sea Ice Model" given an ice floe pack and a value for `pstar` and `c` as
 described above in the HiblerCurveFractureCriteria documentation. =#
-function _calculate_hibler(::Type{FT}, mean_height, pstar, c) where FT
-    p = pstar*mean_height
-    α_range = range(zero(FT), FT(2π), length = 100)
-    a = p*sqrt(2)/2
+function _calculate_hibler(::Type{FT}, hmean, pstar, c, compactness) where FT
+    p = pstar * hmean * exp(-c * (1 - compactness))
+    a = p * sqrt(2)/2
     b = a/2
     h = -p/2
-    ring_coords = [(a*cos(α), b*sin(α)) for α in α_range]
-    ring_coords[end] = ring_coords[1] # make sure first and last element are exactly the same
-    # TODO: just have everything be defined by `a` and `b`!!
-    poly = GI.Polygon([ring_coords])
-    return a, b, h, _move_poly(FT, poly, -p/2, -p/2,  π/4)
+    return a, b, h
 end
-
-"""
-    HiblerCurveFractureCriteria{FT<:AbstractFloat}(floes; pstar = 2.25e5, c = 20.0)
-
-Calculates Hibler's Elliptical Yield curve using parameters pstar, c, and the
-current floe field. 
-Inputs:
-    floes   <StructArray{Floes}> model's list of floes
-    pstar   <AbstractFloat> used to tune ellipse for optimal fracturing
-    c       <AbstractFloat> used to tune ellipse for optimal fracturing
-Outputs:
-    HiblerCurveFractureCriteria struct with vertices determined using the _calculate_hibler
-    function.
-"""
-# function HiblerCurveFractureCriteria{FT}(; floes, pstar = 2.25e5, c = 20.0) where {FT <: AbstractFloat}
-#     a, b, h, poly =  _calculate_hibler(FT, mean(floes.height), pstar, c)
-#     return HiblerCurveFractureCriteria{FT}(; pstar, c, a, b, h, poly)
-# end
-
-"""
-    HiblerCurveFractureCriteria(::Type{FT}, args...)
-
-A float type FT can be provided as the first argument of any HiblerCurveFractureCriteria
-constructor. A HiblerCurveFractureCriteria of type FT will be created by passing all
-other arguments to the correct constructor. 
-"""
-# HiblerCurveFractureCriteria(::Type{FT}, args...; kwargs...) where {FT <: AbstractFloat} =
-#     HiblerCurveFractureCriteria{FT}(args...; kwargs...)
-
-"""
-    HiblerCurveFractureCriteria(args...)
-
-If a type isn't specified, HiblerCurveFractureCriteria will be of type Float64 and the
-correct constructor will be called with all other arguments.
-"""
-# HiblerCurveFractureCriteria(args...; kwargs...) = HiblerCurveFractureCriteria{Float64}(args...; kwargs...)
-
 
 #= Update the Hibler Yield Curve vertices based on the current ice floe pack. The criteria
 changes based off of the average height of the floes. =#
 function _update_criteria!(criteria::HiblerCurveFractureCriteria{FT}, floes) where FT
-    new_a, new_b, new_h, new_poly =  _calculate_hibler(FT, mean(floes.height), criteria.pstar, criteria.c)
-    criteria.a, criteria.b, criteria.h = new_a, new_b, new_h
-    criteria.poly = new_poly
+    criteria.a, criteria.b, criteria.h = _calculate_hibler(FT, mean(floes.height),
+        criteria.pstar, criteria.c, criteria.compactness)
     return
 end
 
 function _determine_fractures(criteria::HiblerCurveFractureCriteria, floes, floe_settings)
-    # If stresses are outside of criteria regions, we will fracture the floe
-    frac_idx = [!GO.coveredby(find_σpoint(get_floe(floes, i), floe_settings), criteria.poly) for i in eachindex(floes)]
-    frac_idx[floes.area .< floe_settings.min_floe_area] .= false
-    return range(1, length(floes))[frac_idx]
-end
-# TODO: make sure these return the same thing and then out!
-function _determine_fractures2(criteria::HiblerCurveFractureCriteria, floes, floe_settings)
-    frac_idx = falses(length(floes))
-    for i in frac_idx
-        (x, y) = find_σpoint(get_floe(floes, i), floe_settings)
-        Δx, Δy = x - criteria.h, y - criteria.h
-        pt_val = 0.5 * (Δx + Δy)^2 * (1/a^2 + 1/b^2)
-        if pt_val > 1
+    nfloes = length(floes)
+    frac_idx = falses(nfloes)  # TODO: make with an iterator to reduce allocations!
+    for i in 1:nfloes
+        floe = get_floe(floes, i)
+        # if floe is too small, don't fracture
+        floe.area ≤ floe_settings.min_floe_area && continue
+        # check if principal stress makes it eligible for fracture
+        σpoint = find_σpoint(floe, floe_settings)
+        if _out_ellipse(σpoint, criteria)
             frac_idx[i] = true
         end
     end
-    return frac_idx
+    return range(1, length(floes))[frac_idx]
+end
+
+function _out_ellipse((x, y), criteria)
+    Δx, Δy = x - criteria.h, y - criteria.h
+    pt_val = 0.5 * (((Δx + Δy) / criteria.a)^2 + ((Δx - Δy) / criteria.b)^2)
+    return pt_val > 1
 end
 
 """
@@ -225,8 +248,9 @@ Weiss, Jérôme, and Erland M. Schulson. "Coulombic faulting from the grain
 scale to the geophysical scale: lessons from ice." Journal of Physics D:
 Applied Physics 42.21 (2009): 214017.
 """
-struct MohrsConeFractureCriteria{FT<:AbstractFloat}<:AbstractFractureCriteria
+struct MohrsConeFractureCriteria{FT<:AbstractFloat, ST<:AbstractPrincipalStressScaler}<:AbstractFractureCriteria
     poly::Polys{FT}
+    stress_scaler::ST
 end
 
 """
@@ -338,17 +362,9 @@ function _determine_fractures(criteria::MohrsConeFractureCriteria, floes, floe_s
     return range(1, length(floes))[frac_idx]
 end
 
-# Find floe's accumulated stress in principal stress space so that is can be compared to the
-# fracture criteria. 
-function find_σpoint(floe, floe_settings)
-    σvals = eigvals(floe.stress_accum)
-    _scale_principal_stress!(floe_settings.stress_calculator, σvals, floe, floe_settings)
-    return σvals
-end
 
 #=
 TODO: 
-- Switch hibler's ellipse to using equation of an ellipse
 - Switich Mohr's cone to use triangle endpoints
 - rewrite _determine_fractures to take advantage of above simplifications and have it dispatch
 - Create an "area-scaled" Hiber's ellipse fracture criteria

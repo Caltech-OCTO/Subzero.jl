@@ -406,10 +406,8 @@ function calc_stress!(floe::FloeType{FT}, floe_settings, Δt) where {FT}
         stress[2, 1] = stress[1, 2]
         stress .*= 1/(floe.area * floe.height)
     end
-    # Updates accumulated stress
-    _update_stress_accum!(floe_settings.stress_calculator, stress, floe)
-    # Updates instantanious stress
-    floe.stress_instant .= stress
+    # Updates accumulated and instantanious stress
+    _update_stress!(floe_settings.stress_calculator, stress, floe)
     return
 end
 

@@ -19,10 +19,10 @@ c3 = DecayAreaScaledStressCalculator(Float32, λ = 0.2, α = 2)
 @test c3.λ == 0.2f0 && c3.α == 2.0f0
 @test c3 isa DecayAreaScaledStressCalculator{Float32}
 
-# Test _update_stress_accum!
+# Test _update_stress!
 curr_stress = [0.2 0.4; 0.6 0.8]
 new_stress_accum = 0.8 * stress_accum .+ 0.2 * curr_stress
-Subzero._update_stress_accum!(c1, curr_stress, floe)
+Subzero._update_stress!(c1, curr_stress, floe)
 @test all(floe.stress_accum .== new_stress_accum)
 
 # Test _scale_principal_stress!

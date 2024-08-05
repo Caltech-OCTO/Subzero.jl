@@ -106,7 +106,6 @@
             a = 0.0,
             b = 0.0,
             h = 0.0,
-            poly = Subzero.make_polygon([[[0.0, 0.0], [0, 1], [1 ,1], [1, 0]]]),
         )
         custom_info = FractureSettings(
             fractures_on = true,

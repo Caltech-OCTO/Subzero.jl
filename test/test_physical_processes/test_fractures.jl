@@ -64,7 +64,7 @@
         floes.id .= collect(1:4)
         frac_settings = FractureSettings(
             fractures_on = true,
-            criteria = HiblerCurveFractureCriteria(floes),
+            criteria = HiblerCurveFractureCriteria(; floes),
             Δt = 75,
             deform_on = true,
         )
@@ -72,7 +72,7 @@
         # Test _determine_fractures
         floe_settings = FloeSettings(min_floe_area = 1e6)
         frac_idx = Subzero._determine_fractures(
-             HiblerCurveFractureCriteria(floes),
+             HiblerCurveFractureCriteria(; floes),
              floes,
              floe_settings
         )
@@ -108,7 +108,7 @@
             FractureSettings(
                 fractures_on = true,
                 npieces = 2,
-                criteria = HiblerCurveFractureCriteria(floes),
+                criteria = HiblerCurveFractureCriteria(; floes),
                 Δt = 75,
                 deform_on = true,
             ),
