@@ -6,7 +6,7 @@ makedocs(;
     modules=[Subzero],
     authors="Skylar Gering",
     repo="https://github.com/Caltech-OCTO/Subzero.jl",
-    sitename="Chairmarks.jl",
+    sitename="Subzero.jl",
     format=DocumenterVitepress.MarkdownVitepress(
         repo = "https://github.com/Caltech-OCTO/Subzero.jl",
         devurl = "dev",
