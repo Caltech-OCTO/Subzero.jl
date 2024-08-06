@@ -13,7 +13,6 @@ makedocs(;
         deploy_url = "Caltech-OCTO.github.io/Subzero.jl",
     ),
     pages=[
-        "Home" => "index.md",
         "Introduction" => "introduction.md",
         "API Reference" => "api.md",
     ],
@@ -22,5 +21,4 @@ makedocs(;
 
 deploydocs(;
     repo="https://github.com/Caltech-OCTO/Subzero.jl",
-    push_preview=true,
 )
