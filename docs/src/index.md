@@ -1,4 +1,4 @@
-# YourPackage.jl
+# Subzero.jl
 
 Documentation for `Subzero.jl`.
 
