@@ -1,0 +1,97 @@
+using Subzero, JLD2, CairoMakie, GeoInterfaceMakie, Random, Statistics
+
+const FT = Float64
+const Lx = 8e4
+const Ly = 8e4
+const Δgrid = 2e3
+const hmean = 0.25
+const Δh = 0.0
+const Δt = 20
+const nΔt = 5000
+
+# Model instantiation
+grid = RegRectilinearGrid((0.0, Lx), (0.0, Ly), Δgrid, Δgrid)
+
+uvels = repeat(
+    [range(0, 0.2, length = 21); range(0.2, 0, length = 20)],
+    outer = (1, 41),
+)
+ocean = Ocean(
+    uvels',
+    zeros(grid.Nx + 1, grid.Ny + 1),
+    zeros(grid.Nx + 1, grid.Ny + 1),
+)
+atmos = Atmos(grid, 0.0, 0.0, -1.0)
+
+# Domain creation
+nboundary = PeriodicBoundary(North, grid)
+sboundary = PeriodicBoundary(South, grid)
+eboundary = PeriodicBoundary(East, grid)
+wboundary = PeriodicBoundary(West, grid)
+domain = Domain(nboundary, sboundary, eboundary, wboundary)
+
+# Floe creation
+floe_arr = initialize_floe_field(FT, 400, [0.85], domain, hmean, Δh; rng = Xoshiro(1))
+
+# Model creation
+model = Model(grid, ocean, atmos, domain, floe_arr)
+
+# Simulation setup
+modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
+consts = Constants(E = modulus)
+
+# Run simulation
+dir = "output/title/"
+
+# Output setup
+floewriter = FloeOutputWriter(50, dir = dir, overwrite = true)
+writers = OutputWriters(floewriter)
+
+simulation = Simulation(; model, consts, Δt, nΔt, writers, verbose = true, rng = Xoshiro(1))
+run!(simulation)
+
+function plot_logo(floe_fn, Lx, Ly, dir)
+    # Floe Information
+    file = jldopen(floe_fn)
+    sim_polys = file["poly"]
+    timesteps = keys(sim_polys)
+
+    # Set up observables for recording (updated whenever `time[]` is set to a new value)
+    time = Observable(timesteps[1])  # note these are strings as we index into a JLD2 file
+    time_polys = @lift(sim_polys[$time])
+
+    # Set up figure
+    fig = Figure(; size = (1200, 300))
+
+    floe_rgb = (165, 222, 242)
+    floe_color = RGBf((floe_rgb ./ 255)...)
+    ocean_rgb = (4, 31, 74)
+    ocean_color = RGBf((ocean_rgb ./ 255)...)
+    text_outline_rgb = (219, 76, 0)
+    text_outline_color = RGBf((text_outline_rgb ./ 255)...)
+
+    ax = Axis(fig[1, 1]; limits = (0.0, Lx, 0.0, Ly), backgroundcolor = ocean_color)
+    hidedecorations!(ax)
+
+    # Plot starting state (floes + topography)
+    poly!(time_polys, color = floe_color, strokecolor = :black, strokewidth = 0.5)  # floes
+    text!(
+        Lx/2, Ly/2;
+        align = (:center, :center),
+        text = "Subzero.jl",
+        font = :bold,
+        fontsize = 175,
+        strokecolor = text_outline_color,
+        strokewidth = 5,
+    )
+
+    # Create movie
+    record(fig, dir*"title.gif", timesteps; framerate = 20) do t
+        time[] = t  # updating the time auto updates the related time_polys
+    end
+
+    # End movie and close file
+    close(file)
+end
+
+plot_logo(dir*"floes.jld2", Lx, Ly, dir)
