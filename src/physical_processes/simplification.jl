@@ -26,7 +26,7 @@ function dissolve_floe!(floe, grid::RegRectilinearGrid, domain, dissolved)
     yidx = shift_cell_idx(yidx, grid.Ny + 1, domain.north)
     # If centroid is within bounds after wrapping, add mass to dissolved
     if 0 < xidx <= grid.Nx && 0 < yidx <= grid.Ny
-        dissolved[xidx, yidx] += floe.mass
+        dissolved[yidx, xidx] += floe.mass
     end
     return
 end

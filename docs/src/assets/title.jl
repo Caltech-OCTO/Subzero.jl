@@ -7,7 +7,7 @@ const Δgrid = 2e3
 const hmean = 0.25
 const Δh = 0.0
 const Δt = 20
-const nΔt = 5000
+const nΔt = 15000
 
 # Model instantiation
 grid = RegRectilinearGrid((0.0, Lx), (0.0, Ly), Δgrid, Δgrid)
@@ -61,14 +61,12 @@ function plot_logo(floe_fn, Lx, Ly, dir)
     time_polys = @lift(sim_polys[$time])
 
     # Set up figure
-    fig = Figure(; size = (1200, 300))
+    fig = Figure(; size = (800, 200))
 
-    floe_rgb = (165, 222, 242)
+    floe_rgb = (255, 255, 255)
     floe_color = RGBf((floe_rgb ./ 255)...)
-    ocean_rgb = (4, 31, 74)
+    ocean_rgb = (0, 157, 196)
     ocean_color = RGBf((ocean_rgb ./ 255)...)
-    text_outline_rgb = (219, 76, 0)
-    text_outline_color = RGBf((text_outline_rgb ./ 255)...)
 
     ax = Axis(fig[1, 1]; limits = (0.0, Lx, 0.0, Ly), backgroundcolor = ocean_color)
     hidedecorations!(ax)
@@ -80,8 +78,8 @@ function plot_logo(floe_fn, Lx, Ly, dir)
         align = (:center, :center),
         text = "Subzero.jl",
         font = :bold,
-        fontsize = 175,
-        strokecolor = text_outline_color,
+        fontsize = 130,
+        strokecolor = :white,
         strokewidth = 5,
     )
 
