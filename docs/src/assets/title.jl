@@ -86,7 +86,7 @@ function plot_logo(floe_fn, Lx, Ly, dir)
     )
 
     # Create movie
-    record(fig, dir*"title.mp4", timesteps; framerate = 20) do t
+    record(fig, dir*"title.gif", timesteps; framerate = 20) do t
         time[] = t  # updating the time auto updates the related time_polys
     end
 
