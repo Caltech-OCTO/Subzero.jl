@@ -72,11 +72,11 @@ Please also check out [our contributers' guide](https://caltech-octo.github.io/S
 
 <br>
 
-## ✏️ Authors
+## Authors
 
 - Primary Author: [**Skylar Gering (@skygering)**](https://github.com/skygering)
 
-See the list of [Subzero contributors](https://github.com/Caltech-OCTO/Subzero.jl/graphs/contributors).
+The list of [Subzero contributors](https://github.com/Caltech-OCTO/Subzero.jl/graphs/contributors):
 
 <a href="https://github.com/Caltech-OCTO/Subzero.jl/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=Caltech-OCTO/Subzero.jl" />
