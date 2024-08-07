@@ -34,8 +34,6 @@ Subzero.jl is **fast** and **flexible**.
   - Enable and disable physical processes such as fracturing, ridging, and welding
   - Choose algorithms for key processes (or add your own!)
 
-<br>
-
 ## Documentation
 
 To learn how to build and run simulations, [check out our documentation and tutorials](https://caltech-octo.github.io/Subzero.jl/dev/)!
@@ -54,14 +52,10 @@ julia> using Pkg
 julia> Pkg.add("Subzero")
 ```
 
-<br>
-
 ## Citing
 
 If you use Subzero.jl as part of your research, teaching, or other activities, we would be grateful if you could cite our work.
 We are currently working on a JOSS paper, which will be linked here. If you are ready to publish before that, please reach out to us to discuss citations.
-
-<br>
 
 ## Contributing
 
@@ -69,8 +63,6 @@ If you’re interested in contributing to the development Subzero, we would love
 If you have found a bug or have a new feature that you want to help implement, please open an issue on the repository. **We can't wait to talk to you.
 
 Please also check out [our contributers' guide](https://caltech-octo.github.io/Subzero.jl/dev/contribute/).
-
-<br>
 
 ## Authors
 
