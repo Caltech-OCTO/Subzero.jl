@@ -1,4 +1,4 @@
-using Documenter
+using Documenter, Literate
 
 using Subzero
 
