@@ -1,6 +1,3 @@
-"""
-Module `Subzero.jl` - UW's sea ice model ported from MATLAB to Julia
-"""
 module Subzero
 
 # Use the README as the module docs
