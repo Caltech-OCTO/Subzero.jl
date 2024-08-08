@@ -1,7 +1,5 @@
 <!-- Title -->
-<h1 align="center">
-  Subzero.jl
-</h1>
+![Subzero.jl](https://github.com/Caltech-OCTO/Subzero.jl/blob/main/docs/src/assets/title.gif)
 
 <!-- description -->
 <p align="center">
@@ -27,10 +25,10 @@
 Subzero.jl is a native [Julia](https://julialang.org/) discrete-element model (DEM) for exploring fine-scale sea ice dynamics, 
 reimplementing MATLAB model [SubZero by Manucharyan and Montemuro](https://doi.org/10.1029/2022MS003247).
 
-Subzero.jl is **fast** and **flexible**.
+**Subzero.jl is fast and flexible**.
 
 - 🚀 Runs over **35 times faster** that original MATLAB model for title simulation!
-- 🧩 Modular simulation model makes it easy to customize simulations within a **single_ run file**!
+- 🧩 Modular simulation model makes it easy to customize simulations within a **single file**!
   - Enable and disable physical processes such as fracturing, ridging, and welding
   - Choose algorithms for key processes (or add your own!)
 
