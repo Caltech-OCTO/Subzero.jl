@@ -1,23 +1,11 @@
 <!-- Title -->
-![Subzero.jl](https://github.com/Caltech-OCTO/Subzero.jl/blob/main/docs/src/assets/title.gif)
+![Subzero.jl](https://github.com/Caltech-OCTO/Subzero.jl/blob/main/docs/src/assets/title.gif?raw=true)
 
-<!-- Repo badges -->
-<p align="center">
-  <a href="https://caltech-octo.github.io/Subzero.jl/dev/">
-    <img alt="Docs latest" src="https://img.shields.io/badge/docs-latest-blue.svg" />
-  </a>  
-  <a href="https://www.repostatus.org/#active">
-    <img alt="Repo status" src="https://www.repostatus.org/badges/latest/active.svg?style=flat-square" />
-  </a>
-  <a href="https://github.com/Caltech-OCTO/Subzero.jl/actions/workflows/CI.yml?query=branch%3Amain">
-    <img alt="GitHub Actions CI Status" src="https://github.com/Caltech-OCTO/Subzero.jl/actions/workflows/CI.yml/badge.svg?branch=main">
-  </a>
-  <a href="https://codecov.io/gh/Caltech-OCTO/Subzero.jl">
-    <img alt="CodeCov Status" src="https://codecov.io/gh/Caltech-OCTO/Subzero.jl/branch/main/graph/badge.svg">
-  </a>
-</p>
+[![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://caltech-octo.github.io/Subzero.jl/dev/)
+[![CI](https://github.com/Caltech-OCTO/Subzero.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/Caltech-OCTO/Subzero.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Status](https://www.repostatus.org/badges/latest/active.svg?style=flat-square)](https://www.repostatus.org/#active)
+[![CodeCov](https://codecov.io/gh/Caltech-OCTO/Subzero.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/Caltech-OCTO/Subzero.jl)
 
-<!-- description -->
 
 ## Fast and Flexible Sea Ice Dynamics
 

@@ -15,8 +15,7 @@ makedocs(;
     sitename="Subzero.jl",
     format,
     pages=[
-        "Home" => "index.md",
-        "Introduction" => "introduction.md",
+        "Introduction" => "index.md",
         "API Reference" => "api.md",
     ],
     warnonly = true,

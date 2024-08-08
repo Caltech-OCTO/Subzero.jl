@@ -3,6 +3,13 @@ Module `Subzero.jl` - UW's sea ice model ported from MATLAB to Julia
 """
 module Subzero
 
+# Use the README as the module docs
+@doc let
+    path = joinpath(dirname(@__DIR__), "README.md")
+    include_dependency(path)
+    read(path, String)
+end Subzero
+
 export
     AbstractGrid,
     RegRectilinearGrid,

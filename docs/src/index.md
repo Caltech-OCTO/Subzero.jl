@@ -1,1 +1,3 @@
-# Subzero.jl
+```@docs
+Subzero
+```
