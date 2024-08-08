@@ -2,9 +2,9 @@
 ![Subzero.jl](https://github.com/Caltech-OCTO/Subzero.jl/blob/main/docs/src/assets/title.gif)
 
 <!-- description -->
-<p align="center">
+<h2 align="center">
   <strong> Fast and Flexible Sea Ice Dynamics </strong>
-</p>
+</h2>
 
 <!-- Repo badges -->
 <p align="center">
@@ -58,7 +58,7 @@ We are currently working on a JOSS paper, which will be linked here. If you are 
 ## Contributing
 
 If you’re interested in contributing to the development Subzero, we would love to have you!
-If you have found a bug or have a new feature that you want to help implement, please open an issue on the repository. **We can't wait to talk to you.
+If you have found a bug or have a new feature that you want to help implement, please open an issue on the repository. **We can't wait to talk to you.**
 
 Please also check out [our contributers' guide](https://caltech-octo.github.io/Subzero.jl/dev/contribute/).
 
