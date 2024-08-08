@@ -24,6 +24,7 @@ makedocs(;
         "Introduction" => "index.md",
         "Tutorial" => "tutorial.md",
         "API Reference" => "api.md",
+        "Contributing" => "contribute.md",
         "Developer Documentation" => "devdocs.md"
     ],
     warnonly = true,

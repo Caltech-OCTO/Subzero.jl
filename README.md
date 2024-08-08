@@ -43,7 +43,7 @@ We are currently working on a JOSS paper, which will be linked here. If you are 
 
 If you’re interested in contributing to the development Subzero, we would love to have you! We welcome all kinds of contributions from bug reports, to documentation, to features, and suggestions. **We can't wait to talk to you.**
 
-Please check out [our contributers' guide](CONTRIBUTE.md) for more details.
+Please check out [our contributers' guide](https://caltech-octo.github.io/Subzero.jl/dev/contribute/) for more details.
 
 ## _Authors_
 
