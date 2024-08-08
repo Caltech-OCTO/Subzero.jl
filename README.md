@@ -1,7 +1,5 @@
 <!-- Title -->
-<h1 align="center">
-  Subzero.jl
-</h1>
+![Subzero.jl](https://github.com/Caltech-OCTO/Subzero.jl/blob/main/docs/src/assets/title.gif)
 
 <!-- description -->
 <p align="center">
