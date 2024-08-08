@@ -1,4 +1,3 @@
-<!-- Title -->
 ![Subzero.jl](https://github.com/Caltech-OCTO/Subzero.jl/blob/main/docs/src/assets/title.gif?raw=true)
 
 [![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://caltech-octo.github.io/Subzero.jl/dev/)
@@ -7,7 +6,7 @@
 [![CodeCov](https://codecov.io/gh/Caltech-OCTO/Subzero.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/Caltech-OCTO/Subzero.jl)
 
 
-## Fast and Flexible Sea Ice Dynamics
+## _Fast and Flexible Sea Ice Dynamics_
 
 Subzero.jl is a native [Julia](https://julialang.org/) discrete-element model (DEM) for exploring fine-scale sea ice dynamics, 
 reimplementing MATLAB model [SubZero by Manucharyan and Montemuro](https://doi.org/10.1029/2022MS003247).
@@ -17,11 +16,11 @@ reimplementing MATLAB model [SubZero by Manucharyan and Montemuro](https://doi.o
   - Enable and disable physical processes such as fracturing, ridging, and welding
   - Choose algorithms for key processes (or add your own!)
 
-## Documentation
+## _Documentation_
 
 To learn how to build and run simulations, [check out our documentation and tutorials](https://caltech-octo.github.io/Subzero.jl/dev/)!
 
-## Installation
+## _Installation_
 
 Subzero is a [registered Julia package](https://julialang.org/packages/). So to install it,
 
@@ -35,24 +34,21 @@ julia> using Pkg
 julia> Pkg.add("Subzero")
 ```
 
-## Citing
+## _Citing_
 
 If you use Subzero.jl as part of your research, teaching, or other activities, we would be grateful if you could cite our work.
 We are currently working on a JOSS paper, which will be linked here. If you are ready to publish before that, please reach out to us to discuss citations.
 
-## Contributing
+## _Contributing_
 
-If you’re interested in contributing to the development Subzero, we would love to have you!
-If you have found a bug or have a new feature that you want to help implement, please open an issue on the repository. **We can't wait to talk to you.**
+If you’re interested in contributing to the development Subzero, we would love to have you! We welcome all kinds of contributions from bug reports, to documentation, to features, and suggestions. **We can't wait to talk to you.**
 
-Please also check out [our contributers' guide](https://caltech-octo.github.io/Subzero.jl/dev/contribute/).
+Please check out [our contributers' guide](CONTRIBUTE.md) for more details.
 
-## Authors
+## _Authors_
 
 - Primary Author: [**Skylar Gering (@skygering)**](https://github.com/skygering)
 
 The list of [Subzero contributors](https://github.com/Caltech-OCTO/Subzero.jl/graphs/contributors):
 
-<a href="https://github.com/Caltech-OCTO/Subzero.jl/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=Caltech-OCTO/Subzero.jl" />
-</a>
+[![Contributers](https://contrib.rocks/image?repo=Caltech-OCTO/Subzero.jl)](https://github.com/Caltech-OCTO/Subzero.jl/graphs/contributors)

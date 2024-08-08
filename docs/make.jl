@@ -2,6 +2,12 @@ using Documenter, Literate
 
 using Subzero
 
+# Converting tutorial to markdown
+Literate.markdown(
+    joinpath(@__DIR__, "src", "tutorial.jl"), joinpath(@__DIR__, "src");
+    credit = false
+)
+
 format = Documenter.HTML(;
     repolink = "https://github.com/Caltech-OCTO/Subzero.jl",
     canonical = "https://Caltech-OCTO.github.io/SubzeroDocumentation/stable",
@@ -16,7 +22,9 @@ makedocs(;
     format,
     pages=[
         "Introduction" => "index.md",
+        "Tutorial" => "tutorial.md",
         "API Reference" => "api.md",
+        "Developer Documentation" => "devdocs.md"
     ],
     warnonly = true,
 )
