@@ -1,5 +1,5 @@
 ```@meta
-EditURL = "tutorial.jl"
+EditURL = "../literate/tutorial.jl"
 ```
 
 # Tutorial
@@ -15,4 +15,8 @@ simulatuion.
 ````@example tutorial
 using Subzero  # bring package into scope
 ````
+
+---
+
+*This page was generated using [Literate.jl](https://github.com/fredrikekre/Literate.jl).*
 

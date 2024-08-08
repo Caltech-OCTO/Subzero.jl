@@ -2,11 +2,24 @@ using Documenter, Literate
 
 using Subzero
 
-# Converting tutorial to markdown
-Literate.markdown(
-    joinpath(@__DIR__, "src", "tutorial.jl"), joinpath(@__DIR__, "src");
-    credit = false
-)
+# Converting any files in the literate folder to markdown
+# Literate.markdown(
+#     joinpath(@__DIR__, "src", "tutorial.jl"), joinpath(@__DIR__, "src");
+#     credit = false
+# )
+LITERATE_INPUT = joinpath(@__DIR__, "literate")
+LITERATE_OUTPUT = joinpath(@__DIR__, "src")
+
+for (root, _, files) ∈ walkdir(LITERATE_INPUT), file ∈ files
+    # ignore non julia files
+    splitext(file)[2] == ".jl" || continue
+    # full path to a literate script
+    ipath = joinpath(root, file)
+    # generated output path
+    opath = splitdir(replace(ipath, LITERATE_INPUT=>LITERATE_OUTPUT))[1]
+    # generate the markdown file calling Literate
+    Literate.markdown(ipath, opath)
+end
 
 format = Documenter.HTML(;
     repolink = "https://github.com/Caltech-OCTO/Subzero.jl",
@@ -24,8 +37,10 @@ makedocs(;
         "Introduction" => "index.md",
         "Tutorial" => "tutorial.md",
         "API Reference" => "api.md",
-        "Contributing" => "contribute.md",
-        "Developer Documentation" => "devdocs.md"
+        "Improving Subzero" => [
+            "Contributing" => "contribute.md",
+            "Developer Documentation" => "devdocs.md",
+        ],
     ],
     warnonly = true,
 )

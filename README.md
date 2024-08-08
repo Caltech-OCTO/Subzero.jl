@@ -2,8 +2,8 @@
 
 [![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://caltech-octo.github.io/Subzero.jl/dev/)
 [![CI](https://github.com/Caltech-OCTO/Subzero.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/Caltech-OCTO/Subzero.jl/actions/workflows/CI.yml?query=branch%3Amain)
-[![Status](https://www.repostatus.org/badges/latest/active.svg?style=flat-square)](https://www.repostatus.org/#active)
 [![CodeCov](https://codecov.io/gh/Caltech-OCTO/Subzero.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/Caltech-OCTO/Subzero.jl)
+[![Status](https://www.repostatus.org/badges/latest/active.svg?style=flat-square)](https://www.repostatus.org/#active)
 
 
 ## _Fast and Flexible Sea Ice Dynamics_
