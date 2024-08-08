@@ -18,15 +18,14 @@
 </p>
 
 <!-- description -->
-<h2>
-  <strong> Fast and Flexible Sea Ice Dynamics </strong>
-</h2>
+
+## Fast and Flexible Sea Ice Dynamics
 
 Subzero.jl is a native [Julia](https://julialang.org/) discrete-element model (DEM) for exploring fine-scale sea ice dynamics, 
 reimplementing MATLAB model [SubZero by Manucharyan and Montemuro](https://doi.org/10.1029/2022MS003247).
 
 - 🚀 Runs over **35 times faster** that original MATLAB model for title simulation!
-- 🧩 Modular simulation model makes it easy to customize simulations within a **single file**!
+- 🧩 Modular simulation model makes it easy to **customize simulations**!
   - Enable and disable physical processes such as fracturing, ridging, and welding
   - Choose algorithms for key processes (or add your own!)
 
