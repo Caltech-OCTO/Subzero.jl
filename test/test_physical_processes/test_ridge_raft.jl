@@ -254,12 +254,7 @@
     end
 
     # Setup for tests
-    grid = RegRectilinearGrid(
-           (0, 1e5),
-           (0, 1e5),
-           1e4,
-           1e4,
-    )
+    grid = RegRectilinearGrid(; x0 = 0, xf = 1e5, y0 = 0, yf = 1e5, Δx = 1e4, Δy = 1e4)
     topo_coords = [[[5e4, 5e4], [5e4, 7e4], [7e4, 7e4], [7e4, 5e4], [5e4, 5e4]]]
     collision_domain = Subzero.Domain(
         CollisionBoundary(North, grid),

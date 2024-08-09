@@ -2,12 +2,7 @@
     FT = Float64
     Δt = 10
     @testset "Dissolve Floes" begin
-        grid = RegRectilinearGrid(
-            (-1e5, 1e5),
-            (0.0, 1e5),
-            1e4,
-            1e4,
-        )
+        grid = RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = 0.0, yf = 1e5, Δx = 1e4, Δy = 1e4)
         domain = Subzero.Domain(
             CollisionBoundary(North, grid),
             CollisionBoundary(South, grid),
@@ -210,12 +205,7 @@
         @test f3.status.tag == Subzero.active
 
         # Test overall fuse floe functionality with set of 4 floes
-        grid = RegRectilinearGrid(
-            (-2.5e4, 1e5),
-            (-2.5e4, 1e5),
-            1e4,
-            1e4,
-        )
+        grid = RegRectilinearGrid(; x0 = -2.5e4, xf = 1e5, y0 = -2.5e4, yf = 1e5, Δx = 1e4, Δy = 1e4)
         open_domain_no_topo = Subzero.Domain(
             OpenBoundary(North, grid),
             OpenBoundary(South, grid),
@@ -287,12 +277,7 @@
         @test floe_arr.area[3] == floe3_area  # small floes fused into floe 1
     end
     @testset "Smooth Floes" begin
-        grid = RegRectilinearGrid(
-            (-2.5e4, 1e5),
-            (-2.5e4, 1e5),
-            1e4,
-            1e4,
-        )
+        grid = RegRectilinearGrid(; x0 = -2.5e4, xf = 1e5, y0 = -2.5e4, yf = 1e5, Δx = 1e4, Δy = 1e4)
         open_domain_no_topo = Subzero.Domain(
             OpenBoundary(North, grid),
             OpenBoundary(South, grid),
@@ -474,12 +459,8 @@
         @test floe_set2.status[2].fuse_idx == [1]
     end
     @testset "Remove Floes" begin
-        grid = RegRectilinearGrid(
-            (-2.5e4, 1e5),
-            (-2.5e4, 1e5),
-            1e4,
-            1e4,
-        )
+        grid = RegRectilinearGrid(; x0 = -2.5e4, xf = 1e5, y0 = -2.5e4, yf = 1e5, Δx = 1e4, Δy = 1e4)
+
         open_domain_no_topo = Subzero.Domain(
             OpenBoundary(North, grid),
             OpenBoundary(South, grid),

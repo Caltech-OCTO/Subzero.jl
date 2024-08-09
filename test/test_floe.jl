@@ -71,7 +71,7 @@
     @test !any(Subzero.hashole.(floe_arr.coords))
 
     # Test initialize_floe_field from coord list
-    grid = RegRectilinearGrid((-Lx, Lx), (-Ly, Ly), Δgrid, Δgrid)
+    grid = RegRectilinearGrid(; x0 = -Lx, xf = Lx, y0 = -Ly, yf = Ly, Δx = Δgrid, Δy = Δgrid)
     nbound = CollisionBoundary(North, grid)
     sbound = CollisionBoundary(South, grid)
     ebound = CollisionBoundary(East, grid)
@@ -102,7 +102,7 @@
     @test all(floe_arr.id .== range(1, nfloes))
 
     # From file with small domain -> floes outside of domain
-    small_grid = RegRectilinearGrid((-Lx/2, Lx/2), (-Ly/2, Ly), Δgrid, Δgrid)
+    small_grid = RegRectilinearGrid(; x0 = -Lx/2, xf = Lx/2, y0 = -Ly/2, yf = Ly, Δx = Δgrid, Δy = Δgrid)
     small_domain_no_topo = Domain(
         CollisionBoundary(North, small_grid),
         CollisionBoundary(South, small_grid),

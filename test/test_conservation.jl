@@ -59,12 +59,7 @@ end
 @testset "Conservation of Energy and Momentum" begin
     Δt = 10
     FT = Float64
-    grid = RegRectilinearGrid(
-        (-2e4, 1e5),
-        (0, 1e5),
-        1e4,
-        1e4,
-    )
+    grid = RegRectilinearGrid(; x0 = -2e4, xf = 1e5, y0 = 0.0, yf = 1e5, Δx = 1e4, Δy = 1e4)
     collision_domain = Domain(
         CollisionBoundary(North, grid),
         CollisionBoundary(South, grid),

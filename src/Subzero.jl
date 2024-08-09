@@ -8,8 +8,6 @@ module Subzero
 end Subzero
 
 export
-    AbstractGrid,
-    RegRectilinearGrid,
     Ocean,
     Atmos,
     OpenBC,
@@ -71,6 +69,7 @@ export
     SubGridPointsGenerator
 
 import Base.@kwdef # this is being exported as of version 1.9
+import Base.show
 import GeometryOps as GO
 import GeometryOps.GeoInterface as GI
 import GeometryOps.GeometryBasics as GB
@@ -110,6 +109,7 @@ Base.convert(::Type{Polys{Float64}}, p::Polys{Float32}) = GO.tuples(p, Float64)
 # Types
 include("simulation_components/stress_calculators.jl")
 # Model
+include("simulation_components/grids.jl")
 include("simulation_components/floe.jl")
 include("floe_utils.jl")
 include("simulation_components/domain_and_grid.jl")

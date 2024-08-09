@@ -15,13 +15,7 @@ const coarse_nx = 10
 const coarse_ny = 10
 
 # Model instantiation
-grid = RegRectilinearGrid(
-    FT,
-    (-Lx, Lx),
-    (-Ly, Ly),
-    Δgrid,
-    Δgrid,
-)
+grid = RegRectilinearGrid(FT; x0 = -Lx, xf = Lx, y0 = -Ly, yf = Ly, Δx = Δgrid, Δy = Δgrid)
 
 ocean = Ocean(FT, grid, -0.2, 0.0, -1.0)
 

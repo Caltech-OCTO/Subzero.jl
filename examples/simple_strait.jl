@@ -10,12 +10,7 @@ const Δh = 0.0
 const Δt = 20
 
 # Model instantiation
-grid = RegRectilinearGrid(
-    (0.0, Lx),
-    (0.0, Ly),
-    Δgrid,
-    Δgrid,
-)
+grid = RegRectilinearGrid(; x0 = 0.0, xf = Lx, y0 = 0.0, yf = Ly, Δx = Δgrid, Δy = Δgrid)
 ocean = Ocean(grid, 0.0, -0.3, 0.0)
 atmos = Atmos(grid, 0.0, 0.0, 0.0)
 

@@ -10,12 +10,8 @@ const Δh = 0.0
 const Δt = 20
 
 # Model instantiation
-grid = RegRectilinearGrid(
-    (0, Lx),
-    (0, Ly),
-    Δgrid,
-    Δgrid,
-)
+grid = RegRectilinearGrid(; x0 = 0.0, xf = Lx, y0 = 0.0, yf = Ly, Δx = Δgrid, Δy = Δgrid)
+
 uvels = repeat(
     hcat(
         range(0.1 ,0.6, step = 0.1)',

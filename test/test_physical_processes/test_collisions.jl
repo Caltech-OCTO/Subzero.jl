@@ -9,7 +9,7 @@
     # Grid setup
     Lx = 1e5
     Ly = Lx
-    grid = RegRectilinearGrid((-Lx, Lx), (-Ly, Ly), 1e4, 1e4)
+    grid = RegRectilinearGrid(; x0 = -Lx, xf = Lx, y0 = -Ly, yf = Ly, Δx = 1e4, Δy = 1e4)
 
     # Boundary setup
     p_n_bound = PeriodicBoundary(North, grid)

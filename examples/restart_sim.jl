@@ -14,12 +14,7 @@ const uomax = 2
 dirs = [joinpath("output/restart_sim", "run_" * string(i)) for i in 1:n_part_sim]
 
 # Build initial model / simulation
-grid = RegRectilinearGrid(
-    (0.0, L),
-    (0.0, L),
-    Δgrid,
-    Δgrid,
-)
+grid = RegRectilinearGrid(; x0 = 0.0, xf = L, y0 = 0.0, yf = L, Δx = Δgrid, Δy = Δgrid)
 ngrid = Int(L/Δgrid) + 1
 ygrid = range(0,L,ngrid)
 

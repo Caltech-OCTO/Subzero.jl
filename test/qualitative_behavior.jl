@@ -18,12 +18,7 @@ const coarse_nx = 10
 const coarse_ny = 10
 
 # Setup for Simulations
-grid = RegRectilinearGrid(
-    (-2.5e4, Lx),
-    (-2.5e4, Ly),
-    Δgrid,
-    Δgrid,
-)
+grid = RegRectilinearGrid(; x0 = -2.5e4, xf = Lx, y0 = -2.5e4, yf = Ly, Δx = Δgrid, Δy = Δgrid)
 
 zero_ocn = Ocean(grid, 0.0, 0.0, 0.0)
 meridional_ocn = Ocean(grid, 0.0, 1.0, 0.0)

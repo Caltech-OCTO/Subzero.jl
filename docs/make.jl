@@ -3,10 +3,6 @@ using Documenter, Literate
 using Subzero
 
 # Converting any files in the literate folder to markdown
-# Literate.markdown(
-#     joinpath(@__DIR__, "src", "tutorial.jl"), joinpath(@__DIR__, "src");
-#     credit = false
-# )
 LITERATE_INPUT = joinpath(@__DIR__, "literate")
 LITERATE_OUTPUT = joinpath(@__DIR__, "src")
 
@@ -21,12 +17,16 @@ for (root, _, files) ∈ walkdir(LITERATE_INPUT), file ∈ files
     Literate.markdown(ipath, opath)
 end
 
+# Documentation formatting
 format = Documenter.HTML(;
     repolink = "https://github.com/Caltech-OCTO/Subzero.jl",
     canonical = "https://Caltech-OCTO.github.io/SubzeroDocumentation/stable",
     mathengine = MathJax3(),
     size_threshold = 5*10^5,  # 500 KiB
 )
+
+# Metadata from doc tests
+DocMeta.setdocmeta!(Subzero, :DocTestSetup, :(using Subzero); recursive=true)
 
 makedocs(;
     modules=[Subzero],

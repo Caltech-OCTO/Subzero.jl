@@ -10,7 +10,7 @@ const Δt = 20
 const nΔt = 15000
 
 # Model instantiation
-grid = RegRectilinearGrid((0.0, Lx), (0.0, Ly), Δgrid, Δgrid)
+grid = RegRectilinearGrid(; x0 = 0.0, xf = Lx, y0 = 0.0, yf = Ly, Δx = Δgrid, Δy = Δgrid)
 
 uvels = repeat(
     [range(0, 0.2, length = 21); range(0.2, 0, length = 20)],
