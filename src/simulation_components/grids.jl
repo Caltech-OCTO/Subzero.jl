@@ -44,8 +44,8 @@ end
 
 Each simulation run with Subzero.jl must be run on a grid. A grid defines the points at
 which the ocean and atmosphere hold velocity data, as well as various other tracers at grid
-points. The user must choose an existing subtype of `AbstractGrid` or implement a new subtype to
-create a simulation. 
+points. The user must choose an existing subtype of `AbstractGrid` or implement a new
+subtype to create a simulation. 
 
 Each concrete implementation of `AbstractGrid` must have a field called `floe_locations`
 that is a matrix of `CellFloes`[@ref] for each grid cell...

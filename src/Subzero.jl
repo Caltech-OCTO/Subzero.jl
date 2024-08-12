@@ -112,7 +112,7 @@ include("simulation_components/stress_calculators.jl")
 include("simulation_components/grids.jl")
 include("simulation_components/floe.jl")
 include("floe_utils.jl")
-include("simulation_components/domain_and_grid.jl")
+include("simulation_components/domains.jl")
 include("simulation_components/ocean_and_atmos.jl")
 include("simulation_components/model.jl")
 # Physical Processes

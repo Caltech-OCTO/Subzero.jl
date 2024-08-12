@@ -1,12 +1,27 @@
-"""
-Structs and functions used to define a Subzero domain and grid
-"""
+# Cardinal directions
+export AbstractDirection, North, South, East, West
+# Boundary of the model - property of each of the 4 walls (north, south, east, west)
+export AbstractBoundary, OpenBoundary, PeriodicBoundary, CollisionBoundary, MovingBoundary
+# Topographic element within domain
+export TopographyElement
+# Domain definition (combines 4 boundaries and topography)
+export Domain
 
 """
-    AbstractDirection
+    YourDirection <: AbstractDirection
 
-An abstract type for the boundary cardinal directions within model domain.
-Boundary direction will control behavior of sea ice floes at edges of domain.
+Each domain within a Subzero.jl `model` must have four (4) boudary walls: a north, south,
+east, and west boundary. Each of these boundaries is parametrically typed by the direction
+of the boundary. The user will chose one of the four cardinal directions, the subtypes of
+`AbstractDirection`, to create a domain boundary. 
+
+This abstract type is not meant to be extended by the user, unless the user wants to move
+away from a rectangular domain assigned cardinal directions for each wall.
+
+## _API_
+The following methods must be implemented for all subtypes:
+- 
+
 """
 abstract type AbstractDirection end
 
