@@ -1,16 +1,6 @@
 export AbstractGrid, RegRectilinearGrid
 
-"""
-CellFloes{FT<:AbstractFloat}
-
-Struct that tracks which floes are within given cell, as well as the translation
-vector needed to move floe each from current postion into cell if it is in cell
-due to periodic boundaries. Each index in floeidx is the index of a floe within
-the cell and the Δx and Δy with the same index are that floe's translation
-vector.
-Note: the floeidx is the index of grid cells centered on grid lines, not on the
-grid cells defined by the regular, rectilinear grid. 
-"""
+# See CellFloes documentation below
 struct CellFloes{FT<:AbstractFloat}
     floeidx::Vector{Int}
     Δx::Vector{FT}
@@ -18,19 +8,54 @@ struct CellFloes{FT<:AbstractFloat}
 end
 
 """
-CellFloes{FT}()
+    CellFloes([FT = Float64]; floeidx, Δx, Δy)
 
-Constructs an CellFloes object with empty lists for fields.
-"""
-CellFloes{FT}() where {FT} = CellFloes{FT}(
-    Vector{Int}(),
-    Vector{FT}(),
-    Vector{FT}()
-)
-"""
-empty!(cell::CellFloes)
+Constructor for struct that represents a single grid cell and accumulates the indices of
+floes with area in that grid cell. This is used for two-way coupling to accumulate the
+forces of floes in a grid cell on the ocean below it. Due to the prevalence of periodic
+boundaries, the grid cell represented by a `CellFloes` object are centered on grid points
+(translated by Δx/2 and Δy/2 in the x and y directions for a (`RegRectilinearGrid`)[@ref]),
+rather than on the grid cells defined by the grid object itself. Floes are recorded with
+their index in the  list of floes. Furthermore, in a model with periodic boundaries, some
+floes may be in multiple grid cells on different edges of the domain if they pass through a
+periodic boundary. In these cases, the floe "linked" to with its index must be translated by
+a vector to get its "ghost" on the other side of the domain. This mon-integer translation
+data is of float type `FT`.
 
-Empties the vectors within a CellFloes object
+**Note**: If no keyword arguments are provide by the user, an `CellFloes` object with empty
+fields will be created. This is the **standard useage** of these objects and they are added to
+during the coupling step. If keyword arguments are provided, then all three must be provided
+and each vector must be the same size.
+
+## _Positional arguments_
+- $FT_DEF
+## _Keyword arguments_
+- `floeidx::Vector{Int}`: vector of floe indicies in the list of model floes for floes with area in the grid
+- `Δx::Vector{FT}`: vector of x-translations for a floe at the corresponding index of the
+`floeidx` vector to be in the cell represented with the `CellFloes` object.
+- `Δy::Vector{FT}`: vector of y-translations for a floe at the corresponding index of the
+`floeidx` vector to be in the cell represented with the `CellFloes` object.
+
+## _CellFloes Fields_
+- `floeidx`: see keyword arguments
+- `Δx`: see keyword arguments
+- `Δy`: see keyword arguments
+"""
+function CellFloes(::Type{FT} = Float64; floeidx = nothing, Δx = nothing, Δy = nothing) where {FT}
+    if isnothing(floeidx) || isnothing(Δx) || isnothing(Δy)
+        floeidx = Vector{Int}()
+        Δx = Vector{FT}()
+        Δy = Vector{FT}()
+    else
+        @assert length(floeidx) == length(Δx) == length(Δy) "A CellFloes object requires that all fields be vectors of the same length."
+    end
+    return CellFloes{FT}(floeidx, Δx, Δy)
+end
+
+"""
+    empty!(cell::CellFloes)
+
+Empties each of the three vectors (`floeidx`, `Δx`, and `Δy`) within a [`CellFloes`](@ref) object.
 """
 function Base.empty!(cell::CellFloes)
     empty!(cell.floeidx)
@@ -47,12 +72,20 @@ which the ocean and atmosphere hold velocity data, as well as various other trac
 points. The user must choose an existing subtype of `AbstractGrid` or implement a new
 subtype to create a simulation. 
 
-Each concrete implementation of `AbstractGrid` must have a field called `floe_locations`
-that is a matrix of `CellFloes`[@ref] for each grid cell...
+Each grid implementation must define the number and dimensions of each grid cell. Right now,
+this assumes that the ocean and the atmosphere are on the same grid. We might not want this
+to be true in the future. Furthermore, each concrete implementation of `AbstractGrid` that will be used to two-way
+couple with an ocean or an atmosphere must have a field called `floe_locations` that is a
+matrix of (`CellFloes`)[@ref], with one element for each grid point. The user should not
+worry about `CellFloes`, this is up to the developer to make sure that their grid contains
+and populates this field. Again, in the future, this might be related to the ocean and/or
+atmosphere rather than the grid. For more information, or if you're interested in working on
+this, see issue [#107](@ref).
 
 ## _API_
-The following methods must be implemented for all subtypes:
-
+Given the original code was written for [`RegRectilinearGrid`](@ref) objects, the dispatch
+isn't fully implemented. If you were interested in adding a new subtype of `AbstractGrid`, see 
+issue [#108](@ref).
 """
 abstract type AbstractGrid{FT<:AbstractFloat} end
 
@@ -76,41 +109,56 @@ A concrete implementation of an AbstractGrid that represents a tessellation of 2
 Euclidean space into `n`-by-`m` congruent rectangles. Fields that hold float data are of
 type `FT`, a concrete implementation of `AbstractFloat`.
 
-## _Fields_
-- `Nx::Int`: number of grid cells in the x-direction
-- `Ny::Int`: number of grid cells in the y-direction
+## _Positional arguments_
+- $FT_DEF
+## _Keyword arguments_
 - `x0::FT`: value of first x grid line
 - `xf::FT`: value of final x grid line
 - `y0::FT`: value of first y grid line
 - `yf::FT`: value of final y grid line
+- `Nx::Int`: number of grid cells in the x-direction
+- `Ny::Int`: number of grid cells in the y-direction
 - `Δx::FT`: grid cell width
 - `Δy::FT`: grid cell height
-- `floe_locations::Matrix{CellFloes}`: `n + 1` by `m + 1` matrix of [`CellFloes`](@ref)
 
-If Δx doesn't evenly divide x length (lu-lx) or Δy doesn't evenly divide y
-length (uy-ly) you won't get full size grid. The grid will be "trimmed" to
-the nearest full grid square in both directions.
+**Note:** the user MUST provide `x0`, `xf`, `y0`, and `yf`; the user then has the choice to
+provide `Nx` and `Ny` OR `Δx` and `Δy`. If provided `Δx`` doesn't evenly divide length
+`lu-lx` or `Δy` doesn't evenly divide `uy-ly`, you won't get full size grid. The grid will
+be "trimmed" to the nearest full grid square in both directions.
 
+## _RegRectilinearGrid Fields_
+- `Nx`: see keyword arguments
+- `Ny`: see keyword arguments
+- `Δx`: see keyword arguments
+- `Δy`: see keyword arguments
+- `x0`: see keyword arguments
+- `xf`: see keyword arguments
+- `y0`: see keyword arguments
+- `yf`: see keyword arguments
+- `floe_locations::Matrix{CellFloes}`: `Nx + 1` by `Ny + 1` matrix of [`CellFloes`](@ref)
+
+## _Examples_
+
+- Defining a `RegRectilinearGrid` using `Nx` and `Ny`.
 ```jldoctest
 julia> grid = RegRectilinearGrid(; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, Nx = 20, Ny = 10)
 RegRectilinearGrid{Float64}
 ⊢x extent (0.0 to 500000.0) with 20 grid cells of size 25000.0 m
 ∟y extent (0.0 to 500000.0) with 10 grid cells of size 50000.0 m
 ```
-
+- Defining a `RegRectilinearGrid` using `Δx` and `Δy`.
 ```jldoctest
 julia> grid = RegRectilinearGrid(Float32; x0 = -5e5, xf = 5e5, y0 = 0.0, yf = 5e5, Δx = 5e4, Δy = 5e4)
 RegRectilinearGrid{Float32}
 ⊢x extent (-500000.0 to 500000.0) with 20 grid cells of size 50000.0 m
 ∟y extent (0.0 to 500000.0) with 10 grid cells of size 50000.0 m
 ```
-
+- Error due to attemping to define a `RegRectilinearGrid` using `Δx` and `Ny`.
 ```jldoctest
 julia> grid = RegRectilinearGrid(; x0 = -5e5, xf = 5e5, y0 = 0.0, yf = 5e5, Δx = 5e4, Ny = 10)
 ERROR: ArgumentError: To create a RegRectilinearGrid, either provide Δx and Δy OR Nx and Ny.
 [...]
 ```
-
 """
 function RegRectilinearGrid(::Type{FT} = Float64;
     x0, xf, y0, yf,

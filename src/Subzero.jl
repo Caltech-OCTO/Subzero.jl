@@ -106,6 +106,8 @@ const Polys{T} = GI.Polygon{false, false, Vector{GI.LinearRing{false, false, Vec
 Base.convert(::Type{Polys{Float32}}, p::Polys{Float64}) = GO.tuples(p, Float32)
 Base.convert(::Type{Polys{Float64}}, p::Polys{Float32}) = GO.tuples(p, Float64)
 
+const FT_DEF = "`FT::Type{<:AbstratFloat}`: Float type used to run the simulation, either `Float64` (default) or `Float32`."
+
 # Types
 include("simulation_components/stress_calculators.jl")
 # Model
