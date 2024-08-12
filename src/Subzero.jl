@@ -64,7 +64,6 @@ export
     OutputWriters,
     check_energy_momentum_conservation_julia,
     IceStressCell,
-    CellFloes,
     MonteCarloPointsGenerator,
     SubGridPointsGenerator
 

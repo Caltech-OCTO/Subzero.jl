@@ -188,7 +188,7 @@ function RegRectilinearGrid(::Type{FT} = Float64;
         throw(ArgumentError("To create a RegRectilinearGrid, either provide Δx and Δy OR Nx and Ny."))
     end
     # create cell floe list
-    floe_locations = [CellFloes{FT}() for _ in 1:(Nx + 1), _ in 1:(Ny + 1)]
+    floe_locations = [CellFloes(FT) for _ in 1:(Nx + 1), _ in 1:(Ny + 1)]
     # create RegRectilinearGrid object
     return RegRectilinearGrid{FT}(Nx, Ny, Δx, Δy, x0, xf, y0, yf, floe_locations)
 end
