@@ -105,7 +105,7 @@ end
 """
     RegRectilinearGrid{FT} <: AbstractGrid{FT}
 
-A concrete implementation of an AbstractGrid that represents a tessellation of 2-dimensional
+A concrete implementation of an [`AbstractGrid`](@ref) that represents a tessellation of 2-dimensional
 Euclidean space into `n`-by-`m` congruent rectangles. Fields that hold float data are of
 type `FT`, a concrete implementation of `AbstractFloat`.
 
@@ -126,7 +126,7 @@ provide `Nx` and `Ny` OR `Δx` and `Δy`. If provided `Δx`` doesn't evenly divi
 `lu-lx` or `Δy` doesn't evenly divide `uy-ly`, you won't get full size grid. The grid will
 be "trimmed" to the nearest full grid square in both directions.
 
-## _RegRectilinearGrid Fields_
+## _CellFloesFields_
 - `Nx`: see keyword arguments
 - `Ny`: see keyword arguments
 - `Δx`: see keyword arguments

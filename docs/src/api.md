@@ -12,6 +12,13 @@ Documentation for [Subzero](https://github.com/Caltech-OCTO/Subzero.jl)'s full A
 ```@index
 ```
 
+## Grids
+
+```@docs
+AbstractGrid
+RegRectilinearGrid
+```
+
 ## All methods
 ```@autodocs
 Modules = [Subzero]

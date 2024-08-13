@@ -11,6 +11,9 @@ using Test, Subzero
     @test typeof(c2) == Subzero.CellFloes{Float32}
     # CellFloes with incorrect dimensions
     @test_throws AssertionError Subzero.CellFloes(Float32; floeidx = [1], Δx = [0.0, 0.0], Δy = [4.0, 4.0])
+    # Empty CellFloes
+    empty!(c2)
+    @test isempty(c2.floeidx) && isempty(c2.Δx) && isempty(c2.Δy)
 end
 
 @testset "RegRectilinearGrid" begin
