@@ -468,14 +468,6 @@ function find_center_cell_index(xp, yp, grid::RegRectilinearGrid)
     yidx = floor(Int, (yp - grid.y0)/(grid.Δy) + 0.5) + 1
     return xidx, yidx
 end
-
-
-function find_cell_index(xp, yp, grid::RegRectilinearGrid)
-    xidx = floor(Int, (xp - grid.x0)/(grid.Δx)) + 1
-    yidx = floor(Int, (yp - grid.y0)/(grid.Δy)) + 1
-    return xidx, yidx
-end
-
 """
     in_bounds(
         xr,
@@ -638,7 +630,6 @@ function calc_subfloe_values!(
     domain,
     cart_vals,
     grid_idx,
-    grid_cell_idx,
 ) where {FT<:AbstractFloat}
     # Translate/rotate monte carlo points to floe location/orientation
     α = floe.α
@@ -656,11 +647,6 @@ function calc_subfloe_values!(
             cart_vals[j, 1] = x
             cart_vals[j, 2] = y
             grid_idx[j, 1], grid_idx[j, 2] = find_center_cell_index(
-                cart_vals[j, 1],
-                cart_vals[j, 2],
-                grid,
-            )
-            grid_cell_idx[j, 1], grid_cell_idx[j, 2] = find_cell_index(
                 cart_vals[j, 1],
                 cart_vals[j, 2],
                 grid,
@@ -1101,7 +1087,7 @@ function check_cell_bounds(
 end
 
 """
-    cell_coords(
+    center_cell_coords(
         xidx::Int,
         yidx::Int,
         grid::RegRectilinearGrid,
@@ -1127,31 +1113,30 @@ Output:
     will be trimmed at boundaries. Therefore, if indices place cell completely
     outside of grid, could return a line at the edge of the boundary. 
 """
-function grid_cell_coords(
+function center_cell_coords(
+    ::Type{FT},
     xidx::Int,
     yidx::Int,
     grid::RegRectilinearGrid,
     ns_bound,
     ew_bound,
-)
-    xmin = (xidx - 1) * grid.Δx
+) where FT
+    xmin = (xidx - 1.5) * grid.Δx + grid.x0
     xmax = xmin + grid.Δx
-    ymin = (yidx - 1) * grid.Δy
+    ymin = (yidx - 1.5) * grid.Δy + grid.y0
     ymax = ymin + grid.Δy
     #= Check if cell extends beyond boundaries and if non-periodic, trim cell to
     fit within grid. =#
-    # xmin, xmax, ymin, ymax = check_cell_bounds(
-    #     xmin,
-    #     xmax,
-    #     ymin,
-    #     ymax,
-    #     grid,
-    #     ns_bound,
-    #     ew_bound,
-    # )
-    return [[[xmin, ymin], [xmin, ymax],
-    [xmax, ymax], [xmax, ymin],
-    [xmin, ymin]]]
+    xmin, xmax, ymin, ymax = check_cell_bounds(
+        xmin,
+        xmax,
+        ymin,
+        ymax,
+        grid,
+        ns_bound,
+        ew_bound,
+    )
+    return _make_bounding_box_polygon(FT, xmin, xmax, ymin, ymax)
 end
 
 """
@@ -1445,7 +1430,7 @@ function floe_to_grid_info!(
     shifted_xidx = shift_cell_idx(xidx, grid.Nx + 1, ew_bound)
     shifted_yidx = shift_cell_idx(yidx, grid.Ny + 1, ns_bound)
     Δx = (shifted_xidx - xidx) * (grid.Δx)
-    Δy = (shifted_yidx - yidx) * (grid.Δy) 
+    Δy = (shifted_yidx - yidx) * (grid.Δy)
     if coupling_settings.two_way_coupling_on 
         # If two-way coupling, save stress on ocean per cell
         add_point!(
@@ -1509,8 +1494,7 @@ function calc_one_way_coupling!(
 ) where {FT}
     max_points = maximum(length, floes.x_subfloe_points)
     cart_vals = Matrix{FT}(undef, max_points, 2)
-    grid_idx = Matrix{Int}(undef, max_points, 2) # grid line index - centered cell
-    grid_cell_idx = Matrix{Int}(undef, max_points, 2) # grid cell index
+    grid_idx = Matrix{Int}(undef, max_points, 2)
     for i in eachindex(floes)
         # Monte carlo point cartesian coordinates and grid cell indices
         npoints = calc_subfloe_values!(
@@ -1519,7 +1503,6 @@ function calc_one_way_coupling!(
             domain,
             cart_vals,
             grid_idx,
-            grid_cell_idx
         )
         if npoints == 0
             floes.status[i].tag = remove
@@ -1585,8 +1568,8 @@ function calc_one_way_coupling!(
                 # Save floe info onto the grid
                 floe_to_grid_info!(
                     i,
-                    grid_cell_idx[j, 1], # This is what I have to change - should be cell index
-                    grid_cell_idx[j, 2], # This is what I have to change
+                    grid_idx[j, 1],
+                    grid_idx[j, 2],
                     τx_ocn,
                     τy_ocn,
                     grid,
@@ -1643,70 +1626,52 @@ function calc_two_way_coupling!(
 ) where {FT}
     # Determine force from floe on each grid cell it is in
     cell_area = grid.Δx * grid.Δy
-    Threads.@threads for cartidx in CartesianIndices(ocean.scells)
-        # println("   cell index :: " * string(cartidx))
+    Threads.@threads  for cartidx in CartesianIndices(ocean.scells)
         ocean.τx[cartidx] = FT(0)
         ocean.τy[cartidx] = FT(0)
         ocean.si_frac[cartidx] = FT(0)
-        ocean.ice_mass[cartidx] = FT(0)
         τocn = ocean.scells[cartidx]
         floe_locations = grid.floe_locations[cartidx]
         if !isempty(floe_locations.floeidx)
             # Coordinates of grid cell
-            cell_coords = grid_cell_coords(
+            cell_poly = center_cell_coords(
+                FT,
                 cartidx[1],
                 cartidx[2],
                 grid,
                 domain.north,
                 domain.east
             )
-            # println("   cell_coords :: " * string(cell_coords))
-            cell_poly = LG.Polygon(cell_coords)
             for i in eachindex(floe_locations.floeidx)
-                # println("       floe number :: $i")
-                # println("       floe centroid :: " * string(floes.centroid[floe_locations.floeidx[i]]))
-                floe_coords = translate(
-                    floes.coords[floe_locations.floeidx[i]],
+                floe_poly = _translate_poly(FT,
+                    floes.poly[floe_locations.floeidx[i]],
                     floe_locations.Δx[i],
                     floe_locations.Δy[i],
                 )::Polys{FT}
                 floe_area_in_cell = sum(
                     GO.area.(intersect_polys(cell_poly, floe_poly), FT)
                 )
-                floe_poly = LG.Polygon(floe_coords)
-                floe_area_in_cell = FT(sum(
-                    LG.area.(intersect_polys(cell_poly, floe_poly))
-                ))
-                # floe_area_in_cell = FT(LG.area(LG.intersection(
-                #     cell_poly,
-                #     floe_poly,
-                # )))
-                # println("       floe area in cell :: " * string(floe_area_in_cell))
-                floe_mass = floes.mass[floe_locations.floeidx[i]]
-                floe_area = floes.area[floe_locations.floeidx[i]]
-                floe_area_dens = floe_mass/floe_area
                 if floe_area_in_cell > 0
                     # Add forces and area to ocean fields
-                    ocean.τx[cartidx] += (τocn.τx[i]/τocn.npoints[i]) * floe_area_in_cell * floe_area_dens
-                    ocean.τy[cartidx] += (τocn.τy[i]/τocn.npoints[i]) * floe_area_in_cell * floe_area_dens
+                    ocean.τx[cartidx] += (τocn.τx[i]/τocn.npoints[i]) * floe_area_in_cell
+                    ocean.τy[cartidx] += (τocn.τy[i]/τocn.npoints[i]) * floe_area_in_cell
                     ocean.si_frac[cartidx] += floe_area_in_cell
-                    ocean.ice_mass[cartidx] += floe_area_in_cell * floe_area_dens
                 end
             end
             if ocean.si_frac[cartidx] > 0
                 # Divide by total floe area in cell to get ocean stress
-                ocean.τx[cartidx] /= ocean.ice_mass[cartidx]
-                ocean.τy[cartidx] /= ocean.ice_mass[cartidx]
+                ocean.τx[cartidx] /= ocean.si_frac[cartidx]
+                ocean.τy[cartidx] /= ocean.si_frac[cartidx]
                 # Divide by cell area to get sea-ice fraction
                 ocean.si_frac[cartidx] /= cell_area
             end
         end
         Δu_AO = atmos.u[cartidx] - ocean.u[cartidx]
         Δv_AO = atmos.v[cartidx] - ocean.v[cartidx]
-        # ocn_frac = 1 - ocean.si_frac[cartidx]
-        # norm = sqrt(Δu_AO^2 + Δv_AO^2)
-        # ocean.τx[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δu_AO
-        # ocean.τy[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δv_AO
+        ocn_frac = 1 - ocean.si_frac[cartidx]
+        norm = sqrt(Δu_AO^2 + Δv_AO^2)
+        ocean.τx[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δu_AO
+        ocean.τy[cartidx] += consts.ρa * consts.Cd_ao * ocn_frac * norm * Δv_AO
         # Not sure this is where the heatflux should be??
         ocean.hflx_factor[cartidx] = Δt * consts.k/(floe_settings.ρi*consts.L) *
             (ocean.temp[cartidx] - atmos.temp[cartidx])

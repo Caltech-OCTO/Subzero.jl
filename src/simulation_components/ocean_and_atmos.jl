@@ -69,7 +69,6 @@ struct Ocean{FT<:AbstractFloat}
     τy::Matrix{FT}
     si_frac::Matrix{FT}
     dissolved::Matrix{FT}
-    ice_mass::Matrix{FT}
 
     function Ocean{FT}(
         u,
@@ -81,7 +80,6 @@ struct Ocean{FT<:AbstractFloat}
         τy,
         si_frac,
         dissolved,
-        ice_mass,
     ) where {FT <: AbstractFloat}
         if !all(-3 .<= temp .<= 0)
             @warn "Ocean temperatures are above the range for freezing. The \
@@ -91,11 +89,11 @@ struct Ocean{FT<:AbstractFloat}
             throw(ArgumentError("One or more of the ocean vector fields aren't \
                 the same dimension."))
         end
-        if !(size(temp) == size(hflx) == size(si_frac) == size(dissolved) == size(ice_mass))
+        if !(size(temp) == size(hflx) == size(si_frac) == size(dissolved))
             throw(ArgumentError("One or more of the ocean tracer fields aren't \
                 the same dimension."))
         end
-        new{FT}(u, v, temp, hflx, scells, τx, τy, si_frac, dissolved, ice_mass)
+        new{FT}(u, v, temp, hflx, scells, τx, τy, si_frac, dissolved)
     end
 end
 
@@ -145,7 +143,6 @@ function Ocean{FT}(
         zeros(FT, Nx + 1, Ny + 1),  # y-stress
         zeros(FT, Nx + 1, Ny + 1),  # sea ice fraction
         zeros(FT, Nx + 1, Ny + 1),  # dissolved
-        zeros(FT, Nx + 1, Ny + 1),  # ice mass
     )
 end
 
