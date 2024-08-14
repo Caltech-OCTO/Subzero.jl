@@ -25,9 +25,9 @@ and atmosphere. Ocean and atmosphere vectors (like `u` and `v` velocities) and t
 (like temperature) are recorded on these grid points and grid lines. The grid points are
 then used for interpolation for coupling between the ice, ocean, and atmosphere.
 
-All Subzero grid objects are concrete types of the abstract type (`AbstractGrid`)[@ref].
-Currently the only implemented concrete type is a (`RegRectilinearGrid`)[@ref]. If you are
-interested in implementing another type of grid, see the (developer documentation)["devdocs.md"].
+All Subzero grid objects are concrete types of the abstract type [`AbstractGrid`](@ref).
+Currently the only implemented concrete type is a [`RegRectilinearGrid`](@ref). If you are
+interested in implementing another type of grid, see the [developer documentation]("devdocs.md").
 
 Here, we will go ahead and create an instance of `RegRectilinearGrid`. We need to specify
 the grid endpoints and either the number of grid cells in both directions, or the size of
