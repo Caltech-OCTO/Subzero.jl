@@ -58,7 +58,7 @@ rectangular domain.
 struct West<:AbstractDirection end
 
 """
-    boundary_coords(grid, ::Type{North})
+    boundary_poly(grid, ::Type{North})
 
 Determine coordinates of northen-most boundary of domain if around the edge of
 the grid.
@@ -71,22 +71,18 @@ Output:
     the grid so that there is a buffer of half of the grid on either side. The
     height is half of the grid in the y-direction. This buffer prevents pieces
     of floes from passing outside the boundary before the next timestep -
-    possibly too cautious. If boundary_coords methods are used for each
+    possibly too cautious. If boundary_poly methods are used for each
     direction, corners will be shared between adjacent boundaries. 
 """
-function boundary_coords(grid, ::Type{North})
+function boundary_poly(::Type{FT}, ::Type{North}, grid)
     Δx = (grid.xf - grid.x0)/2 # Half of the grid in x
     Δy = (grid.yf - grid.y0)/2 # Half of the grid in y
-    return grid.yf,  # val
-        [[[grid.x0 - Δx, grid.yf],  # coords
-          [grid.x0 - Δx, grid.yf + Δy],
-          [grid.xf + Δx, grid.yf + Δy], 
-          [grid.xf + Δx, grid.yf], 
-          [grid.x0 - Δx, grid.yf]]]
+    poly =  _make_bounding_box_polygon(FT, grid.x0 - Δx, grid.x0 + Δx, grid.yf, grid.yf + Δy)
+    return grid.yf, poly
 end
 
 """
-    boundary_coords(grid, ::Type{South})
+    boundary_poly(grid, ::Type{South})
 
 Determine coordinates of southern-most boundary of domain if around the edge of
 the grid.
@@ -97,19 +93,15 @@ Output:
     PolyVec of boundary coordinates. See documentation of North method of this
     function for more details. 
 """
-function boundary_coords(grid, ::Type{South})
+function boundary_poly(::Type{FT}, ::Type{South}, grid) where FT
     Δx = (grid.xf - grid.x0)/2 # Half of the grid in x
     Δy = (grid.yf - grid.y0)/2 # Half of the grid in y
-    return grid.y0,  # val
-        [[[grid.x0 - Δx, grid.y0 - Δy],  # coords
-          [grid.x0 - Δx, grid.y0],
-          [grid.xf + Δx, grid.y0], 
-          [grid.xf + Δx, grid.y0 - Δy], 
-          [grid.x0 - Δx, grid.y0 - Δy]]]
+    poly = _make_bounding_box_polygon(FT, grid.x0 - Δx, grid.xf + Δx, grid.y0 - Δy, grid.y0)
+    return grid.y0,  poly
 end
 
 """
-    boundary_coords(grid, ::Type{East})
+    boundary_poly(grid, ::Type{East})
 
 Determine coordinates of eastern-most boundary of domain if around the edge of
 the grid.
@@ -120,19 +112,15 @@ Output:
     PolyVec of boundary coordinates. See documentation of North method of this
     function for more details. 
 """
-function boundary_coords(grid, ::Type{East})
+function boundary_poly(::Type{FT}, ::Type{East}, grid) where FT
     Δx = (grid.xf - grid.x0)/2 # Half of the grid in x
     Δy = (grid.yf - grid.y0)/2 # Half of the grid in y
-    return grid.xf,  # val
-        [[[grid.xf, grid.y0 - Δy],  # coords
-          [grid.xf, grid.yf + Δy],
-          [grid.xf + Δx, grid.yf + Δy], 
-          [grid.xf + Δx, grid.y0 - Δy], 
-          [grid.xf, grid.y0 - Δy]]]
+    poly = _make_bounding_box_polygon(FT, grid.xf, grid.xf + Δx, grid.y0 - Δy,grid.yf + Δy)
+    return grid.xf, poly
 end
 
 """
-    boundary_coords(grid, ::Type{West})
+    boundary_poly(grid, ::Type{West})
 
 Determine coordinates of western-most boundary of domain if around the edge of
 the grid.
@@ -143,15 +131,11 @@ Output:
     PolyVec of boundary coordinates. See documentation of North method of this
     function for more details. 
 """
-function boundary_coords(grid, ::Type{West})
+function boundary_poly(::Type{FT}, ::Type{West}, grid) where FT
     Δx = (grid.xf - grid.x0)/2 # Half of the grid in x
     Δy = (grid.yf - grid.y0)/2 # Half of the grid in y
-    return grid.x0,  # val
-        [[[grid.x0 - Δx, grid.y0 - Δy],  # coords
-          [grid.x0 - Δx, grid.yf + Δy],
-          [grid.x0, grid.yf + Δy], 
-          [grid.x0, grid.y0 - Δy], 
-          [grid.x0 - Δx, grid.y0 - Δy]]]
+    poly = _make_bounding_box_polygon(FT, grid.x0 - Δx, grid.x0, grid.y0 - Δy, grid.yf + Δy)
+    return grid.x0,  poly
 end
 
 """
@@ -236,12 +220,12 @@ Outputs:
 function OpenBoundary{D, FT}(
     grid,
 ) where {D <: AbstractDirection, FT <: AbstractFloat}
-    val, coords = boundary_coords(grid, D)
-    OpenBoundary{D, FT}(
-        make_polygon(convert(PolyVec{FT}, coords)),
-        coords,
-        val,
-    )
+    val, poly = boundary_poly(FT, D, grid)
+    OpenBoundary{D, FT}(poly, coords, val)
+    #     make_polygon(convert(PolyVec{FT}, coords)),
+    #     coords,
+    #     val,
+    # )
 end
 
 """
@@ -292,7 +276,7 @@ Outputs:
 function PeriodicBoundary{D, FT}(
     grid,
 ) where {D <: AbstractDirection, FT <: AbstractFloat}
-    val, coords = boundary_coords(grid, D)
+    val, coords = boundary_poly(FT, D, grid)
     PeriodicBoundary{D, FT}(
         make_polygon(convert(PolyVec{FT}, coords)),
         coords,
@@ -350,7 +334,7 @@ Outputs:
 function CollisionBoundary{D, FT}(
     grid,
 ) where {D <: AbstractDirection, FT <: AbstractFloat}
-    val, coords = boundary_coords(grid, D)
+    val, coords = boundary_poly(FT, D, grid)
     CollisionBoundary{D, FT}(
         make_polygon(convert(PolyVec{FT}, coords)),
         coords,
@@ -422,7 +406,7 @@ function MovingBoundary{D, FT}(
     u,
     v,
 ) where {D <: AbstractDirection, FT <: AbstractFloat}
-    val, coords = boundary_coords(grid, D)
+    val, coords = boundary_poly(FT, D, grid)
     MovingBoundary{D, FT}(
         make_polygon(convert(PolyVec{FT}, coords)),
         coords,

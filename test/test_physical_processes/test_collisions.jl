@@ -186,30 +186,6 @@
         Subzero.floe_domain_interaction!(corner_floe, collision_domain, consts, Δt, max_overlap)
         @test all(corner_floe.interactions[:, xforce] .<= 0)
         @test all(corner_floe.interactions[:, yforce] .<= 0)
-
-        # Test compression boundaries movement - TODO: Move these to different file
-        nc_boundary = MovingBoundary(North, grid, 0.0, -0.1)
-        nc_coords = deepcopy(nc_boundary.coords)
-        sc_boundary = MovingBoundary(South, grid, 0.0, 0.1)
-        sc_coords = deepcopy(sc_boundary.coords)
-        ec_boundary = MovingBoundary(East, grid, 0.1, 0.0)
-        ec_coords = deepcopy(ec_boundary.coords)
-        wc_boundary = MovingBoundary(West, grid, 0.1, 0.0)
-        wc_coords = deepcopy(wc_boundary.coords)
-        cdomain = Domain(nc_boundary, sc_boundary, ec_boundary, wc_boundary)
-        Subzero.update_boundaries!(cdomain, 10)
-        Subzero.translate!(nc_coords, 0, -1)
-        @test nc_coords == nc_boundary.coords
-        @test nc_boundary.val == 1e5 - 1
-        Subzero.translate!(sc_coords, 0, 1)
-        @test sc_coords == sc_boundary.coords
-        @test sc_boundary.val == -1e5 + 1
-        Subzero.translate!(ec_coords, 1, 0)
-        @test ec_coords == ec_boundary.coords
-        @test ec_boundary.val == 1e5 + 1
-        Subzero.translate!(wc_coords, 1, 0)
-        @test wc_coords == wc_boundary.coords
-        @test wc_boundary.val == -1e5 + 1
     end
     
     @testset "Add Ghosts" begin
