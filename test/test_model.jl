@@ -1,3 +1,6 @@
+using Test, Subzero
+import StaticArrays as SA
+
 @testset "Model Creation" begin
     @testset "Ocean" begin
         g = Subzero.RegRectilinearGrid(; x0 = 0, xf = 4e5, y0 = 0, yf = 3e5, Δx = 1e4, Δy = 1e4)
@@ -159,15 +162,10 @@
             Subzero.PeriodicBoundary(West, g),
         )
         # domain with north < south
-        p_placeholder = GI.Polygon([[(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (0.0, 0.0)]])
+        p_placeholder = Subzero._make_bounding_box_polygon(FT, 0.0, 1.0, 0.0, 1.0)
         @test_throws ArgumentError Subzero.Domain(
             b1,
-            Subzero.OpenBoundary(
-                South,
-                p_placeholder,
-                GI.coordinates(p_placeholder),
-                6e5,
-            ),
+            Subzero.OpenBoundary(Float64, South, p_placeholder, 6e5),
             b2,
             b3,
         )
@@ -176,12 +174,7 @@
             b1,
             b4,
             b2,
-            Subzero.OpenBoundary(
-                West,
-                p_placeholder,
-                GI.coordinates(p_placeholder),
-                6e5,
-            ),
+            Subzero.OpenBoundary(Float64, West, p_placeholder, 6e5),
         )
     end
 

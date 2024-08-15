@@ -14,7 +14,7 @@ Constructor for struct that represents a single grid cell and accumulates the in
 floes with area in that grid cell. This is used for two-way coupling to accumulate the
 forces of floes in a grid cell on the ocean below it. Due to the prevalence of periodic
 boundaries, the grid cell represented by a `CellFloes` object are centered on grid points
-(translated by Δx/2 and Δy/2 in the x and y directions for a (`RegRectilinearGrid`)[@ref]),
+(translated by Δx/2 and Δy/2 in the x and y directions for a [`RegRectilinearGrid`](@ref)),
 rather than on the grid cells defined by the grid object itself. Floes are recorded with
 their index in the  list of floes. Furthermore, in a model with periodic boundaries, some
 floes may be in multiple grid cells on different edges of the domain if they pass through a
@@ -76,7 +76,7 @@ Each grid implementation must define the number and dimensions of each grid cell
 this assumes that the ocean and the atmosphere are on the same grid. We might not want this
 to be true in the future. Furthermore, each concrete implementation of `AbstractGrid` that will be used to two-way
 couple with an ocean or an atmosphere must have a field called `floe_locations` that is a
-matrix of (`CellFloes`)[@ref], with one element for each grid point. The user should not
+matrix of [`CellFloes`](@ref), with one element for each grid point. The user should not
 worry about `CellFloes`, this is up to the developer to make sure that their grid contains
 and populates this field. Again, in the future, this might be related to the ocean and/or
 atmosphere rather than the grid. For more information, or if you're interested in working on

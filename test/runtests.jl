@@ -6,6 +6,7 @@ using Test
 
 @testset "Subzero.jl" begin
     include("test_simulation_components/grids.jl")
+    include("test_simulation_components/domains.jl")
     include("test_simulation_components/test_stress_calculators.jl")
     include("test_physical_processes/test_update_floe.jl")
     include("test_physical_processes/test_collisions.jl")

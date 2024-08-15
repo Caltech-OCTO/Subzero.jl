@@ -10,132 +10,139 @@ export Domain
 """
     YourDirection <: AbstractDirection
 
-Each domain within a Subzero.jl `model` must have four (4) boudary walls: a north, south,
-east, and west boundary. Each of these boundaries is parametrically typed by the direction
-of the boundary. The user will chose one of the four cardinal directions, the subtypes of
-`AbstractDirection`, to create a domain boundary. 
+Each domain within a Subzero.jl [`Model`](@ref) must have four (4) boundaries (subtypes
+of [`AbstractBoundary`](@ref)) where each of these boundaries is parametrically typed by the
+direction of the boundary. The user will first choose one of the four cardinal directions,
+the subtypes of `AbstractDirection`:
+- [`North`](@ref)
+- [`South`](@ref)
+- [`East`](@ref)
+- [`West`](@ref)
 
 This abstract type is not meant to be extended by the user, unless the user wants to move
-away from a rectangular domain assigned cardinal directions for each wall.
-
-## _API_
-The following methods must be implemented for all subtypes:
-- 
-
+away from a rectangular domain with assigned cardinal directions for each wall. This would
+a more major redesign and the user should check out the [developer documentation]("devdocs.md").
 """
 abstract type AbstractDirection end
 
 """
     North<:AbstractDirection
 
-A simple direction type representing if a boundary is the northern boundary in a
-rectangular domain.
+A simple subtype of [`AbstractDirection`](@ref) used for parametrically typing a subtype of
+[`AbstractBoundary`](@ref) if that boundary is the northern boundary in a rectangular domain.
 """
 struct North<:AbstractDirection end
+
+#=
+    _grid_boundary_info(FT, North, grid)
+
+Create a bounding box polygon representing the Northern boundary of a rectangular grid with
+points of float type `FT`. If the length of the grid x-extent is `Lx = xf - x0` then the
+x-extent of the boundary polygon will range from `x0 - Lx/2` to `xf + Lx/2` in the x-direction.
+If the length of the grid y-extent is `Ly = yf - y0` then the boundary polygon will range from
+`yf` to `yf + Ly/2` in the y-direction. This will create overlap with other boundary walls,
+if all created from the grid, making sure all floes connect with boundaries at edges of
+the domain.
+
+Also return value `yf` as the value representing the edge of the boundary connecting with
+the edge of the domain.
+=#
+function _grid_boundary_info(::Type{FT}, ::Type{North}, grid::RegRectilinearGrid) where FT
+    Δx = (grid.xf - grid.x0)/2
+    Δy = (grid.yf - grid.y0)/2
+    poly =  _make_bounding_box_polygon(FT, grid.x0 - Δx, grid.xf + Δx, grid.yf, grid.yf + Δy)
+    return poly, grid.yf
+end
 
 """
     South<:AbstractDirection
 
-A simple direction type representing if a boundary is the southern boundary in a
-rectangular domain.
+A simple subtype of [`AbstractDirection`](@ref) used for parametrically typing a subtype of
+[`AbstractBoundary`](@ref) if that boundary is the southern boundary in a rectangular domain.
 """
 struct South<:AbstractDirection end
+
+#=
+    _grid_boundary_info(FT, South, grid)
+
+Create a bounding box polygon representing the Southern boundary of a rectangular grid with
+points of float type `FT`. If the length of the grid x-extent is `Lx = xf - x0` then the
+x-extent of the boundary polygon will range from `x0 - Lx/2` to `xf + Lx/2` in the x-direction.
+If the length of the grid y-extent is `Ly = yf - y0` then the boundary polygon will range from
+`y0 - Ly/2` to `y0` in the y-direction. This will create overlap with other boundary walls,
+if all created from the grid, making sure all floes connect with boundaries at edges of
+the domain.
+
+Also return value `y0` as the value representing the edge of the boundary connecting with
+the edge of the domain.
+=#
+function _grid_boundary_info(::Type{FT}, ::Type{South}, grid::RegRectilinearGrid) where FT
+    Δx = (grid.xf - grid.x0)/2
+    Δy = (grid.yf - grid.y0)/2
+    poly = _make_bounding_box_polygon(FT, grid.x0 - Δx, grid.xf + Δx, grid.y0 - Δy, grid.y0)
+    return poly, grid.y0
+end
+
 
 """
     East<:AbstractDirection
 
-A simple direction type representing if a boundary is the eastern boundary in a
-rectangular domain.
+
+A simple subtype of [`AbstractDirection`](@ref) used for parametrically typing a subtype of
+[`AbstractBoundary`](@ref) if that boundary is the eastern boundary in a rectangular domain.
 """
 struct East<:AbstractDirection end
+
+#=
+    _grid_boundary_info(FT, East, grid)
+
+Create a bounding box polygon representing the Eastern boundary of a rectangular grid with
+points of float type `FT`. If the length of the grid x-extent is `Lx = xf - x0` then the
+x-extent of the boundary polygon will range from `xf` to `xf + Lx/2` in the x-direction.
+If the length of the grid y-extent is `Ly = yf - y0` then the boundary polygon will range from
+`y0 - Ly/2` to `yf + Ly/2` in the y-direction. This will create overlap with other boundary walls,
+if all created from the grid, making sure all floes connect with boundaries at edges of
+the domain.
+
+Also return value `xf` as the value representing the edge of the boundary connecting with
+the edge of the domain.
+=#
+function _grid_boundary_info(::Type{FT}, ::Type{East}, grid::RegRectilinearGrid) where FT
+    Δx = (grid.xf - grid.x0)/2
+    Δy = (grid.yf - grid.y0)/2
+    poly = _make_bounding_box_polygon(FT, grid.xf, grid.xf + Δx, grid.y0 - Δy, grid.yf + Δy)
+    return poly, grid.xf
+end
 
 """
     West<:AbstractDirection
 
-A simple direction type representing if a boundary is the western boundary in a
-rectangular domain.
+
+A simple subtype of [`AbstractDirection`](@ref) used for parametrically typing a subtype of
+[`AbstractBoundary`](@ref) if that boundary is the western boundary in a rectangular domain.
 """
 struct West<:AbstractDirection end
 
-"""
-    boundary_poly(grid, ::Type{North})
 
-Determine coordinates of northen-most boundary of domain if around the edge of
-the grid.
-Inputs:
-    grid    <AbstractGrid> model grid
-            <Type{North}> boundary direction type
-Output:
-    PolyVec of boundary coordinates. These coordinates describe a rectangle that
-    has a length 2-times the length of the grid in the x-direction, centered on
-    the grid so that there is a buffer of half of the grid on either side. The
-    height is half of the grid in the y-direction. This buffer prevents pieces
-    of floes from passing outside the boundary before the next timestep -
-    possibly too cautious. If boundary_poly methods are used for each
-    direction, corners will be shared between adjacent boundaries. 
-"""
-function boundary_poly(::Type{FT}, ::Type{North}, grid)
-    Δx = (grid.xf - grid.x0)/2 # Half of the grid in x
-    Δy = (grid.yf - grid.y0)/2 # Half of the grid in y
-    poly =  _make_bounding_box_polygon(FT, grid.x0 - Δx, grid.x0 + Δx, grid.yf, grid.yf + Δy)
-    return grid.yf, poly
-end
+#=
+    _grid_boundary_info(FT, West, grid)
 
-"""
-    boundary_poly(grid, ::Type{South})
+Create a bounding box polygon representing the Western boundary of a rectangular grid with
+points of float type `FT`. If the length of the grid x-extent is `Lx = xf - x0` then the
+x-extent of the boundary polygon will range from `x0 - Lx/2` to `x0` in the x-direction.
+If the length of the grid y-extent is `Ly = yf - y0` then the boundary polygon will range from
+`y0 - Ly/2` to `yf + Ly/2` in the y-direction. This will create overlap with other boundary walls,
+if all created from the grid, making sure all floes connect with boundaries at edges of
+the domain.
 
-Determine coordinates of southern-most boundary of domain if around the edge of
-the grid.
-Inputs:
-    grid    <AbstractGrid> model grid
-            <Type{South}> boundary direction type
-Output:
-    PolyVec of boundary coordinates. See documentation of North method of this
-    function for more details. 
-"""
-function boundary_poly(::Type{FT}, ::Type{South}, grid) where FT
-    Δx = (grid.xf - grid.x0)/2 # Half of the grid in x
-    Δy = (grid.yf - grid.y0)/2 # Half of the grid in y
-    poly = _make_bounding_box_polygon(FT, grid.x0 - Δx, grid.xf + Δx, grid.y0 - Δy, grid.y0)
-    return grid.y0,  poly
-end
-
-"""
-    boundary_poly(grid, ::Type{East})
-
-Determine coordinates of eastern-most boundary of domain if around the edge of
-the grid.
-Inputs:
-    grid    <AbstractGrid> model grid
-            <Type{East}> boundary direction type
-Output:
-    PolyVec of boundary coordinates. See documentation of North method of this
-    function for more details. 
-"""
-function boundary_poly(::Type{FT}, ::Type{East}, grid) where FT
-    Δx = (grid.xf - grid.x0)/2 # Half of the grid in x
-    Δy = (grid.yf - grid.y0)/2 # Half of the grid in y
-    poly = _make_bounding_box_polygon(FT, grid.xf, grid.xf + Δx, grid.y0 - Δy,grid.yf + Δy)
-    return grid.xf, poly
-end
-
-"""
-    boundary_poly(grid, ::Type{West})
-
-Determine coordinates of western-most boundary of domain if around the edge of
-the grid.
-Inputs:
-    grid    <AbstractGrid> model grid
-            <Type{West}> boundary direction
-Output:
-    PolyVec of boundary coordinates. See documentation of North method of this
-    function for more details. 
-"""
-function boundary_poly(::Type{FT}, ::Type{West}, grid) where FT
-    Δx = (grid.xf - grid.x0)/2 # Half of the grid in x
-    Δy = (grid.yf - grid.y0)/2 # Half of the grid in y
+Also return value `x0` as the value representing the edge of the boundary connecting with
+the edge of the domain.
+=#
+function _grid_boundary_info(::Type{FT}, ::Type{West}, grid::RegRectilinearGrid) where FT
+    Δx = (grid.xf - grid.x0)/2
+    Δy = (grid.yf - grid.y0)/2
     poly = _make_bounding_box_polygon(FT, grid.x0 - Δx, grid.x0, grid.y0 - Δy, grid.yf + Δy)
-    return grid.x0,  poly
+    return poly, grid.x0
 end
 
 """
@@ -180,8 +187,7 @@ A sub-type of AbstractBoundary that allows a floe to pass out of the domain edge
 without any effects on the floe.
 """
 struct OpenBoundary{D, FT}<:AbstractBoundary{D, FT}
-    poly::Polys{FT}
-    coords::PolyVec{FT}
+    poly::BoundingBox{FT}
     val::FT
 end
 
@@ -220,12 +226,9 @@ Outputs:
 function OpenBoundary{D, FT}(
     grid,
 ) where {D <: AbstractDirection, FT <: AbstractFloat}
-    val, poly = boundary_poly(FT, D, grid)
-    OpenBoundary{D, FT}(poly, coords, val)
-    #     make_polygon(convert(PolyVec{FT}, coords)),
-    #     coords,
-    #     val,
-    # )
+    poly, val = _grid_boundary_info(FT, D, grid)
+    OpenBoundary{D, FT}(poly, val)
+
 end
 
 """
@@ -236,8 +239,7 @@ the opposite side of the domain when it crosses the boundary, bringing the floe
 back into the domain.
 """
 struct PeriodicBoundary{D, FT}<:AbstractBoundary{D, FT}
-    poly::Polys{FT}
-    coords::PolyVec{FT}
+    poly::BoundingBox{FT}
     val::FT
 end
 
@@ -276,10 +278,9 @@ Outputs:
 function PeriodicBoundary{D, FT}(
     grid,
 ) where {D <: AbstractDirection, FT <: AbstractFloat}
-    val, coords = boundary_poly(FT, D, grid)
+    poly, val = _grid_boundary_info(FT, D, grid)
     PeriodicBoundary{D, FT}(
-        make_polygon(convert(PolyVec{FT}, coords)),
-        coords,
+        poly,
         val,
     )
 end
@@ -292,8 +293,7 @@ having the floe collide with the boundary. The boundary acts as an immovable,
 unbreakable ice floe in the collision. 
 """
 struct CollisionBoundary{D, FT}<:AbstractBoundary{D, FT}
-    poly::Polys{FT}
-    coords::PolyVec{FT}
+    poly::BoundingBox{FT}
     val::FT
 end
 
@@ -334,10 +334,9 @@ Outputs:
 function CollisionBoundary{D, FT}(
     grid,
 ) where {D <: AbstractDirection, FT <: AbstractFloat}
-    val, coords = boundary_poly(FT, D, grid)
+    poly, val = _grid_boundary_info(FT, D, grid)
     CollisionBoundary{D, FT}(
-        make_polygon(convert(PolyVec{FT}, coords)),
-        coords,
+        poly,
         val,
     )
 end
@@ -358,8 +357,7 @@ the the combination of u and v velocities. The same, but opposite is true for th
 and south walls.
 """
 mutable struct MovingBoundary{D, FT}<:AbstractBoundary{D, FT}
-    poly::Polys{FT}
-    coords::PolyVec{FT}
+    poly::BoundingBox{FT}
     val::FT
     u::FT
     v::FT
@@ -406,10 +404,9 @@ function MovingBoundary{D, FT}(
     u,
     v,
 ) where {D <: AbstractDirection, FT <: AbstractFloat}
-    val, coords = boundary_poly(FT, D, grid)
+    poly, val = _grid_boundary_info(FT, D, grid)
     MovingBoundary{D, FT}(
-        make_polygon(convert(PolyVec{FT}, coords)),
-        coords,
+        poly,
         val,
         u,
         v,
