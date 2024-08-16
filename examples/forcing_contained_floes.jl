@@ -44,10 +44,10 @@ ocean = Ocean(
 atmos = Atmos(grid, 0.0, 0.0, -1.0)
 
 # Domain creation
-nboundary = OpenBoundary(North, grid)
-sboundary = OpenBoundary(South, grid)
-eboundary = OpenBoundary(East, grid)
-wboundary = OpenBoundary(West, grid)
+nboundary = OpenBoundary(North; grid)
+sboundary = OpenBoundary(South; grid)
+eboundary = OpenBoundary(East; grid)
+wboundary = OpenBoundary(West; grid)
 
 domain = Domain(nboundary, sboundary, eboundary, wboundary)
 

@@ -714,7 +714,6 @@ function update_boundary!(
 ) where {D <: Union{North, South}, FT <: AbstractFloat}
     Δd = boundary.v * Δt
     boundary.val += Δd
-    # translate!(boundary.coords, zero(FT), Δd)
     _translate_poly(FT, boundary.poly, zero(FT), Δd)
 end
 """
@@ -735,7 +734,6 @@ function update_boundary!(
 ) where {D <: Union{East, West}, FT <: AbstractFloat}
     Δd = boundary.u * Δt
     boundary.val += Δd
-    # translate!(boundary.coords, Δd, zero(FT))
     _translate_poly(FT, boundary.poly, Δd, zero(FT))
 end
 

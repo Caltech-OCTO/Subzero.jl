@@ -61,25 +61,23 @@ end
     FT = Float64
     grid = RegRectilinearGrid(; x0 = -2e4, xf = 1e5, y0 = 0.0, yf = 1e5, Δx = 1e4, Δy = 1e4)
     collision_domain = Domain(
-        CollisionBoundary(North, grid),
-        CollisionBoundary(South, grid),
-        CollisionBoundary(East, grid),
-        CollisionBoundary(West, grid),
+        CollisionBoundary(North; grid),
+        CollisionBoundary(South; grid),
+        CollisionBoundary(East; grid),
+        CollisionBoundary(West; grid),
     )
     open_domain = Domain(
-        OpenBoundary(North, grid),
-        OpenBoundary(South, grid),
-        OpenBoundary(East, grid),
-        OpenBoundary(West, grid),
+        OpenBoundary(North; grid),
+        OpenBoundary(South; grid),
+        OpenBoundary(East; grid),
+        OpenBoundary(West; grid),
     )
-    topo = TopographyElement(
-        [[[-1e4, 0.0], [-2e4, 1e4], [-1e4, 1e4], [-1e4, 0.0]]],
-    )
+    topo = TopographyElement(; coords = [[[-1e4, 0.0], [-2e4, 1e4], [-1e4, 1e4], [-1e4, 0.0]]])
     open_domain_w_topography = Domain(
-        OpenBoundary(North, grid),
-        OpenBoundary(South, grid),
-        OpenBoundary(East, grid),
-        OpenBoundary(West, grid),
+        OpenBoundary(North; grid),
+        OpenBoundary(South; grid),
+        OpenBoundary(East; grid),
+        OpenBoundary(West; grid),
         StructVector([topo])
     )
     rng = Xoshiro(1)

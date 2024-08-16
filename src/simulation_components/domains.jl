@@ -1,5 +1,7 @@
 # Cardinal directions
 export AbstractDirection, North, South, East, West
+# All elements that make up the domain
+export AbstractDomainElement
 # Boundary of the model - property of each of the 4 walls (north, south, east, west)
 export AbstractBoundary, OpenBoundary, PeriodicBoundary, CollisionBoundary, MovingBoundary
 # Topographic element within domain
@@ -83,7 +85,6 @@ function _grid_boundary_info(::Type{FT}, ::Type{South}, grid::RegRectilinearGrid
     return poly, grid.y0
 end
 
-
 """
     East<:AbstractDirection
 
@@ -123,7 +124,6 @@ A simple subtype of [`AbstractDirection`](@ref) used for parametrically typing a
 """
 struct West<:AbstractDirection end
 
-
 #=
     _grid_boundary_info(FT, West, grid)
 
@@ -146,89 +146,94 @@ function _grid_boundary_info(::Type{FT}, ::Type{West}, grid::RegRectilinearGrid)
 end
 
 """
-    AbstractDomainElement{FT<:AbstractFloat}
+    YourDomainElement{FT} <: AbstractDomainElement{FT}
 
-An abstract type for all of the element that create the shape of the domain:
-the 4 boundary walls that make up the rectangular domain and the topography
-within the domain. 
+An abstract type for all of the element that create the shape and behavior of the [`Domain`](@ref):
+the 4 boundary walls that make up the rectangular domain and the topography within the `Domain`. 
+
+When building a [`Domain`](@ref), the user will create four (4) boundary elements that are
+concrete types of [`AbstractBoundary`](@ref), which is itself a subtype of
+`AbstractDomainElement`, and a list of [`TopographyElement`](@ref) objects, which are also a
+concrete subtype of `AbstractDomainElement`.
+
+## _API_
+If the user wanted to add more domain elements, other than boundaries and topography, they
+would create a new subtype of `AbstractDomainElement` and would need to write methods for
+the following functions:
+- 
+
+If the user then wanted these in the [`Domain`](@ref), the user would need to change the
+`Domain` struct.
 """
 abstract type AbstractDomainElement{FT<:AbstractFloat} end
 
-
 """
-    AbstractBoundary{D<:AbstractDirection, FT}<:AbstractDomainElement{FT}
+    AbstractBoundary{D, FT} <: AbstractDomainElement{FT}
 
-An abstract type for the types of boundaries at the edges of the model domain.
-Boundary types will control behavior of sea ice floes at edges of domain.
-The direction given by type D denotes which edge of a domain this boundary could
-be and type FT is the simulation float type (e.g. Float64 or Float32).
+When running a Subzero simulation, each simulation has a rectangular domain that contains
+the ice pack, made up for four boundaries, one in each of the cardinal directions:
+[`North`](@ref), [`South`](@ref), [`East`](@ref), and [`West`](@ref). The user will pick
+four boundary types, each concrete subtypes of `AbstractBoundary` and assign each of them a
+direction, `D` and a float type `FT`, by typing them [parametrically]("https://docs.julialang.org/en/v1/manual/types/#Parametric-Types"). 
 
-Each boundary type has the coordinates of the boudnary as a field. These should
-be shapes that completely seal the domain, and should overlap on the corners as
-seen in the example below:
+The user can pick from the currently implemented concrete subtypes of `AbstractBoundary`
+([`OpenBoundary`](@ref), [`CollisionBoundary`](@ref), [`PeriodicBoundary`](@ref), and
+[`MovingBoundary`](@ref)) or implement their own.
+
+For now, each boundary wall is assumed to be a rectangle. For correct behavior, the corners
+of each of the boundary rectangles should overlap to make sure that no floes reach outside
+of the domain without touching a boundary. These rectangles should be represented as
+polygons within a `poly` field within each boundary. Furthermore, each boundary should have
+a field `val` that represents either the equation `y = val` (for `North` and `South` walls)
+or `x = val` (for `East` and `West` walls) that denotes the line that marks the "inner-most"
+edge of the domain. If an ice floe passes over the boudnary's line, the floe interacts with
+the boundary.
+
+```text
  ________________
 |__|____val___|__| <- North coordinates include corners
 |  |          |  |
 |  |          |  | <- East and west coordinates ALSO include corners
 |  |          |  |
-Each bounday type also has a field called "val" that holds value that defines
-the line y = val or x = val (depending on boundary direction), such that if the
-floe crosses that line it would be partially within the boundary. 
+```
+
+For ease of use, each boundary should have a constructor option where the user can provide
+an [`AbstractGrid`](@ref) concrete type and define a boundary where `val` is at the edge of the
+grid so that thr boundaries form a border around the grid.
+
+## _API_
+...
 """
 abstract type AbstractBoundary{
     D<:AbstractDirection,
     FT,
 }<:AbstractDomainElement{FT} end
 
-"""
-    OpenBoundary <: AbstractBoundary
-
-A sub-type of AbstractBoundary that allows a floe to pass out of the domain edge
-without any effects on the floe.
-"""
+# Concrete type of AbstractBoundary - see documentation below
 struct OpenBoundary{D, FT}<:AbstractBoundary{D, FT}
-    poly::BoundingBox{FT}
+    poly::StaticQuadrilateral{FT}
     val::FT
 end
 
 """
-    OpenBoundary(::Type{FT}, ::Type{D}, args...)
+    OpenBoundary{D, FT} <: AbstractBoundary{D, FT}
 
-A float type FT can be provided as the first argument of any OpenBoundary
-constructor. The second argument D is the directional type of the boundary.
-An OpenBoundary of type FT and D will be created by passing all other arguments
-to the correct constructor. 
+A sub-type of AbstractBoundary that allows a floe to pass out of the domain edge
+without any effects on the floe.
 """
-OpenBoundary(::Type{FT}, ::Type{D}, args...) where {
-    FT <: AbstractFloat,
-    D <: AbstractDirection,
-} = OpenBoundary{D, FT}(args...)
+function OpenBoundary(::Type{D}, ::Type{FT} = Float64; grid = nothing, poly = nothing, val = nothing) where {D, FT}
+    if !isnothing(grid)
+        poly, val = _grid_boundary_info(FT, D, grid)
+    elseif isnothing(poly) || isnothing(val)
+        throw(ArgumentError("To create an OpenBoundary, either provide a grid or a poly AND a val."))
+    end
+    return OpenBoundary{D, FT}(poly, val)
+end
 
-"""
-    OpenBoundary(::Type{D}, args...)
-
-If a float type isn't specified, OpenBoundary will be of type Float64 and the
-correct constructor will be called with all other arguments.
-"""
-OpenBoundary(::Type{D}, args...) where {D <: AbstractDirection} =
-    OpenBoundary{D, Float64}(args...)
-
-"""
-    OpenBoundary{D, FT}(grid)
-
-Creates open boundary on the edge of the grid, and with the direction as a type.
-Edge is determined by direction.
-Inputs:
-    grid        <AbstractGrid> model grid
-Outputs:
-    Open Boundary on edge of grid given by direction and type. 
-"""
-function OpenBoundary{D, FT}(
-    grid,
-) where {D <: AbstractDirection, FT <: AbstractFloat}
-    poly, val = _grid_boundary_info(FT, D, grid)
-    OpenBoundary{D, FT}(poly, val)
-
+# Concrete type of AbstractBoundary - see documentation below
+struct PeriodicBoundary{D, FT}<:AbstractBoundary{D, FT}
+    poly::StaticQuadrilateral{FT}
+    val::FT
 end
 
 """
@@ -238,51 +243,19 @@ A sub-type of AbstractBoundary that moves a floe from one side of the domain to
 the opposite side of the domain when it crosses the boundary, bringing the floe
 back into the domain.
 """
-struct PeriodicBoundary{D, FT}<:AbstractBoundary{D, FT}
-    poly::BoundingBox{FT}
-    val::FT
+function PeriodicBoundary(::Type{D}, ::Type{FT} = Float64; grid = nothing, poly = nothing, val = nothing) where {D, FT}
+    if !isnothing(grid)
+        poly, val = _grid_boundary_info(FT, D, grid)
+    elseif isnothing(poly) || isnothing(val)
+        throw(ArgumentError("To create an PeriodicBoundary, either provide a grid or a poly AND a val."))
+    end
+    return PeriodicBoundary{D, FT}(poly, val)
 end
 
-"""
-    PeriodicBoundary(::Type{FT}, ::Type{D}, args...)
-
-A float type FT can be provided as the first argument of any PeriodicBoundary
-constructor. The second argument D is the directional type of the boundary.
-A PeriodicBoundary of type FT and D will be created by passing all other
-arguments to the correct constructor. 
-"""
-PeriodicBoundary(::Type{FT}, ::Type{D}, args...) where {
-    FT <: AbstractFloat,
-    D <: AbstractDirection,
-} = PeriodicBoundary{D, FT}(args...)
-
-"""
-    PeriodicBoundary(::Type{D}, args...)
-
-If a float type isn't specified, PeriodicBoundary will be of type Float64 and
-the correct constructor will be called with all other arguments.
-"""
-PeriodicBoundary(::Type{D}, args...) where {D <: AbstractDirection} =
-    PeriodicBoundary{D, Float64}(args...)
-
-"""
-    PeriodicBoundary{D, FT}(grid)
-
-Creates periodic boundary on the edge of the grid, and with the direction as a
-type. Edge is determined by direction.
-Inputs:
-    grid        <AbstractGrid> model grid
-Outputs:
-    Periodic Boundary on edge of grid given by direction and type. 
-"""
-function PeriodicBoundary{D, FT}(
-    grid,
-) where {D <: AbstractDirection, FT <: AbstractFloat}
-    poly, val = _grid_boundary_info(FT, D, grid)
-    PeriodicBoundary{D, FT}(
-        poly,
-        val,
-    )
+# Concrete type of AbstractBoundary - see documentation below
+struct CollisionBoundary{D, FT}<:AbstractBoundary{D, FT}
+    poly::StaticQuadrilateral{FT}
+    val::FT
 end
 
 """
@@ -292,54 +265,23 @@ A sub-type of AbstractBoundary that stops a floe from exiting the domain by
 having the floe collide with the boundary. The boundary acts as an immovable,
 unbreakable ice floe in the collision. 
 """
-struct CollisionBoundary{D, FT}<:AbstractBoundary{D, FT}
-    poly::BoundingBox{FT}
+function CollisionBoundary(::Type{D}, ::Type{FT} = Float64; grid = nothing, poly = nothing, val = nothing) where {D, FT}
+    if !isnothing(grid)
+        poly, val = _grid_boundary_info(FT, D, grid)
+    elseif isnothing(poly) || isnothing(val)
+        throw(ArgumentError("To create an CollisionBoundary, either provide a grid or a poly AND a val."))
+    end
+    return CollisionBoundary{D, FT}(poly, val)
+end
+
+# Concrete type of AbstractBoundary - see documentation below
+mutable struct MovingBoundary{D, FT}<:AbstractBoundary{D, FT}
+    poly::StaticQuadrilateral{FT}
     val::FT
+    u::FT
+    v::FT
 end
 
-"""
-    CollisionBoundary(::Type{FT}, ::Type{D}, args...)
-
-A float type FT can be provided as the first argument of any CollisionBoundary
-constructor. The second argument D is the directional type of the boundary.
-A CollisionBoundary of type FT and D will be created by passing all other
-arguments to the correct constructor. 
-"""
-CollisionBoundary(::Type{FT}, ::Type{D}, args...) where {
-    FT <: AbstractFloat,
-    D <: AbstractDirection,
-} = CollisionBoundary{D, FT}(args...)
-
-"""
-    CollisionBoundary(::Type{D}, args...)
-
-If a float type isn't specified, CollisionBoundary will be of type Float64 and
-the correct constructor will be called with all other arguments.
-"""
-CollisionBoundary(::Type{D}, args...) where {D <: AbstractDirection} =
-    CollisionBoundary{D, Float64}(args...)
-
-
-"""
-    CollisionBoundary{D, FT}(grid)
-
-Creates collision boundary on the edge of the grid, and with the direction as a
-type. Edge is determined by direction.
-Inputs:
-    grid        <AbstractGrid> model grid
-    direction   <AbstractDirection> direction of boundary wall
-Outputs:
-    Collision Boundary on edge of grid given by direction. 
-"""
-function CollisionBoundary{D, FT}(
-    grid,
-) where {D <: AbstractDirection, FT <: AbstractFloat}
-    poly, val = _grid_boundary_info(FT, D, grid)
-    CollisionBoundary{D, FT}(
-        poly,
-        val,
-    )
-end
 
 """
     MovingBoundary <: AbstractBoundary
@@ -356,68 +298,21 @@ that the boundaries cannot move at an angle, distorting the shape of the domain 
 the the combination of u and v velocities. The same, but opposite is true for the north
 and south walls.
 """
-mutable struct MovingBoundary{D, FT}<:AbstractBoundary{D, FT}
-    poly::BoundingBox{FT}
-    val::FT
-    u::FT
-    v::FT
+function MovingBoundary(::Type{D}, ::Type{FT} = Float64; u = 0.0, v = 0.0,
+    grid = nothing, poly = nothing, val = nothing,
+) where {D, FT}
+    if !isnothing(grid)
+        poly, val = _grid_boundary_info(FT, D, grid)
+    elseif isnothing(poly) || isnothing(val)
+        throw(ArgumentError("To create an MovingBoundary, either provide a grid or a poly AND a val."))
+    end
+    if u == v == 0
+        @warn "MovingBoundary velocities are both zero. Boundary will not move. Use keywords u and v to set velocities."
+    end
+    return MovingBoundary{D, FT}(poly, val, u, v)
 end
 
-"""
-    MovingBoundary(::Type{FT}, ::Type{D}, args...)
-
-A float type FT can be provided as the first argument of any MovingBoundary
-constructor. The second argument D is the directional type of the boundary.
-A MovingBoundary of type FT and D will be created by passing all other
-arguments to the correct constructor. 
-"""
-MovingBoundary(::Type{FT}, ::Type{D}, args...) where {
-    FT <: AbstractFloat,
-    D <: AbstractDirection,
-} = MovingBoundary{D, FT}(args...)
-
-"""
-    MovingBoundary(::Type{D}, args...)
-
-If a float type isn't specified, MovingBoundary will be of type Float64 and
-the correct constructor will be called with all other arguments.
-"""
-MovingBoundary(::Type{D}, args...) where {D <: AbstractDirection} =
-    MovingBoundary{D, Float64}(args...)
-
-
-"""
-    MovingBoundary{D, FT}(grid, velocity)
-
-Creates compression boundary on the edge of the grid, and with the direction as
-a type.
-Edge is determined by direction.
-Inputs:
-        grid        <AbstractGrid> model grid
-        u    <AbstractFloat> u velocity of boundary
-        v    <AbstractFloat> v velocity of boundary
-Outputs:
-    MovingBoundary on edge of grid given by direction. 
-"""
-function MovingBoundary{D, FT}(
-    grid,
-    u,
-    v,
-) where {D <: AbstractDirection, FT <: AbstractFloat}
-    poly, val = _grid_boundary_info(FT, D, grid)
-    MovingBoundary{D, FT}(
-        poly,
-        val,
-        u,
-        v,
-    )
-end
-
-"""
-    NonPeriodicBoundary
-
-Union of all non-peridic boundary types to use as shorthand for dispatch.
-"""
+# Union of all non-peridic boundary types to use as shorthand for dispatch.
 const NonPeriodicBoundary = Union{
     OpenBoundary,
     CollisionBoundary,
@@ -435,13 +330,11 @@ affect floes.
 """
 struct TopographyElement{FT}<:AbstractDomainElement{FT}
     poly::Polys{FT}
-    coords::PolyVec{FT}
     centroid::Vector{FT}
     rmax::FT
 
     function TopographyElement{FT}(
         poly,
-        coords,  # TODO: Can remove when not used anymore in other parts of the code
         centroid,
         rmax,
     ) where {FT <: AbstractFloat}
@@ -450,70 +343,23 @@ struct TopographyElement{FT}<:AbstractDomainElement{FT}
                 positive and non-zero."))
         end
         poly = GO.ClosedRing()(poly)
-        new{FT}(poly, find_poly_coords(poly), centroid, rmax)
+        new{FT}(poly, centroid, rmax)
     end
 end
 
-"""
-    TopographyElement(::Type{FT}, args...)
-
-A float type FT can be provided as the first argument of any TopographyElement
-constructor. A TopographyElement of type FT will be created by passing all other
-arguments to the correct constructor. 
-"""
-TopographyElement(::Type{FT}, args...) where {FT <: AbstractFloat} =
-    TopographyElement{FT}(args...)
-
-"""
-    TopographyElement(args...)
-
-If a type isn't specified, TopographyElement will be of type Float64 and the
-correct constructor will be called with all other arguments.
-"""
-TopographyElement(args...) = TopographyElement{Float64}(args...)
-
-"""
-    TopographyElement{FT}(poly)
-
-Constructor for topographic element with Polygon
-Inputs:
-    poly    <Polygon>
-Output:
-    Topographic element of abstract float type FT
-"""
-function TopographyElement{FT}(poly::Polys) where {FT <: AbstractFloat}
+function TopographyElement(::Type{FT} = Float64; poly = nothing, coords = nothing) where FT
+    if isnothing(poly) && !isnothing(coords)
+        poly = make_polygon(coords)
+    elseif isnothing(poly)
+        throw(ArgumentError("To create a topography element the user must provide either a polygon (with the poly keyword) or coordinates (with the coord keyword)."))
+    end
+    # Clean up polygon and calculate centroid and maximum radius
+    poly = GO.ClosedRing()(poly)
     rmholes!(poly)
     centroid = collect(GO.centroid(poly)) # TODO: Remove collect once type is changed
-    coords = find_poly_coords(poly)
     rmax = calc_max_radius(poly, centroid, FT)
-    return TopographyElement{FT}(
-        poly,
-        coords,
-        centroid,
-        rmax,
-    )
+    return TopographyElement{FT}(poly, centroid, rmax)
 end
-
-"""
-    TopographyElement{FT}(coords)
-
-Constructor for topographic element with PolyVec coordinates
-Inputs:
-    coords      <PolyVec>
-Output:
-    Topographic element of abstract float type FT
-"""
-TopographyElement{FT}(coords::PolyVec) where {FT <: AbstractFloat} =
-    TopographyElement{FT}(make_polygon(convert(PolyVec{FT}, coords)))
-
-"""
-    initialize_topography_field(args...)
-
-If a type isn't specified, the list of TopographyElements will each be of type
-Float64 and the correct constructor will be called with all other arguments.
-"""
-initialize_topography_field(args...) =
-    initialize_topography_field(Float64, args...)
 
 """
     initialize_topography_field(
@@ -531,13 +377,12 @@ Outputs:
     created from given polygon coordinates
 """
 function initialize_topography_field(
-    ::Type{FT},
-    coords,
+    ::Type{FT} = Float64; coords
 ) where {FT <: AbstractFloat}
     topo_multipoly = GO.DiffIntersectingPolygons()(GI.MultiPolygon(coords))
     topo_arr = StructArray{TopographyElement{FT}}(undef, GI.npolygon(topo_multipoly))
-    for (i, p) in enumerate(GI.getpolygon(topo_multipoly))
-        topo_arr[i] = TopographyElement{FT}(p)
+    for (i, poly) in enumerate(GI.getpolygon(topo_multipoly))
+        topo_arr[i] = TopographyElement(FT; poly)
     end
     return topo_arr
 end

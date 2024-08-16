@@ -1,6 +1,6 @@
 using Documenter, Literate
-
 using Subzero
+
 
 # Converting any files in the literate folder to markdown
 LITERATE_INPUT = joinpath(@__DIR__, "literate")

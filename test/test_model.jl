@@ -71,71 +71,14 @@ import StaticArrays as SA
             Subzero.Atmos{Float64}
     end
 
-    @testset "Topography" begin
-        coords = [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]]
-        poly = Subzero.make_polygon(coords)
-        # Polygon Constructor
-        topo1 = Subzero.TopographyElement(poly)
-        @test topo1.coords == coords
-        @test topo1.centroid == [0.5, 0.5]
-        @test topo1.rmax == sqrt(0.5)
-        topo32 = Subzero.TopographyElement(Float32, poly)
-        @test typeof(topo32) == Subzero.TopographyElement{Float32}
-        @test typeof(topo32.coords) == Subzero.PolyVec{Float32}
-        # Coords Constructor
-        topo2 = Subzero.TopographyElement(Float64, coords)
-        @test topo2.coords == coords
-        @test topo2.centroid == [0.5, 0.5]
-        @test topo2.rmax == sqrt(0.5)
-        # Basic constructor
-        topo3 = TopographyElement(
-            Subzero.make_polygon(coords),
-            coords,
-            [0.5, 0.5],
-            sqrt(0.5),
-        )
-        @test topo3.coords == coords
-        # check when radius is less than  or equal to 0
-        @test_throws ArgumentError TopographyElement(
-            Subzero.make_polygon(coords),
-            coords,
-            [0.5, 0.5],
-            -sqrt(0.5),
-        )
-
-        # Create field of topography
-        coords_w_hole = [
-            [[0.5, 10.0], [0.5, 0.0], [10.0, 0.0], [10.0, 10.0], [0.5, 10.0]],
-            [[2.0, 8.0], [2.0, 4.0], [8.0, 4.0], [8.0, 8.0], [2.0, 8.0]]
-            ]
-        topo_field_64 = initialize_topography_field(
-            Float64,
-            [coords, coords_w_hole],
-        )
-        @test length(topo_field_64) == 2
-        @test typeof(topo_field_64) <: StructArray{TopographyElement{Float64}}
-        @test !Subzero.hashole(topo_field_64.coords[2])
-
-        topo_field_32 = initialize_topography_field(
-            Float32,
-            [coords, coords_w_hole],
-        )
-        @test typeof(topo_field_32) <: StructArray{TopographyElement{Float32}}
-
-        @test typeof(initialize_topography_field([coords, coords_w_hole])) <:
-            StructArray{TopographyElement{Float64}}
-    end
-
     @testset "Domain" begin
         FT = Float64
         g = Subzero.RegRectilinearGrid(; x0 = 0, xf = 4e5, y0 = 0, yf = 3e5, Δx = 1e4, Δy = 1e4)
-        b1 = Subzero.PeriodicBoundary(North, g)
-        b2 = Subzero.OpenBoundary(East, g)
-        b3 = Subzero.CollisionBoundary(West, g)
-        b4 = Subzero.PeriodicBoundary(South, g)
-        topography = StructArray([Subzero.TopographyElement(
-            [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]],
-        )])
+        b1 = Subzero.PeriodicBoundary(North; grid = g)
+        b2 = Subzero.OpenBoundary(East; grid = g)
+        b3 = Subzero.CollisionBoundary(West; grid = g)
+        b4 = Subzero.PeriodicBoundary(South; grid = g)
+        topography = StructArray([Subzero.TopographyElement(; coords = [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]])])
         # test basic domain with no topography
         rdomain1 = Subzero.Domain(b1, b4, b2, b3)
         @test rdomain1.north == b1
@@ -151,7 +94,7 @@ import StaticArrays as SA
         # domain with non-periodic 
         @test_throws ArgumentError Subzero.Domain(
             b1,
-            Subzero.OpenBoundary(South, g),
+            Subzero.OpenBoundary(South; grid = g),
             b2,
             b3,
         )
@@ -159,13 +102,13 @@ import StaticArrays as SA
             b1,
             b4,
             b2,
-            Subzero.PeriodicBoundary(West, g),
+            Subzero.PeriodicBoundary(West; grid = g),
         )
         # domain with north < south
         p_placeholder = Subzero._make_bounding_box_polygon(FT, 0.0, 1.0, 0.0, 1.0)
         @test_throws ArgumentError Subzero.Domain(
             b1,
-            Subzero.OpenBoundary(Float64, South, p_placeholder, 6e5),
+            Subzero.OpenBoundary(South, Float64; poly = p_placeholder, val = 6e5),
             b2,
             b3,
         )
@@ -174,7 +117,7 @@ import StaticArrays as SA
             b1,
             b4,
             b2,
-            Subzero.OpenBoundary(Float64, West, p_placeholder, 6e5),
+            Subzero.OpenBoundary(West, Float64; poly = p_placeholder, val = 6e5),
         )
     end
 

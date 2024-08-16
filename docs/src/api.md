@@ -19,7 +19,16 @@ AbstractGrid
 RegRectilinearGrid
 ```
 
-## All methods
-```@autodocs
-Modules = [Subzero]
+## Domains
+```@docs
+AbstractDirection
+North
+South
+East
+West
 ```
+
+## All methods
+<!-- ```@autodocs
+Modules = [Subzero]
+``` -->

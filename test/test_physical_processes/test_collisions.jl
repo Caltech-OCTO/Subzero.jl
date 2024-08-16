@@ -12,22 +12,22 @@
     grid = RegRectilinearGrid(; x0 = -Lx, xf = Lx, y0 = -Ly, yf = Ly, Δx = 1e4, Δy = 1e4)
 
     # Boundary setup
-    p_n_bound = PeriodicBoundary(North, grid)
-    p_s_bound = PeriodicBoundary(South, grid)
-    p_e_bound = PeriodicBoundary(East, grid)
-    p_w_bound = PeriodicBoundary(West, grid)
+    p_n_bound = PeriodicBoundary(North; grid)
+    p_s_bound = PeriodicBoundary(South; grid)
+    p_e_bound = PeriodicBoundary(East; grid)
+    p_w_bound = PeriodicBoundary(West; grid)
 
-    c_n_bound =  CollisionBoundary(North, grid)
-    c_s_bound = CollisionBoundary(South, grid)
-    c_e_bound = CollisionBoundary(East, grid)
-    c_w_bound = CollisionBoundary(West, grid)
+    c_n_bound =  CollisionBoundary(North; grid)
+    c_s_bound = CollisionBoundary(South; grid)
+    c_e_bound = CollisionBoundary(East; grid)
+    c_w_bound = CollisionBoundary(West; grid)
 
-    o_n_bound = OpenBoundary(North, grid)
-    o_s_bound = OpenBoundary(South, grid)
-    o_e_bound = OpenBoundary(East, grid)
-    o_w_bound = OpenBoundary(West, grid)
+    o_n_bound = OpenBoundary(North; grid)
+    o_s_bound = OpenBoundary(South; grid)
+    o_e_bound = OpenBoundary(East; grid)
+    o_w_bound = OpenBoundary(West; grid)
 
-    topos = initialize_topography_field(FT, [[[[1e4, 0.0], [0.0, 1e4], [1e4, 2e4], [2e4, 1e4], [1e4, 0.0]]]])
+    topos = initialize_topography_field(FT; coords = [[[[1e4, 0.0], [0.0, 1e4], [1e4, 2e4], [2e4, 1e4], [1e4, 0.0]]]])
     # topos = StructArray([TopographyElement([[[1e4, 0.0], [0.0, 1e4], [1e4, 2e4], [2e4, 1e4], [1e4, 0.0]]])])
         
     topo_domain = Domain(p_n_bound, p_s_bound, c_e_bound, o_w_bound, topos)

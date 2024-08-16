@@ -3,22 +3,22 @@
     grid = RegRectilinearGrid(; x0 = 0.0, xf = 1e5, y0 = 0.0, yf = 1e5, Δx = 1e4, Δy = 1e4)
 
     open_domain = Subzero.Domain(
-        OpenBoundary(North, grid),
-        OpenBoundary(South, grid),
-        OpenBoundary(East, grid),
-        OpenBoundary(West, grid),
+        OpenBoundary(North; grid),
+        OpenBoundary(South; grid),
+        OpenBoundary(East; grid),
+        OpenBoundary(West; grid),
     )
     periodic_domain = Subzero.Domain(
-        PeriodicBoundary(North, grid),
-        PeriodicBoundary(South, grid),
-        PeriodicBoundary(East, grid),
-        PeriodicBoundary(West, grid),
+        PeriodicBoundary(North; grid),
+        PeriodicBoundary(South; grid),
+        PeriodicBoundary(East; grid),
+        PeriodicBoundary(West; grid),
     )
     half_open_periodic_domain = Subzero.Domain(
-        PeriodicBoundary(North, grid),
-        PeriodicBoundary(South, grid),
-        OpenBoundary(East, grid),
-        OpenBoundary(West, grid),
+        PeriodicBoundary(North; grid),
+        PeriodicBoundary(South; grid),
+        OpenBoundary(East; grid),
+        OpenBoundary(West; grid),
     )
 
     coords = [
@@ -132,10 +132,10 @@ end
     grid = RegRectilinearGrid(; x0 = 0.0, xf = 1e5, y0 = 0.0, yf = 1e5, Δx = 1e4, Δy = 1e4)
 
     periodic_domain = Subzero.Domain(
-        OpenBoundary(North, grid),
-        OpenBoundary(South, grid),
-        OpenBoundary(East, grid),
-        OpenBoundary(West, grid),
+        OpenBoundary(North; grid),
+        OpenBoundary(South; grid),
+        OpenBoundary(East; grid),
+        OpenBoundary(West; grid),
     )
     consts = Constants()
     floe_settings = FloeSettings()

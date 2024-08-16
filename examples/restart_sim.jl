@@ -31,10 +31,10 @@ ocean = Ocean(
 
 atmos = Atmos(FT, grid, 0.0, 0.0, 0.0)
 
-nboundary = PeriodicBoundary(North, grid)
-sboundary = PeriodicBoundary(South, grid)
-eboundary = PeriodicBoundary(East, grid)
-wboundary = PeriodicBoundary(West, grid)
+nboundary = PeriodicBoundary(North; grid)
+sboundary = PeriodicBoundary(South; grid)
+eboundary = PeriodicBoundary(East; grid)
+wboundary = PeriodicBoundary(West; grid)
 domain = Domain(nboundary, sboundary, eboundary, wboundary)
 
 floe_settings = FloeSettings(subfloe_point_generator = SubGridPointsGenerator(grid, 2))

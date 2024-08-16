@@ -97,7 +97,7 @@ const RingVec{T} = R where {
 }
 
 const Polys{T, V} = GI.Polygon{false, false, Vector{GI.LinearRing{false, false, Vector{Tuple{T, T}}, Nothing, Nothing}}, Nothing, Nothing} where T <: AbstractFloat
-const BoundingBox{T} =  GI.Polygon{false,false, SA.SVector{1, GI.LinearRing{false, false, SA.SVector{5, Tuple{T, T}}, Nothing, Nothing}},Nothing,Nothing} where T 
+const StaticQuadrilateral{T} =  GI.Polygon{false,false, SA.SVector{1, GI.LinearRing{false, false, SA.SVector{5, Tuple{T, T}}, Nothing, Nothing}},Nothing,Nothing} where T 
 
 Base.convert(::Type{Polys{Float32}}, p::Polys{Float64}) = GO.tuples(p, Float32)
 Base.convert(::Type{Polys{Float64}}, p::Polys{Float32}) = GO.tuples(p, Float64)

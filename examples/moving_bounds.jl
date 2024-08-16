@@ -15,10 +15,10 @@ ocean = Ocean(grid, 0.0, 0.0, 0.0)
 atmos = Atmos(grid, 0.0, 0.0, -1.0)
 
 # Domain creation
-nboundary = MovingBoundary(North, grid, 0.0, -0.1)
-sboundary = MovingBoundary(South, grid, 0.0, 0.1)
-eboundary = PeriodicBoundary(East, grid)
-wboundary = PeriodicBoundary(West, grid)
+nboundary = MovingBoundary(North; grid, u = 0.0, v = -0.1)
+sboundary = MovingBoundary(South; grid, u = 0.0, v = 0.1)
+eboundary = PeriodicBoundary(East; grid)
+wboundary = PeriodicBoundary(West; grid)
 
 domain = Domain(nboundary, sboundary, eboundary, wboundary)
 

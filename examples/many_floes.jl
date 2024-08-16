@@ -22,10 +22,10 @@ ocean = Ocean(FT, grid, -0.2, 0.0, -1.0)
 atmos = Atmos(FT, grid, 0.0, 0.0, -3.0)
 
 # Domain creation - boundaries and topography
-nboundary = OpenBoundary(FT, North, grid)
-sboundary = OpenBoundary(FT, South, grid)
-eboundary = OpenBoundary(FT, East, grid)
-wboundary = OpenBoundary(FT, West, grid)
+nboundary = OpenBoundary(North, FT; grid)
+sboundary = OpenBoundary(South, FT; grid)
+eboundary = OpenBoundary(East, FT; grid)
+wboundary = OpenBoundary(West, FT; grid)
 
 domain = Subzero.Domain(nboundary, sboundary, eboundary, wboundary)
 
