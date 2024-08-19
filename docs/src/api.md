@@ -15,11 +15,12 @@ Documentation for [Subzero](https://github.com/Caltech-OCTO/Subzero.jl)'s full A
 ## Grids
 
 ```@docs
-AbstractGrid
+AbstractRectilinearGrid
 RegRectilinearGrid
 ```
 
 ## Domains
+### Directions
 ```@docs
 AbstractDirection
 North
@@ -27,8 +28,19 @@ South
 East
 West
 ```
+### Boundaries
+```@docs
+AbstractBoundary
+OpenBoundary
+PeriodicBoundary
+CollisionBoundary
+MovingBoundary
+```
+### Topography
 
-## All methods
-<!-- ```@autodocs
-Modules = [Subzero]
-``` -->
+### Domains
+
+## Developer-Used Types
+```@docs
+CellFloes
+```

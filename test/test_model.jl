@@ -108,7 +108,7 @@ import StaticArrays as SA
         p_placeholder = Subzero._make_bounding_box_polygon(FT, 0.0, 1.0, 0.0, 1.0)
         @test_throws ArgumentError Subzero.Domain(
             b1,
-            Subzero.OpenBoundary(South, Float64; poly = p_placeholder, val = 6e5),
+            Subzero.OpenBoundary(South, Float64; x0 = 0.0, xf = 1.0, y0 = 0.0, yf = 0.0),
             b2,
             b3,
         )
@@ -117,7 +117,7 @@ import StaticArrays as SA
             b1,
             b4,
             b2,
-            Subzero.OpenBoundary(West, Float64; poly = p_placeholder, val = 6e5),
+            Subzero.OpenBoundary(West, Float64;  x0 = 0.0, xf = 1.0, y0 = 0.0, yf = 0.0),
         )
     end
 

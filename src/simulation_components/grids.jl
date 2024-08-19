@@ -1,4 +1,4 @@
-export AbstractGrid, RegRectilinearGrid
+export AbstractRectilinearGrid, RegRectilinearGrid
 
 # See CellFloes documentation below
 struct CellFloes{FT<:AbstractFloat}
@@ -14,7 +14,7 @@ Constructor for struct that represents a single grid cell and accumulates the in
 floes with area in that grid cell. This is used for two-way coupling to accumulate the
 forces of floes in a grid cell on the ocean below it. Due to the prevalence of periodic
 boundaries, the grid cell represented by a `CellFloes` object are centered on grid points
-(translated by Δx/2 and Δy/2 in the x and y directions for a [`RegRectilinearGrid`](@ref)),
+(translated by `Δx/2` and `Δy/2` in the x and y directions for a [`RegRectilinearGrid`](@ref)),
 rather than on the grid cells defined by the grid object itself. Floes are recorded with
 their index in the  list of floes. Furthermore, in a model with periodic boundaries, some
 floes may be in multiple grid cells on different edges of the domain if they pass through a
@@ -64,33 +64,42 @@ function Base.empty!(cell::CellFloes)
     return
 end
 
+const GRID_DEF = "`grid::AbstractRectilinearGrid`: subtype of AbstractRectilinearGrid representing the grid used within a simulation"
+
 """
-    YourGridType{FT} <: AbstractGrid{FT}
+    YourGridType{FT} <: AbstractRectilinearGrid{FT}
 
 Each simulation run with Subzero.jl must be run on a grid. A grid defines the points at
-which the ocean and atmosphere hold velocity data, as well as various other tracers at grid
-points. The user must choose an existing subtype of `AbstractGrid` or implement a new
+which the ocean and atmosphere hold velocity data, as well as various other tracers, at grid
+points. The user must choose an existing subtype of `AbstractRectilinearGrid` or implement a new
 subtype to create a simulation. 
 
 Each grid implementation must define the number and dimensions of each grid cell. Right now,
-this assumes that the ocean and the atmosphere are on the same grid. We might not want this
-to be true in the future. Furthermore, each concrete implementation of `AbstractGrid` that will be used to two-way
-couple with an ocean or an atmosphere must have a field called `floe_locations` that is a
-matrix of [`CellFloes`](@ref), with one element for each grid point. The user should not
-worry about `CellFloes`, this is up to the developer to make sure that their grid contains
-and populates this field. Again, in the future, this might be related to the ocean and/or
-atmosphere rather than the grid. For more information, or if you're interested in working on
-this, see issue [#107](@ref).
+this assumes that the ocean and the atmosphere are on the same grid and that the grid is
+rectangular. We might not want this to be true in the future. Furthermore, each concrete
+implementation of `AbstractRectilinearGrid` that will be used to two-way couple with an ocean
+or an atmosphere must have a field called `floe_locations` that is a matrix of
+[`CellFloes`](@ref), with one element for each grid point. The user should not worry about
+`CellFloes`, this is up to the developer to make sure that their grid contains and populates
+this field. Again, in the future, this might be related to the ocean and/or atmosphere
+rather than the grid. For more information, or if you're interested in working on this, see
+issue [#107](@ref).
 
 ## _API_
-Given the original code was written for [`RegRectilinearGrid`](@ref) objects, the dispatch
-isn't fully implemented. If you were interested in adding a new subtype of `AbstractGrid`, see 
-issue [#108](@ref).
-"""
-abstract type AbstractGrid{FT<:AbstractFloat} end
+The following methods must be implemented for all subtypes:
+- `_get_grid_extent(grid::AbstractRectilinearGrid)`: 
 
-# Concrete type of AbstractGrid - see documentation below
-struct RegRectilinearGrid{FT}<:AbstractGrid{FT}
+The `_get_grid_extent` function takes in a concrete subtype of `AbstractRectilinearGrid` and
+returns the grid's minimum x-value, maximum x-value, minimum y-value, and maximum y-value.
+
+Given the original code was written for [`RegRectilinearGrid`](@ref) objects, the dispatch
+isn't fully implemented and other functions should be added to this list. If you were
+interested in adding a new subtype of `AbstractRectilinearGrid`, see  issue [#108](@ref).
+"""
+abstract type AbstractRectilinearGrid{FT<:AbstractFloat} end
+
+# Concrete subtype of AbstractRectilinearGrid - see below for documentation
+struct RegRectilinearGrid{FT}<:AbstractRectilinearGrid{FT}
     Nx::Int
     Ny::Int
     Δx::FT
@@ -103,11 +112,25 @@ struct RegRectilinearGrid{FT}<:AbstractGrid{FT}
 end
 
 """
-    RegRectilinearGrid{FT} <: AbstractGrid{FT}
+    RegRectilinearGrid{FT} <: AbstractRectilinearGrid{FT}
 
-A concrete implementation of an [`AbstractGrid`](@ref) that represents a tessellation of 2-dimensional
+A concrete implementation of an [`AbstractRectilinearGrid`](@ref) that represents a tessellation of 2-dimensional
 Euclidean space into `n`-by-`m` congruent rectangles. Fields that hold float data are of
-type `FT`, a concrete implementation of `AbstractFloat`.
+type `FT`, a concrete subtype of `AbstractFloat`.
+
+- `Nx::Int`: number of grid cells in the x-direction
+- `Ny::Int`: number of grid cells in the y-direction
+- `Δx::FT`: grid cell width
+- `Δy::FT`: grid cell height
+- `x0::FT`: value of first x grid line
+- `xf::FT`: value of final x grid line
+- `y0::FT`: value of first y grid line
+- `yf::FT`: value of final y grid line
+- `floe_locations::Matrix{CellFloes}`: `Nx + 1` by `Ny + 1` matrix of [`CellFloes`](@ref)
+
+Here is how to construct a `RegRectilinearGrid`:
+
+    RegRectilinearGrid([FT = Float64]; x0, xf, y0, yf, Nx = nothing, Ny = nothing, Δx = nothing, Δy = nothing)
 
 ## _Positional arguments_
 - $FT_DEF
@@ -121,21 +144,10 @@ type `FT`, a concrete implementation of `AbstractFloat`.
 - `Δx::FT`: grid cell width
 - `Δy::FT`: grid cell height
 
-**Note:** the user MUST provide `x0`, `xf`, `y0`, and `yf`; the user then has the choice to
-provide `Nx` and `Ny` OR `Δx` and `Δy`. If provided `Δx`` doesn't evenly divide length
-`lu-lx` or `Δy` doesn't evenly divide `uy-ly`, you won't get full size grid. The grid will
+_Note:_ the user MUST provide `x0`, `xf`, `y0`, and `yf`; the user then has the choice to
+provide `Nx` and `Ny` OR `Δx` and `Δy`. If provided `Δx` doesn't evenly divide length
+`xf-x0` or `Δy` doesn't evenly divide `yf-y0`, you won't get full size grid. The grid will
 be "trimmed" to the nearest full grid square in both directions.
-
-## _CellFloesFields_
-- `Nx`: see keyword arguments
-- `Ny`: see keyword arguments
-- `Δx`: see keyword arguments
-- `Δy`: see keyword arguments
-- `x0`: see keyword arguments
-- `xf`: see keyword arguments
-- `y0`: see keyword arguments
-- `yf`: see keyword arguments
-- `floe_locations::Matrix{CellFloes}`: `Nx + 1` by `Ny + 1` matrix of [`CellFloes`](@ref)
 
 ## _Examples_
 
@@ -192,6 +204,9 @@ function RegRectilinearGrid(::Type{FT} = Float64;
     # create RegRectilinearGrid object
     return RegRectilinearGrid{FT}(Nx, Ny, Δx, Δy, x0, xf, y0, yf, floe_locations)
 end
+
+# Return the grid's minimum x-value, maximum x-value, minimum y-value, and maximum y-value
+_get_grid_extent(grid::RegRectilinearGrid) = (grid.x0, grid.xf, grid.y0, grid.yf)
 
 # Pretty printing for RegRectilinearGrid showing key dimensions
 function Base.show(io::IO, grid::RegRectilinearGrid{FT}) where FT

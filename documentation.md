@@ -65,7 +65,7 @@ A grid object has the following fields:
 Nx, Ny, x0, xf, y0, yf, Δx, and Δy
 Ny is the number of rows and Ny is the number of columns within the grid as defined by each grid cell. x0 and xf are the minimum and maximum x-bounds, and y0 and yf are the minimum and maximum y-bounds. Finally, Δx and Δy are the number of grid cells in the x and y directions.
 
-Additionally, RegRectilinearGrid is a concrete subtype of AbstractGrid. More concrete subtypes may be added in the future.  
+Additionally, RegRectilinearGrid is a concrete subtype of AbstractRectilinearGrid. More concrete subtypes may be added in the future.  
 
 ### Ocean: 
 The ocean here represents 2D vector fields of the surface layer of the ocean. It includes the following: u-velocity, v-velocity, temperature, and stresses in the x and y direction, the amount of area per cell covered in ice, and the `hflx_factor` per cell, which allows local heat flux calculations based on the difference in atmosphere and ocean temperature in each cell. If you want to run Subzero without coupling, the ocean will be a set of prescribed fields. If you couple Subzero to Oceananigans, Oceananigans will provide the velocity and temperature fields, and Subzero will provide oceananigans with stress fields from the ice and atmosphere on the top layer of the ocean.

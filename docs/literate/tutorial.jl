@@ -20,7 +20,7 @@ using Subzero  # bring package into scope
 # (like temperature) are recorded on these grid points and grid lines. The grid points are
 # then used for interpolation for coupling between the ice, ocean, and atmosphere.
 
-# All Subzero grid objects are concrete types of the abstract type [`AbstractGrid`](@ref).
+# All Subzero grid objects are concrete types of the abstract type [`AbstractRectilinearGrid`](@ref).
 # Currently the only implemented concrete type is a [`RegRectilinearGrid`](@ref). If you are
 # interested in implementing another type of grid, see the [developer documentation]("devdocs.md").
 

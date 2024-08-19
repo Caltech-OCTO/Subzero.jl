@@ -299,7 +299,7 @@ end
 GridOutputWriter{FT}(
     outputs::Vector{Symbol},
     Δtout,
-    grid::AbstractGrid,
+    grid::AbstractRectilinearGrid,
     dims;
     dir = ".",
     filename = "gridded_data.nc",
@@ -328,7 +328,7 @@ Output:
 """
 function GridOutputWriter{FT}(
     Δtout,
-    grid::AbstractGrid,
+    grid::AbstractRectilinearGrid,
     dims;
     outputs::Vector{Symbol} = collect(get_known_grid_outputs()),
     dir = ".",

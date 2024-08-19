@@ -5,27 +5,26 @@ import GeometryOps.GeoInterface as GI
         FT = Float64
         x0, xf, y0, yf = 0.0, 1e5, -5e4, 5e4
         Δx, Δy = (xf - x0) / 2, (yf - y0) / 2 
-        grid = RegRectilinearGrid(; x0, xf, y0, yf, Nx = 10, Ny = 10)
         # North boundary
-        n_poly, n_val = Subzero._grid_boundary_info(FT, North, grid)
+        n_poly, n_val = Subzero._boundary_info_from_extent(North, FT, x0, xf, y0, yf)
         n_point_set = Set(GI.getpoint(n_poly))
         @test issetequal(n_point_set, Set(((x0 - Δx, yf), (x0 - Δx, yf + Δy), (xf + Δx, yf + Δy), (xf + Δx, yf))))
-        @test n_val == grid.yf
+        @test n_val == yf
         # South boundary
-        s_poly, s_val = Subzero._grid_boundary_info(FT, South, grid)
+        s_poly, s_val = Subzero._boundary_info_from_extent(South, FT, x0, xf, y0, yf)
         s_point_set = Set(GI.getpoint(s_poly))
         @test issetequal(s_point_set, Set(((x0 - Δx, y0), (x0 - Δx, y0 - Δy), (xf + Δx, y0 - Δy), (xf + Δx, y0))))
-        @test s_val == grid.y0
+        @test s_val == y0
         # East boundary
-        e_poly, e_val = Subzero._grid_boundary_info(FT, East, grid)
+        e_poly, e_val = Subzero._boundary_info_from_extent(East, FT, x0, xf, y0, yf)
         e_point_set = Set(GI.getpoint(e_poly))
         @test issetequal(e_point_set, Set(((xf, y0 - Δy), (xf, yf + Δy), (xf + Δx, y0 - Δy), (xf + Δx, yf + Δy))))
-        @test e_val == grid.xf
+        @test e_val == xf
         # West boundary
-        w_poly, w_val = Subzero._grid_boundary_info(FT, West, grid)
+        w_poly, w_val = Subzero._boundary_info_from_extent(West, FT, x0, xf, y0, yf)
         w_point_set = Set(GI.getpoint(w_poly))
         @test issetequal(w_point_set, Set(((x0, y0 - Δy), (x0, yf + Δy), (x0 - Δx, y0 - Δy), (x0 - Δx, yf + Δy))))
-        @test w_val == grid.x0
+        @test w_val == x0
     end
 
     # Boundaries using BoundaryCoords

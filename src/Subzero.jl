@@ -97,20 +97,23 @@ const RingVec{T} = R where {
 }
 
 const Polys{T, V} = GI.Polygon{false, false, Vector{GI.LinearRing{false, false, Vector{Tuple{T, T}}, Nothing, Nothing}}, Nothing, Nothing} where T <: AbstractFloat
-const StaticQuadrilateral{T} =  GI.Polygon{false,false, SA.SVector{1, GI.LinearRing{false, false, SA.SVector{5, Tuple{T, T}}, Nothing, Nothing}},Nothing,Nothing} where T 
 
 Base.convert(::Type{Polys{Float32}}, p::Polys{Float64}) = GO.tuples(p, Float32)
 Base.convert(::Type{Polys{Float64}}, p::Polys{Float32}) = GO.tuples(p, Float64)
 
-const FT_DEF = "`FT::Type{<:AbstratFloat}`: Float type used to run the simulation, either `Float64` (default) or `Float32`."
+const FT_DEF = "`FT::Type{<:AbstractFloat}`: Float type used to run the simulation, either `Float64` (default) or `Float32`."
+const POLY_DEF = "`poly::Polys`: Polygon used to represent the shape of a floe, topography, or boundary in the simulation"
 
 # Types
 include("simulation_components/stress_calculators.jl")
 # Model
 include("simulation_components/grids.jl")
+include("simulation_components/domain_components/abstract_domains.jl")
+include("simulation_components/domain_components/boundaries.jl")
+include("simulation_components/domain_components/topography.jl")
+include("simulation_components/domain_components/domains.jl")
 include("simulation_components/floe.jl")
 include("floe_utils.jl")
-include("simulation_components/domains.jl")
 include("simulation_components/ocean_and_atmos.jl")
 include("simulation_components/model.jl")
 # Physical Processes

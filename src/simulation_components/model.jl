@@ -9,11 +9,11 @@ Checks if given rectangular domain is within given grid and gives user a warning
 if domain is not of maximum possible size given grid dimensions.
 Inputs:
     domain      <RectangularDomain>
-    grid        <AbstractGrid>
+    grid        <AbstractRectilinearGrid>
 Outputs:
     <Boolean> true if domain is within grid bounds, else false
 """
-function domain_in_grid(domain::Domain, grid::AbstractGrid)
+function domain_in_grid(domain::Domain, grid::AbstractRectilinearGrid)
     northval = domain.north.val
     southval = domain.south.val
     eastval = domain.east.val
@@ -46,7 +46,7 @@ run.
 """
 struct Model{
     FT<:AbstractFloat,             # float type
-    GT<:AbstractGrid{FT},          # grid type
+    GT<:AbstractRectilinearGrid{FT},          # grid type
     DT<:Domain{                    # domain type
         FT,
         <:AbstractBoundary,
@@ -70,7 +70,7 @@ struct Model{
         floes::FLT,
     ) where {
         FT<:AbstractFloat,
-        GT<:AbstractGrid{FT},
+        GT<:AbstractRectilinearGrid{FT},
         DT<:Domain{
             FT,
             <:AbstractBoundary,
@@ -106,7 +106,7 @@ struct Model{
         floes::FLT,
     ) where {
         FT<:AbstractFloat,
-        GT<:AbstractGrid{FT},
+        GT<:AbstractRectilinearGrid{FT},
         DT<:Domain{
             FT,
             <:AbstractBoundary,

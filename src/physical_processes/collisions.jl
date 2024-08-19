@@ -188,7 +188,7 @@ function calc_elastic_forces(
 end
 
 """
-    get_velocity(
+    _get_velocity(
         floe,
         x,
         y,
@@ -203,7 +203,7 @@ Outputs:
     u   <AbstractFloat> u velocity at point (x, y) assuming it is on given floe
     v   <AbstractFloat> v velocity at point (x, y) assuming it is on given floe
 """
-function get_velocity(
+function _get_velocity(
     floe::FloeType{FT},
     x::FT,
     y::FT,
@@ -212,29 +212,6 @@ function get_velocity(
     v = floe.v + floe.ξ * (y - floe.centroid[2])
     return u, v
 end
-
-"""
-    get_velocity(
-        element::AbstractDomainElement{FT},
-        x,
-        y,
-    )
-
-Get velocity, which is 0m/s by default, of a point on topography element or
-boundary. 
-"""
-get_velocity(
-    element::AbstractDomainElement{FT},
-    _,
-    _,
-) where {FT} = 
-    FT(0), FT(0)
-
-get_velocity(
-    element::MovingBoundary,
-    _,
-    _,
-) = element.u, element.v
 
 """
     calc_friction_forces(
@@ -278,8 +255,8 @@ function calc_friction_forces(
         px = fpoints[i, 1]
         py = fpoints[i, 2]
         nnorm = sqrt(normal[i, 1]^2 + normal[i, 2]^2)
-        iu, iv = get_velocity(ifloe, px, py)
-        ju, jv = get_velocity(jfloe, px, py)
+        iu, iv = _get_velocity(ifloe, px, py)
+        ju, jv = _get_velocity(jfloe, px, py)
 
         udiff = iu - ju
         vdiff = iv - jv

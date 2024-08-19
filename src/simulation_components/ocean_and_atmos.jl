@@ -151,7 +151,7 @@ end
 
 Construct model's ocean.
 Inputs:
-    grid    <AbstractGrid> model grid
+    grid    <AbstractRectilinearGrid> model grid
     u       <Real> ocean x-velocity for each grid line
     v       <Real> ocean y-velocity for each grid line
     temp    <Real> temperature at ocean/ice interface per grid cell
@@ -159,7 +159,7 @@ Output:
         Ocean with constant velocity and temperature on each grid line.
 """
 Ocean{FT}(
-    grid::AbstractGrid,
+    grid::AbstractRectilinearGrid,
     u,
     v,
     temp,
@@ -214,7 +214,7 @@ Atmos(args...) = Atmos{Float64}(args...)
 
 Construct model atmosphere of type FT.
 Inputs:
-    grid        <AbstractGrid> model's grid 
+    grid        <AbstractRectilinearGrid> model's grid 
     u           <Real> Atmos x-velocity for each grid cell
     v           <Real> Atmos y-velocity for each grid cell
     temp        <Real> temperature at atmopshere/ice interface per grid cell
@@ -222,7 +222,7 @@ Output:
     Atmosphere of type FT with constant velocity and temperature over domain.
 """
 Atmos{FT}(
-    grid::AbstractGrid,
+    grid::AbstractRectilinearGrid,
     u,
     v,
     temp,
