@@ -1,7 +1,11 @@
 [deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+GeoInterfaceMakie = "0edc0954-3250-4c18-859d-ec71c1660c08"
 Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
 
 [compat]
+CairoMakie = "0.5"
 Documenter = "1.5"
+GeoInterfaceMakie = "1.3"
 Literate = "2.19"
