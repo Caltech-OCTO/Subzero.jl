@@ -51,7 +51,7 @@ lines!(  # plot boundary of grid with a dashed line
 # Resize grid to layout
 colsize!(fig.layout, 1, Aspect(1, 2))
 resize_to_layout!(fig)
-fig
+fig  # display the figure
 
 # ### Creating a domain
 
@@ -84,5 +84,8 @@ west_bound = PeriodicBoundary(West; grid)
 # boundaries. We can also see that the boundaries overlap in the corners to ensure there is
 # a solid border around the grid.
 
-poly!([north_bound.poly, south_bound.poly, east_bound.poly, west_bound.poly]; color = [(:purple, 0.5), (:teal, 0.5), (:blue, 0.5), (:darkgreen, 0.5)])
-fig
+poly!(   # plot each of the boundaries a unique, 50% transparent color so we can see the overlap
+    [north_bound.poly, south_bound.poly, east_bound.poly, west_bound.poly];
+    color = [(:purple, 0.5), (:teal, 0.5), (:blue, 0.5), (:darkgreen, 0.5)],
+)
+fig  # display the figure

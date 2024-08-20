@@ -20,17 +20,16 @@ would create a new subtype of `AbstractDomainElement` and would need to write me
 the following functions:
 - `_get_velocity(element::AbstractDomainElement{FT}, x::FT, y::FT)`
 
-`_get_velocity` is called in `calc_friction_forces` and can also dispatch off of
-[`Floe`](@ref) object. It takes in a domain `element` and returns the velocity at the point
-`(x, y)`.
+The `_get_velocity` function gets the velocity of a domain `element` at the point (`x`, `y`).
+Given that currently implemented domain elements cannot rotate, the point at which the
+velocity is measured is irrelevant. Furthermore, all domain elements but
+[`MovingBoundary`](@ref) are stationary and thus have zero-velocity. This function is called
+in the `calc_friction_forces` function.
 
 If the user wanted new elements in the [`Domain`](@ref), the user would need to change the
 `Domain` struct.
 """
 abstract type AbstractDomainElement{FT<:AbstractFloat} end
-
-# Default function to return zero-velocities for domain elements. 
-_get_velocity(::AbstractDomainElement{FT}, _, _) where {FT} =  (zero(FT), zero(FT))
 
 """
     YourDirection <: AbstractDirection
@@ -94,12 +93,13 @@ an [`AbstractRectilinearGrid`](@ref) concrete type to define a boundary where `v
 the edge of the grid so that the boundaries form a border right around the grid.
 
 ## _API_
-- `_get_velocity(boundary::AbstractBoundary, x::AbstractFloat, y::AbstractFloat)`
+In addition to the below function, any new `AbstractBoundary` subtype must also implement
+[`AbstractDomain`](@ref) API functions.
+- `_update_boundary!(boundary::AbstractBoundary, Δt::Int)`
 
-The `_get_velocity` function gets the velocity of a boundary at the point (`x`, `y`). Given
-that currently implemented boundaries cannot rotate, the point at which the velocity is measured
-is irrelevant. Furthermore, all boundaries but [`MovingBoundary`](@ref) are stationary and thus
-have zero-velocity. This function is called in the `calc_friction_forces` function.
+The `_update_boundary!` function updates a boundary's position (by changing the `val` and
+`poly` fields) at every timestep. Currently, only `MovingBoundary` elements are updated, and
+their update depends on the length of the simulation's timestep, `Δt`.
 """
 abstract type AbstractBoundary{
     D<:AbstractDirection,

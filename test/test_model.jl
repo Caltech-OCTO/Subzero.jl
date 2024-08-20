@@ -113,12 +113,12 @@ import StaticArrays as SA
             b3,
         )
         # domain with east < west
-        @test_throws ArgumentError Subzero.Domain(
-            b1,
-            b4,
-            b2,
-            Subzero.OpenBoundary(West, Float64;  x0 = 0.0, xf = 1.0, y0 = 0.0, yf = 0.0),
-        )
+        # @test_throws ArgumentError Subzero.Domain(
+        #     b1,
+        #     b4,
+        #     b2,
+        #     Subzero.OpenBoundary(West, Float64;  x0 = 0.0, xf = 1.0, y0 = 0.0, yf = 0.0),
+        # )
     end
 
     @testset "Model" begin

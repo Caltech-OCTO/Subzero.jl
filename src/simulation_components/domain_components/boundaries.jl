@@ -482,8 +482,30 @@ function MovingBoundary(
     return MovingBoundary{D, FT}(poly, val, u, v)
 end
 
-# Return MovingBoundary velocity as assigned by the user
+# Return MovingBoundary velocity as assigned by the user.
 _get_velocity(boundary::MovingBoundary, _, _) = (boundary.u, boundary.v)
+
+#= Move North/South MovingBoundary according to v-velocity and length of timestep by
+changing the `poly` and `val` fields. =#
+function _update_boundary!(boundary::MovingBoundary{D, FT}, Δt) where {D <: Union{North, South}, FT}
+    (x0, xf), (y0, yf) = GI.extent(boundary.poly)
+    Δy = boundary.v * Δt
+    y0, yf = y0 + Δy, yf + Δy
+    boundary.poly = _make_bounding_box_polygon(FT, x0, xf, y0, yf)
+    boundary.val += Δy
+    return
+end
+
+#= Move East/West MovingBoundary according to u-velocity and length of timestep by
+changing the `poly` and `val` fields. =#
+function _update_boundary!(boundary::MovingBoundary{D, FT}, Δt) where {D <: Union{East, West}, FT}
+    (x0, xf), (y0, yf) = GI.extent(boundary.poly)
+    Δx = boundary.u * Δt
+    x0, xf = x0 + Δx, xf + Δx
+    boundary.poly = _make_bounding_box_polygon(FT, x0, xf, y0, yf)
+    boundary.val += Δx
+    return
+end
 
 # Pretty printing for CollisionBoundary showing key types and fields
 function Base.show(io::IO, moving_bound::MovingBoundary{D, FT}) where {D, FT}
@@ -500,3 +522,11 @@ end
 
 # Union of all non-peridic boundary types to use as shorthand for dispatch.
 const NonPeriodicBoundary = Union{OpenBoundary, CollisionBoundary, MovingBoundary}
+
+const StationaryBoundary{D, FT} = Union{OpenBoundary{D, FT}, CollisionBoundary{D, FT}, PeriodicBoundary{D, FT}} where {D, FT}
+
+# Return zero-velocities for StationaryBoundary.
+_get_velocity(::StationaryBoundary{D, FT}, _, _) where {D, FT} =  (zero(FT), zero(FT))
+
+# Do NOT update a StationaryBoundary during timestep.
+_update_boundary!(::StationaryBoundary, Δt) = return

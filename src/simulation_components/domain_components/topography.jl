@@ -67,3 +67,6 @@ function initialize_topography_field(
     end
     return topo_arr
 end
+
+# Return zero-velocities for topography elements 
+_get_velocity(::TopographyElement{FT}, _, _) where {FT} =  (zero(FT), zero(FT))

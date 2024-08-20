@@ -663,68 +663,17 @@ function floe_domain_element_interaction!(
 end
 
 """
-    update_boundary!(args...)
-
-No updates to boundaries that aren't compression boundaries.
-"""
-function update_boundary!(
-    boundary::Union{OpenBoundary, CollisionBoundary, PeriodicBoundary},
-    Δt,
-)
-    return
-end
-"""
-    update_boundary!(boundary, Δt)
-
-Move North/South compression boundaries by given velocity. Update coords and val
-fields to reflect new position.
-Inputs:
-    boundary    <MovingBoundary{Union{North, South}, AbstractFloat}> 
-                    domain compression boundary
-    Δt          <Int> number of seconds in a timestep
-Outputs:
-    None. Move boundary North or South depending on velocity.
-"""
-function update_boundary!(
-    boundary::MovingBoundary{D, FT},
-    Δt,
-) where {D <: Union{North, South}, FT <: AbstractFloat}
-    Δd = boundary.v * Δt
-    boundary.val += Δd
-    _translate_poly(FT, boundary.poly, zero(FT), Δd)
-end
-"""
-    update_boundary!(boundary, Δt)
-
-Move East/West compression boundaries by given velocity. Update coords and val
-fields to reflect new position.
-Inputs:
-    boundary    <MovingBoundary{Union{East, West}, AbstractFloat}> 
-                    domain compression boundary
-    Δt          <Int> number of seconds in a timestep
-Outputs:
-    None. Move boundary East/West depending on velocity.
-"""
-function update_boundary!(
-    boundary::MovingBoundary{D, FT},
-    Δt,
-) where {D <: Union{East, West}, FT <: AbstractFloat}
-    Δd = boundary.u * Δt
-    boundary.val += Δd
-    _translate_poly(FT, boundary.poly, Δd, zero(FT))
-end
-
-"""
     update_boundaries!(domain)
     
 Update each boundary in the domain. For now, this simply means moving
 compression boundaries by their velocities. 
 """
 function update_boundaries!(domain, Δt)
-    update_boundary!(domain.north, Δt)
-    update_boundary!(domain.south, Δt)
-    update_boundary!(domain.east, Δt)
-    update_boundary!(domain.west, Δt)
+    _update_boundary!(domain.north, Δt)
+    _update_boundary!(domain.south, Δt)
+    _update_boundary!(domain.east, Δt)
+    _update_boundary!(domain.west, Δt)
+    return
 end
 
 """
