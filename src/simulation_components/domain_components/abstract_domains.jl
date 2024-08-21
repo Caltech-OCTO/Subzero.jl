@@ -19,6 +19,7 @@ If the user wanted to add more domain elements, other than boundaries and topogr
 would create a new subtype of `AbstractDomainElement` and would need to write methods for
 the following functions:
 - `_get_velocity(element::AbstractDomainElement{FT}, x::FT, y::FT)`
+- `_normal_direction_correct!(forces::Matrix{FT}, fpoints{Matrix{FT}}, element::AbstractDomainElement{FT})`
 
 The `_get_velocity` function gets the velocity of a domain `element` at the point (`x`, `y`).
 Given that currently implemented domain elements cannot rotate, the point at which the
@@ -26,7 +27,15 @@ velocity is measured is irrelevant. Furthermore, all domain elements but
 [`MovingBoundary`](@ref) are stationary and thus have zero-velocity. This function is called
 in the `calc_friction_forces` function.
 
-If the user wanted new elements in the [`Domain`](@ref), the user would need to change the
+The `_normal_direction_correct` function updates the `forces` provided to it and zero's out
+any forces not in the normal direction, if applicable. Right now, this is used to ensure
+that the elastic collision with boundaries only produces a normal foces on floes. For other 
+domain elements (topography), this function does nothing.
+
+_Notes_:
+- If the user is wants to create a new boundary type, they must also implement the
+function in the [`AbstractBoundary`](@ref) API.
+- If the user wanted new elements in the [`Domain`](@ref), the user would need to change the
 `Domain` struct.
 """
 abstract type AbstractDomainElement{FT<:AbstractFloat} end
@@ -94,7 +103,8 @@ the edge of the grid so that the boundaries form a border right around the grid.
 
 ## _API_
 In addition to the below function, any new `AbstractBoundary` subtype must also implement
-[`AbstractDomain`](@ref) API functions.
+[`AbstractDomainElement`](@ref) API functions.
+
 - `_update_boundary!(boundary::AbstractBoundary, Δt::Int)`
 
 The `_update_boundary!` function updates a boundary's position (by changing the `val` and

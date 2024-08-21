@@ -29,7 +29,14 @@ the edge of the domain.
 function _boundary_info_from_extent(::Type{North}, ::Type{FT}, x0, xf, y0, yf) where FT
     Δx, Δy = (xf - x0)/2, (yf - y0)/2
     poly = _make_bounding_box_polygon(FT, x0 - Δx, xf + Δx, yf, yf + Δy)
-    return poly, yf
+    return poly, FT(yf)
+end
+
+#= For floe interaction points (fpoints) that cross over the North boundary, zero-out all
+forces in in direction not perpendicular to North boundary wall. =#
+function _normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{North, FT}) where FT
+    forces[fpoints[:, 2] .>= boundary.val, 1] .= FT(0.0)
+    return
 end
 
 """
@@ -58,7 +65,14 @@ the edge of the domain.
 function _boundary_info_from_extent(::Type{South}, ::Type{FT}, x0, xf, y0, yf) where FT
     Δx, Δy = (xf - x0)/2, (yf - y0)/2
     poly = _make_bounding_box_polygon(FT, x0 - Δx, xf + Δx, y0 - Δy, y0)
-    return poly, y0
+    return poly, FT(y0)
+end
+
+#= For floe interaction points (fpoints) that cross over the South boundary, zero-out all
+forces in in direction not perpendicular to South boundary wall. =#
+function _normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{South, FT}) where FT
+    forces[fpoints[:, 2] .<= boundary.val, 1] .= FT(0.0)
+    return
 end
 
 """
@@ -88,7 +102,14 @@ the edge of the domain.
 function _boundary_info_from_extent(::Type{East}, ::Type{FT}, x0, xf, y0, yf) where FT
     Δx, Δy = (xf - x0)/2, (yf - y0)/2
     poly = _make_bounding_box_polygon(FT, xf, xf + Δx, y0 - Δy, yf + Δy)
-    return poly, xf
+    return poly, FT(xf)
+end
+
+#= For floe interaction points (fpoints) that cross over the East boundary, zero-out all
+forces in in direction not perpendicular to East boundary wall. =#
+function _normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{East, FT}) where FT
+    forces[fpoints[:, 1] .>= boundary.val, 2] .= FT(0.0)
+    return
 end
 
 """
@@ -118,7 +139,14 @@ the edge of the domain.
 function _boundary_info_from_extent(::Type{West}, ::Type{FT}, x0, xf, y0, yf) where FT
     Δx, Δy = (xf - x0)/2, (yf - y0)/2
     poly = _make_bounding_box_polygon(FT, x0 - Δx, x0, y0 - Δy, yf + Δy)
-    return poly, x0
+    return poly, FT(x0)
+end
+
+#= For floe interaction points (fpoints) that cross over the West boundary, zero-out all
+forces in in direction not perpendicular to West boundary wall. =#
+function _normal_direction_correct!(forces, fpoints, boundary::AbstractBoundary{West, FT}) where FT
+    forces[fpoints[:, 1] .<= boundary.val, 2] .= FT(0.0)
+    return
 end
 
 # Concrete subtype of AbstractBoundary - see documentation below

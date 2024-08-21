@@ -1,72 +1,169 @@
 export TopographyElement  # Topographic element within domain
+export initialize_topography_field  # Function to create topography field for user
 
-"""
-    TopographyElement{FT}<:AbstractDomainElement{FT}
-
-Singular topographic element with coordinates field storing where the element is
-within the grid. These are used to create the desired topography within the
-simulation and will be treated as islands or coastline within the model
-in that they will not move or break due to floe interactions, but they will
-affect floes.
-"""
+# Concrete subtype of AbstractDomainElement - see documentation below
 struct TopographyElement{FT}<:AbstractDomainElement{FT}
     poly::Polys{FT}
     centroid::Vector{FT}
     rmax::FT
-
-    function TopographyElement{FT}(
-        poly,
-        centroid,
-        rmax,
-    ) where {FT <: AbstractFloat}
-        if rmax <= 0
-            throw(ArgumentError("Topography element maximum radius must be \
-                positive and non-zero."))
-        end
-        poly = GO.ClosedRing()(poly)
-        new{FT}(poly, centroid, rmax)
-    end
 end
 
-function TopographyElement(::Type{FT} = Float64; poly = nothing, coords = nothing) where FT
-    if isnothing(poly) && !isnothing(coords)
-        poly = make_polygon(coords)
-    elseif isnothing(poly)
-        throw(ArgumentError("To create a topography element the user must provide either a polygon (with the poly keyword) or coordinates (with the coord keyword)."))
-    end
+"""
+    TopographyElement{FT}<:AbstractDomainElement{FT}
+
+A concrete subtype of [`AbstractDomainElement`](@ref) that represent topography in a given
+simulation. These `TopographyElement` objects will be treated as be treated as islands or
+coastline within the model in that they will not move or break due to floe interactions, but
+they will affect floes that collide with them. 
+
+Similar to [`Floe`](@ref) objects, we store the shape of each `TopographyElement` with a
+`poly` field. We also store the `centroid` and the shape's maximum radius (`rmax`) in order
+to calculate simple interaction checks with Floes.
+
+## _Fields_
+- $POLY_DEF
+- $CENTROID_DEF
+- $RMAX_DEF
+
+Here is how to construct an `TopographyElement`:
+
+    TopographyElement([FT = Float64]; poly::Polys)
+
+The user must provide a `GeoInterface` polygon of the specific type defined by `Polys`.
+The user also has an opportunity to specify which float type `Float64` or `Float32` will be
+used for field data.
+
+## _Positional arguments_
+- $FT_DEF
+
+## _Keyword arguments_
+- $POLY_DEF
+
+## _Note_: The user should **NOT** be using this constructor. The user should create a topography
+field using [`initialize_topography_field`](@ref) rather than creating individual topography
+elements. This allows the abstraction of the use of the `StructArrays` package away from the
+user.
+
+## _Examples_
+```jldoctest
+julia> poly = GI.Polygon([[(0.0, 0.0), (0.0, 1e3), (1e3, 1e3), (1e3, 0.0), (0.0, 0.0)]])
+julia> TopographyElement(Float64; poly)
+TopographyElement with data of type Float64
+⊢centroid is (500.0, 500.0) in meters
+∟maximum radius is 707.1067811865476 meters
+```
+
+```jldoctest
+julia> poly = GI.Polygon([[(0, 0), (0, 1000), (1000, 1000), (1000, 0), (0, 0)]])
+julia> TopographyElement(Float32; poly)
+TopographyElement with data of type Float32
+⊢centroid is (500.0, 500.0) in meters
+∟maximum radius is 707.1068 meters
+```
+"""
+function TopographyElement(::Type{FT} = Float64; poly::Polys) where FT
     # Clean up polygon and calculate centroid and maximum radius
     poly = GO.ClosedRing()(poly)
     rmholes!(poly)
-    centroid = collect(GO.centroid(poly)) # TODO: Remove collect once type is changed
+    centroid = collect(GO.centroid(poly, FT)) # TODO: Remove collect once type is changed
     rmax = calc_max_radius(poly, centroid, FT)
     return TopographyElement{FT}(poly, centroid, rmax)
 end
 
-"""
-    initialize_topography_field(
-        ::Type{FT},
-        coords,
-    )
-
-Create a field of topography from a list of polygon coordiantes.
-Inputs:
-    Type{FT}        <AbstractFloat> Type for grid's numberical fields -
-                        determines simulation run type
-    coords          <Vector{PolyVec}> list of polygon coords to make into floes
-Outputs:
-    topo_arr <StructArray{TopographyElement}> list of topography elements
-    created from given polygon coordinates
-"""
-function initialize_topography_field(
-    ::Type{FT} = Float64; coords
-) where {FT <: AbstractFloat}
-    topo_multipoly = GO.DiffIntersectingPolygons()(GI.MultiPolygon(coords))
-    topo_arr = StructArray{TopographyElement{FT}}(undef, GI.npolygon(topo_multipoly))
-    for (i, poly) in enumerate(GI.getpolygon(topo_multipoly))
-        topo_arr[i] = TopographyElement(FT; poly)
-    end
-    return topo_arr
-end
-
 # Return zero-velocities for topography elements 
 _get_velocity(::TopographyElement{FT}, _, _) where {FT} =  (zero(FT), zero(FT))
+
+# No forces should be zero-ed out in collidions with topography elements, unlike boundaries.
+_normal_direction_correct!(_, _, ::TopographyElement) = return
+
+# Pretty printing for TopographyElement showing key types and fields
+function Base.show(io::IO, topo_element::TopographyElement{FT}) where FT
+    overall_summary = "TopographyElement with data of type $FT"
+    centroid_summary = "centroid is ($(GI.x(topo_element.centroid)), $(GI.y(topo_element.centroid))) in meters"
+    rmax_summary = "maximum radius is $(topo_element.rmax) meters"
+    print(io, overall_summary, "\n",
+        "⊢", centroid_summary, "\n",
+        "∟", rmax_summary)
+end
+
+"""
+    initialize_topography_field([::Type{FT} = Float64]; polys = nothing, coords = nothing)
+
+This function allows for easy initialization of a field of [`TopographyElement(@ref)s and
+collects them into a `StructArray` so that they can be passed into a [`Model`](@ref).
+
+This is the suggested way to create a topography field for a simulation. Do NOT construct
+individual `TopographyElement` objects as that method does not correct the field as a whole
+to ensure no topography polygons overlap and does not create a struct array that can be
+passed to a `Model`.
+
+The user can create a topography field by either passing a list of polygons or by passing
+a list of coordiantes, which will then be made into polygons.
+
+## _Positional arguments_
+- $FT_DEF
+
+## _Keyword arguments_
+- $POLY_LIST_DEF
+- $COORDS_LIST_DEF
+
+_Note_: Topography field elements must not be intersecting, so the corrections within this
+function may lead to more polygons than input to make a valid topography field.
+
+## _Examples_
+- Defining a topography field with coordinates
+```jldoctest topo_field
+julia> coords = [
+    [[(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (0.0, 0.0)]],  # first polygon coordinates
+    [[(10.0, 0.0), (10.0, 1.0), (11.0, 1.0), (10.0, 0.0)]],  # second polygon coordinates
+] 
+julia> initialize_topography_field(Float64; coords)
+2-element Topography Field with data of type Float64:
+ TopographyElement with data of type Float64
+⊢centroid is (0.3333333333333333, 0.6666666666666666) in meters
+∟maximum radius is 0.74535599249993 meters
+ TopographyElement with data of type Float64
+⊢centroid is (10.333333333333334, 0.6666666666666666) in meters
+∟maximum radius is 0.7453559924999301 meters
+```
+
+- Defining a topography field with polygons
+```jldoctest topo_field
+julia> polys = [GI.Polygon(c) for c in coords]
+julia> initialize_topography_field(Float32; polys)
+2-element Topography Field with data of type Float32:
+ TopographyElement with data of type Float32
+⊢centroid is (0.33333334, 0.6666667) in meters
+∟maximum radius is 0.745356 meters
+ TopographyElement with data of type Float32
+⊢centroid is (10.333333, 0.6666667) in meters
+∟maximum radius is 0.74535626 meters
+```
+"""
+function initialize_topography_field(::Type{FT} = Float64; polys = nothing, coords = nothing) where FT
+    # Make sure input given (if given) is turned into a list of polygons
+    if isnothing(polys) && !isnothing(coords)
+        polys = [make_polygon(c) for c in coords]
+    elseif isnothing(polys)  # & isnothing(coords)
+        throw(ArgumentError("To create a topography element the user must provide either a polygon (with the poly keyword) or coordinates (with the coord keyword)."))
+    end
+    # Make sure list of polygons is non-intersecting --> these polygons will form topography
+    topo_multipoly = GO.DiffIntersectingPolygons()(GI.MultiPolygon(polys))
+    # Make each polygon from multipolygon into a topography element
+    topo_field = StructArray{TopographyElement{FT}}(undef, GI.npolygon(topo_multipoly))
+    for (i, poly) in enumerate(GI.getpolygon(topo_multipoly))
+        topo_field[i] = TopographyElement(FT; poly)
+    end
+    return topo_field
+end
+
+# Alias for StructArray type with TopographyElement elements
+const TOPOGRAPHY_FIELD{FT} = StructArray{TopographyElement{FT}} where FT
+
+# Pretty printing for TOPOGRAPHY_FIELD showing key types and elements
+function Base.showarg(io::IO, ::TOPOGRAPHY_FIELD{FT}, toplevel) where FT
+    print(io, "Topography Field")
+    # showfields(io, Tuple(components(s)))
+    toplevel && print(io, " with data of type $FT")
+end
+

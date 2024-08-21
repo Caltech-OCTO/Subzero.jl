@@ -468,112 +468,6 @@ function floe_domain_element_interaction!(
 end
 
 """
-    normal_direction_correct!(
-        forces,
-        fpoints,
-        boundary::AbstractBoundary{North, <:AbstractFloat},
-    )
-
-Zero-out forces that point in direction not perpendicular to North boundary wall.
-Inputs:
-    force       <Array{Float, n, 2}> normal forces on each of the n regions
-                    greater than a minimum area
-    fpoint      <Array{Float, n, 2}> point force is applied on each of the n
-                    regions greater than a minimum area
-    boundary    <AbstractBoundary{North, <:AbstractFloat}> domain's northern
-                    boundary
-Outputs:
-    None. All forces in the x direction set to 0 if the point the force is
-    applied to is in the northern boundary.
-"""
-function normal_direction_correct!(
-    forces::Matrix{FT},
-    fpoints,
-    boundary::AbstractBoundary{North, <:AbstractFloat},
-) where {FT}
-    forces[fpoints[:, 2] .>= boundary.val, 1] .= FT(0.0)
-    return
-end
-
-"""
-    normal_direction_correct!(
-        forces,
-        fpoints,
-        boundary::AbstractBoundary{South, <:AbstractFloat},
-    )
-
-Zero-out forces that point in direction not perpendicular to South boundary wall.
-See normal_direction_correct! on northern wall for more information
-"""
-function normal_direction_correct!(
-    forces::Matrix{FT},
-    fpoints,
-    boundary::AbstractBoundary{South, <:AbstractFloat},
-) where {FT}
-        forces[fpoints[:, 2] .<= boundary.val, 1] .= FT(0.0)
-        return
-    end
-
-"""
-    normal_direction_correct!(
-        forces,
-        fpoints,
-        boundary::AbstractBoundary{East, <:AbstractFloat},
-    )
-
-Zero-out forces that point in direction not perpendicular to East boundary wall.
-See normal_direction_correct! on northern wall for more information
-"""
-function normal_direction_correct!(
-    forces::Matrix{FT},
-    fpoints,
-    boundary::AbstractBoundary{East, <:AbstractFloat},
-) where {FT}
-    forces[fpoints[:, 1] .>= boundary.val, 2] .= FT(0.0)
-    return
-end
-
-"""
-    normal_direction_correct!(
-        forces,
-        fpoints,
-        boundary::AbstractBoundary{<:AbstractFloat, West},
-    )
-
-Zero-out forces that point in direction not perpendicular to West boundary wall.
-See normal_direction_correct! on northern wall for more information
-"""
-function normal_direction_correct!(
-    forces::Matrix{FT},
-    fpoints,
-    boundary::AbstractBoundary{West, <:AbstractFloat},
-) where {FT}
-    forces[fpoints[:, 1] .<= boundary.val, 2] .= FT(0.0)
-    return
-end
-
-"""
-    normal_direction_correct!(
-        forces,
-        fpoints,
-        ::TopographyElement,
-    )
-
-No forces should be zero-ed out in collidions with topography elements. 
-Inputs:
-        None used.
-Outputs:
-        None.
-"""
-function normal_direction_correct!(
-    forces,
-    fpoints,
-    ::TopographyElement,
-)
-    return
-end
-
-"""
     floe_domain_element_interaction!(
         floe,
         element,
@@ -640,7 +534,7 @@ function floe_domain_element_interaction!(
                 region_areas,
                 force_factor,
             )
-            normal_direction_correct!(normal_forces, fpoints, element)
+            _normal_direction_correct!(normal_forces, fpoints, element)
             # Calculate frictional forces at each force point
             np = size(fpoints, 1)
             if np > 0
@@ -813,8 +707,7 @@ potential_interaction(
     centroid2,
     rmax1,
     rmax2,
-) = ((centroid1[1] - centroid2[1])^2 + (centroid1[2] - centroid2[2])^2) < 
-    (rmax1 + rmax2)^2
+) = ((centroid1[1] - centroid2[1])^2 + (centroid1[2] - centroid2[2])^2) < (rmax1 + rmax2)^2
 
 """
     timestep_collisions!(
