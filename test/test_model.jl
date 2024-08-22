@@ -78,7 +78,8 @@ import StaticArrays as SA
         b2 = Subzero.OpenBoundary(East; grid = g)
         b3 = Subzero.CollisionBoundary(West; grid = g)
         b4 = Subzero.PeriodicBoundary(South; grid = g)
-        topography = StructArray([Subzero.TopographyElement(; coords = [[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]])])
+        topography = initialize_topography_field(; coords = [[[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]]])
+        
         # test basic domain with no topography
         rdomain1 = Subzero.Domain(b1, b4, b2, b3)
         @test rdomain1.north == b1

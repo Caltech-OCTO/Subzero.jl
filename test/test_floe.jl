@@ -84,7 +84,7 @@
         sbound,
         ebound,
         wbound,
-        StructVector([TopographyElement(; coords = t) for t in [island, topo1]])
+        initialize_topography_field(; coords = [island, topo1])
     )
     topo_polys = Subzero.make_multipolygon([island, topo1])
 

@@ -28,7 +28,6 @@
     o_w_bound = OpenBoundary(West; grid)
 
     topos = initialize_topography_field(FT; coords = [[[[1e4, 0.0], [0.0, 1e4], [1e4, 2e4], [2e4, 1e4], [1e4, 0.0]]]])
-    # topos = StructArray([TopographyElement([[[1e4, 0.0], [0.0, 1e4], [1e4, 2e4], [2e4, 1e4], [1e4, 0.0]]])])
         
     topo_domain = Domain(p_n_bound, p_s_bound, c_e_bound, o_w_bound, topos)
     collision_domain = Domain(c_n_bound, c_s_bound, c_e_bound, c_w_bound)

@@ -419,17 +419,8 @@
             OpenBoundary(South; grid),
             OpenBoundary(East; grid),
             OpenBoundary(West; grid),
-            StructVector(
-                [TopographyElement(; coords = 
-                    [[
-                        [0.0, 1.05e4],
-                        [0.0, 1.15e4],
-                        [3e3, 1.15e4],
-                        [3e3, 1.05e4],
-                        [0.0, 1.05e4],
-                    ]],
-                )],
-            ),
+            initialize_topography_field(; coords = [[[
+                [0.0, 1.05e4], [0.0, 1.15e4], [3e3, 1.15e4], [3e3, 1.05e4], [0.0, 1.05e4]]]])
         )
         og_f1_area = floe_set2.area[1]
         total_mass = sum(floe_set2.mass)

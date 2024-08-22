@@ -139,6 +139,13 @@ julia> initialize_topography_field(Float32; polys)
 ⊢centroid is (10.333333, 0.6666667) in meters
 ∟maximum radius is 0.74535626 meters
 ```
+
+- Error defining a topography field without polys or coords
+```jldoctest
+julia> initialize_topography_field(Float64)
+ERROR: ArgumentError: To create a topography element the user must provide either a polygon (with the poly keyword) or coordinates (with the coord keyword).
+[...]
+```
 """
 function initialize_topography_field(::Type{FT} = Float64; polys = nothing, coords = nothing) where FT
     # Make sure input given (if given) is turned into a list of polygons
@@ -158,12 +165,10 @@ function initialize_topography_field(::Type{FT} = Float64; polys = nothing, coor
 end
 
 # Alias for StructArray type with TopographyElement elements
-const TOPOGRAPHY_FIELD{FT} = StructArray{TopographyElement{FT}} where FT
+const TopographyField{FT} = StructArray{TopographyElement{FT}} where FT
 
-# Pretty printing for TOPOGRAPHY_FIELD showing key types and elements
-function Base.showarg(io::IO, ::TOPOGRAPHY_FIELD{FT}, toplevel) where FT
-    print(io, "Topography Field")
-    # showfields(io, Tuple(components(s)))
+# Pretty printing for TopographyField showing key types and elements
+function Base.showarg(io::IO, ::TopographyField{FT}, toplevel) where FT
+    print(io, "TopographyField")
     toplevel && print(io, " with data of type $FT")
 end
-

@@ -72,13 +72,13 @@ end
         OpenBoundary(East; grid),
         OpenBoundary(West; grid),
     )
-    topo = TopographyElement(; coords = [[[-1e4, 0.0], [-2e4, 1e4], [-1e4, 1e4], [-1e4, 0.0]]])
+    topography = initialize_topography_field(; coords = [[[[-1e4, 0.0], [-2e4, 1e4], [-1e4, 1e4], [-1e4, 0.0]]]])
     open_domain_w_topography = Domain(
         OpenBoundary(North; grid),
         OpenBoundary(South; grid),
         OpenBoundary(East; grid),
         OpenBoundary(West; grid),
-        StructVector([topo])
+        topography
     )
     rng = Xoshiro(1)
     floe1 = [[[2e4, 2e4], [2e4, 5e4], [5e4, 5e4], [5e4, 2e4], [2e4, 2e4]]]
