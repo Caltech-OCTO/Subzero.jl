@@ -106,10 +106,15 @@ In addition to the below function, any new `AbstractBoundary` subtype must also 
 [`AbstractDomainElement`](@ref) API functions.
 
 - `_update_boundary!(boundary::AbstractBoundary, Δt::Int)`
+- `_periodic_compat(boundary1::AbstractBoundary, boundary2::AbstractBoundary)`
 
 The `_update_boundary!` function updates a boundary's position (by changing the `val` and
 `poly` fields) at every timestep. Currently, only `MovingBoundary` elements are updated, and
 their update depends on the length of the simulation's timestep, `Δt`.
+
+The `_periodic_compat` function determines if a pair of functions are "periodically compatible", 
+that is, could they form a pair on opposite edges of a domain to create a set of functioning
+periodic boundaries. It is called when creating a [`Domain`](@ref).
 """
 abstract type AbstractBoundary{
     D<:AbstractDirection,

@@ -155,15 +155,15 @@ be "trimmed" to the nearest full grid square in both directions.
 ```jldoctest
 julia> grid = RegRectilinearGrid(; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, Nx = 20, Ny = 10)
 RegRectilinearGrid{Float64}
-⊢x extent (0.0 to 500000.0) with 20 grid cells of size 25000.0 m
-∟y extent (0.0 to 500000.0) with 10 grid cells of size 50000.0 m
+  ⊢x extent (0.0 to 500000.0) with 20 grid cells of size 25000.0 m
+  ∟y extent (0.0 to 500000.0) with 10 grid cells of size 50000.0 m
 ```
 - Defining a `RegRectilinearGrid` using `Δx` and `Δy`.
 ```jldoctest
 julia> grid = RegRectilinearGrid(Float32; x0 = -5e5, xf = 5e5, y0 = 0.0, yf = 5e5, Δx = 5e4, Δy = 5e4)
 RegRectilinearGrid{Float32}
-⊢x extent (-500000.0 to 500000.0) with 20 grid cells of size 50000.0 m
-∟y extent (0.0 to 500000.0) with 10 grid cells of size 50000.0 m
+  ⊢x extent (-500000.0 to 500000.0) with 20 grid cells of size 50000.0 m
+  ∟y extent (0.0 to 500000.0) with 10 grid cells of size 50000.0 m
 ```
 - Error due to attemping to define a `RegRectilinearGrid` using `Δx` and `Ny`.
 ```jldoctest
@@ -214,6 +214,6 @@ function Base.show(io::IO, grid::RegRectilinearGrid{FT}) where FT
     x_summary = "x extent ($(grid.x0) to $(grid.xf)) with $(grid.Nx) grid cells of size $(grid.Δx) m"
     y_summary = "y extent ($(grid.y0) to $(grid.yf)) with $(grid.Ny) grid cells of size $(grid.Δy) m"
     print(io, overall_summary, "\n",
-        "⊢", x_summary, "\n",
-        "∟", y_summary)
+        "  ⊢", x_summary, "\n",
+        "  ∟", y_summary)
 end

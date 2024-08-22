@@ -41,26 +41,29 @@ grid = RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = 0.0, yf = 1e5, Nx = 20, Ny
 ````
 
 We plot a dashed box around the grid so that we can see the that the grid matches the extent given.
-We also place tick-marks at the desired grid cell lengths. We also set the plot's aspect ration to `2`
+We also place tick-marks at the desired grid cell lengths. Finally, set the plot's aspect ration to `2`
 as the x-extent is two-times larger than the y-extent.
 
 ````@example tutorial
 fig = Figure()
-Axis(fig[1, 1];
-    xminorticksvisible = true,
-    xminorgridvisible = true,
-    xticks = range(grid.x0, grid.xf, 5),
-    xminorticks = IntervalsBetween(4),
-    yminorticksvisible = true,
-    yminorgridvisible = true,
-    yticks = range(grid.y0, grid.yf, 5),
-    yminorticks = IntervalsBetween(2))
-lines!([grid.x0, grid.x0, grid.xf, grid.xf, grid.x0],  # point x-values
+Axis(fig[1, 1];  # set up axis tick marks to match grid cells
+    xticks = range(grid.x0, grid.xf, 5), xminorticks = IntervalsBetween(4),
+    xminorticksvisible = true, xminorgridvisible = true,
+    yticks = range(grid.y0, grid.yf, 5), yminorticks = IntervalsBetween(2),
+    yminorticksvisible = true, yminorgridvisible = true,
+)
+lines!(  # plot boundary of grid with a dashed line
+    [grid.x0, grid.x0, grid.xf, grid.xf, grid.x0],  # point x-values
     [grid.y0, grid.yf, grid.yf, grid.y0, grid.y0];  # point y-values
-    linestyle = :dash, linewidth = 2.0)
-colsize!(fig.layout, 1, Aspect(1, 2))  # Resize grid to layout
+    linestyle = :dash, linewidth = 3.0)
+````
+
+Resize grid to layout
+
+````@example tutorial
+colsize!(fig.layout, 1, Aspect(1, 2))
 resize_to_layout!(fig)
-fig
+fig  # display the figure
 ````
 
 ### Creating a domain
@@ -97,8 +100,11 @@ boundaries. We can also see that the boundaries overlap in the corners to ensure
 a solid border around the grid.
 
 ````@example tutorial
-poly!([north_bound.poly, south_bound.poly, east_bound.poly, west_bound.poly]; color = [(:purple, 0.5), (:teal, 0.5), (:blue, 0.5), (:darkgreen, 0.5)])
-fig
+poly!(   # plot each of the boundaries a unique, 50% transparent color so we can see the overlap
+    [north_bound.poly, south_bound.poly, east_bound.poly, west_bound.poly];
+    color = [(:purple, 0.5), (:teal, 0.5), (:blue, 0.5), (:darkgreen, 0.5)],
+)
+fig  # display the figure
 ````
 
 ---

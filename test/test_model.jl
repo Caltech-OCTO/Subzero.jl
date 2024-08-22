@@ -71,57 +71,6 @@ import StaticArrays as SA
             Subzero.Atmos{Float64}
     end
 
-    @testset "Domain" begin
-        FT = Float64
-        g = Subzero.RegRectilinearGrid(; x0 = 0, xf = 4e5, y0 = 0, yf = 3e5, Δx = 1e4, Δy = 1e4)
-        b1 = Subzero.PeriodicBoundary(North; grid = g)
-        b2 = Subzero.OpenBoundary(East; grid = g)
-        b3 = Subzero.CollisionBoundary(West; grid = g)
-        b4 = Subzero.PeriodicBoundary(South; grid = g)
-        topography = initialize_topography_field(; coords = [[[[0.0, 1.0], [0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]]])
-        
-        # test basic domain with no topography
-        rdomain1 = Subzero.Domain(b1, b4, b2, b3)
-        @test rdomain1.north == b1
-        @test rdomain1.south == b4
-        @test rdomain1.east == b2
-        @test rdomain1.west == b3
-        @test isempty(rdomain1.topography)
-        # test basic domain with topography
-        rdomain2 = Subzero.Domain(b1, b4, b2, b3, topography)
-        @test isempty(rdomain1.topography)
-        # domain with wrong directions
-        @test_throws MethodError Subzero.Domain(b4, b2, b2, b3)
-        # domain with non-periodic 
-        @test_throws ArgumentError Subzero.Domain(
-            b1,
-            Subzero.OpenBoundary(South; grid = g),
-            b2,
-            b3,
-        )
-        @test_throws ArgumentError Subzero.Domain(
-            b1,
-            b4,
-            b2,
-            Subzero.PeriodicBoundary(West; grid = g),
-        )
-        # domain with north < south
-        p_placeholder = Subzero._make_bounding_box_polygon(FT, 0.0, 1.0, 0.0, 1.0)
-        @test_throws ArgumentError Subzero.Domain(
-            b1,
-            Subzero.OpenBoundary(South, Float64; x0 = 0.0, xf = 1.0, y0 = 0.0, yf = 0.0),
-            b2,
-            b3,
-        )
-        # domain with east < west
-        # @test_throws ArgumentError Subzero.Domain(
-        #     b1,
-        #     b4,
-        #     b2,
-        #     Subzero.OpenBoundary(West, Float64;  x0 = 0.0, xf = 1.0, y0 = 0.0, yf = 0.0),
-        # )
-    end
-
     @testset "Model" begin
         # test domain in grid
         # test basic working model

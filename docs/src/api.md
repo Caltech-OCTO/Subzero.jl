@@ -37,8 +37,15 @@ CollisionBoundary
 MovingBoundary
 ```
 ### Topography
-
-### Domains
+```@docs
+TopographyElement
+initialize_topography_field
+TopographyField
+```
+### Domain
+```@docs
+Domain
+```
 
 ## Developer-Used Types
 ```@docs

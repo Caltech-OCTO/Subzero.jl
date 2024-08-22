@@ -1,5 +1,8 @@
 using Documenter, Literate
 using Subzero
+import GeoInterface as GI
+import GeometryOps as GO
+import LibGEOS as LG
 
 
 # Converting any files in the literate folder to markdown

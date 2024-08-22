@@ -123,4 +123,10 @@ end
     @test s_m.v != 0
     @test s_m.val == curr_val + Δy
     @test GO.equals(s_m.poly, Subzero._translate_poly(FT, curr_poly, 0.0, Δy))
+
+    # Check Periodic Compatability
+    @test !Subzero._periodic_compat(n_p, s_m)
+    @test !Subzero._periodic_compat(n_o, s_p)
+    @test Subzero._periodic_compat(n_p, s_p)
+    @test Subzero._periodic_compat(e_c, w_m)
 end

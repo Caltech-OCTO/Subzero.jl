@@ -45,20 +45,22 @@ elements. This allows the abstraction of the use of the `StructArrays` package a
 user.
 
 ## _Examples_
-```jldoctest
-julia> poly = GI.Polygon([[(0.0, 0.0), (0.0, 1e3), (1e3, 1e3), (1e3, 0.0), (0.0, 0.0)]])
+```jldoctest topography
+julia> import GeoInterface as GI;
+
+julia> poly = GI.Polygon([[(0.0, 0.0), (0.0, 1e3), (1e3, 1e3), (1e3, 0.0), (0.0, 0.0)]]);
+
 julia> TopographyElement(Float64; poly)
-TopographyElement with data of type Float64
-⊢centroid is (500.0, 500.0) in meters
-∟maximum radius is 707.1067811865476 meters
+TopographyElement{Float64}
+  ⊢centroid is (500.0, 500.0) in meters
+  ∟maximum radius is 707.1067811865476 meters
 ```
 
-```jldoctest
-julia> poly = GI.Polygon([[(0, 0), (0, 1000), (1000, 1000), (1000, 0), (0, 0)]])
+```jldoctest topography
 julia> TopographyElement(Float32; poly)
-TopographyElement with data of type Float32
-⊢centroid is (500.0, 500.0) in meters
-∟maximum radius is 707.1068 meters
+TopographyElement{Float32}
+  ⊢centroid is (500.0, 500.0) in meters
+  ∟maximum radius is 707.1068 meters
 ```
 """
 function TopographyElement(::Type{FT} = Float64; poly::Polys) where FT
@@ -78,12 +80,12 @@ _normal_direction_correct!(_, _, ::TopographyElement) = return
 
 # Pretty printing for TopographyElement showing key types and fields
 function Base.show(io::IO, topo_element::TopographyElement{FT}) where FT
-    overall_summary = "TopographyElement with data of type $FT"
+    overall_summary = "TopographyElement{$FT}"
     centroid_summary = "centroid is ($(GI.x(topo_element.centroid)), $(GI.y(topo_element.centroid))) in meters"
     rmax_summary = "maximum radius is $(topo_element.rmax) meters"
     print(io, overall_summary, "\n",
-        "⊢", centroid_summary, "\n",
-        "∟", rmax_summary)
+        "  ⊢", centroid_summary, "\n",
+        "  ∟", rmax_summary)
 end
 
 """
@@ -113,38 +115,38 @@ function may lead to more polygons than input to make a valid topography field.
 ## _Examples_
 - Defining a topography field with coordinates
 ```jldoctest topo_field
-julia> coords = [
-    [[(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (0.0, 0.0)]],  # first polygon coordinates
-    [[(10.0, 0.0), (10.0, 1.0), (11.0, 1.0), (10.0, 0.0)]],  # second polygon coordinates
-] 
+julia> coords = [[[(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (0.0, 0.0)]], [[(10.0, 0.0), (10.0, 1.0), (11.0, 1.0), (10.0, 0.0)]]];
+
 julia> initialize_topography_field(Float64; coords)
-2-element Topography Field with data of type Float64:
- TopographyElement with data of type Float64
-⊢centroid is (0.3333333333333333, 0.6666666666666666) in meters
-∟maximum radius is 0.74535599249993 meters
- TopographyElement with data of type Float64
-⊢centroid is (10.333333333333334, 0.6666666666666666) in meters
-∟maximum radius is 0.7453559924999301 meters
+2-element TopographyField{Float64} list:
+ TopographyElement{Float64}
+  ⊢centroid is (0.3333333333333333, 0.6666666666666666) in meters
+  ∟maximum radius is 0.74535599249993 meters
+ TopographyElement{Float64}
+  ⊢centroid is (10.333333333333334, 0.6666666666666666) in meters
+  ∟maximum radius is 0.7453559924999301 meters
 ```
 
 - Defining a topography field with polygons
 ```jldoctest topo_field
-julia> polys = [GI.Polygon(c) for c in coords]
+julia> import GeoInterface as GI;
+
+julia> polys = [GI.Polygon(c) for c in coords];
+
 julia> initialize_topography_field(Float32; polys)
-2-element Topography Field with data of type Float32:
- TopographyElement with data of type Float32
-⊢centroid is (0.33333334, 0.6666667) in meters
-∟maximum radius is 0.745356 meters
- TopographyElement with data of type Float32
-⊢centroid is (10.333333, 0.6666667) in meters
-∟maximum radius is 0.74535626 meters
+2-element TopographyField{Float32} list:
+ TopographyElement{Float32}
+  ⊢centroid is (0.33333334, 0.6666667) in meters
+  ∟maximum radius is 0.745356 meters
+ TopographyElement{Float32}
+  ⊢centroid is (10.333333, 0.6666667) in meters
+  ∟maximum radius is 0.74535626 meters
 ```
 
-- Error defining a topography field without polys or coords
+- Creating an empty topography field without polys or coords
 ```jldoctest
 julia> initialize_topography_field(Float64)
-ERROR: ArgumentError: To create a topography element the user must provide either a polygon (with the poly keyword) or coordinates (with the coord keyword).
-[...]
+0-element TopographyField{Float64} list
 ```
 """
 function initialize_topography_field(::Type{FT} = Float64; polys = nothing, coords = nothing) where FT
@@ -152,7 +154,7 @@ function initialize_topography_field(::Type{FT} = Float64; polys = nothing, coor
     if isnothing(polys) && !isnothing(coords)
         polys = [make_polygon(c) for c in coords]
     elseif isnothing(polys)  # & isnothing(coords)
-        throw(ArgumentError("To create a topography element the user must provide either a polygon (with the poly keyword) or coordinates (with the coord keyword)."))
+        return StructArray{TopographyElement{FT}}(undef, 0)
     end
     # Make sure list of polygons is non-intersecting --> these polygons will form topography
     topo_multipoly = GO.DiffIntersectingPolygons()(GI.MultiPolygon(polys))
@@ -164,11 +166,14 @@ function initialize_topography_field(::Type{FT} = Float64; polys = nothing, coor
     return topo_field
 end
 
-# Alias for StructArray type with TopographyElement elements
+"""
+    TopographyField{FT} 
+
+Alias for StructArray type with TopographyElement elements with data of type `FT`
+"""
 const TopographyField{FT} = StructArray{TopographyElement{FT}} where FT
 
 # Pretty printing for TopographyField showing key types and elements
 function Base.showarg(io::IO, ::TopographyField{FT}, toplevel) where FT
-    print(io, "TopographyField")
-    toplevel && print(io, " with data of type $FT")
+    print(io, "TopographyField{$FT} list")
 end

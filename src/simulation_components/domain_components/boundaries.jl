@@ -196,21 +196,19 @@ _Note:_ the user must either provide a `grid` OR all four (4) of `x0`, `xf`, `y0
 ## _Examples_
 - Defining a Northern `OpenBoundary` with Float64 (default type) data using the `grid` keyword.
 ```jldoctest
-julia> g = RegRectilinearGrid(x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, Nx = 20, Ny = 20)
-RegRectilinearGrid{Float64}
-⊢x extent (0.0 to 500000.0) with 20 grid cells of size 25000.0 m
-∟y extent (0.0 to 500000.0) with 20 grid cells of size 25000.0 m
+julia> g = RegRectilinearGrid(x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, Nx = 20, Ny = 20);
+
 julia> OpenBoundary(North; grid = g)
-OpenBoundary of direction North and with data of type Float64
-⊢polygon points are defined by the following set: (-250000.0, 750000.0), (750000.0, 500000.0), (750000.0, 750000.0), (-250000.0, 500000.0)
-∟val is 500000.0
+OpenBoundary{North, Float64}
+  ⊢polygon points are defined by the following set: (-250000.0, 750000.0), (750000.0, 500000.0), (750000.0, 750000.0), (-250000.0, 500000.0)
+  ∟val is 500000.0
 ```
 - Defining a Southern `OpenBoundary` with Float32 data using the `x0`, `xf`, `y0` and `yf` keywords.
 ```jldoctest
 julia> OpenBoundary(South, Float32; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5)
-OpenBoundary of direction South and with data of type Float32
-⊢polygon points are defined by the following set: (750000.0f0, 0.0f0), (750000.0f0, -250000.0f0), (-250000.0f0, 0.0f0), (-250000.0f0, -250000.0f0)
-∟val is 0.0
+OpenBoundary{South, Float32}
+  ⊢polygon points are defined by the following set: (750000.0f0, 0.0f0), (750000.0f0, -250000.0f0), (-250000.0f0, 0.0f0), (-250000.0f0, -250000.0f0)
+  ∟val is 0.0
 ```
 """
 function OpenBoundary(::Type{D}, ::Type{FT} = Float64; grid = nothing,
@@ -227,11 +225,11 @@ end
 
 # Pretty printing for OpenBoundary showing key types and fields
 function Base.show(io::IO, open_bound::OpenBoundary{D, FT}) where {D, FT}
-    overall_summary = "OpenBoundary of direction $D and with data of type $FT"
+    overall_summary = "OpenBoundary{$D, $FT}"
     points_summary, val_summary = show_boundary_poly_val_strings(open_bound)
     print(io, overall_summary, "\n",
-        "⊢", points_summary, "\n",
-        "∟", val_summary)
+        "  ⊢", points_summary, "\n",
+        "  ∟", val_summary)
 end
 
 # Concrete subtype of AbstractBoundary - see documentation below
@@ -281,21 +279,19 @@ _Note:_ the user must either provide a `grid` OR all four (4) of `x0`, `xf`, `y0
 ## _Examples_
 - Defining an Eastern `PeriodicBoundary` with Float32 data using the `grid` keyword.
 ```jldoctest
-julia> g = RegRectilinearGrid(Float32; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, Nx = 20, Ny = 20)
-RegRectilinearGrid{Float32}
-⊢x extent (0.0 to 500000.0) with 20 grid cells of size 25000.0 m
-∟y extent (0.0 to 500000.0) with 20 grid cells of size 25000.0 m
+julia> g = RegRectilinearGrid(Float32; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, Nx = 20, Ny = 20);
+
 julia> PeriodicBoundary(East; grid = g)
-PeriodicBoundary of direction East and with data of type Float64
-⊢polygon points are defined by the following set: (750000.0, -250000.0), (500000.0, -250000.0), (750000.0, 750000.0), (500000.0, 750000.0)
-∟val is 500000.0
+PeriodicBoundary{East, Float64}
+  ⊢polygon points are defined by the following set: (750000.0, -250000.0), (500000.0, -250000.0), (750000.0, 750000.0), (500000.0, 750000.0)
+  ∟val is 500000.0
 ```
 - Defining a Western `PeriodicBoundary` with Float64 data using the `x0`, `xf`, `y0` and `yf` keywords.
 ```jldoctest
 julia> PeriodicBoundary(West, Float64; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5)
-PeriodicBoundary of direction West and with data of type Float64
-⊢polygon points are defined by the following set: (0.0, -250000.0), (-250000.0, 750000.0), (0.0, 750000.0), (-250000.0, -250000.0)
-∟val is 0.0
+PeriodicBoundary{West, Float64}
+  ⊢polygon points are defined by the following set: (0.0, -250000.0), (-250000.0, 750000.0), (0.0, 750000.0), (-250000.0, -250000.0)
+  ∟val is 0.0
 ```
 """
 function PeriodicBoundary(::Type{D}, ::Type{FT} = Float64; grid = nothing,
@@ -312,11 +308,11 @@ end
 
 # Pretty printing for PeriodicBoundary showing key types and fields
 function Base.show(io::IO, periodic_bound::PeriodicBoundary{D, FT}) where {D, FT}
-    overall_summary = "PeriodicBoundary of direction $D and with data of type $FT"
+    overall_summary = "PeriodicBoundary{$D, $FT}"
     points_summary, val_summary = show_boundary_poly_val_strings(periodic_bound)
     print(io, overall_summary, "\n",
-        "⊢", points_summary, "\n",
-        "∟", val_summary)
+        "  ⊢", points_summary, "\n",
+        "  ∟", val_summary)
 end
 
 # Concrete type of AbstractBoundary - see documentation below
@@ -367,21 +363,19 @@ _Note:_ the user must either provide a `grid` OR all four (4) of `x0`, `xf`, `y0
 ## _Examples_
 - Defining an Northern `CollisionBoundary` with Float64 data using the `grid` keyword.
 ```jldoctest
-julia> g = RegRectilinearGrid(Float32; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, Nx = 20, Ny = 20)
-RegRectilinearGrid{Float32}
-⊢x extent (0.0 to 500000.0) with 20 grid cells of size 25000.0 m
-∟y extent (0.0 to 500000.0) with 20 grid cells of size 25000.0 m
+julia> g = RegRectilinearGrid(Float32; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, Nx = 20, Ny = 20);
+
 julia> CollisionBoundary(North; grid = g)
-CollisionBoundary of direction North and with data of type Float64
-⊢polygon points are defined by the following set: (-250000.0, 750000.0), (750000.0, 500000.0), (750000.0, 750000.0), (-250000.0, 500000.0)
-∟val is 500000.0
+CollisionBoundary{North, Float64}
+  ⊢polygon points are defined by the following set: (-250000.0, 750000.0), (750000.0, 500000.0), (750000.0, 750000.0), (-250000.0, 500000.0)
+  ∟val is 500000.0
 ```
 - Defining a Western `CollisionBoundary` with Float64 data using the `x0`, `xf`, `y0` and `yf` keywords.
 ```jldoctest
 julia> CollisionBoundary(West, Float32; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5)
-CollisionBoundary of direction West and with data of type Float32
-⊢polygon points are defined by the following set: (0.0f0, -250000.0f0), (-250000.0f0, 750000.0f0), (0.0f0, 750000.0f0), (-250000.0f0, -250000.0f0)
-∟val is 0.0
+CollisionBoundary{West, Float32}
+  ⊢polygon points are defined by the following set: (0.0f0, -250000.0f0), (-250000.0f0, 750000.0f0), (0.0f0, 750000.0f0), (-250000.0f0, -250000.0f0)
+  ∟val is 0.0
 ```
 """
 function CollisionBoundary(::Type{D}, ::Type{FT} = Float64; grid = nothing,
@@ -398,11 +392,11 @@ end
 
 # Pretty printing for CollisionBoundary showing key types and fields
 function Base.show(io::IO, collision_bound::CollisionBoundary{D, FT}) where {D, FT}
-    overall_summary = "CollisionBoundary of direction $D and with data of type $FT"
+    overall_summary = "CollisionBoundary{$D, $FT}"
     points_summary, val_summary = show_boundary_poly_val_strings(collision_bound)
     print(io, overall_summary, "\n",
-        "⊢", points_summary, "\n",
-        "∟", val_summary)
+        "  ⊢", points_summary, "\n",
+        "  ∟", val_summary)
 end
 
 # Concrete type of AbstractBoundary - see documentation below
@@ -470,26 +464,24 @@ If the user does not provide values for `u` or `v`, the boundary will not move.
 ## _Examples_
 - Defining an Northern `MovingBoundary` with Float64 data using the `grid` keyword. Assigning u-velocity of 0.5m/s.
 ```jldoctest
-julia> g = RegRectilinearGrid(Float32; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, Nx = 20, Ny = 20)
-RegRectilinearGrid{Float32}
-⊢x extent (0.0 to 500000.0) with 20 grid cells of size 25000.0 m
-∟y extent (0.0 to 500000.0) with 20 grid cells of size 25000.0 m
+julia> g = RegRectilinearGrid(Float32; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, Nx = 20, Ny = 20);
+
 julia> MovingBoundary(North; u = 0.5, grid = g)
-MovingBoundary of direction North and with data of type Float64
-⊢polygon points are defined by the following set: (-250000.0, 750000.0), (750000.0, 500000.0), (750000.0, 750000.0), (-250000.0, 500000.0)
-⊢val is 500000.0
-⊢u-velocity is 0.5 m/s
-∟v-velocity is 0.0 m/s
+MovingBoundary{North, Float64}
+  ⊢polygon points are defined by the following set: (-250000.0, 750000.0), (750000.0, 500000.0), (750000.0, 750000.0), (-250000.0, 500000.0)
+  ⊢val is 500000.0
+  ⊢u-velocity of 0.5 m/s
+  ∟v-velocity of 0.0 m/s
 ```
 - Defining a Southern `MovingBoundary` with Float32 data using the `x0`, `xf`, `y0` and `yf` keywords.
 Assigning u-velocity of 0.3 m/s and v-velocity of 0.25 m/s
 ```jldoctest
 julia> MovingBoundary(South, Float32; u = 0.3, v = 0.25, x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5)
-MovingBoundary of direction South and with data of type Float32
-⊢polygon points are defined by the following set: (750000.0f0, 0.0f0), (750000.0f0, -250000.0f0), (-250000.0f0, 0.0f0), (-250000.0f0, -250000.0f0)
-⊢val is 0.0
-⊢u-velocity is 0.3 m/s
-∟v-velocity is 0.25 m/s
+MovingBoundary{South, Float32}
+  ⊢polygon points are defined by the following set: (750000.0f0, 0.0f0), (750000.0f0, -250000.0f0), (-250000.0f0, 0.0f0), (-250000.0f0, -250000.0f0)
+  ⊢val is 0.0
+  ⊢u-velocity of 0.3 m/s
+  ∟v-velocity of 0.25 m/s
 ```
 """
 function MovingBoundary(
@@ -537,15 +529,15 @@ end
 
 # Pretty printing for CollisionBoundary showing key types and fields
 function Base.show(io::IO, moving_bound::MovingBoundary{D, FT}) where {D, FT}
-    overall_summary = "MovingBoundary of direction $D and with data of type $FT"
+    overall_summary = "MovingBoundary{$D, $FT}"
     points_summary, val_summary = show_boundary_poly_val_strings(moving_bound)
-    u_velocity_summary = "u-velocity is $(moving_bound.u) m/s"
-    v_velocity_summary = "v-velocity is $(moving_bound.v) m/s"
+    u_velocity_summary = "u-velocity of $(moving_bound.u) m/s"
+    v_velocity_summary = "v-velocity of $(moving_bound.v) m/s"
     print(io, overall_summary, "\n",
-        "⊢", points_summary, "\n",
-        "⊢", val_summary, "\n",
-        "⊢", u_velocity_summary, "\n",
-        "∟", v_velocity_summary)
+        "  ⊢", points_summary, "\n",
+        "  ⊢", val_summary, "\n",
+        "  ⊢", u_velocity_summary, "\n",
+        "  ∟", v_velocity_summary)
 end
 
 # Union of all non-peridic boundary types to use as shorthand for dispatch.
@@ -558,3 +550,12 @@ _get_velocity(::StationaryBoundary{D, FT}, _, _) where {D, FT} =  (zero(FT), zer
 
 # Do NOT update a StationaryBoundary during timestep.
 _update_boundary!(::StationaryBoundary, Δt) = return
+
+#= Boundaries across from one another (North and South OR East and West) are "periodically
+compatible" if they are either both periodic, or if neither is periodic. This is because if
+a floe exits a periodic boundary, it must be able to re-enter the opposite boundary to
+fulfill its definition of periodic. This function is used to define valid domain walls.=#
+_periodic_compat(::PeriodicBoundary, ::PeriodicBoundary) = true
+_periodic_compat(::PeriodicBoundary, ::NonPeriodicBoundary) = false
+_periodic_compat(::NonPeriodicBoundary, ::PeriodicBoundary) = false
+_periodic_compat(::NonPeriodicBoundary, ::NonPeriodicBoundary) = true
