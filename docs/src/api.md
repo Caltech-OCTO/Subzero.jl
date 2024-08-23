@@ -7,12 +7,46 @@ CurrentModule = Subzero
 !!! warning
     This page is still very much WIP!
 
-Documentation for [Subzero](https://github.com/Caltech-OCTO/Subzero.jl)'s full API (only for reference!).
+## Grids
 
-```@index
+```@docs
+AbstractRectilinearGrid
+RegRectilinearGrid
 ```
 
-## All methods
-```@autodocs
-Modules = [Subzero]
+## Directions
+```@docs
+AbstractDirection
+North
+South
+East
+West
+```
+## Boundaries
+```@docs
+AbstractBoundary
+OpenBoundary
+PeriodicBoundary
+CollisionBoundary
+MovingBoundary
+```
+## Topography
+```@docs
+TopographyElement
+initialize_topography_field
+```
+## Domain
+```@docs
+Domain
+```
+
+### Model
+```@docs
+Model
+```
+
+## Developer-Used Types
+```@docs
+CellFloes
+TopographyField
 ```

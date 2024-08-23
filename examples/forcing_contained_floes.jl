@@ -10,12 +10,8 @@ const Δh = 0.0
 const Δt = 20
 
 # Model instantiation
-grid = RegRectilinearGrid(
-    (0.0, Lx),
-    (0.0, Ly),
-    Δgrid,
-    Δgrid,
-)
+grid = RegRectilinearGrid(; x0 = 0.0, xf = Lx, y0 = 0.0, yf = Ly, Δx = Δgrid, Δy = Δgrid)
+
 # Set ocean u velocities
 ocean_uvels = zeros(FT, (grid.Nx + 1, grid.Ny + 1))
 for i in CartesianIndices(ocean_uvels)
@@ -48,12 +44,12 @@ ocean = Ocean(
 atmos = Atmos(grid, 0.0, 0.0, -1.0)
 
 # Domain creation
-nboundary = OpenBoundary(North, grid)
-sboundary = OpenBoundary(South, grid)
-eboundary = OpenBoundary(East, grid)
-wboundary = OpenBoundary(West, grid)
+nboundary = OpenBoundary(North; grid)
+sboundary = OpenBoundary(South; grid)
+eboundary = OpenBoundary(East; grid)
+wboundary = OpenBoundary(West; grid)
 
-domain = Domain(nboundary, sboundary, eboundary, wboundary)
+domain = Domain(; north = nboundary, south = sboundary, east = eboundary, west = wboundary)
 
 floe_settings = FloeSettings(
     subfloe_point_generator = SubGridPointsGenerator(grid, 2),

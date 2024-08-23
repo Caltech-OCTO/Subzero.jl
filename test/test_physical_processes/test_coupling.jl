@@ -163,12 +163,7 @@
     end
 
     @testset "Coupling Helper Functions" begin
-        grid = Subzero.RegRectilinearGrid(
-            (-10, 10),
-            (-8, 8),
-            2,
-            4,
-        )
+        grid = Subzero.RegRectilinearGrid(; x0 = -10, xf = 10, y0 = -8, yf = 8, Δx = 2, Δy = 4)
         # Test find_cell_indices
         xpoints = [-10.5, -10, -10, -6.5, -6, -4, 10, 10.5, 12]
         ypoints = [0.0, 6.0, -8.0, 4.5, 0.0, 5.0, -8.0, 0.0, 0.0]
@@ -183,8 +178,8 @@
         end
 
         # Test filter_oob_points
-        open_bound = Subzero.OpenBoundary(East, grid)
-        periodic_bound = Subzero.PeriodicBoundary(East, grid)
+        open_bound = Subzero.OpenBoundary(East; grid)
+        periodic_bound = Subzero.PeriodicBoundary(East; grid)
         x = [-12, -10, -8, -6, 0, 4, 4, 10, 12, 12]
         y = [5, -6, 4, 10, -10, 8, -8, -6, 4, 10]
         open_open_answers = [false, true, true, false, false, true, true, true, false, false]
@@ -469,19 +464,14 @@
     @testset "OA Forcings" begin
     #     # set up model and floe
         FT = Float64
-        grid = Subzero.RegRectilinearGrid(
-            (-1e5, 1e5),
-            (-1e5, 1e5),
-            1e4,
-            1e4,
-        )
+        grid = Subzero.RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = -1e5, yf = 1e5, Δx = 1e4, Δy = 1e4)
         zonal_ocean = Subzero.Ocean(grid, 1.0, 0.0, 0.0)
         zero_atmos = Subzero.Atmos(grid, 0.0, 0.0, -20.0)
-        domain = Subzero.Domain(
-            CollisionBoundary(North, grid),
-            CollisionBoundary(South, grid),
-            CollisionBoundary(East, grid),
-            CollisionBoundary(West, grid),
+        domain = Subzero.Domain(;
+            north = CollisionBoundary(North; grid),
+            south = CollisionBoundary(South; grid),
+            east = CollisionBoundary(East; grid),
+            west = CollisionBoundary(West; grid),
         )
         floe = Subzero.Floe(
             [[

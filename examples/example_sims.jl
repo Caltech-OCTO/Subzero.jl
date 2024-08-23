@@ -25,10 +25,10 @@ floe1 = Floe(floe1_poly, hmean, Δh, u = 1.0)
 floe_arr = StructArray([floe1])
 
 # Floe hitting topography
-topo = TopographyElement([[[0.5e4, 5e4], [0.5e4, 7e4], [1e4, 7e4], [1e4, 5e4], [0.5e4, 5e4]]])
+topo = TopographyElement(; coords = [[[0.5e4, 5e4], [0.5e4, 7e4], [1e4, 7e4], [1e4, 5e4], [0.5e4, 5e4]]])
 topo_arr = StructVector([topo for i in 1:1])
 
-domain = Subzero.Domain(nboundary, sboundary, eboundary, wboundary, topo_arr)
+domain = Subzero.Domain(; north = nboundary, south = sboundary, east = eboundary, west = wboundary, topography = topo_arr)
 
 floe1_poly = LG.Polygon([[[-1.75e4, 5e4], [-1.75e4, 7e4], [-1.25e4, 7e4], 
                     [-1.25e4, 5e4], [-1.75e4, 5e4]]])

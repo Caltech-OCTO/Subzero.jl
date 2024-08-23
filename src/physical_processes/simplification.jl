@@ -268,7 +268,7 @@ Remove floes marked for removal and dissolve floes smaller than minimum floe
 area if the dissolve setting is on.
 Inputs:
     floes           <StructArray{Floe}> model's floes
-    grid            <AbstractGrid> model's grid
+    grid            <AbstractRectilinearGrid> model's grid
     domain          <Domain> model's domain
     dissolved       <Matrix{AbstractFloat}> ocean's dissolved field
     floe_settings   <FloeSettings> simulation's settings for making floes

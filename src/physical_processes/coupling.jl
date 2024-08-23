@@ -609,7 +609,7 @@ Calculates subfloe point's cartesian coordiantes, polar coordiantes,
 velocity and index within the grid. 
 Inputs:
     floe        <Union{Floe{AbstractFloat}, LazyRow{Floe{AbstractFloat}}}> floe
-    grid        <AbstractGrid> model's grid
+    grid        <AbstractRectilinearGrid> model's grid
     domain      <Domain> model's domain
     mc_cart     <Matrix{AbstractFloat}> pre-allocated nx2 matrix for floe's
                     monte carlo point's cartesian coordinates where the first
@@ -820,7 +820,7 @@ Inputs:
                             grid - nx2 matrix of indices where the first column
                             is the grid column index and the second column is
                             the grid row index for cells centered on grid lines
-    grid                <AbstractGrid> model grid
+    grid                <AbstractRectilinearGrid> model grid
     domain              <Domain> model domain
     atmos               <Atmos> model atmosphere
     ocean               <Ocean> model ocean
@@ -921,7 +921,7 @@ Inputs:
     xmax    <Float> center cell maxumum x value
     ymin    <Float> center cell minimum y value
     ymax    <Float> center cell maximum y value
-    grid    <AbstractGrid> model's grid
+    grid    <AbstractRectilinearGrid> model's grid
             <PeriodicBoundary> type of north or south boundary - periodic pair
             <PeriodicBoundary> type of east or west boundary - periodic pair
 Output:
@@ -958,7 +958,7 @@ Inputs:
     xmax    <Float> center cell maxumum x value
     ymin    <Float> center cell minimum y value
     ymax    <Float> center cell maximum y value
-    grid    <AbstractGrid>
+    grid    <AbstractRectilinearGrid>
             <NonPeriodicBoundary> type of either north or south boundary - not a
                 periodic pair
             <PeriodicBoundary> type of either east or west boundary - periodic
@@ -1004,7 +1004,7 @@ Inputs:
     xmax    <Float> center cell maxumum x value
     ymin    <Float> center cell minimum y value
     ymax    <Float> center cell maximum y value
-    grid    <AbstractGrid>
+    grid    <AbstractRectilinearGrid>
             <PeriodicBoundary> type of either north or south boundary - periodic
                 pair
             <NonPeriodicBoundary> type of either east or west boundary - not a
@@ -1050,7 +1050,7 @@ Inputs:
     xmax    <Float> center cell maxumum x value
     ymin    <Float> center cell minimum y value
     ymax    <Float> center cell maximum y value
-    grid    <AbstractGrid>
+    grid    <AbstractRectilinearGrid>
             <NonPeriodicBoundary> type of either north or south boundary - not a
                 periodic pair
             <NonPeriodicBoundary> type of either east or west boundary - not a
@@ -1406,7 +1406,7 @@ Inputs:
                             centered on grid lines
     τx_ocn              <AbstractFloat> x-stress caused by ocean on point
     τy_ocn              <AbstractFloat> y-stress caused by ocean on point
-    grid                <AbstractGrid> model's grid
+    grid                <AbstractRectilinearGrid> model's grid
     domain              <Domain> model's domain
     cell_floes          <Matrix{CellFloes}> matrix of CellFloes, one for each
                             grid cell
@@ -1472,7 +1472,7 @@ stress on each grid cell per-floe in grid cell is also recorded for use in
 calc_two_way_coupling!
 Inputs:
     floes               <StructArray{Floe{FT}}> model's floe list
-    grid                <AbstractGrid> model's grid
+    grid                <AbstractRectilinearGrid> model's grid
     atmos               <Ocean> model's atmosphere
     ocean               <Ocean> model's ocean
     domain              <Domain> model's domain
@@ -1604,7 +1604,7 @@ Calculate effects of ice and atmosphere on the ocean and update ocean stress
 fields and sea ice fraction.
 Inputs:
     floes           <StructArray{Floe}> model's floes
-    grid            <AbstractGrid> model's grid
+    grid            <AbstractRectilinearGrid> model's grid
     atmos           <Atmos> model's atmosphere
     ocean           <Ocean> model's ocean
     domain          <Domain> model's domain

@@ -15,25 +15,19 @@ const coarse_nx = 10
 const coarse_ny = 10
 
 # Model instantiation
-grid = RegRectilinearGrid(
-    FT,
-    (-Lx, Lx),
-    (-Ly, Ly),
-    Δgrid,
-    Δgrid,
-)
+grid = RegRectilinearGrid(FT; x0 = -Lx, xf = Lx, y0 = -Ly, yf = Ly, Δx = Δgrid, Δy = Δgrid)
 
 ocean = Ocean(FT, grid, -0.2, 0.0, -1.0)
 
 atmos = Atmos(FT, grid, 0.0, 0.0, -3.0)
 
 # Domain creation - boundaries and topography
-nboundary = OpenBoundary(FT, North, grid)
-sboundary = OpenBoundary(FT, South, grid)
-eboundary = OpenBoundary(FT, East, grid)
-wboundary = OpenBoundary(FT, West, grid)
+nboundary = OpenBoundary(North, FT; grid)
+sboundary = OpenBoundary(South, FT; grid)
+eboundary = OpenBoundary(East, FT; grid)
+wboundary = OpenBoundary(West, FT; grid)
 
-domain = Subzero.Domain(nboundary, sboundary, eboundary, wboundary)
+domain = Subzero.Domain(; north = nboundary, south = sboundary, east = eboundary, west = wboundary)
 
 # Floe instantiation
 nfloes = 100

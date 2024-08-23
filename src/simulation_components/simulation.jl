@@ -48,7 +48,7 @@ The user can also define settings for each physical process.
 """
 @kwdef struct Simulation{
     FT<:AbstractFloat,
-    MT<:Model{FT, <:AbstractGrid, <:Domain},
+    MT<:Model{FT, <:AbstractRectilinearGrid, <:Domain},
     CT<:AbstractFractureCriteria,
     PT<:AbstractSubFloePointsGenerator{FT},
     ST<:AbstractStressCalculator{FT},

@@ -188,7 +188,7 @@ function calc_elastic_forces(
 end
 
 """
-    get_velocity(
+    _get_velocity(
         floe,
         x,
         y,
@@ -203,7 +203,7 @@ Outputs:
     u   <AbstractFloat> u velocity at point (x, y) assuming it is on given floe
     v   <AbstractFloat> v velocity at point (x, y) assuming it is on given floe
 """
-function get_velocity(
+function _get_velocity(
     floe::FloeType{FT},
     x::FT,
     y::FT,
@@ -212,29 +212,6 @@ function get_velocity(
     v = floe.v + floe.ξ * (y - floe.centroid[2])
     return u, v
 end
-
-"""
-    get_velocity(
-        element::AbstractDomainElement{FT},
-        x,
-        y,
-    )
-
-Get velocity, which is 0m/s by default, of a point on topography element or
-boundary. 
-"""
-get_velocity(
-    element::AbstractDomainElement{FT},
-    _,
-    _,
-) where {FT} = 
-    FT(0), FT(0)
-
-get_velocity(
-    element::MovingBoundary,
-    _,
-    _,
-) = element.u, element.v
 
 """
     calc_friction_forces(
@@ -278,8 +255,8 @@ function calc_friction_forces(
         px = fpoints[i, 1]
         py = fpoints[i, 2]
         nnorm = sqrt(normal[i, 1]^2 + normal[i, 2]^2)
-        iu, iv = get_velocity(ifloe, px, py)
-        ju, jv = get_velocity(jfloe, px, py)
+        iu, iv = _get_velocity(ifloe, px, py)
+        ju, jv = _get_velocity(jfloe, px, py)
 
         udiff = iu - ju
         vdiff = iv - jv
@@ -491,112 +468,6 @@ function floe_domain_element_interaction!(
 end
 
 """
-    normal_direction_correct!(
-        forces,
-        fpoints,
-        boundary::AbstractBoundary{North, <:AbstractFloat},
-    )
-
-Zero-out forces that point in direction not perpendicular to North boundary wall.
-Inputs:
-    force       <Array{Float, n, 2}> normal forces on each of the n regions
-                    greater than a minimum area
-    fpoint      <Array{Float, n, 2}> point force is applied on each of the n
-                    regions greater than a minimum area
-    boundary    <AbstractBoundary{North, <:AbstractFloat}> domain's northern
-                    boundary
-Outputs:
-    None. All forces in the x direction set to 0 if the point the force is
-    applied to is in the northern boundary.
-"""
-function normal_direction_correct!(
-    forces::Matrix{FT},
-    fpoints,
-    boundary::AbstractBoundary{North, <:AbstractFloat},
-) where {FT}
-    forces[fpoints[:, 2] .>= boundary.val, 1] .= FT(0.0)
-    return
-end
-
-"""
-    normal_direction_correct!(
-        forces,
-        fpoints,
-        boundary::AbstractBoundary{South, <:AbstractFloat},
-    )
-
-Zero-out forces that point in direction not perpendicular to South boundary wall.
-See normal_direction_correct! on northern wall for more information
-"""
-function normal_direction_correct!(
-    forces::Matrix{FT},
-    fpoints,
-    boundary::AbstractBoundary{South, <:AbstractFloat},
-) where {FT}
-        forces[fpoints[:, 2] .<= boundary.val, 1] .= FT(0.0)
-        return
-    end
-
-"""
-    normal_direction_correct!(
-        forces,
-        fpoints,
-        boundary::AbstractBoundary{East, <:AbstractFloat},
-    )
-
-Zero-out forces that point in direction not perpendicular to East boundary wall.
-See normal_direction_correct! on northern wall for more information
-"""
-function normal_direction_correct!(
-    forces::Matrix{FT},
-    fpoints,
-    boundary::AbstractBoundary{East, <:AbstractFloat},
-) where {FT}
-    forces[fpoints[:, 1] .>= boundary.val, 2] .= FT(0.0)
-    return
-end
-
-"""
-    normal_direction_correct!(
-        forces,
-        fpoints,
-        boundary::AbstractBoundary{<:AbstractFloat, West},
-    )
-
-Zero-out forces that point in direction not perpendicular to West boundary wall.
-See normal_direction_correct! on northern wall for more information
-"""
-function normal_direction_correct!(
-    forces::Matrix{FT},
-    fpoints,
-    boundary::AbstractBoundary{West, <:AbstractFloat},
-) where {FT}
-    forces[fpoints[:, 1] .<= boundary.val, 2] .= FT(0.0)
-    return
-end
-
-"""
-    normal_direction_correct!(
-        forces,
-        fpoints,
-        ::TopographyElement,
-    )
-
-No forces should be zero-ed out in collidions with topography elements. 
-Inputs:
-        None used.
-Outputs:
-        None.
-"""
-function normal_direction_correct!(
-    forces,
-    fpoints,
-    ::TopographyElement,
-)
-    return
-end
-
-"""
     floe_domain_element_interaction!(
         floe,
         element,
@@ -663,7 +534,7 @@ function floe_domain_element_interaction!(
                 region_areas,
                 force_factor,
             )
-            normal_direction_correct!(normal_forces, fpoints, element)
+            _normal_direction_correct!(normal_forces, fpoints, element)
             # Calculate frictional forces at each force point
             np = size(fpoints, 1)
             if np > 0
@@ -686,70 +557,17 @@ function floe_domain_element_interaction!(
 end
 
 """
-    update_boundary!(args...)
-
-No updates to boundaries that aren't compression boundaries.
-"""
-function update_boundary!(
-    boundary::Union{OpenBoundary, CollisionBoundary, PeriodicBoundary},
-    Δt,
-)
-    return
-end
-"""
-    update_boundary!(boundary, Δt)
-
-Move North/South compression boundaries by given velocity. Update coords and val
-fields to reflect new position.
-Inputs:
-    boundary    <MovingBoundary{Union{North, South}, AbstractFloat}> 
-                    domain compression boundary
-    Δt          <Int> number of seconds in a timestep
-Outputs:
-    None. Move boundary North or South depending on velocity.
-"""
-function update_boundary!(
-    boundary::MovingBoundary{D, FT},
-    Δt,
-) where {D <: Union{North, South}, FT <: AbstractFloat}
-    Δd = boundary.v * Δt
-    boundary.val += Δd
-    translate!(boundary.coords, zero(FT), Δd)
-    _translate_poly(FT, boundary.poly, zero(FT), Δd)
-end
-"""
-    update_boundary!(boundary, Δt)
-
-Move East/West compression boundaries by given velocity. Update coords and val
-fields to reflect new position.
-Inputs:
-    boundary    <MovingBoundary{Union{East, West}, AbstractFloat}> 
-                    domain compression boundary
-    Δt          <Int> number of seconds in a timestep
-Outputs:
-    None. Move boundary East/West depending on velocity.
-"""
-function update_boundary!(
-    boundary::MovingBoundary{D, FT},
-    Δt,
-) where {D <: Union{East, West}, FT <: AbstractFloat}
-    Δd = boundary.u * Δt
-    boundary.val += Δd
-    translate!(boundary.coords, Δd, zero(FT))
-    _translate_poly(FT, boundary.poly, Δd, zero(FT))
-end
-
-"""
     update_boundaries!(domain)
     
 Update each boundary in the domain. For now, this simply means moving
 compression boundaries by their velocities. 
 """
 function update_boundaries!(domain, Δt)
-    update_boundary!(domain.north, Δt)
-    update_boundary!(domain.south, Δt)
-    update_boundary!(domain.east, Δt)
-    update_boundary!(domain.west, Δt)
+    _update_boundary!(domain.north, Δt)
+    _update_boundary!(domain.south, Δt)
+    _update_boundary!(domain.east, Δt)
+    _update_boundary!(domain.west, Δt)
+    return
 end
 
 """
@@ -889,8 +707,7 @@ potential_interaction(
     centroid2,
     rmax1,
     rmax2,
-) = ((centroid1[1] - centroid2[1])^2 + (centroid1[2] - centroid2[2])^2) < 
-    (rmax1 + rmax2)^2
+) = ((centroid1[1] - centroid2[1])^2 + (centroid1[2] - centroid2[2])^2) < (rmax1 + rmax2)^2
 
 """
     timestep_collisions!(

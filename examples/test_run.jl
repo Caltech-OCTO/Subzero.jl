@@ -48,19 +48,19 @@ grid = RegRectilinearGrid(
     1e4,
 )
 topo_coords = [[[5e4, 5e4], [5e4, 7e4], [7e4, 7e4], [7e4, 5e4], [5e4, 5e4]]]
-collision_domain = Subzero.Domain(
-    CollisionBoundary(North, grid),
-    CollisionBoundary(South, grid),
-    CollisionBoundary(East, grid),
-    CollisionBoundary(West, grid),
-    initialize_topography_field([topo_coords])
+collision_domain = Subzero.Domain(;
+    north = CollisionBoundary(North; grid),
+    south = CollisionBoundary(South; grid),
+    east = CollisionBoundary(East; grid),
+    west = CollisionBoundary(West; grid),
+    topography = initialize_topography_field(; coords = [topo_coords])
 )
 
-periodic_domain = Subzero.Domain(
-    PeriodicBoundary(North, grid),
-    PeriodicBoundary(South, grid),
-    PeriodicBoundary(East, grid),
-    PeriodicBoundary(West, grid),
+periodic_domain = Subzero.Domain(; 
+    north = PeriodicBoundary(North; grid),
+    south = PeriodicBoundary(South; grid),
+    east = PeriodicBoundary(East; grid),
+    west = PeriodicBoundary(West; grid),
 )
 
 consts = Constants()
@@ -135,11 +135,11 @@ zonal_ocn = Ocean(grid, 0.5, 0.0, 0.0)
 zero_atmos = Atmos(grid, 0.5, 0.0, 0.0)
 
 
-domain = Subzero.Domain(
-    PeriodicBoundary(North, grid),
-    PeriodicBoundary(South, grid),
-    PeriodicBoundary(East, grid),
-    PeriodicBoundary(West, grid),
+domain = Subzero.Domain(;
+    north = PeriodicBoundary(North; grid),
+    south = PeriodicBoundary(South; grid),
+    east = PeriodicBoundary(East; grid),
+    west = PeriodicBoundary(West; grid),
 )
 
 # Floe instantiation

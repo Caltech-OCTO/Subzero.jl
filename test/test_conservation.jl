@@ -59,33 +59,26 @@ end
 @testset "Conservation of Energy and Momentum" begin
     Δt = 10
     FT = Float64
-    grid = RegRectilinearGrid(
-        (-2e4, 1e5),
-        (0, 1e5),
-        1e4,
-        1e4,
+    grid = RegRectilinearGrid(; x0 = -2e4, xf = 1e5, y0 = 0.0, yf = 1e5, Δx = 1e4, Δy = 1e4)
+    collision_domain = Domain(; 
+        north = CollisionBoundary(North; grid),
+        south = CollisionBoundary(South; grid),
+        east = CollisionBoundary(East; grid),
+        west = CollisionBoundary(West; grid),
     )
-    collision_domain = Domain(
-        CollisionBoundary(North, grid),
-        CollisionBoundary(South, grid),
-        CollisionBoundary(East, grid),
-        CollisionBoundary(West, grid),
+    open_domain = Domain(;
+        north = OpenBoundary(North; grid),
+        south = OpenBoundary(South; grid),
+        east = OpenBoundary(East; grid),
+        west = OpenBoundary(West; grid),
     )
-    open_domain = Domain(
-        OpenBoundary(North, grid),
-        OpenBoundary(South, grid),
-        OpenBoundary(East, grid),
-        OpenBoundary(West, grid),
-    )
-    topo = TopographyElement(
-        [[[-1e4, 0.0], [-2e4, 1e4], [-1e4, 1e4], [-1e4, 0.0]]],
-    )
-    open_domain_w_topography = Domain(
-        OpenBoundary(North, grid),
-        OpenBoundary(South, grid),
-        OpenBoundary(East, grid),
-        OpenBoundary(West, grid),
-        StructVector([topo])
+    topography = initialize_topography_field(; coords = [[[[-1e4, 0.0], [-2e4, 1e4], [-1e4, 1e4], [-1e4, 0.0]]]])
+    open_domain_w_topography = Domain(;
+        north = OpenBoundary(North; grid),
+        south = OpenBoundary(South; grid),
+        east = OpenBoundary(East; grid),
+        west = OpenBoundary(West; grid),
+        topography
     )
     rng = Xoshiro(1)
     floe1 = [[[2e4, 2e4], [2e4, 5e4], [5e4, 5e4], [5e4, 2e4], [2e4, 2e4]]]

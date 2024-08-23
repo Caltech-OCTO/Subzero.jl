@@ -254,29 +254,24 @@
     end
 
     # Setup for tests
-    grid = RegRectilinearGrid(
-           (0, 1e5),
-           (0, 1e5),
-           1e4,
-           1e4,
-    )
+    grid = RegRectilinearGrid(; x0 = 0, xf = 1e5, y0 = 0, yf = 1e5, Δx = 1e4, Δy = 1e4)
     topo_coords = [[[5e4, 5e4], [5e4, 7e4], [7e4, 7e4], [7e4, 5e4], [5e4, 5e4]]]
-    collision_domain = Subzero.Domain(
-        CollisionBoundary(North, grid),
-        CollisionBoundary(South, grid),
-        CollisionBoundary(East, grid),
-        CollisionBoundary(West, grid),
-        initialize_topography_field([topo_coords])
+    collision_domain = Subzero.Domain(;
+        north = CollisionBoundary(North; grid),
+        south = CollisionBoundary(South; grid),
+        east = CollisionBoundary(East; grid),
+        west = CollisionBoundary(West; grid),
+        topography = initialize_topography_field(; coords = [topo_coords])
     )
-    periodic_domain = Subzero.Domain(
-        PeriodicBoundary(North, grid),
-        PeriodicBoundary(South, grid),
-        PeriodicBoundary(East, grid),
-        PeriodicBoundary(West, grid),
+    periodic_domain = Subzero.Domain(;
+        north = PeriodicBoundary(North; grid),
+        south = PeriodicBoundary(South; grid),
+        east = PeriodicBoundary(East; grid),
+        west = PeriodicBoundary(West; grid),
     )
     boundary_poly = GO.UnionIntersectingPolygons()(Subzero.make_multipolygon([
-        collision_domain.north.coords, collision_domain.south.coords,
-        collision_domain.east.coords, collision_domain.west.coords]))
+        collision_domain.north.poly, collision_domain.south.poly,
+        collision_domain.east.poly, collision_domain.west.poly]))
         
     topo_poly = Subzero.make_polygon(topo_coords)
     consts = Constants()

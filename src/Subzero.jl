@@ -8,25 +8,9 @@ module Subzero
 end Subzero
 
 export
-    AbstractGrid,
-    RegRectilinearGrid,
     Ocean,
     Atmos,
-    OpenBC,
-    PeriodicBC,
-    CollisionBC,
-    CompressionBC,
-    AbstractBoundary,
-    MovingBoundary,
-    CollisionBoundary,
-    PeriodicBoundary,
-    OpenBoundary,
-    North,
-    South,
-    East,
-    West,
     Domain,
-    TopographyElement,
     Floe,
     Constants,
     Model,
@@ -51,7 +35,6 @@ export
     torque,
     overlap, 
     initialize_floe_field,
-    initialize_topography_field,
     NoFracture,
     HiblerYieldCurve,
     MohrsCone,
@@ -66,11 +49,11 @@ export
     OutputWriters,
     check_energy_momentum_conservation_julia,
     IceStressCell,
-    CellFloes,
     MonteCarloPointsGenerator,
     SubGridPointsGenerator
 
 import Base.@kwdef # this is being exported as of version 1.9
+import Base.show
 import GeometryOps as GO
 import GeometryOps.GeoInterface as GI
 import GeometryOps.GeometryBasics as GB
@@ -102,17 +85,34 @@ const RingVec{T} = R where {
     R <: AbstractArray{V},
 }
 
-const Polys{T} = GI.Polygon{false, false, Vector{GI.LinearRing{false, false, Vector{Tuple{T, T}}, Nothing, Nothing}}, Nothing, Nothing} where T <: AbstractFloat
+const Polys{T, V} = GI.Polygon{false, false, Vector{GI.LinearRing{false, false, Vector{Tuple{T, T}}, Nothing, Nothing}}, Nothing, Nothing} where T
 
-Base.convert(::Type{Polys{Float32}}, p::Polys{Float64}) = GO.tuples(p, Float32)
-Base.convert(::Type{Polys{Float64}}, p::Polys{Float32}) = GO.tuples(p, Float64)
+Base.convert(::Type{Polys{Float32}}, p::Polys{<:Real}) = GO.tuples(p, Float32)
+Base.convert(::Type{Polys{Float64}}, p::Polys{<:Real}) = GO.tuples(p, Float64)
+
+const FT_DEF = "`FT::Type{<:AbstractFloat}`: Float type used to run the simulation, either \
+`Float64` (default) or `Float32`."
+const POLY_DEF = "`poly::Polys{FT}`: Polygon used to represent the shape of a floe or topography"
+const POLY_LIST_DEF = "`polys::Vector{<:Polygon}`: list of polygons meant to represent a field \
+of floes or topography elements. Polygons can be any polygon type that supports GeoInterface."
+const COORDS_LIST_DEF = "`coords::Vector{<:PolyVec}`: list of polygon coordinates meant to \
+represent a field of floes or topography elements. PolyVec refers to a Vector{Vector{<:Points}} \
+where the points can be tuples, vectors, or static vectors and the innermost vector refers to each ring of the polygon."
+const CENTROID_DEF = "`centroid::Vector{FT}`: Two-element vector meant to represent the (x, y) \
+point that is the centroid of either a floe or topography"
+const RMAX_DEF = "`rmax::FT`: Float length representing the maximum radius of a floe or topography \
+from the centroid to any given vertex"
 
 # Types
 include("simulation_components/stress_calculators.jl")
 # Model
+include("simulation_components/grids.jl")
+include("simulation_components/domain_components/abstract_domains.jl")
+include("simulation_components/domain_components/boundaries.jl")
+include("simulation_components/domain_components/topography.jl")
+include("simulation_components/domain_components/domains.jl")
 include("simulation_components/floe.jl")
 include("floe_utils.jl")
-include("simulation_components/domain_and_grid.jl")
 include("simulation_components/ocean_and_atmos.jl")
 include("simulation_components/model.jl")
 # Physical Processes

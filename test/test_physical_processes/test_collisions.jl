@@ -9,33 +9,32 @@
     # Grid setup
     Lx = 1e5
     Ly = Lx
-    grid = RegRectilinearGrid((-Lx, Lx), (-Ly, Ly), 1e4, 1e4)
+    grid = RegRectilinearGrid(; x0 = -Lx, xf = Lx, y0 = -Ly, yf = Ly, Δx = 1e4, Δy = 1e4)
 
     # Boundary setup
-    p_n_bound = PeriodicBoundary(North, grid)
-    p_s_bound = PeriodicBoundary(South, grid)
-    p_e_bound = PeriodicBoundary(East, grid)
-    p_w_bound = PeriodicBoundary(West, grid)
+    p_n_bound = PeriodicBoundary(North; grid)
+    p_s_bound = PeriodicBoundary(South; grid)
+    p_e_bound = PeriodicBoundary(East; grid)
+    p_w_bound = PeriodicBoundary(West; grid)
 
-    c_n_bound =  CollisionBoundary(North, grid)
-    c_s_bound = CollisionBoundary(South, grid)
-    c_e_bound = CollisionBoundary(East, grid)
-    c_w_bound = CollisionBoundary(West, grid)
+    c_n_bound =  CollisionBoundary(North; grid)
+    c_s_bound = CollisionBoundary(South; grid)
+    c_e_bound = CollisionBoundary(East; grid)
+    c_w_bound = CollisionBoundary(West; grid)
 
-    o_n_bound = OpenBoundary(North, grid)
-    o_s_bound = OpenBoundary(South, grid)
-    o_e_bound = OpenBoundary(East, grid)
-    o_w_bound = OpenBoundary(West, grid)
+    o_n_bound = OpenBoundary(North; grid)
+    o_s_bound = OpenBoundary(South; grid)
+    o_e_bound = OpenBoundary(East; grid)
+    o_w_bound = OpenBoundary(West; grid)
 
-    topos = initialize_topography_field(FT, [[[[1e4, 0.0], [0.0, 1e4], [1e4, 2e4], [2e4, 1e4], [1e4, 0.0]]]])
-    # topos = StructArray([TopographyElement([[[1e4, 0.0], [0.0, 1e4], [1e4, 2e4], [2e4, 1e4], [1e4, 0.0]]])])
+    topos = initialize_topography_field(FT; coords = [[[[1e4, 0.0], [0.0, 1e4], [1e4, 2e4], [2e4, 1e4], [1e4, 0.0]]]])
         
-    topo_domain = Domain(p_n_bound, p_s_bound, c_e_bound, o_w_bound, topos)
-    collision_domain = Domain(c_n_bound, c_s_bound, c_e_bound, c_w_bound)
-    open_domain = Domain(o_n_bound, o_s_bound, o_e_bound, o_w_bound)
-    ew_periodic_domain = Domain(o_n_bound, o_s_bound, p_e_bound, p_w_bound)
-    ns_periodic_domain = Domain(p_n_bound, p_s_bound, o_e_bound, o_w_bound)
-    double_periodic_domain = Domain(p_n_bound, p_s_bound, p_e_bound, p_w_bound)
+    topo_domain = Domain(; north = p_n_bound, south = p_s_bound, east = c_e_bound, west = o_w_bound, topography = topos)
+    collision_domain = Domain(; north = c_n_bound, south = c_s_bound, east = c_e_bound, west = c_w_bound)
+    open_domain = Domain(; north = o_n_bound, south = o_s_bound, east = o_e_bound, west = o_w_bound)
+    ew_periodic_domain = Domain(; north = o_n_bound, south = o_s_bound, east = p_e_bound, west = p_w_bound)
+    ns_periodic_domain = Domain(; north = p_n_bound, south = p_s_bound, east = o_e_bound, west = o_w_bound)
+    double_periodic_domain = Domain(; north = p_n_bound, south = p_s_bound, east = p_e_bound, west = p_w_bound)
 
     @testset "Floe-Floe Interactions" begin
         hmean = 0.25
@@ -186,30 +185,6 @@
         Subzero.floe_domain_interaction!(corner_floe, collision_domain, consts, Δt, max_overlap)
         @test all(corner_floe.interactions[:, xforce] .<= 0)
         @test all(corner_floe.interactions[:, yforce] .<= 0)
-
-        # Test compression boundaries movement - TODO: Move these to different file
-        nc_boundary = MovingBoundary(North, grid, 0.0, -0.1)
-        nc_coords = deepcopy(nc_boundary.coords)
-        sc_boundary = MovingBoundary(South, grid, 0.0, 0.1)
-        sc_coords = deepcopy(sc_boundary.coords)
-        ec_boundary = MovingBoundary(East, grid, 0.1, 0.0)
-        ec_coords = deepcopy(ec_boundary.coords)
-        wc_boundary = MovingBoundary(West, grid, 0.1, 0.0)
-        wc_coords = deepcopy(wc_boundary.coords)
-        cdomain = Domain(nc_boundary, sc_boundary, ec_boundary, wc_boundary)
-        Subzero.update_boundaries!(cdomain, 10)
-        Subzero.translate!(nc_coords, 0, -1)
-        @test nc_coords == nc_boundary.coords
-        @test nc_boundary.val == 1e5 - 1
-        Subzero.translate!(sc_coords, 0, 1)
-        @test sc_coords == sc_boundary.coords
-        @test sc_boundary.val == -1e5 + 1
-        Subzero.translate!(ec_coords, 1, 0)
-        @test ec_coords == ec_boundary.coords
-        @test ec_boundary.val == 1e5 + 1
-        Subzero.translate!(wc_coords, 1, 0)
-        @test wc_coords == wc_boundary.coords
-        @test wc_boundary.val == -1e5 + 1
     end
     
     @testset "Add Ghosts" begin
