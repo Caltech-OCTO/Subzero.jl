@@ -8,11 +8,6 @@ struct CellStresses{FT<:AbstractFloat}
 end
 
 """
-    CellStresses{FT}()
-
-Constructs an CellStresses object with empty lists for fields.
-"""
-"""
     CellStresses{FT}
 
 Struct to collect stress from ice floes on ocean grid cells. One `CellStresses`
@@ -47,10 +42,11 @@ Here is how to construct a `CellStresses` object:
 - `τy::Vector{FT}`: list of total y-stress caused by each floe in a cell on the ocean
 - `npoints::Vector{Int}`: list of total number of sub-floe points contributing to each individial floe's stress
 
-**Note**: If no keyword arguments are provide by the user, an `CellStresses` object with empty
-fields will be created. This is the **standard useage** of these objects and they are added to
-during the coupling step. If keyword arguments are provided, then all three must be provided
-and each vector must be the same size.
+!!! note
+    If no keyword arguments are provide by the user, an `CellStresses` object with empty
+    fields will be created. This is the **standard useage** of these objects and they are added to
+    during the coupling step. If keyword arguments are provided, then all three must be provided
+    and each vector must be the same size.
 
 """
 function CellStresses(::Type{FT} = Float64; τx = nothing, τy = nothing, npoints = nothing) where {FT}
@@ -61,7 +57,7 @@ function CellStresses(::Type{FT} = Float64; τx = nothing, τy = nothing, npoint
     else
         @assert length(τx) == length(τy) == length(npoints) "A CellStresses object requires that all fields be vectors of the same length."
     end
-    return CellStresses{FT}(floeidx, Δx, Δy)
+    return CellStresses{FT}(τx, τy, npoints)
 end
 
 # Empties each of the three vectors (`τx`, `τy`, and `npoints`) within an CellStresses object
@@ -72,26 +68,6 @@ function Base.empty!(cell::CellStresses)
     return
 end
 
-"""
-    Ocean{FT<:AbstractFloat}
-
-Simulation ocean holding ocean values on the grid-scale with matricies of the
-same size as the model's grid. The struct has the following fields:
-- u is the ocean velocities in the x-direction for each grid cell
-- v is the ocean velocities in the y-direction for each grid cell
-- temp is the ocean temperature for each grid cell
-- hflx_factor is a factor to calculate the ocean-atmosphere heat flux for a 
-  cell in that grid cell by multiplying by its height
-- si_frac is the fraction of area in each grid cell that is covered in sea-ice
-
-Ocean fields must all be matricies with dimensions equal to the number of grid
-lines in the model's grid. 
-Note: If a periodic boundary is used in the domain, the last grid cell in that
-direction will not be used as it is equivalent to the first grid cell. Thus, for
-all of these fields, the first and last value in the x and/or y direction should
-be equal if the east-west or north-south boundary pair are periodic
-respectively.
-"""
 struct Ocean{FT<:AbstractFloat}
     u::Matrix{FT}
     v::Matrix{FT}
@@ -103,17 +79,7 @@ struct Ocean{FT<:AbstractFloat}
     si_frac::Matrix{FT}
     dissolved::Matrix{FT}
 
-    function Ocean{FT}(
-        u,
-        v,
-        temp,
-        hflx,
-        scells,
-        τx,
-        τy,
-        si_frac,
-        dissolved,
-    ) where {FT <: AbstractFloat}
+    function Ocean{FT}(u, v, temp, hflx_factor, scells, τx, τy, si_frac, dissolved) where FT
         if !all(-3 .<= temp .<= 0)
             @warn "Ocean temperatures are above the range for freezing. The \
                 thermodynamics aren't currently setup for these conditions."
@@ -122,83 +88,138 @@ struct Ocean{FT<:AbstractFloat}
             throw(ArgumentError("One or more of the ocean vector fields aren't \
                 the same dimension."))
         end
-        if !(size(temp) == size(hflx) == size(si_frac) == size(dissolved))
+        if !(size(temp) == size(hflx_factor) == size(si_frac) == size(dissolved))
             throw(ArgumentError("One or more of the ocean tracer fields aren't \
                 the same dimension."))
         end
-        new{FT}(u, v, temp, hflx, scells, τx, τy, si_frac, dissolved)
+        new{FT}(u, v, temp, hflx_factor, scells, τx, τy, si_frac, dissolved)
     end
 end
 
 """
-    Ocean(::Type{FT}, args...)
+    Ocean{FT}
 
-A float type FT can be provided as the first argument of any Ocean constructor.
-An Ocean of type FT will be created by passing all other arguments to the
-correct constructor. 
-"""
-Ocean(::Type{FT}, args...) where {FT <: AbstractFloat} =
-    Ocean{FT}(args...)
+Each simulation needs ocean values on the grid to drive the ice floes. The `Ocean` struct
+holds the needed fields to perform coupling, including vector fields (like u-velocity,
+v-velocity, x-stress, and y-stress) and tracer fields (like temperature, heatflux, and 
+dissolved ice mass). We also hold and calculate the sea ice fraction in any given grid cell.
 
-"""
-    Ocean(args...)
+Right now, all values are stored on grid points as defined by an [`AbstractRectilinearGrid`](@ref).
+This should eventually change to a c-grid. If interested in this change, see issue [#30](@ref).
+This will require a big change in behavior, but is an important change for consistency and
+to match with Oceananigans for two-way coupling.
 
-If a type isn't specified, Ocean will be of type Float64 and the correct
-constructor will be called with all other arguments.
-"""
-Ocean(args...) = Ocean{Float64}(args...)
+Coupling beyond velocity (for example thermodynamically) is not very well developed. If you
+are interested in working on this see issue [#9](@ref). The `hflx_factor`
 
-"""
-    Ocean{FT}(u, v, temp)
+## _Fields_
+- `u::Matrix{FT}`: ocean u-velocities in the x-direction on each grid point
+- `v::Matrix{FT}`: ocean v-velocities in the y-direction on each grid point
+- `temp::Matrix{FT}`: ocean temperature on each grid point
+- `hflx_factor::Matrix{FT}`: factor to calculate the ocean-atmosphere heat flux for a grid cell
+- `scells::Matrix{CellStresses}`: used to accumulate stresses on the ocean per grid cell from floes in cell (see [`CellStresses`](@ref))
+- `τx::Matrix{FT}`: stress on the ocean in the x-direction on each grid point
+- `τy::Matrix{FT}`: stress on the ocean in the y-direction on each grid point
+- `si_frac::Matrix{FT}`: fraction of area in each grid cell (centered on grid points) that is covered in sea-ice (between 0-1)
+- `dissolved::Matrix{FT}`: total mass from ice floes dissolved in each grid cell (centered on grid points)
 
-Construct model ocean.
-Inputs:
-    u       <Matrix> ocean x-velocity matrix with u for each grid line
-    v       <Matrix> ocean y-velocity matrix with u for each grid line
-    temp    <Matrix> temperature matrix with ocean/ice interface temperature for
-                each grid line
-Output: 
-    Model ocean with given velocity and temperature fields on each grid line.
+!!! note
+    If a periodic boundary is used in the domain, the last grid cell in that direction will
+    not be used as it is equivalent to the first grid cell. Thus, for all of these fields, the
+    first and last value in the x and/or y direction should be equal if the east-west or
+    north-south boundary pair are periodic respectively. In the future, it might be worth having
+    the ocean re-sizing to not included this repeated point dispatching off of the boundary types.
+
+Here is how to construct an `Ocean`:
+
+    Ocean([FT = Float64]; u, v, temp, grid = nothing)
+
+## _Positional arguments_
+- $FT_DEF
+## _Keyword arguments_
+- `u::Union{Real, Matrix{Real}}`: user can either provide a single u-velocity value \
+(a constant field the size of the `grid` will be created) or provide a matrix field of  u-velocity values
+- `v::Union{Real, Matrix{Real}}`: user can either provide a single v-velocity value \
+(a constant field the size of the `grid` will be created) or provide a matrix field of v-velocity values
+- `temp::Union{Real, Matrix{Real}}`: user can either provide a single temperature value \
+(a constant field the size of the `grid` will be created) or provide a matrix field of temperature values
+- `grid::AbstractRectilinearGrid`: user only needs to provide a `grid object if they supply a \
+`<:Real` value to any of `u`, `v`, or `temp` so field of the correct size can be created.
+
+!!! note
+    The user MUST provide `u`, `v`, and `temp`, although they have the option of these
+    being `Real` values or `Matrix{<:Real}`. If the user chooses to provide `Real` values for any
+    of those fields, then a `grid` IS required to create a constant field of the correct size.
+    If user chooses to provide a field, they should be of size `(grid.Nx + 1, grid.Ny + 1)`.
+
+## _Examples_
+- Creating `Ocean` with constant `u`-velocity, `v-velocity`, and `temp`
+```jldoctest ocean
+julia> grid = RegRectilinearGrid(; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, Nx = 20, Ny = 10);
+
+julia> Ocean(; u = 0.5, v = 0.25, temp = 0.0, grid)
+Ocean{Float64}
+  ⊢Vector fields of dimension (21, 11)
+  ⊢Tracer fields of dimension (21, 11)
+  ⊢Average u-velocity of: 0.5 m/s
+  ⊢Average v-velocity of: 0.25 m/s
+  ∟Average temperature of: 0.0 C
+```
+- Creating `Ocean` with user-defined `u` and `v` and a constant `temp` with `Float32` data
+```jldoctest ocean
+julia> import Random.Xoshiro;
+
+julia> seeded_rng = Xoshiro(100);
+
+julia> u_field = rand(seeded_rng, grid.Nx + 1, grid.Ny + 1);
+
+julia> v_field = rand(seeded_rng, grid.Nx + 1, grid.Ny + 1);
+
+julia> Ocean(Float32; u = u_field, v = v_field, temp = 0.0, grid)
+Ocean{Float32}
+  ⊢Vector fields of dimension (21, 11)
+  ⊢Tracer fields of dimension (21, 11)
+  ⊢Average u-velocity of: 0.4856711 m/s
+  ⊢Average v-velocity of: 0.5319979 m/s
+  ∟Average temperature of: 0.0 C
+```
 """
-function Ocean{FT}(
-    u,
-    v,
-    temp,
-) where {FT <: AbstractFloat}
-    Nx, Ny = size(temp) .- 1
-    return Ocean{FT}(
-        u,
-        v,
-        temp,
-        zeros(FT, Nx + 1, Ny + 1), # heat flux
-        [CellStresses{FT}() for i in 1:(Nx + 1), j in 1:(Ny + 1)],
-        zeros(FT, Nx + 1, Ny + 1),  # x-stress
-        zeros(FT, Nx + 1, Ny + 1),  # y-stress
-        zeros(FT, Nx + 1, Ny + 1),  # sea ice fraction
-        zeros(FT, Nx + 1, Ny + 1),  # dissolved
-    )
+function Ocean(::Type{FT} = Float64; u, v, temp, grid = nothing) where {FT <: AbstractFloat}
+    # Create field from provided values
+    u_field = _get_val_field(FT, u, grid)
+    v_field = _get_val_field(FT, v, grid)
+    temp_field = _get_val_field(FT, temp, grid)
+    # Create rest of fields using the size of the temperature field
+    Nx, Ny = size(temp_field)
+    hflx_factor = zeros(FT, Nx, Ny) # heat flux
+    scells = [CellStresses(FT) for _ in 1:Nx, _ in 1:Ny]
+    τx = zeros(FT, Nx, Ny)
+    τy = zeros(FT, Nx, Ny)
+    si_frac = zeros(FT, Nx, Ny)
+    dissolved = zeros(FT, Nx, Ny)
+    # Create Ocean from fields
+    return Ocean{FT}(u_field, v_field, temp_field, hflx_factor, scells, τx, τy, si_frac, dissolved)
 end
 
-"""
-    Ocean{FT}(grid, u, v, temp)
+# If matrix of values and NO grid is provided, convert to type FT and return
+_get_val_field(::Type{FT}, v::Matrix, grid) where FT = FT.(v)
+# If single value and grid is provided, make constant matrix filled with provided value converted to type FT anf return
+_get_val_field(::Type{FT}, v::Real, grid::AbstractRectilinearGrid) where FT = fill(FT(v), grid.Nx + 1, grid.Ny + 1)
+# If single value and NO grid is provided, throw an error
+_get_val_field(::Type, ::Real, ::Nothing) = throw(ArgumentError("To create a matrix from the constant value provided, you must provide a grid."))
 
-Construct model's ocean.
-Inputs:
-    grid    <AbstractRectilinearGrid> model grid
-    u       <Real> ocean x-velocity for each grid line
-    v       <Real> ocean y-velocity for each grid line
-    temp    <Real> temperature at ocean/ice interface per grid cell
-Output: 
-        Ocean with constant velocity and temperature on each grid line.
-"""
-Ocean{FT}(
-    grid::AbstractRectilinearGrid,
-    u,
-    v,
-    temp,
-) where {FT <: AbstractFloat} =
-    Ocean{FT}(
-        fill(FT(u), grid.Nx + 1, grid.Ny + 1),
-        fill(FT(v), grid.Nx + 1, grid.Ny + 1),
-        fill(FT(temp), grid.Nx + 1, grid.Ny + 1),
-    )
+# Pretty printing for RegRectilinearGrid showing key dimensions
+function Base.show(io::IO, ocean::Ocean{FT}) where FT
+    overall_summary = "Ocean{$FT}"
+    vector_summary = "Vector fields of dimension $(size(ocean.u))"
+    avg_ocean_u = "Average u-velocity of: $(mean(ocean.u)) m/s"
+    avg_ocean_v = "Average v-velocity of: $(mean(ocean.v)) m/s"
+    tracer_summary = "Tracer fields of dimension $(size(ocean.temp))"
+    avg_ocean_temp = "Average temperature of: $(mean(ocean.temp)) C"
+    print(io, overall_summary, "\n",
+        "  ⊢", vector_summary, "\n",
+        "  ⊢", tracer_summary, "\n",
+        "  ⊢", avg_ocean_u, "\n",
+        "  ⊢", avg_ocean_v, "\n",
+        "  ∟", avg_ocean_temp)
+end

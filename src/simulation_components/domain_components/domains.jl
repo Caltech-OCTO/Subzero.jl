@@ -56,10 +56,10 @@ able to re-enter the opposite boundary to fulfill its definition of periodic.
 - `west::WB`: Western boundary where `WB <: AbstractBoundary{West, FT}`
 - `topography::tT`: Field of topography elements where `TT <: TopographyField{FT}`
 
-Notes:
-- All `FT` values above must be the same float type to form a valid domain.
-- The code depends on the boundaries forming a rectangle oriented along the
-cartesian grid. Other shapes/orientations are not supported at this time. 
+!!! note
+    - All `FT` values above must be the same float type to form a valid domain.
+    - The code depends on the boundaries forming a rectangle oriented along the cartesian grid. \
+    Other shapes/orientations are not supported at this time. 
 
 Here is how to construct an `MovingBoundary`:
 

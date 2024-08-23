@@ -42,10 +42,11 @@ Here is how to construct a `CellFloes` object:
 - `Δy::Vector{FT}`: vector of y-translations for a floe at the corresponding index of the
 `floeidx` vector to be in the cell represented with the `CellFloes` object.
 
-**Note**: If no keyword arguments are provide by the user, an `CellFloes` object with empty
-fields will be created. This is the **standard useage** of these objects and they are added to
-during the coupling step. If keyword arguments are provided, then all three must be provided
-and each vector must be the same size.
+!!! note
+    If no keyword arguments are provide by the user, an `CellFloes` object with empty
+    fields will be created. This is the **standard useage** of these objects and they are added to
+    during the coupling step. If keyword arguments are provided, then all three must be provided
+    and each vector must be the same size.
 """
 function CellFloes(::Type{FT} = Float64; floeidx = nothing, Δx = nothing, Δy = nothing) where {FT}
     if isnothing(floeidx) || isnothing(Δx) || isnothing(Δy)
@@ -147,10 +148,11 @@ Here is how to construct a `RegRectilinearGrid`:
 - `Δx::FT`: grid cell width
 - `Δy::FT`: grid cell height
 
-_Note:_ the user MUST provide `x0`, `xf`, `y0`, and `yf`; the user then has the choice to
-provide `Nx` and `Ny` OR `Δx` and `Δy`. If provided `Δx` doesn't evenly divide length
-`xf-x0` or `Δy` doesn't evenly divide `yf-y0`, you won't get full size grid. The grid will
-be "trimmed" to the nearest full grid square in both directions.
+!!! note
+    The user MUST provide `x0`, `xf`, `y0`, and `yf`; the user then has the choice to
+    provide `Nx` and `Ny` OR `Δx` and `Δy`. If provided `Δx` doesn't evenly divide length
+    `xf-x0` or `Δy` doesn't evenly divide `yf-y0`, you won't get full size grid. The grid will
+    be "trimmed" to the nearest full grid square in both directions.
 
 ## _Examples_
 

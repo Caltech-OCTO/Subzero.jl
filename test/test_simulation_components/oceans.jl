@@ -1,3 +1,7 @@
+using Test, Subzero
+grid = RegRectilinearGrid(; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, Nx = 20, Ny = 10)
+Ocean(; u = 0.5, v = 0.5, temp = 0.0, grid)
+
 @testset "CellStresses" begin
     # Empty CellStresses
     c1 = Subzero.CellStresses()
@@ -30,7 +34,7 @@ end
         vocn,
         tempocn,
         hflx_factor,
-        [CellStresses{Float64}() for i in 1:(g.Nx + 1), j in 1:(g.Ny + 1)],
+        [Subzero.CellStresses(Float64) for i in 1:(g.Nx + 1), j in 1:(g.Ny + 1)],
         τx,
         τy,
         si_frac,

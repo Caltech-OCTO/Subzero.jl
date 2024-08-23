@@ -1,3 +1,5 @@
+using Test, Subzero
+
 @testset "Atmos" begin
     g = Subzero.RegRectilinearGrid(; x0 = 0, xf = 4e5, y0 = 0, yf = 3e5, Δx = 1e4, Δy = 1e4)
 

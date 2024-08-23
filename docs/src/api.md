@@ -40,6 +40,16 @@ initialize_topography_field
 Domain
 ```
 
+## Ocean
+```@docs
+Ocean
+```
+
+## Atmosphere
+```@docs
+Atmos
+```
+
 ### Model
 ```@docs
 Model

@@ -177,8 +177,11 @@ The user must specify which [`AbstractDirection`](@ref) the boundary is. The use
 float type `Float64` or `Float32` will be used for field data. The user then must either provide
 an grid object ([`AbstractRectilinearGrid`](@ref)) for the domain to align with the grid edges, or provide
 four values (`x0`, `xf`, `y0`, and `yf`) that define the x and y-extents the user wants for the
-domain. Note: if the user chooses to specify the domain extents, they still must be within the
-grid in order to make a valid [`Model`](@ref).
+domain.
+
+!!! note
+    If the user chooses to specify the domain extents, they still must be within the
+    grid in order to make a valid [`Model`](@ref).
 
 ## _Positional arguments_
 - $D_DEF
@@ -191,7 +194,8 @@ grid in order to make a valid [`Model`](@ref).
 - $Y0_DEF
 - $YF_DEF
 
-_Note:_ the user must either provide a `grid` OR all four (4) of `x0`, `xf`, `y0`, and `yf`.
+!!! note
+    The user must either provide a `grid` OR all four (4) of `x0`, `xf`, `y0`, and `yf`.
 
 ## _Examples_
 - Defining a Northern `OpenBoundary` with Float64 (default type) data using the `grid` keyword.
@@ -260,8 +264,11 @@ The user must specify which [`AbstractDirection`](@ref) the boundary is. The use
 float type `Float64` or `Float32` will be used for field data. The user then must either provide
 an grid object ([`AbstractRectilinearGrid`](@ref)) for the domain to align with the grid edges, or provide
 four values (`x0`, `xf`, `y0`, and `yf`) that define the x and y-extents the user wants for the
-domain. Note: if the user chooses to specify the domain extents, they still must be within the
-grid in order to make a valid [`Model`](@ref).
+domain.
+
+!!! note
+    If the user chooses to specify the domain extents, they still must be within the
+    grid in order to make a valid [`Model`](@ref).
 
 ## _Positional arguments_
 - $D_DEF
@@ -274,7 +281,8 @@ grid in order to make a valid [`Model`](@ref).
 - $Y0_DEF
 - $YF_DEF
 
-_Note:_ the user must either provide a `grid` OR all four (4) of `x0`, `xf`, `y0`, and `yf`.
+!!! note
+    The user must either provide a `grid` OR all four (4) of `x0`, `xf`, `y0`, and `yf`.
 
 ## _Examples_
 - Defining an Eastern `PeriodicBoundary` with Float32 data using the `grid` keyword.
@@ -344,8 +352,11 @@ The user must specify which [`AbstractDirection`](@ref) the boundary is. The use
 float type `Float64` or `Float32` will be used for field data. The user then must either provide
 an grid object ([`AbstractRectilinearGrid`](@ref)) for the domain to align with the grid edges, or provide
 four values (`x0`, `xf`, `y0`, and `yf`) that define the x and y-extents the user wants for the
-domain. Note: if the user chooses to specify the domain extents, they still must be within the
-grid in order to make a valid [`Model`](@ref).
+domain.
+
+!!! note
+    If the user chooses to specify the domain extents, they still must be within the
+    grid in order to make a valid [`Model`](@ref).
 
 ## _Positional arguments_
 - $D_DEF
@@ -358,7 +369,8 @@ grid in order to make a valid [`Model`](@ref).
 - $Y0_DEF
 - $YF_DEF
 
-_Note:_ the user must either provide a `grid` OR all four (4) of `x0`, `xf`, `y0`, and `yf`.
+!!! note
+    The user must either provide a `grid` OR all four (4) of `x0`, `xf`, `y0`, and `yf`.
 
 ## _Examples_
 - Defining an Northern `CollisionBoundary` with Float64 data using the `grid` keyword.
@@ -442,8 +454,11 @@ The user must specify which [`AbstractDirection`](@ref) the boundary is. The use
 float type `Float64` or `Float32` will be used for field data. The user then must either provide
 an grid object ([`AbstractRectilinearGrid`](@ref)) for the domain to align with the grid edges, or provide
 four values (`x0`, `xf`, `y0`, and `yf`) that define the x and y-extents the user wants for the
-domain. Note: if the user chooses to specify the domain extents, they still must be within the
-grid in order to make a valid [`Model`](@ref).
+domain.
+
+!!! note
+    If the user chooses to specify the domain extents, they still must be within the
+    grid in order to make a valid [`Model`](@ref).
 
 ## _Positional arguments_
 - $D_DEF
@@ -458,8 +473,9 @@ grid in order to make a valid [`Model`](@ref).
 - $Y0_DEF
 - $YF_DEF
 
-_Note:_ the user must either provide a `grid` OR all four (4) of `x0`, `xf`, `y0`, and `yf`.
-If the user does not provide values for `u` or `v`, the boundary will not move.
+!!! note
+    The user must either provide a `grid` OR all four (4) of `x0`, `xf`, `y0`, and `yf`.
+    If the user does not provide values for `u` or `v`, the boundary will not move.
 
 ## _Examples_
 - Defining an Northern `MovingBoundary` with Float64 data using the `grid` keyword. Assigning u-velocity of 0.5m/s.
