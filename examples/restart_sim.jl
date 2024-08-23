@@ -35,7 +35,7 @@ nboundary = PeriodicBoundary(North; grid)
 sboundary = PeriodicBoundary(South; grid)
 eboundary = PeriodicBoundary(East; grid)
 wboundary = PeriodicBoundary(West; grid)
-domain = Domain(north = nboundary, south = sboundary, east = eboundary,west =  wboundary)
+domain = Domain(; north = nboundary, south = sboundary, east = eboundary,west =  wboundary)
 
 floe_settings = FloeSettings(subfloe_point_generator = SubGridPointsGenerator(grid, 2))
 floe_arr = initialize_floe_field(

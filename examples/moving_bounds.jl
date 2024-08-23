@@ -20,7 +20,7 @@ sboundary = MovingBoundary(South; grid, u = 0.0, v = 0.1)
 eboundary = PeriodicBoundary(East; grid)
 wboundary = PeriodicBoundary(West; grid)
 
-domain = Domain(north = nboundary, south = sboundary, east = eboundary, west = wboundary)
+domain = Domain(; north = nboundary, south = sboundary, east = eboundary, west = wboundary)
 
 # Floe creation
 floe_arr = initialize_floe_field(

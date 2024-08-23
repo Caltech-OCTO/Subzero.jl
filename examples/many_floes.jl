@@ -27,7 +27,7 @@ sboundary = OpenBoundary(South, FT; grid)
 eboundary = OpenBoundary(East, FT; grid)
 wboundary = OpenBoundary(West, FT; grid)
 
-domain = Subzero.Domain(north = nboundary, south = sboundary, east = eboundary, west = wboundary)
+domain = Subzero.Domain(; north = nboundary, south = sboundary, east = eboundary, west = wboundary)
 
 # Floe instantiation
 nfloes = 100

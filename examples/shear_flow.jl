@@ -29,7 +29,7 @@ sboundary = PeriodicBoundary(South; grid)
 eboundary = PeriodicBoundary(East; grid)
 wboundary = PeriodicBoundary(West; grid)
 
-domain = Domain(north = nboundary, south = sboundary, east = eboundary, west = wboundary)
+domain = Domain(; north = nboundary, south = sboundary, east = eboundary, west = wboundary)
 
 coupling_settings = CouplingSettings(
     two_way_coupling_on = true,
