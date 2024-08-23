@@ -26,7 +26,7 @@ topo2 = [[[8e4, 0], [7e4, 5e4], [8e4, 1e5], [1e5, 1e5], [1e5, 0], [8e4, 0]]]
 
 topo_arr = initialize_topography_field(FT; coords = [island, topo1, topo2])
 
-domain = Domain(nboundary, sboundary, eboundary, wboundary, topo_arr)
+domain = Domain(north = nboundary, south = sboundary, east = eboundary, west = wboundary, topography = topo_arr)
 
 coupling_settings = CouplingSettings(
     two_way_coupling_on = true,

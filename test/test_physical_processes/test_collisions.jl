@@ -29,12 +29,12 @@
 
     topos = initialize_topography_field(FT; coords = [[[[1e4, 0.0], [0.0, 1e4], [1e4, 2e4], [2e4, 1e4], [1e4, 0.0]]]])
         
-    topo_domain = Domain(p_n_bound, p_s_bound, c_e_bound, o_w_bound, topos)
-    collision_domain = Domain(c_n_bound, c_s_bound, c_e_bound, c_w_bound)
-    open_domain = Domain(o_n_bound, o_s_bound, o_e_bound, o_w_bound)
-    ew_periodic_domain = Domain(o_n_bound, o_s_bound, p_e_bound, p_w_bound)
-    ns_periodic_domain = Domain(p_n_bound, p_s_bound, o_e_bound, o_w_bound)
-    double_periodic_domain = Domain(p_n_bound, p_s_bound, p_e_bound, p_w_bound)
+    topo_domain = Domain(; north = p_n_bound, south = p_s_bound, east = c_e_bound, west = o_w_bound, topography = topos)
+    collision_domain = Domain(; north = c_n_bound, south = c_s_bound, east = c_e_bound, west = c_w_bound)
+    open_domain = Domain(; north = o_n_bound, south = o_s_bound, east = o_e_bound, west = o_w_bound)
+    ew_periodic_domain = Domain(; north = o_n_bound, south = o_s_bound, east = p_e_bound, west = p_w_bound)
+    ns_periodic_domain = Domain(; north = p_n_bound, south = p_s_bound, east = o_e_bound, west = o_w_bound)
+    double_periodic_domain = Domain(; north = p_n_bound, south = p_s_bound, east = p_e_bound, west = p_w_bound)
 
     @testset "Floe-Floe Interactions" begin
         hmean = 0.25

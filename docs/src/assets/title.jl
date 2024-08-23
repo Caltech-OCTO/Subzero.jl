@@ -28,7 +28,7 @@ nboundary = PeriodicBoundary(North; grid)
 sboundary = PeriodicBoundary(South; grid)
 eboundary = PeriodicBoundary(East; grid)
 wboundary = PeriodicBoundary(West; grid)
-domain = Domain(nboundary, sboundary, eboundary, wboundary)
+domain = Domain(; north = nboundary, south = sboundary, east = eboundary, west = wboundary)
 
 # Floe creation
 floe_arr = initialize_floe_field(FT, 400, [0.85], domain, hmean, Δh; rng = Xoshiro(1))

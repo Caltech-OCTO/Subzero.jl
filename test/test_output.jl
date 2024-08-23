@@ -3,11 +3,11 @@ function test_basic_outputwriters()
     grid = RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = -1e5, yf = 1e5, Δx = 1e4, Δy = 1e4)
     ocean = Ocean(grid, 0.0, 0.0, 0.0)
     atmos = Atmos(grid, 0.0, 0.0, 0.0)
-    domain = Domain(
-        OpenBoundary(North; grid),
-        OpenBoundary(South; grid),
-        OpenBoundary(East; grid),
-        OpenBoundary(West; grid),
+    domain = Domain(;
+        north = OpenBoundary(North; grid),
+        south = OpenBoundary(South; grid),
+        east = OpenBoundary(East; grid),
+        west = OpenBoundary(West; grid),
     )
     floe_coords = [[[7.5e4, 7.5e4], [7.5e4, 9.5e4], [9.5e4, 9.5e4], 
                     [9.5e4, 7.5e4], [7.5e4, 7.5e4]]]

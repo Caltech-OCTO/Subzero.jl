@@ -76,15 +76,15 @@
     sbound = CollisionBoundary(South; grid)
     ebound = CollisionBoundary(East; grid)
     wbound = CollisionBoundary(West; grid)
-    domain_no_topo = Domain(nbound, sbound, ebound, wbound)
+    domain_no_topo = Domain(; north = nbound, south = sbound, east = ebound, west = wbound)
     island = [[[6e4, 4e4], [6e4, 4.5e4], [6.5e4, 4.5e4], [6.5e4, 4e4], [6e4, 4e4]]]
     topo1 = [[[-8e4, -8e4], [-8e4, 8e4], [-6e4, 8e4], [-5e4, 4e4], [-6e4, -8e4], [-8e4, -8e4]]]
-    domain_with_topo = Domain(
-        nbound,
-        sbound,
-        ebound,
-        wbound,
-        initialize_topography_field(; coords = [island, topo1])
+    domain_with_topo = Domain(;
+        north = nbound,
+        south = sbound,
+        east = ebound,
+        west = wbound,
+        topography = initialize_topography_field(; coords = [island, topo1])
     )
     topo_polys = Subzero.make_multipolygon([island, topo1])
 
@@ -103,11 +103,11 @@
 
     # From file with small domain -> floes outside of domain
     small_grid = RegRectilinearGrid(; x0 = -Lx/2, xf = Lx/2, y0 = -Ly/2, yf = Ly, Δx = Δgrid, Δy = Δgrid)
-    small_domain_no_topo = Domain(
-        CollisionBoundary(North; grid = small_grid),
-        CollisionBoundary(South; grid = small_grid),
-        CollisionBoundary(East; grid = small_grid),
-        CollisionBoundary(West; grid = small_grid),
+    small_domain_no_topo = Domain(;
+        north = CollisionBoundary(North; grid = small_grid),
+        south = CollisionBoundary(South; grid = small_grid),
+        east = CollisionBoundary(East; grid = small_grid),
+        west = CollisionBoundary(West; grid = small_grid),
     )
     floe_arr = (@test_logs (:warn, "Some floe centroids are out of the domain.") initialize_floe_field(
         FT,

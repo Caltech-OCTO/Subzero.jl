@@ -467,11 +467,11 @@
         grid = Subzero.RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = -1e5, yf = 1e5, Δx = 1e4, Δy = 1e4)
         zonal_ocean = Subzero.Ocean(grid, 1.0, 0.0, 0.0)
         zero_atmos = Subzero.Atmos(grid, 0.0, 0.0, -20.0)
-        domain = Subzero.Domain(
-            CollisionBoundary(North; grid),
-            CollisionBoundary(South; grid),
-            CollisionBoundary(East; grid),
-            CollisionBoundary(West; grid),
+        domain = Subzero.Domain(;
+            north = CollisionBoundary(North; grid),
+            south = CollisionBoundary(South; grid),
+            east = CollisionBoundary(East; grid),
+            west = CollisionBoundary(West; grid),
         )
         floe = Subzero.Floe(
             [[

@@ -49,7 +49,7 @@ sboundary = OpenBoundary(South; grid)
 eboundary = OpenBoundary(East; grid)
 wboundary = OpenBoundary(West; grid)
 
-domain = Domain(nboundary, sboundary, eboundary, wboundary)
+domain = Domain(north = nboundary, south = sboundary, east = eboundary, west = wboundary)
 
 floe_settings = FloeSettings(
     subfloe_point_generator = SubGridPointsGenerator(grid, 2),
