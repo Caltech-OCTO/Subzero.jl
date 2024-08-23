@@ -77,7 +77,7 @@ as the first of the boundaries (which should be shared amoung boundaries).
 - `topography::TT`: domain's topography field, if there is one, else an empty field is created
 
 ## _Examples_
-- Creating a `Domain` with NO `topography`
+- Creating a `Domain` with _NO_ `topography`
 ```jldoctest domain
 julia> grid = RegRectilinearGrid(Float32; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, Nx = 20, Ny = 20);
 

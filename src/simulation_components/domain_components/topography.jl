@@ -169,7 +169,8 @@ end
 """
     TopographyField{FT} 
 
-Alias for StructArray type with TopographyElement elements with data of type `FT`
+Alias for StructArray type with TopographyElement elements with data of type `FT`.
+Note: this is not designed to be used by users, but is useful for dispatch by developers. 
 """
 const TopographyField{FT} = StructArray{TopographyElement{FT}} where FT
 
