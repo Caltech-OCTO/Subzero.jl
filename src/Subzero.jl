@@ -8,9 +8,6 @@ module Subzero
 end Subzero
 
 export
-    Ocean,
-    Atmos,
-    Domain,
     Floe,
     Constants,
     Model,
@@ -48,7 +45,6 @@ export
     PolyVec,
     OutputWriters,
     check_energy_momentum_conservation_julia,
-    IceStressCell,
     MonteCarloPointsGenerator,
     SubGridPointsGenerator
 

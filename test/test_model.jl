@@ -18,7 +18,7 @@ import StaticArrays as SA
             vocn,
             tempocn,
             hflx_factor,
-            [IceStressCell{Float64}() for i in 1:(g.Nx + 1), j in 1:(g.Ny + 1)],
+            [CellStresses{Float64}() for i in 1:(g.Nx + 1), j in 1:(g.Ny + 1)],
             τx,
             τy,
             si_frac,

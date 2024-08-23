@@ -8,24 +8,30 @@ struct CellFloes{FT<:AbstractFloat}
 end
 
 """
-    CellFloes([FT = Float64]; floeidx, Δx, Δy)
 
-Constructor for struct that represents a single grid cell and accumulates the indices of
-floes with area in that grid cell. This is used for two-way coupling to accumulate the
-forces of floes in a grid cell on the ocean below it. Due to the prevalence of periodic
-boundaries, the grid cell represented by a `CellFloes` object are centered on grid points
-(translated by `Δx/2` and `Δy/2` in the x and y directions for a [`RegRectilinearGrid`](@ref)),
-rather than on the grid cells defined by the grid object itself. Floes are recorded with
-their index in the  list of floes. Furthermore, in a model with periodic boundaries, some
-floes may be in multiple grid cells on different edges of the domain if they pass through a
-periodic boundary. In these cases, the floe "linked" to with its index must be translated by
-a vector to get its "ghost" on the other side of the domain. This mon-integer translation
-data is of float type `FT`.
+    CellFloes{FT}
 
-**Note**: If no keyword arguments are provide by the user, an `CellFloes` object with empty
-fields will be created. This is the **standard useage** of these objects and they are added to
-during the coupling step. If keyword arguments are provided, then all three must be provided
-and each vector must be the same size.
+A `CellFloes` struct represents a single grid cell and accumulates the indices of
+floes with area in that grid cell. This is used to accumulate the forces of floes in a grid
+cell on the ocean below it. Due to the prevalence of periodic boundaries, the grid cell
+represented by a `CellFloes` object are centered on grid points (translated by `Δx/2` and
+`Δy/2` in the x and y directions for a [`RegRectilinearGrid`](@ref)), rather than on the
+grid cells defined by the grid object itself. Floes are recorded with their index in the 
+list of floes. Furthermore, in a model with periodic boundaries, some floes may be in
+multiple grid cells on different edges of the domain if they pass through a periodic
+boundary. In these cases, the floe "linked" to with its index must be translated by
+a vector to get its "ghost" on the other side of the domain. This non-integer translation
+data is of float type `FT`. `CellFloes` are used with [`CellStresses`](@ref) objects, which
+aggregate the stress from each of the floes recorded in a given `CellFloes` object.
+
+##  _Fields_
+- `floeidx`: see keyword arguments
+- `Δx`: see keyword arguments
+- `Δy`: see keyword arguments
+
+Here is how to construct a `CellFloes` object:
+
+    CellFloes([FT = Float64]; floeidx = nothing, Δx = nothing, Δy = nothing)
 
 ## _Positional arguments_
 - $FT_DEF
@@ -36,10 +42,10 @@ and each vector must be the same size.
 - `Δy::Vector{FT}`: vector of y-translations for a floe at the corresponding index of the
 `floeidx` vector to be in the cell represented with the `CellFloes` object.
 
-## _CellFloes Fields_
-- `floeidx`: see keyword arguments
-- `Δx`: see keyword arguments
-- `Δy`: see keyword arguments
+**Note**: If no keyword arguments are provide by the user, an `CellFloes` object with empty
+fields will be created. This is the **standard useage** of these objects and they are added to
+during the coupling step. If keyword arguments are provided, then all three must be provided
+and each vector must be the same size.
 """
 function CellFloes(::Type{FT} = Float64; floeidx = nothing, Δx = nothing, Δy = nothing) where {FT}
     if isnothing(floeidx) || isnothing(Δx) || isnothing(Δy)
@@ -52,11 +58,8 @@ function CellFloes(::Type{FT} = Float64; floeidx = nothing, Δx = nothing, Δy =
     return CellFloes{FT}(floeidx, Δx, Δy)
 end
 
-"""
-    empty!(cell::CellFloes)
 
-Empties each of the three vectors (`floeidx`, `Δx`, and `Δy`) within a [`CellFloes`](@ref) object.
-"""
+# Empties each of the three vectors (`floeidx`, `Δx`, and `Δy`) within a CellFloes object.
 function Base.empty!(cell::CellFloes)
     empty!(cell.floeidx)
     empty!(cell.Δx)

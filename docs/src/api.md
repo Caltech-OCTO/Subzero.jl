@@ -48,5 +48,6 @@ Model
 ## Developer-Used Types
 ```@docs
 CellFloes
+CellStresses
 TopographyField
 ```
