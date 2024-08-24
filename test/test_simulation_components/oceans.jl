@@ -1,6 +1,5 @@
 using Test, Subzero
-grid = RegRectilinearGrid(; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, Nx = 20, Ny = 10)
-Ocean(; u = 0.5, v = 0.5, temp = 0.0, grid)
+import Random.Xoshiro
 
 @testset "CellStresses" begin
     # Empty CellStresses
@@ -19,47 +18,53 @@ Ocean(; u = 0.5, v = 0.5, temp = 0.0, grid)
 end
 
 @testset "Ocean" begin
-    g = Subzero.RegRectilinearGrid(; x0 = 0, xf = 4e5, y0 = 0, yf = 3e5, Δx = 1e4, Δy = 1e4)
-    # Large ocean default constructor
-    uocn = fill(3.0, g.Nx + 1, g.Ny + 1)
-    vocn = fill(4.0, g.Nx + 1, g.Ny + 1)
-    tempocn = fill(-2.0, g.Nx + 1, g.Ny + 1)
-    τx = fill(0.0, g.Nx + 1, g.Ny + 1)
-    τy = τx
-    si_frac = fill(0.0, g.Nx + 1, g.Ny + 1)
-    hflx_factor = si_frac
-    dissolved = si_frac
-    ocn = Subzero.Ocean(
-        uocn,
-        vocn,
-        tempocn,
-        hflx_factor,
-        [Subzero.CellStresses(Float64) for i in 1:(g.Nx + 1), j in 1:(g.Ny + 1)],
-        τx,
-        τy,
-        si_frac,
-        dissolved,
-        )
-    @test ocn.u == uocn
-    @test ocn.v == vocn
-    @test ocn.temp == tempocn
-    @test τx == ocn.τx == ocn.τy
-    @test si_frac == ocn.si_frac == ocn.hflx_factor == ocn.dissolved
-    @test ocn.u == uocn
-    @test ocn.v == vocn
-    @test ocn.temp == tempocn
-    # Custom constructor
-    ocn2 = Subzero.Ocean(g, 3.0, 4.0, -2.0)
-    @test ocn.u == ocn2.u
-    @test ocn.v == ocn2.v
-    @test ocn.temp == ocn2.temp
-    @test ocn.si_frac == ocn2.si_frac
-    @test ocn.hflx_factor == ocn2.hflx_factor
-    @test ocn.τx == ocn2.τx
-    @test ocn.τy == ocn2.τy
-    # Custom constructor Float32 and Float64
-    @test typeof(Subzero.Ocean(Float32, g, 3.0, 4.0, -2.0)) ==
-        Subzero.Ocean{Float32}
-    @test typeof(Subzero.Ocean(Float64, g, 3.0, 4.0, -2.0)) ==
-        Subzero.Ocean{Float64}
+    grid = Subzero.RegRectilinearGrid(; x0 = 0, xf = 4e5, y0 = 0, yf = 3e5, Δx = 1e4, Δy = 1e4)
+    Nx, Ny = grid.Nx, grid.Ny
+    # Test Ocean with all constant real-input fields
+    u_const, v_const, temp_const = 0.0, 0.1, -1.0
+    ocean1 = Ocean(; grid, u = u_const, v = v_const, temp = temp_const)
+    @test typeof(ocean1) == Ocean{Float64}
+    @test size(ocean1.u) == size(ocean1.v) == size(ocean1.temp) == (Nx + 1, Ny + 1)
+    @test all(ocean1.u .== u_const)
+    @test all(ocean1.v .== v_const)
+    @test all(ocean1.temp .== temp_const)
+
+    # make sure all other fields populated correctly
+    zero_matrix = zeros(Nx + 1, Ny + 1)
+    @test all(ocean1.hflx_factor .== zero_matrix)
+    @test all(ocean1.τx .== zero_matrix)
+    @test all(ocean1.τy .== zero_matrix)
+    @test all(ocean1.si_frac .== zero_matrix)
+    @test all(ocean1.dissolved .== zero_matrix)
+    @test size(ocean1.scells) == (Nx + 1, Ny + 1)
+    @test all([isempty(sc.τx) && isempty(sc.τy) && isempty(sc.npoints) for sc in ocean1.scells])
+
+    # Test Ocean with all matrix-input fields
+    seeded_rng = Xoshiro(1)
+    u_matrix = rand(seeded_rng, Nx + 1, Ny + 1)
+    v_matrix = rand(seeded_rng, Nx + 1, Ny + 1)
+    temp_matrix = -1 .* rand(seeded_rng, Nx + 1, Ny + 1)
+    ocean2 = Ocean(Float64; u = u_matrix, v = v_matrix, temp = temp_matrix)
+    @test typeof(ocean2) == Ocean{Float64}
+    @test size(ocean2.u) == size(ocean2.v) == size(ocean2.temp) == (Nx + 1, Ny + 1)
+    @test all(ocean2.u .== u_matrix)
+    @test all(ocean2.v .== v_matrix)
+    @test all(ocean2.temp .== temp_matrix)
+    
+    # Test Ocean with mix of constant and matrix-input fields
+    ocean3 = Ocean(Float32 ; grid, u = u_const, v = v_matrix, temp = temp_const)
+    @test typeof(ocean3) == Ocean{Float32}
+    @test size(ocean3.u) == size(ocean3.v) == size(ocean3.temp) == (Nx + 1, Ny + 1)
+    @test all(ocean3.u .≈ u_const)
+    @test all(ocean3.v .≈ v_matrix)
+    @test all(ocean3.temp .≈ temp_const)
+
+    # Test Ocean with const input fields but no grid
+    @test_throws MethodError Ocean(; u = 0.0, v = 0.0, temp = 0.0)
+
+    # Test ocean temperature constraint warning
+    @test_logs (:warn, Subzero.OCEAN_TEMP_STR) Ocean(; grid, u = 0.0, v = 0.0, temp = 1.0)
+
+    # Test field size constraints
+    @test_throws ArgumentError Ocean(; u = zeros(3, 4), v = zeros(4, 3), temp = zeros(4, 3))
 end

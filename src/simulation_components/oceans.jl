@@ -68,6 +68,8 @@ function Base.empty!(cell::CellStresses)
     return
 end
 
+const OCEAN_TEMP_STR = "Ocean temperatures are above the range for freezing. The thermodynamics aren't currently setup for these conditions."
+
 struct Ocean{FT<:AbstractFloat}
     u::Matrix{FT}
     v::Matrix{FT}
@@ -81,8 +83,7 @@ struct Ocean{FT<:AbstractFloat}
 
     function Ocean{FT}(u, v, temp, hflx_factor, scells, τx, τy, si_frac, dissolved) where FT
         if !all(-3 .<= temp .<= 0)
-            @warn "Ocean temperatures are above the range for freezing. The \
-                thermodynamics aren't currently setup for these conditions."
+            @warn OCEAN_TEMP_STR
         end
         if !(size(u) == size(v) == size(τx) == size(τy))
             throw(ArgumentError("One or more of the ocean vector fields aren't \
@@ -183,6 +184,12 @@ Ocean{Float32}
   ⊢Average v-velocity of: 0.5319979 m/s
   ∟Average temperature of: 0.0 C
 ```
+- Trying to create an ocean with a constant field and NO grid
+```jldoctest
+julia> Ocean(; u = 0.2, v = 0.1, temp = 0.0)
+ERROR: ArgumentError: To create a matrix from the constant value provided, you must provide a grid.
+[...]
+````
 """
 function Ocean(::Type{FT} = Float64; u, v, temp, grid = nothing) where {FT <: AbstractFloat}
     # Create field from provided values
@@ -202,11 +209,11 @@ function Ocean(::Type{FT} = Float64; u, v, temp, grid = nothing) where {FT <: Ab
 end
 
 # If matrix of values and NO grid is provided, convert to type FT and return
-_get_val_field(::Type{FT}, v::Matrix, grid) where FT = FT.(v)
+_get_val_field(::Type{FT}, v::AbstractArray, grid) where FT = FT.(v)
 # If single value and grid is provided, make constant matrix filled with provided value converted to type FT anf return
 _get_val_field(::Type{FT}, v::Real, grid::AbstractRectilinearGrid) where FT = fill(FT(v), grid.Nx + 1, grid.Ny + 1)
 # If single value and NO grid is provided, throw an error
-_get_val_field(::Type, ::Real, ::Nothing) = throw(ArgumentError("To create a matrix from the constant value provided, you must provide a grid."))
+_get_val_field(::Type, ::Real, ::Nothing) = throw(MethodError("To create a matrix from the constant value provided, you must provide a grid."))
 
 # Pretty printing for RegRectilinearGrid showing key dimensions
 function Base.show(io::IO, ocean::Ocean{FT}) where FT

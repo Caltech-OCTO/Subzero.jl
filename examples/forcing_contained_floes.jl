@@ -35,9 +35,10 @@ for i in CartesianIndices(ocean_vvels)
 end
 # Create ocean
 ocean = Ocean(
-    ocean_uvels,
-    ocean_vvels,
-    zeros(FT, (grid.Nx + 1, grid.Ny + 1)),
+    u = ocean_uvels,
+    v = ocean_vvels,
+    grid, 
+    temp = 0,
 )
 
 # Create atmosphere

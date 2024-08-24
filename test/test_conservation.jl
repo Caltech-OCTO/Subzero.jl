@@ -6,7 +6,7 @@ function conservation_simulation(
     plot = false,
 )
     Δt = 10
-    ocean = Ocean(grid, 0.0, 0.0, 0.0)
+    ocean = Ocean(; grid, u = 0.0, v = 0.0, temp = 0.0)
     atmos = Atmos(grid, 0.0, 0.0, 0.0)
     model = Model(grid, ocean, atmos, domain, floes)
     dir = "output/conservation"
