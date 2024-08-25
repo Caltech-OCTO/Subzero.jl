@@ -42,7 +42,7 @@ ocean = Ocean(
 )
 
 # Create atmosphere
-atmos = Atmos(grid, 0.0, 0.0, -1.0)
+atmos = Atmos(; grid, u = 0.0, v = 0.0, temp = -1.0)
 
 # Domain creation
 nboundary = OpenBoundary(North; grid)

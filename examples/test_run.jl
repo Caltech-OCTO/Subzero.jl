@@ -132,7 +132,7 @@ grid = RegRectilinearGrid(
 )
 zonal_ocn = Ocean(; grid, u = 0.5, v = 0.0, temp = 0.0)
 
-zero_atmos = Atmos(grid, 0.5, 0.0, 0.0)
+zero_atmos = Atmos(; grid, u = 0.5, v = 0.0, temp = 0.0)
 
 
 domain = Subzero.Domain(;

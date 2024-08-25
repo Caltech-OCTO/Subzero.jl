@@ -2,7 +2,7 @@
 function test_basic_outputwriters()
     grid = RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = -1e5, yf = 1e5, Δx = 1e4, Δy = 1e4)
     ocean = Ocean(; grid, u = 0.0, v = 0.0, temp = 0.0)
-    atmos = Atmos(grid, 0.0, 0.0, 0.0)
+    atmos = Atmos(; grid, u = 0.0, v = 0.0, temp = 0.0)
     domain = Domain(;
         north = OpenBoundary(North; grid),
         south = OpenBoundary(South; grid),

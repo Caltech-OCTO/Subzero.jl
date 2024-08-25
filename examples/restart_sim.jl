@@ -30,7 +30,7 @@ ocean = Ocean(;
     temp = 0,
 )
 
-atmos = Atmos(FT, grid, 0.0, 0.0, 0.0)
+atmos = Atmos(FT; grid, u = 0.0, v = 0.0, temp = 0.0)
 
 nboundary = PeriodicBoundary(North; grid)
 sboundary = PeriodicBoundary(South; grid)

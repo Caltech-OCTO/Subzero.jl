@@ -49,7 +49,7 @@ Here is how to construct a `CellStresses` object:
     and each vector must be the same size.
 
 """
-function CellStresses(::Type{FT} = Float64; τx = nothing, τy = nothing, npoints = nothing) where {FT}
+function CellStresses(::Type{FT} = Float64; τx = nothing, τy = nothing, npoints = nothing) where FT
     if isnothing(τx) || isnothing(τy) || isnothing(npoints)
         τx = Vector{FT}()
         τy = Vector{FT}()
@@ -70,6 +70,7 @@ end
 
 const OCEAN_TEMP_STR = "Ocean temperatures are above the range for freezing. The thermodynamics aren't currently setup for these conditions."
 
+# See documentation below
 struct Ocean{FT<:AbstractFloat}
     u::Matrix{FT}
     v::Matrix{FT}
@@ -97,6 +98,13 @@ struct Ocean{FT<:AbstractFloat}
     end
 end
 
+const U_DEF = "`u::Union{Real, Matrix{Real}}`: user can either provide a single u-velocity value \
+(a constant field the size of the `grid` will be created) or provide a matrix field of  u-velocity values"
+const V_DEF = "`v::Union{Real, Matrix{Real}}`: user can either provide a single v-velocity value \
+(a constant field the size of the `grid` will be created) or provide a matrix field of v-velocity values"
+const TEMP_DEF = "`temp::Union{Real, Matrix{Real}}`: user can either provide a single temperature value \
+(a constant field the size of the `grid` will be created) or provide a matrix field of temperature values"
+
 """
     Ocean{FT}
 
@@ -111,7 +119,8 @@ This will require a big change in behavior, but is an important change for consi
 to match with Oceananigans for two-way coupling.
 
 Coupling beyond velocity (for example thermodynamically) is not very well developed. If you
-are interested in working on this see issue [#9](@ref). The `hflx_factor`
+are interested in working on this see issue [#9](@ref). The `hflx_factor` field is related
+to thermodynamic coupling.
 
 ## _Fields_
 - `u::Matrix{FT}`: ocean u-velocities in the x-direction on each grid point
@@ -131,27 +140,31 @@ are interested in working on this see issue [#9](@ref). The `hflx_factor`
     north-south boundary pair are periodic respectively. In the future, it might be worth having
     the ocean re-sizing to not included this repeated point dispatching off of the boundary types.
 
+!!! note
+    For each of the fields, the rows represent the `x`-values of the grid, while the columns
+    represent the `y`-values of the grid. This makes it easy to index into the grid for a
+    point `(x, y)`, although it does mean that the fields provided don't "look" like the grid
+    if plotted directly and instead need to be transposed. 
+
 Here is how to construct an `Ocean`:
 
     Ocean([FT = Float64]; u, v, temp, grid = nothing)
 
 ## _Positional arguments_
 - $FT_DEF
+
 ## _Keyword arguments_
-- `u::Union{Real, Matrix{Real}}`: user can either provide a single u-velocity value \
-(a constant field the size of the `grid` will be created) or provide a matrix field of  u-velocity values
-- `v::Union{Real, Matrix{Real}}`: user can either provide a single v-velocity value \
-(a constant field the size of the `grid` will be created) or provide a matrix field of v-velocity values
-- `temp::Union{Real, Matrix{Real}}`: user can either provide a single temperature value \
-(a constant field the size of the `grid` will be created) or provide a matrix field of temperature values
-- `grid::AbstractRectilinearGrid`: user only needs to provide a `grid object if they supply a \
-`<:Real` value to any of `u`, `v`, or `temp` so field of the correct size can be created.
+- $U_DEF
+- $V_DEF
+- $TEMP_DEF
+- $GRID_DEF
 
 !!! note
     The user MUST provide `u`, `v`, and `temp`, although they have the option of these
     being `Real` values or `Matrix{<:Real}`. If the user chooses to provide `Real` values for any
     of those fields, then a `grid` IS required to create a constant field of the correct size.
-    If user chooses to provide a field, they should be of size `(grid.Nx + 1, grid.Ny + 1)`.
+    If user chooses to provide a field, they should be of size `(grid.Nx + 1, grid.Ny + 1)` and
+    the user doesn't require a `grid` input.
 
 ## _Examples_
 - Creating `Ocean` with constant `u`-velocity, `v-velocity`, and `temp`
@@ -184,12 +197,12 @@ Ocean{Float32}
   ⊢Average v-velocity of: 0.5319979 m/s
   ∟Average temperature of: 0.0 C
 ```
-- Trying to create an ocean with a constant field and NO grid
+- Trying to create an `Ocean` with a constant field and NO grid
 ```jldoctest
 julia> Ocean(; u = 0.2, v = 0.1, temp = 0.0)
 ERROR: ArgumentError: To create a matrix from the constant value provided, you must provide a grid.
 [...]
-````
+```
 """
 function Ocean(::Type{FT} = Float64; u, v, temp, grid = nothing) where {FT <: AbstractFloat}
     # Create field from provided values
@@ -213,9 +226,11 @@ _get_val_field(::Type{FT}, v::AbstractArray, grid) where FT = FT.(v)
 # If single value and grid is provided, make constant matrix filled with provided value converted to type FT anf return
 _get_val_field(::Type{FT}, v::Real, grid::AbstractRectilinearGrid) where FT = fill(FT(v), grid.Nx + 1, grid.Ny + 1)
 # If single value and NO grid is provided, throw an error
-_get_val_field(::Type, ::Real, ::Nothing) = throw(MethodError("To create a matrix from the constant value provided, you must provide a grid."))
+_get_val_field(::Type, ::Real, ::Nothing) = throw(ArgumentError("To create a matrix from the constant value provided, you must provide a grid."))
 
-# Pretty printing for RegRectilinearGrid showing key dimensions
+_get_val_field(t, v, g) = throw(ArgumentError("Incorrect input to Ocean or Atmos constructor."))
+
+# Pretty printing for Ocean showing key dimensions
 function Base.show(io::IO, ocean::Ocean{FT}) where FT
     overall_summary = "Ocean{$FT}"
     vector_summary = "Vector fields of dimension $(size(ocean.u))"

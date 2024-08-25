@@ -466,7 +466,7 @@
         FT = Float64
         grid = Subzero.RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = -1e5, yf = 1e5, Δx = 1e4, Δy = 1e4)
         zonal_ocean = Subzero.Ocean(; grid, u = 1.0, v = 0.0, temp = 0.0)
-        zero_atmos = Subzero.Atmos(grid, 0.0, 0.0, -20.0)
+        zero_atmos = Subzero.Atmos(; grid, u = 0.0, v = 0.0, temp = -20.0)
         domain = Subzero.Domain(;
             north = CollisionBoundary(North; grid),
             south = CollisionBoundary(South; grid),
@@ -558,7 +558,7 @@
         @test isapprox(model3.floes[1].trqOA/area, 29.0465, atol = 1e-1)
         
         # stationary floe, diagonal atmos flow
-        diagonal_atmos = Subzero.Atmos(grid, -1, -0.5, 0.0)
+        diagonal_atmos = Subzero.Atmos(; grid, u = -1, v = -0.5, temp = 0.0)
         model4 = Subzero.Model(
             grid,
             zero_ocean,
@@ -612,10 +612,10 @@
 
 
         # moving floe, non-uniform ocean, non-uniform atmos
-        non_unif_atmos = Subzero.Atmos(
-            non_unif_uocn',
-            non_unif_vocn',
-            zeros(size(xgrid)),
+        non_unif_atmos = Subzero.Atmos(;
+            u = non_unif_uocn',
+            v = non_unif_vocn',
+            temp = zeros(size(xgrid)),
         )
         floe6 = deepcopy(floe)
         floe6.u = 0.5

@@ -12,7 +12,7 @@ const Δt = 20
 # Model instantiation
 grid = RegRectilinearGrid(; x0 = 0.0, xf = Lx, y0 = 0.0, yf = Ly, Δx = Δgrid, Δy = Δgrid)
 ocean = Ocean(; grid, u = 0.0, v = -0.3, temp = 0.0)
-atmos = Atmos(grid, 0.0, 0.0, 0.0)
+atmos = Atmos(; grid, u = 0.0, v = 0.0, temp = 0.0)
 
 # Domain creation
 nboundary = PeriodicBoundary(North; grid)
