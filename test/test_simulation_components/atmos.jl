@@ -33,7 +33,7 @@ using Test, Subzero
     @test all(atmos3.temp .≈ temp_const)
 
     # Test Atmos with const input fields but no grid
-    @test_throws MethodError Atmos(; u = 0.0, v = 0.0, temp = 0.0)
+    @test_throws ArgumentError Atmos(; u = 0.0, v = 0.0, temp = 0.0)
 
     # Test field size constraints
     @test_throws ArgumentError Atmos(; u = zeros(3, 4), v = zeros(4, 3), temp = zeros(4, 3))

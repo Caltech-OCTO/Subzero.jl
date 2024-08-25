@@ -227,8 +227,7 @@ _get_val_field(::Type{FT}, v::AbstractArray, grid) where FT = FT.(v)
 _get_val_field(::Type{FT}, v::Real, grid::AbstractRectilinearGrid) where FT = fill(FT(v), grid.Nx + 1, grid.Ny + 1)
 # If single value and NO grid is provided, throw an error
 _get_val_field(::Type, ::Real, ::Nothing) = throw(ArgumentError("To create a matrix from the constant value provided, you must provide a grid."))
-
-_get_val_field(t, v, g) = throw(ArgumentError("Incorrect input to Ocean or Atmos constructor."))
+_get_val_field(t, v, g) = throw(ArgumentError("Incorrect inputs to Ocean or Atmos constructor."))
 
 # Pretty printing for Ocean showing key dimensions
 function Base.show(io::IO, ocean::Ocean{FT}) where FT

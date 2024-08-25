@@ -60,7 +60,7 @@ end
     @test all(ocean3.temp .≈ temp_const)
 
     # Test Ocean with const input fields but no grid
-    @test_throws MethodError Ocean(; u = 0.0, v = 0.0, temp = 0.0)
+    @test_throws ArgumentError Ocean(; u = 0.0, v = 0.0, temp = 0.0)
 
     # Test ocean temperature constraint warning
     @test_logs (:warn, Subzero.OCEAN_TEMP_STR) Ocean(; grid, u = 0.0, v = 0.0, temp = 1.0)
