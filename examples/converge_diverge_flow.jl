@@ -19,8 +19,8 @@ uvels = repeat(
     ),
     outer = 11,
 )
-ocean = Ocean(uvels, zeros(grid.Nx + 1, grid.Ny + 1), zeros(grid.Nx + 1, grid.Ny + 1))
-atmos = Atmos(grid, 0.0, 0.0, -1.0)
+ocean = Ocean(; u = uvels, grid, v = 0, temp = 0)
+atmos = Atmos(; grid, u = 0.0, v = 0.0, temp = -1.0)
 
 # Domain creation
 nboundary = PeriodicBoundary(North; grid)

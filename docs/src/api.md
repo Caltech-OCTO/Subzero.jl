@@ -40,6 +40,16 @@ initialize_topography_field
 Domain
 ```
 
+## Ocean
+```@docs
+Ocean
+```
+
+## Atmosphere
+```@docs
+Atmos
+```
+
 ### Model
 ```@docs
 Model
@@ -48,5 +58,6 @@ Model
 ## Developer-Used Types
 ```@docs
 CellFloes
+CellStresses
 TopographyField
 ```

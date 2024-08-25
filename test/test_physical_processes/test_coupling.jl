@@ -355,7 +355,7 @@
             deepcopy(grid),
             open_bound,
             open_bound,
-            Subzero.Ocean(grid, 0, 0, 0).scells,
+            Subzero.Ocean(; grid, u = 0, v = 0, temp = 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [CartesianIndex(7, 4), CartesianIndex(6, 3)],
             [0.0, 0.0],
@@ -374,7 +374,7 @@
             deepcopy(grid),
             periodic_bound,
             periodic_bound,
-            Subzero.Ocean(grid, 0, 0, 0).scells,
+            Subzero.Ocean(; grid, u = 0, v = 0, temp = 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [
                 CartesianIndex(7, 2),
@@ -398,7 +398,7 @@
             deepcopy(grid),
             periodic_bound,
             open_bound,
-            Subzero.Ocean(grid, 0, 0, 0).scells,
+            Subzero.Ocean(; grid, u = 0, v = 0, temp = 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [
                 CartesianIndex(10, 1),
@@ -423,7 +423,7 @@
             deepcopy(grid),
             open_bound,
             periodic_bound,
-            Subzero.Ocean(grid, 0, 0, 0).scells,
+            Subzero.Ocean(; grid, u = 0, v = 0, temp = 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [
                 CartesianIndex(1, 4),
@@ -446,7 +446,7 @@
             deepcopy(grid),
             periodic_bound,
             periodic_bound,
-            Subzero.Ocean(grid, 0, 0, 0).scells,
+            Subzero.Ocean(; grid, u = 0, v = 0, temp = 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [
                 CartesianIndex(1, 1),
@@ -465,8 +465,8 @@
     #     # set up model and floe
         FT = Float64
         grid = Subzero.RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = -1e5, yf = 1e5, Δx = 1e4, Δy = 1e4)
-        zonal_ocean = Subzero.Ocean(grid, 1.0, 0.0, 0.0)
-        zero_atmos = Subzero.Atmos(grid, 0.0, 0.0, -20.0)
+        zonal_ocean = Subzero.Ocean(; grid, u = 1.0, v = 0.0, temp = 0.0)
+        zero_atmos = Subzero.Atmos(; grid, u = 0.0, v = 0.0, temp = -20.0)
         domain = Subzero.Domain(;
             north = CollisionBoundary(North; grid),
             south = CollisionBoundary(South; grid),
@@ -515,7 +515,7 @@
         @test isapprox(model1.floes[1].trqOA/area, -523.9212, atol = 1e-3)
 
     # stationary floe, uniform meridional ocean flow
-        meridional_ocean = Subzero.Ocean(grid, 0.0, 1.0, 0.0)
+        meridional_ocean = Subzero.Ocean(; grid, u = 0.0, v = 1.0, temp = 0.0)
         model2 = Subzero.Model(
             grid,
             meridional_ocean,
@@ -535,7 +535,7 @@
         @test isapprox(model2.floes[1].trqOA/area, 239.3141, atol = 1e-3)
 
     # moving floe, uniform 0 ocean flow
-        zero_ocean = Subzero.Ocean(grid, 0.0, 0.0, 0.0)
+        zero_ocean = Subzero.Ocean(; grid, u = 0.0, v = 0.0, temp = 0.0)
         floe3 = deepcopy(floe)
         floe3.u = 0.25
         floe3.v = 0.1
@@ -558,7 +558,7 @@
         @test isapprox(model3.floes[1].trqOA/area, 29.0465, atol = 1e-1)
         
         # stationary floe, diagonal atmos flow
-        diagonal_atmos = Subzero.Atmos(grid, -1, -0.5, 0.0)
+        diagonal_atmos = Subzero.Atmos(; grid, u = -1, v = -0.5, temp = 0.0)
         model4 = Subzero.Model(
             grid,
             zero_ocean,
@@ -587,10 +587,10 @@
         non_unif_uocn[2:end, :] = -1e-4*(psi_ocn[2:end, :] .- psi_ocn[1:end-1, :])
         non_unif_vocn = zeros(size(ygrid))
         non_unif_vocn[:, 2:end] = 1e-4*(psi_ocn[:, 2:end] .- psi_ocn[:, 1:end-1])
-        non_unif_ocean = Subzero.Ocean(
-            non_unif_uocn',
-            non_unif_vocn',
-            zeros(size(xgrid)),
+        non_unif_ocean = Subzero.Ocean(;
+            u = non_unif_uocn',
+            v = non_unif_vocn',
+            temp = zeros(size(xgrid)),
         )
         model5 = Subzero.Model(
             grid,
@@ -612,10 +612,10 @@
 
 
         # moving floe, non-uniform ocean, non-uniform atmos
-        non_unif_atmos = Subzero.Atmos(
-            non_unif_uocn',
-            non_unif_vocn',
-            zeros(size(xgrid)),
+        non_unif_atmos = Subzero.Atmos(;
+            u = non_unif_uocn',
+            v = non_unif_vocn',
+            temp = zeros(size(xgrid)),
         )
         floe6 = deepcopy(floe)
         floe6.u = 0.5

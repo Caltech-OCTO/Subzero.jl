@@ -8,9 +8,6 @@ module Subzero
 end Subzero
 
 export
-    Ocean,
-    Atmos,
-    Domain,
     Floe,
     Constants,
     Model,
@@ -48,7 +45,6 @@ export
     PolyVec,
     OutputWriters,
     check_energy_momentum_conservation_julia,
-    IceStressCell,
     MonteCarloPointsGenerator,
     SubGridPointsGenerator
 
@@ -113,7 +109,8 @@ include("simulation_components/domain_components/topography.jl")
 include("simulation_components/domain_components/domains.jl")
 include("simulation_components/floe.jl")
 include("floe_utils.jl")
-include("simulation_components/ocean_and_atmos.jl")
+include("simulation_components/oceans.jl")
+include("simulation_components/atmos.jl")
 include("simulation_components/model.jl")
 # Physical Processes
 include("physical_processes/fractures.jl")

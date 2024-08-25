@@ -23,13 +23,14 @@ uvels_ocean = repeat(
     uoprofile,
     outer = (1, ngrid),
 )
-ocean = Ocean(
-    uvels_ocean',
-    zeros(grid.Nx + 1, grid.Ny + 1),
-    zeros(grid.Nx + 1, grid.Ny + 1),
+ocean = Ocean(;
+    u = uvels_ocean',
+    grid,
+    v = 0,
+    temp = 0,
 )
 
-atmos = Atmos(FT, grid, 0.0, 0.0, 0.0)
+atmos = Atmos(FT; grid, u = 0.0, v = 0.0, temp = 0.0)
 
 nboundary = PeriodicBoundary(North; grid)
 sboundary = PeriodicBoundary(South; grid)

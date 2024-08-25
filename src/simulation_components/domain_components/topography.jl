@@ -109,8 +109,10 @@ a list of coordiantes, which will then be made into polygons.
 - $POLY_LIST_DEF
 - $COORDS_LIST_DEF
 
-_Note_: Topography field elements must not be intersecting, so the corrections within this
-function may lead to more polygons than input to make a valid topography field.
+!!! note
+    Topography field elements must not be intersecting, so the corrections within this
+    function may lead to a different number of polygons than input to make a valid
+    topography field.
 
 ## _Examples_
 - Defining a topography field with coordinates
@@ -170,7 +172,9 @@ end
     TopographyField{FT} 
 
 Alias for StructArray type with TopographyElement elements with data of type `FT`.
-Note: this is not designed to be used by users, but is useful for dispatch by developers. 
+    
+!!! note
+    This is not designed to be used by users, but is useful for dispatch by developers. 
 """
 const TopographyField{FT} = StructArray{TopographyElement{FT}} where FT
 

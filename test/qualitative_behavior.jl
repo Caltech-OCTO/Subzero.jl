@@ -20,11 +20,11 @@ const coarse_ny = 10
 # Setup for Simulations
 grid = RegRectilinearGrid(; x0 = -2.5e4, xf = Lx, y0 = -2.5e4, yf = Ly, Δx = Δgrid, Δy = Δgrid)
 
-zero_ocn = Ocean(grid, 0.0, 0.0, 0.0)
-meridional_ocn = Ocean(grid, 0.0, 1.0, 0.0)
+zero_ocn = Ocean(; grid, u = 0.0, v = 0.0, temp = 0.0)
+meridional_ocn = Ocean(; grid, u = 0.0, v = 1.0, temp = 0.0)
 
-zero_atmos = Atmos(grid, 0.0, 0.0, 0.0)
-zonal_atmos = Atmos(grid, -15.0, 0.0, 0.0)
+zero_atmos = Atmos(; grid, u = 0.0, v = 0.0, temp = 0.0)
+zonal_atmos = Atmos(; grid, u = -15.0, v = 0.0, temp = 0.0)
 
 open_domain_no_topo = Subzero.Domain(;
     north = OpenBoundary(North; grid),

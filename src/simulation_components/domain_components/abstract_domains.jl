@@ -32,11 +32,11 @@ any forces not in the normal direction, if applicable. Right now, this is used t
 that the elastic collision with boundaries only produces a normal foces on floes. For other 
 domain elements (topography), this function does nothing.
 
-_Notes_:
-- If the user is wants to create a new boundary type, they must also implement the
-function in the [`AbstractBoundary`](@ref) API.
-- If the user wanted new elements in the [`Domain`](@ref), the user would need to change the
-`Domain` struct.
+!!! note
+    - If the user is wants to create a new boundary type, they must also implement the \
+    function in the [`AbstractBoundary`](@ref) API.
+    - If the user wanted new elements in the [`Domain`](@ref), the user would need to change the \
+    `Domain` struct.
 """
 abstract type AbstractDomainElement{FT<:AbstractFloat} end
 

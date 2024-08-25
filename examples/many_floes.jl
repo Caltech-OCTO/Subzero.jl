@@ -17,9 +17,9 @@ const coarse_ny = 10
 # Model instantiation
 grid = RegRectilinearGrid(FT; x0 = -Lx, xf = Lx, y0 = -Ly, yf = Ly, Δx = Δgrid, Δy = Δgrid)
 
-ocean = Ocean(FT, grid, -0.2, 0.0, -1.0)
+ocean = Ocean(FT; grid, u = -0.2, v = 0.0, temp = -1.0)
 
-atmos = Atmos(FT, grid, 0.0, 0.0, -3.0)
+atmos = Atmos(FT; grid, u = 0.0, v = 0.0, temp = -3.0)
 
 # Domain creation - boundaries and topography
 nboundary = OpenBoundary(North, FT; grid)

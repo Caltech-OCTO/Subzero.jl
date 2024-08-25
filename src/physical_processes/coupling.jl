@@ -1301,7 +1301,7 @@ end
 """
     add_point!(
         cfloes::CellFloes,
-        scell::IceStressCell,
+        scell::CellStresses,
         floeidx,
         τx,
         τy,
@@ -1309,11 +1309,11 @@ end
         Δy,
     )
 Add floe to CellFloes list of floes within that grid cell and aggragate the
-stress caused by monte carlo point in floe into IceStressCell object.
+stress caused by monte carlo point in floe into CellStresses object.
 Inputs:
     cfloes  <CellFloes> CellFloes object representing one grid cell (centered on
                 model's grid lines)
-    scell   <IceStressCell> IceStressCell aggragating stresses from floes within
+    scell   <CellStresses> CellStresses aggragating stresses from floes within
                 grid cell from each floes' monte carlo points
     floeidx <Int> floe index within model's list of floes
     τx      <AbstractFloat> x-directional stress from monte carlo point on ocean
@@ -1328,7 +1328,7 @@ Outputs:
 """
 function add_point!(
     cfloes::CellFloes,
-    scell::IceStressCell,
+    scell::CellStresses,
     floeidx,
     τx,
     τy,
@@ -1357,7 +1357,7 @@ end
         Δy,
     )
 Add floe to CellFloes list of floes within that grid cell and aggragate the
-stress caused by monte carlo point in floe into IceStressCell object.
+stress caused by monte carlo point in floe into CellStresses object.
 Inputs:
     cfloes  <CellFloes> CellFloes object representing one grid cell (centered on
                 model's grid lines)
@@ -1410,7 +1410,7 @@ Inputs:
     domain              <Domain> model's domain
     cell_floes          <Matrix{CellFloes}> matrix of CellFloes, one for each
                             grid cell
-    scells              <Matrix{IceStressCell}> matrix of IceStressCells, one
+    scells              <Matrix{CellStresses}> matrix of CellStressess, one
                             for each grid cell
     coupling_settings   <CouplingSettings> simulation's coupling settings
 """
