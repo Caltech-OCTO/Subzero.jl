@@ -4,12 +4,9 @@ import GeoInterface as GI
 import GeometryOps as GO
 import LibGEOS as LG
 
-function jl_to_md(input, output, clean_output = false)
-    # cleans up previous output
-    if clean_output
-        rm(output; force = true, recursive = true)
-        mkpath(output)  # remakes output file
-    end
+println(pwd())
+
+function jl_to_md(input, output)
     # turns .jl files in input to .md files in output
     for ipath in readdir(input, join = true)
         # ignore non julia files
@@ -24,13 +21,15 @@ function jl_to_md(input, output, clean_output = false)
 end
 
 # Converting any files in the literate folder to markdown
+println("Building tutorial...")
 tutorial_input = joinpath(@__DIR__, "literate")
 tutorial_output = joinpath(@__DIR__, "src")
 jl_to_md(tutorial_input, tutorial_output)
 
+println("Building examples...")
 examples_input = joinpath(@__DIR__, "literate", "examples")
 examples_output = joinpath(@__DIR__, "src", "examples")
-jl_to_md(examples_input, examples_output, true)
+jl_to_md(examples_input, examples_output)
 
 # Documentation formatting
 format = Documenter.HTML(;
@@ -52,7 +51,8 @@ makedocs(;
         "Introduction" => "index.md",
         "Tutorial" => "tutorial.md",
         "Examples" => [
-            "examples/shear_flow.md"
+            "examples/shear_flow.md",
+            "examples/simple_strait.md"
         ],
         "API Reference" => "api.md",
         "Improving Subzero" => [

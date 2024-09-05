@@ -1,5 +1,5 @@
 
-# # Shear Floe Simulation
+# # Shear Flow Simulation
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>
@@ -18,6 +18,9 @@
 # the top and bottom of the domain towards the center to 0.5m/s, again constant across x-values,
 # varying with y-values.
 
+println("what is happening")
+
+# oh my 
 using Subzero, CairoMakie, GeoInterfaceMakie
 using JLD2, Random, Statistics
 
@@ -29,7 +32,7 @@ const Δgrid = 2e3   # grid cell edge-size
 const hmean = 0.25  # mean floe height
 const Δh = 0.0      # difference in floe heights - here all floes are the same height
 const Δt = 20       # timestep
-const nΔt = 1500    # number of timesteps to run
+const nΔt = 150   # number of timesteps to run
 
 ## Grid Creation
 grid = RegRectilinearGrid(; x0 = 0.0, xf = Lx, y0 = 0.0, yf = Ly, Δx = Δgrid, Δy = Δgrid)
@@ -39,7 +42,6 @@ nboundary = PeriodicBoundary(North; grid)
 sboundary = PeriodicBoundary(South; grid)
 eboundary = PeriodicBoundary(East; grid)
 wboundary = PeriodicBoundary(West; grid)
-
 domain = Domain(; north = nboundary, south = sboundary, east = eboundary, west = wboundary)
 
 ## Ocean Creation
@@ -54,7 +56,6 @@ atmos = Atmos(; u = 0.0, v = 0.0, temp = -1.0, grid)
 
 ## Floe Creation
 floe_settings = FloeSettings(subfloe_point_generator = SubGridPointsGenerator(grid, 2))
-
 floe_arr = initialize_floe_field(
     FT,
     500,
@@ -88,11 +89,15 @@ run!(simulation)
 
 ## Plotting the Simulation
 
-plot_sim(floe_fn, init_fn, Δt, "shear_flow.mp4")
+output_fn = joinpath(dirname(floe_fn), "shear_flow.mp4")
+
+# what is the fn
+
+plot_sim(floe_fn, init_fn, Δt, output_fn)
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>
-# <source src="../shear_flow.mp4" type="video/mp4">
+# <source src="$(output_fn)" type="video/mp4">
 # </video>
 # ```
 

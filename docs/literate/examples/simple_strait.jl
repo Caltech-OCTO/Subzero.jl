@@ -13,6 +13,9 @@
 # completely covered with topography forming the edges of the domain. This is a good simulation
 # to understand how to setup topography and how to turn on fractures using the fracture settings.
 
+pwd()
+# where the fuck am I
+
 using Subzero, CairoMakie, GeoInterfaceMakie
 using JLD2, Random, Statistics
 
@@ -26,7 +29,7 @@ const Δgrid = 2e3   # grid cell edge-size
 const hmean = 0.25  # mean floe height
 const Δh = 0.0      # difference in floe heights - here all floes are the same height
 const Δt = 20       # timestep
-const nΔt = 1500    # number of timesteps to run
+const nΔt = 150    # number of timesteps to run
 
 ## Grid Creation
 grid = RegRectilinearGrid(; x0 = 0.0, xf = Lx, y0 = 0.0, yf = Ly, Δx = Δgrid, Δy = Δgrid)
@@ -104,12 +107,14 @@ simulation = Simulation(; model, consts, writers, Δt, nΔt,
 run!(simulation)
 
 ## Plotting the Simulation
+output_fn = joinpath(".", "simple_strait.mp4")
 
-plot_sim(floe_fn, init_fn, Δt, "simple_strait.mp4")
+# Trying things
+plot_sim(floe_fn, init_fn, Δt, output_fn)
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>
-# <source src="../simple_strait.mp4" type="video/mp4">
+# <source src="../../build/examples/simple_strait.mp4" type="video/mp4">
 # </video>
 # ```
 
