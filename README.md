@@ -22,16 +22,22 @@ To learn how to build and run simulations, [check out our documentation and tuto
 
 ## _Installation_
 
-Subzero is a [registered Julia package](https://julialang.org/packages/). So to install it,
+Subzero is not yet a [registered Julia package](https://julialang.org/packages/). So to install it,
 
 1. [Download Julia](https://julialang.org/downloads/) (version 1.9 or later).
 
-2. Launch Julia and type
+2. Launch Julia and enter into the package manager mode by typing `]` in the terminal.
+   
+3. Run the following
 
 ```julia
-julia> using Pkg
+pkg> add "git@github.com:Caltech-OCTO/Subzero.jl.git"
+```
 
-julia> Pkg.add("Subzero")
+This will add the package to your package manager. After that you return to the REPL mode by hitting the backspace and you are ready to use Subzero! 
+
+```julia
+julia> using Subzero
 ```
 
 ## _Citing_
