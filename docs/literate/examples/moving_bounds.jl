@@ -49,16 +49,16 @@ floe_arr = initialize_floe_field(
 )
 nfloes = length(floe_arr)
 floe_arr.u .= 0  # set the inital floe velocities manually
-floe_arr.v .= -0.01
+floe_arr.v .= -0.01;
 
 # ## Model creation
 model = Model(grid, ocean, atmos, domain, floe_arr)
 
 # ## Output Writer Setup
 dir = "moving_bounds"
-init_fn, floe_fn = joinpath(dir, "moving_bounds_init_state.jld2"), joinpath(dir, "moving_bounds.jld2")
-initwriter = InitialStateOutputWriter(filename = init_fn, overwrite = true)
-floewriter = FloeOutputWriter(50, filename = floe_fn, overwrite = true)
+init_fn, floe_fn = "moving_bounds_init_state.jld2", "moving_bounds.jld2"
+initwriter = InitialStateOutputWriter(dir = dir, filename = init_fn, overwrite = true)
+floewriter = FloeOutputWriter(50, dir= dir, filename = floe_fn, overwrite = true)
 writers = OutputWriters(initwriter, floewriter)
 
 # ## Simulation settings 
@@ -93,8 +93,7 @@ simulation = Simulation(
 run!(simulation)
 
 # ## Plotting the Simulation
-output_fn = joinpath(dirname(floe_fn), "moving_bounds.mp4")
-plot_sim(floe_fn, init_fn, Δt, output_fn);
+plot_sim(joinpath(dir, floe_fn), joinpath(dir, init_fn), Δt, joinpath(dir, "moving_bounds.mp4"))
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>

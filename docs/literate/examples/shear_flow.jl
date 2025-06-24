@@ -54,8 +54,8 @@ atmos = Atmos(; u = 0.0, v = 0.0, temp = -1.0, grid)
 # ## Floe Creation
 floe_settings = FloeSettings(subfloe_point_generator = SubGridPointsGenerator(grid, 2))
 floe_arr = initialize_floe_field(
-    50,
     FT,
+    50,
     [0.75],
     domain,
     hmean,
@@ -73,9 +73,9 @@ consts = Constants(E = modulus)
 
 # ## Output Creation
 dir = "shear_flow"
-init_fn, floe_fn = joinpath(dir, "shear_flow_init_state.jld2"), joinpath(dir, "shear_flow_floes.jld2")
-initwriter = InitialStateOutputWriter(filename = init_fn, overwrite = true)
-floewriter = FloeOutputWriter(50, filename = floe_fn, overwrite = true)
+init_fn, floe_fn = "shear_flow_init_state.jld2", "shear_flow_floes.jld2"
+initwriter = InitialStateOutputWriter(dir = dir, filename = init_fn, overwrite = true)
+floewriter = FloeOutputWriter(50, dir = dir, filename = floe_fn, overwrite = true)
 writers = OutputWriters(initwriter, floewriter)
 
 # ## Simulation Creation
@@ -86,8 +86,7 @@ simulation = Simulation(; model, consts, writers, Δt, nΔt, floe_settings,
 run!(simulation)
 
 # ## Plotting the Simulation
-output_fn = joinpath(dirname(floe_fn), "shear_flow.mp4")
-plot_sim(floe_fn, init_fn, Δt, output_fn)
+plot_sim(joinpath(dir, floe_fn), joinpath(dir, init_fn), Δt, joinpath(dir, "shear_flow.mp4"))
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>

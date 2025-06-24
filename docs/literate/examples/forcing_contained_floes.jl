@@ -102,9 +102,9 @@ model = Model(grid, ocean, atmos, domain, floe_arr)
 
 # ## Output Writer Creation
 dir = "forcing_contained_floes"
-init_fn, floe_fn = joinpath(dir, "contained_floes_init_state.jld2"), joinpath(dir, "contained_floes.jld2")
-initwriter = InitialStateOutputWriter(filename = init_fn, overwrite = true)
-floewriter = FloeOutputWriter(50, filename = floe_fn, overwrite = true)
+init_fn, floe_fn = "contained_floes_init_state.jld2", "contained_floes.jld2"
+initwriter = InitialStateOutputWriter(filename = init_fn, dir = dir, overwrite = true)
+floewriter = FloeOutputWriter(50, filename = floe_fn, dir = dir, overwrite = true)
 writers = OutputWriters(initwriter, floewriter)
 
 # ## Simulation Creation
@@ -124,8 +124,7 @@ simulation = Simulation(
 run!(simulation)
 
 # ## Plotting the Simulation
-output_fn = joinpath(dirname(floe_fn), "contained_floes.mp4")
-plot_sim(floe_fn, init_fn, Δt, output_fn);
+plot_sim(joinpath(dir, floe_fn), joinpath(dir, init_fn), Δt, joinpath(dir, "contained_floes.mp4"))
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>

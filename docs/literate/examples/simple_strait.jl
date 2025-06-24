@@ -92,9 +92,9 @@ ridgeraft_settings = RidgeRaftSettings(
 
 # ## Output Creation
 dir = "simple_strait"
-init_fn, floe_fn = joinpath(dir, "simple_strait_init_state.jld2"), joinpath(dir, "simple_strait_floes.jld2")
-initwriter = InitialStateOutputWriter(filename = init_fn, overwrite = true)
-floewriter = FloeOutputWriter(50, filename = floe_fn, overwrite = true)
+init_fn, floe_fn = "simple_strait_init_state.jld2", "simple_strait_floes.jld2"
+initwriter = InitialStateOutputWriter(dir = dir, filename = init_fn, overwrite = true)
+floewriter = FloeOutputWriter(50, dir = dir, filename = floe_fn, overwrite = true)
 writers = OutputWriters(initwriter, floewriter)
 
 # ## Simulation Creation
@@ -107,8 +107,7 @@ simulation = Simulation(; model, consts, writers, Δt, nΔt,
 run!(simulation)
 
 # ## Plotting the Simulation
-output_fn = joinpath(dirname(floe_fn), "simple_strait.mp4")
-plot_sim(floe_fn, init_fn, Δt, output_fn)
+plot_sim(joinpath(dir, floe_fn), joinpath(dir, init_fn), Δt, joinpath(dir, "simple_strait.mp4"))
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>

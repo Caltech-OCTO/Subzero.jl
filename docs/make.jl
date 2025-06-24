@@ -4,8 +4,6 @@ import GeoInterface as GI
 import GeometryOps as GO
 import LibGEOS as LG
 
-println(pwd())
-
 function jl_to_md(input, output)
     # turns .jl files in input to .md files in output
     for ipath in readdir(input, join = true)
@@ -64,7 +62,6 @@ makedocs(;
         ],
     ],
     warnonly = true,
-    clean = false,  # TODO: remove before pushing to production
 )
 
 deploydocs(;
