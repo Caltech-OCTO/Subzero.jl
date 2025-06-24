@@ -52,7 +52,9 @@ makedocs(;
         "Tutorial" => "tutorial.md",
         "Examples" => [
             "examples/shear_flow.md",
-            "examples/simple_strait.md"
+            "examples/simple_strait.md",
+            "examples/forcing_contained_floes.md",
+            "examples/moving_bounds.md"
         ],
         "API Reference" => "api.md",
         "Improving Subzero" => [
@@ -61,6 +63,7 @@ makedocs(;
         ],
     ],
     warnonly = true,
+    clean = false,  # TODO: remove before pushing to production
 )
 
 deploydocs(;

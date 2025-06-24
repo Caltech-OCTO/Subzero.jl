@@ -1,5 +1,5 @@
 
-# # Shear Flow Simulation
+# # Shear Flow with Periodic Boundaries
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>
@@ -18,13 +18,10 @@
 # the top and bottom of the domain towards the center to 0.5m/s, again constant across x-values,
 # varying with y-values.
 
-println("what is happening")
-
-# oh my 
 using Subzero, CairoMakie, GeoInterfaceMakie
 using JLD2, Random, Statistics
 
-## User Inputs
+# ## User Inputs
 const FT = Float64  # Float type used to run simulation
 const Lx = 1e5      # grid x-length
 const Ly = 1e5      # grid y-length
@@ -32,34 +29,34 @@ const Δgrid = 2e3   # grid cell edge-size
 const hmean = 0.25  # mean floe height
 const Δh = 0.0      # difference in floe heights - here all floes are the same height
 const Δt = 20       # timestep
-const nΔt = 150   # number of timesteps to run
+const nΔt = 5000   # number of timesteps to run
 
-## Grid Creation
+# ## Grid Creation
 grid = RegRectilinearGrid(; x0 = 0.0, xf = Lx, y0 = 0.0, yf = Ly, Δx = Δgrid, Δy = Δgrid)
 
-## Domain Creation
+# ## Domain Creation
 nboundary = PeriodicBoundary(North; grid)
 sboundary = PeriodicBoundary(South; grid)
 eboundary = PeriodicBoundary(East; grid)
 wboundary = PeriodicBoundary(West; grid)
 domain = Domain(; north = nboundary, south = sboundary, east = eboundary, west = wboundary)
 
-## Ocean Creation
+# ## Ocean Creation
 half_nx = fld(grid.Nx, 2)
 u_vec = [range(0, 0.5, length = half_nx); 0.5; range(0.5, 0, length = half_nx)]
 u_row = transpose(u_vec)
 uvels = repeat(u_row, outer = (grid.Ny + 1, 1))
 ocean = Ocean(; u = uvels, v = 0, temp = 0, grid)
 
-## Atmos Creation
+# ## Atmosphere Creation
 atmos = Atmos(; u = 0.0, v = 0.0, temp = -1.0, grid)
 
-## Floe Creation
+# ## Floe Creation
 floe_settings = FloeSettings(subfloe_point_generator = SubGridPointsGenerator(grid, 2))
 floe_arr = initialize_floe_field(
     FT,
-    500,
-    [0.8],
+    100,
+    [0.75],
     domain,
     hmean,
     Δh;
@@ -67,37 +64,33 @@ floe_arr = initialize_floe_field(
     floe_settings = floe_settings
 )
 
-## Model Creation
+# ## Model Creation
 model = Model(grid, ocean, atmos, domain, floe_arr)
 
-## Constants Creation
+# ## Constants Creation
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 consts = Constants(E = modulus)
 
-## Output Creation
+# ## Output Creation
 init_fn, floe_fn = "shear_flow_init_state.jld2", "shear_flow_floes.jld2"
 initwriter = InitialStateOutputWriter(filename = init_fn, overwrite = true)
 floewriter = FloeOutputWriter(50, filename = floe_fn, overwrite = true)
 writers = OutputWriters(initwriter, floewriter)
 
-## Simulation Creation
+# ## Simulation Creation
 simulation = Simulation(; model, consts, writers, Δt, nΔt, floe_settings,
     verbose = true, rng = Xoshiro(1))
 
-## Running the Simulation
+# ## Running the Simulation
 run!(simulation)
 
-## Plotting the Simulation
-
+# ## Plotting the Simulation
 output_fn = joinpath(dirname(floe_fn), "shear_flow.mp4")
-
-# what is the fn
-
 plot_sim(floe_fn, init_fn, Δt, output_fn)
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>
-# <source src="$(output_fn)" type="video/mp4">
+# <source src="../shear_flow.mp4" type="video/mp4">
 # </video>
 # ```
 

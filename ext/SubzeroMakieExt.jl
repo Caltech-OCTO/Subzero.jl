@@ -27,24 +27,19 @@ function plot_sim(
     Δt,
     output_fn
 )
-    println(pwd())
-    println(output_fn)
     # Color Information
     topo_color = RGBf(147/255, 129/255, 102/255)
     floe_color = RGBf(217/255, 226/255, 225/255)
     ocean_color = RGBf(4/255, 31/255, 74/255)
-    println("a")
     # Domain Information
     domain = load(initial_state_fn)["sim"].model.domain
     xmax, xmin = domain.east.val, domain.west.val
     ymax, ymin = domain.north.val, domain.south.val
     Δx, Δy = xmax - xmin, ymax - ymin
-    println("b")
     # Floe Information
     file = jldopen(floe_fn)
     sim_polys = file["poly"]
     timesteps = keys(sim_polys)
-    println("c")
     # Set up observables for recording (updated whenever `time[]` is set to a new value)
     time = Observable(timesteps[1])  # note these are strings as we index into a JLD2 file
     time_polys = @lift(sim_polys[$time])

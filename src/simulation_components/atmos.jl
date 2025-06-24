@@ -94,7 +94,7 @@ julia> Atmos(Float32; u = u_field, v = v_field, temp = 0.0, grid)
 Atmos{Float32}
   ⊢Vector fields of dimension (21, 11)
   ⊢Tracer fields of dimension (21, 11)
-  ⊢Average u-velocity of: 0.4965465 m/s
+  ⊢Average u-velocity of: 0.49654645 m/s
   ⊢Average v-velocity of: 0.5340565 m/s
   ∟Average temperature of: 0.0 C
 ```
