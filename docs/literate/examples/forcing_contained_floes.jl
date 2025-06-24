@@ -1,15 +1,19 @@
-# # Floes within Solid Boundaries
-
-using Subzero, CairoMakie, GeoInterfaceMakie
-using JLD2, Random, Statistics
+# # Floes Bounded by Ocean Currents
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>
-# <source src="../contained_floes.mp4" type="video/mp4">
+# <source src="../forcing_contained_floes/contained_floes.mp4" type="video/mp4">
 # </video>
 # ```
 
-# This simulation ...
+# This simulation has four `open` boundaries. The ocean is created such that there is a current in the 
+# middle of the domain that pushes the floes from left to right, and there are also currents at each of
+# boundaries that push the floes back into the middle of the domain. The main point of this simulation
+# is to highlight that the user can create a bounding box to control initial floe placement and that
+# the initial set of floes does not need to span the entire domain.
+
+using Subzero, CairoMakie, GeoInterfaceMakie
+using JLD2, Random, Statistics
 
 #  ## User Inputs
 const FT = Float64
@@ -19,7 +23,7 @@ const Δgrid = 2e3
 const hmean = 0.25
 const Δh = 0.0
 const Δt = 20
-const nΔt = 15000;
+const nΔt = 10000;
 
 # ## Grid Creation
 grid = RegRectilinearGrid(; x0 = 0.0, xf = Lx, y0 = 0.0, yf = Ly, Δx = Δgrid, Δy = Δgrid)
@@ -97,8 +101,8 @@ floe_arr = initialize_floe_field(
 model = Model(grid, ocean, atmos, domain, floe_arr)
 
 # ## Output Writer Creation
-dir = "output/contained"
-init_fn, floe_fn = "contained_floes_init_state.jld2", "contained_floes.jld2"
+dir = "forcing_contained_floes"
+init_fn, floe_fn = joinpath(dir, "contained_floes_init_state.jld2"), joinpath(dir, "contained_floes.jld2")
 initwriter = InitialStateOutputWriter(filename = init_fn, overwrite = true)
 floewriter = FloeOutputWriter(50, filename = floe_fn, overwrite = true)
 writers = OutputWriters(initwriter, floewriter)
@@ -125,7 +129,7 @@ plot_sim(floe_fn, init_fn, Δt, output_fn);
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>
-# <source src="../contained_floes.mp4" type="video/mp4">
+# <source src="../forcing_contained_floes/contained_floes.mp4" type="video/mp4">
 # </video>
 # ```
 

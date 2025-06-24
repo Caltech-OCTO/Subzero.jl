@@ -54,7 +54,8 @@ makedocs(;
             "examples/shear_flow.md",
             "examples/simple_strait.md",
             "examples/forcing_contained_floes.md",
-            "examples/moving_bounds.md"
+            "examples/moving_bounds.md",
+            "examples/restart_sim.md"
         ],
         "API Reference" => "api.md",
         "Improving Subzero" => [

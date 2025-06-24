@@ -3,16 +3,16 @@
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>
-# <source src="../shear_flow.mp4" type="video/mp4">
+# <source src="../shear_flow/shear_flow.mp4" type="video/mp4">
 # </video>
 # ```
 
 # This simulation creates a periodic simulation with an ocean shear flow current. It is very
-# similar to the example created in the [tutorial](tutorial.md). The tutorial explains the
+# similar to the example created in the tutorial. The tutorial explains the
 # setup in greater detail. It is a good starter simulation for understanding how the code
 # works and playing around with a basic setup.
 
-# This simulation shows how to setup a basic `domain` where all four boundaries are `periodic`
+# This simulation shows how to setup a basic `domain` where all four boundaries are `periodic`.
 # It also creates non-constant, shear `ocean` field. The `ocean` `u`-velocities are zero at
 # the minimum and maximum y-extents (constant across x-values). The `u` values increase from
 # the top and bottom of the domain towards the center to 0.5m/s, again constant across x-values,
@@ -29,7 +29,7 @@ const Δgrid = 2e3   # grid cell edge-size
 const hmean = 0.25  # mean floe height
 const Δh = 0.0      # difference in floe heights - here all floes are the same height
 const Δt = 20       # timestep
-const nΔt = 5000   # number of timesteps to run
+const nΔt = 5000;   # number of timesteps to run
 
 # ## Grid Creation
 grid = RegRectilinearGrid(; x0 = 0.0, xf = Lx, y0 = 0.0, yf = Ly, Δx = Δgrid, Δy = Δgrid)
@@ -54,8 +54,8 @@ atmos = Atmos(; u = 0.0, v = 0.0, temp = -1.0, grid)
 # ## Floe Creation
 floe_settings = FloeSettings(subfloe_point_generator = SubGridPointsGenerator(grid, 2))
 floe_arr = initialize_floe_field(
+    50,
     FT,
-    100,
     [0.75],
     domain,
     hmean,
@@ -72,7 +72,8 @@ modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 consts = Constants(E = modulus)
 
 # ## Output Creation
-init_fn, floe_fn = "shear_flow_init_state.jld2", "shear_flow_floes.jld2"
+dir = "shear_flow"
+init_fn, floe_fn = joinpath(dir, "shear_flow_init_state.jld2"), joinpath(dir, "shear_flow_floes.jld2")
 initwriter = InitialStateOutputWriter(filename = init_fn, overwrite = true)
 floewriter = FloeOutputWriter(50, filename = floe_fn, overwrite = true)
 writers = OutputWriters(initwriter, floewriter)
@@ -90,7 +91,7 @@ plot_sim(floe_fn, init_fn, Δt, output_fn)
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>
-# <source src="../shear_flow.mp4" type="video/mp4">
+# <source src="../shear_flow/shear_flow.mp4" type="video/mp4">
 # </video>
 # ```
 

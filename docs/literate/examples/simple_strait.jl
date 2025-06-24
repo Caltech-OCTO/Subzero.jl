@@ -3,13 +3,13 @@
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>
-# <source src="../simple_strait.mp4" type="video/mp4">
+# <source src="../simple_strait/simple_strait.mp4" type="video/mp4">
 # </video>
 # ```
 
 # This simulation creates a north to south strait that ice can flow through, pushed by the
-# ocean. The north and south boundaries form a periodic pair, so that the ice can endlessly flow
-# through the strait. The east and west boundaries are collision bounds, but they are
+# ocean. The north and south boundaries form a `periodic` pair, so that the ice can endlessly flow
+# through the strait. The east and west boundaries are `collision` bounds, but they are
 # completely covered with topography forming the edges of the domain. This is a good simulation
 # to understand how to setup topography and how to turn on fractures using the fracture settings.
 
@@ -26,7 +26,7 @@ const Δgrid = 2e3   # grid cell edge-size
 const hmean = 0.25  # mean floe height
 const Δh = 0.0      # difference in floe heights - here all floes are the same height
 const Δt = 20       # timestep
-const nΔt = 5000    # number of timesteps to run
+const nΔt = 5000;    # number of timesteps to run
 
 # ## Grid Creation
 grid = RegRectilinearGrid(; x0 = 0.0, xf = Lx, y0 = 0.0, yf = Ly, Δx = Δgrid, Δy = Δgrid)
@@ -59,7 +59,7 @@ floe_settings = FloeSettings(
 
 floe_arr = initialize_floe_field(
     FT,
-    100,
+    75,
     [0.7],
     domain,
     hmean,
@@ -76,6 +76,7 @@ modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 consts = Constants(E = modulus)
 
 # ## Settings Creation
+# ### Fracture Settings
 fracture_settings = FractureSettings(
         fractures_on = true,
         criteria = HiblerYieldCurve(floe_arr),
@@ -83,13 +84,15 @@ fracture_settings = FractureSettings(
         npieces = 3,
         deform_on = false,
 )
+# ### Ridge Raft Settings
 ridgeraft_settings = RidgeRaftSettings(
     ridge_raft_on = true,
     Δt = 150
 )
 
 # ## Output Creation
-init_fn, floe_fn = "simple_strait_init_state.jld2", "simple_strait_floes.jld2"
+dir = "simple_strait"
+init_fn, floe_fn = joinpath(dir, "simple_strait_init_state.jld2"), joinpath(dir, "simple_strait_floes.jld2")
 initwriter = InitialStateOutputWriter(filename = init_fn, overwrite = true)
 floewriter = FloeOutputWriter(50, filename = floe_fn, overwrite = true)
 writers = OutputWriters(initwriter, floewriter)
@@ -104,12 +107,12 @@ simulation = Simulation(; model, consts, writers, Δt, nΔt,
 run!(simulation)
 
 # ## Plotting the Simulation
-output_fn = joinpath(".", "simple_strait.mp4")
+output_fn = joinpath(dirname(floe_fn), "simple_strait.mp4")
 plot_sim(floe_fn, init_fn, Δt, output_fn)
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>
-# <source src="../simple_strait.mp4" type="video/mp4">
+# <source src="../simple_strait/simple_strait.mp4" type="video/mp4">
 # </video>
 # ```
 

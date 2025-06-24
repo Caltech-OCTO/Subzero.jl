@@ -100,7 +100,6 @@ function timestep_sim!(sim, tstep, start_tstep = 0)
         # Add ghost floes through periodic boundaries
         n_init_floes = length(sim.model.floes) # number of floes before ghosts
         add_ghosts!(sim.model.floes, sim.model.domain)
-
         # Output at given timestep
         write_data!(sim, tstep, start_tstep)  # Horribly type unstable
         
