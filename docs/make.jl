@@ -64,6 +64,14 @@ makedocs(;
     warnonly = true,
 )
 
+# remove JLD2 files after mp4 files created
+for (root, dirs, files) in walkdir("/Users/sky/.julia/dev/Subzero/docs/build/examples")
+    jld2_files = filter(endswith(".jld2"), files)
+    for f in jld2_files
+        rm(joinpath(root, f))
+    end
+end
+
 deploydocs(;
     repo="https://github.com/Caltech-OCTO/Subzero.jl",
 )
