@@ -73,5 +73,5 @@ println("Deploying docs...")
 deploydocs(;
     target = "build",
     repo="https://github.com/Caltech-OCTO/Subzero.jl",
-    push_preview = false,
+    push_preview = true,
 )
