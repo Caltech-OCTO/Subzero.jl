@@ -40,10 +40,13 @@ format = Documenter.HTML(;
 # Metadata from doc tests
 DocMeta.setdocmeta!(Subzero, :DocTestSetup, :(using Subzero); recursive=true)
 
+println("Making docs...")
+
 makedocs(;
     modules=[Subzero],
     authors="Skylar Gering and contributers",
     sitename="Subzero.jl",
+    build = "build",
     format,
     pages=[
         "Introduction" => "index.md",
@@ -64,6 +67,12 @@ makedocs(;
     warnonly = true,
 )
 
+println("Adding .gitignore file...")
+write("docs/build/.gitignore", "examples/**/*.jld2");
+
+println("Deploying docs...")
 deploydocs(;
+    target = "build",
     repo="https://github.com/Caltech-OCTO/Subzero.jl",
+    push_preview = true,
 )
