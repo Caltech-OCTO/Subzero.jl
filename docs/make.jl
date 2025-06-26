@@ -66,9 +66,9 @@ makedocs(;
     ],
     warnonly = true,
 )
-println(pwd())
+
 println("Adding .gitignore file...")
-write("/build/.gitignore", "examples/**/*.jld2");
+write("docs/build/.gitignore", "examples/**/*.jld2");
 
 println("Deploying docs...")
 deploydocs(;
