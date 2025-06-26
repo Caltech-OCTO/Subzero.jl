@@ -4,9 +4,6 @@
 # buidling a discrete-element model (DEM) with Subzero.jl as well as running and plotting your
 # simulatuion.
 
-
-# ## Tutorial - copy-pasteable version
-
 # ## Core ideas behind Subzero.jl simulations
 
 

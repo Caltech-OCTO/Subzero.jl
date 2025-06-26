@@ -18,6 +18,8 @@ function jl_to_md(input, output)
     end
 end
 
+cp("CONTRIBUTING.md", "docs/src/contribute.md"; force = true)
+
 # Converting any files in the literate folder to markdown
 println("Building tutorial...")
 tutorial_input = joinpath(@__DIR__, "literate")
@@ -59,10 +61,7 @@ makedocs(;
             "examples/restart_sim.md"
         ],
         "API Reference" => "api.md",
-        "Improving Subzero" => [
-            "Contributing" => "contribute.md",
-            "Developer Documentation" => "devdocs.md",
-        ],
+        "Contributing to Subzero" => "contribute.md",
     ],
     warnonly = true,
 )
@@ -74,5 +73,5 @@ println("Deploying docs...")
 deploydocs(;
     target = "build",
     repo="https://github.com/Caltech-OCTO/Subzero.jl",
-    push_preview = true,
+    push_preview = false,
 )
