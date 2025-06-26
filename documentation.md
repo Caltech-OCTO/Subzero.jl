@@ -2,13 +2,12 @@
 
 You have a lot of flexibility in designing a simulation within Subzero. First, you need to create all the pieces of your model, including the grid, the ocean, the atmosphere, the domain, and the floes. After than, you can use your model to create a simulation, where you will also specify physical constants and other runtime parameters.
 
+!!! note
+      The documentation, and to some extent the source code, is being cleaned up. This means that right now, some of the documentation is here, and some is in the [tutorial](https://caltech-octo.github.io/Subzero.jl/dev/tutorial/) and [API](https://caltech-octo.github.io/Subzero.jl/dev/api/) sections of the documentation website.
+
 ## Contents
 * [Building a Model](#building-a-model)
-    * [Model Calculations Type](#model-calculations-type)
-    * [Grid](#grid)
-    * [Ocean](#ocean)
-    * [Atmosphere](#atmosphere)
-    * [Domain](#domain)
+    * [Grid, Domain, Ocean, Atmosphere](#grid-domain-ocean-atmosphere)
     * [Floes](#floes)
     * [Making the Model](#making-the-model)
 * [Building a Simulation](#building-a-simulation)
@@ -20,131 +19,13 @@ You have a lot of flexibility in designing a simulation within Subzero. First, y
     * [Creating the Simulation](#creating-the-simulation)
 
 ## Building a Model
-### Model Calculations Type: 
 
-Simulations are designed to run with either Float64 or Float32 calculations. However, as of now, only Float64 is tested and supported. When you are creating a model and a simulation, you need to create all elements in the same type that you are trying to run the model in. To acomplish this, there is an optional first argument specifying either Float64 or Float32 for all functions that create model/simulation objects. However, Float64 is the default and the type argument can be dropped and all elements will be made with Float64.
+### Grid, Domain, Ocean, Atmosphere
 
-To explcitly set this optional argumentAt the beginning of each example file, you will see the line: 
+See the [tutorial](https://caltech-octo.github.io/Subzero.jl/dev/tutorial/) and [API](https://caltech-octo.github.io/Subzero.jl/dev/api/) sections of the documentation website for information on how to setup these pieces of the `model`.
 
-```julia 
-const FT = Float64 
-``` 
-It is then used in each of the constructors, as can be seen below. Note again that this argument can be dropped and it will default to Float64.
+Start with these and then return here to learn how to make the rest of a simulation!
 
-### Grid: 
-The first thing that you need to create in your grid. For now, the ocean and atmosphere must be on the same grid and the only grid is a RegularRectilinearGrid, where every grid cell is a rectangle of the same size. You can create a regular rectilinear grid one of two ways. Both methods require specifying the minimum and maximum x and y points in meters. 
-
-The first method has you provide the size of each grid cell with ∆x and ∆y arguments. That can be seen here: 
-
-```julia 
-grid = RegRectilinearGrid( 
-  FT, 
-  (-1e5, 1e5), # x bounds
-  (0.0, 1e5),  # y bounds
-  2e4,         # ∆x
-  1e4,         # ∆y
-) 
-``` 
-
-Which will create a grid that has a width of 2e5m from –1e5m to 1e5m and each grid cell was a width of 2e4 and a height of 1e4. This would then create a grid with 100 cells, 10 cells across and 10 cells wide. Note that if you provide grid cells dimensions that don’t divide the grid width and height evenly, the grid will be truncated to the nearest grid cell. 
-
-The other way to create this same grid is to use: 
-
-```julia 
-grid = RegRectilinearGrid(
-   FT,
-   10,  # Nx
-   10,  # Ny
-   (-1e5, 1e5),  # x bounds
-   (0.0, 1e5),   # y bounds
-) 
-``` 
-by specifying the desired grid dimensions. Here you are guaranteed to always get a 10 by 10 grid, but do not have as fine-grained control over the size of your cells.  
-
-A grid object has the following fields:
-Nx, Ny, x0, xf, y0, yf, Δx, and Δy
-Ny is the number of rows and Ny is the number of columns within the grid as defined by each grid cell. x0 and xf are the minimum and maximum x-bounds, and y0 and yf are the minimum and maximum y-bounds. Finally, Δx and Δy are the number of grid cells in the x and y directions.
-
-Additionally, RegRectilinearGrid is a concrete subtype of AbstractRectilinearGrid. More concrete subtypes may be added in the future.  
-
-### Ocean: 
-The ocean here represents 2D vector fields of the surface layer of the ocean. It includes the following: u-velocity, v-velocity, temperature, and stresses in the x and y direction, the amount of area per cell covered in ice, and the `hflx_factor` per cell, which allows local heat flux calculations based on the difference in atmosphere and ocean temperature in each cell. If you want to run Subzero without coupling, the ocean will be a set of prescribed fields. If you couple Subzero to Oceananigans, Oceananigans will provide the velocity and temperature fields, and Subzero will provide oceananigans with stress fields from the ice and atmosphere on the top layer of the ocean.
-
-There are several ways to initialize an ocean using Subzero. If you want to create uniform velocity and temperature fields, those constant values can simply be provided. This is useful for testing as a quick way to create a simple environment. This can be done as follows:
-
-```
-ocean = Ocean(FT, grid, -0.3, 0.2, 0.0)
-```
-to create an ocean with a -0.3m/s zonal velocity, a 0.2m/s meridional velocity, and a 0.0°C temperature field. The other ocean fields, such as the ocean stresses, will be calculated through out the simulation. 
-
-To create more interesting fields, the ocean fields must be defined and explicitly provided to the Ocean constructor. To create an equivalent ocean as above, the following syntax can be used:
-```
-ocean = Ocean(
-   FT,
-   fill(-0.3, 11, 11), # ocean values are stored on grid lines
-   fill(0.2, 11, 11),
-   zeros(FT, 11, 11)
-)
-
-Note that the ocean velocity matricies are x values by y value (i.e. the x values are rows and the y values are columns) for ease of indexing and to match with Oceananigans. 
-```
-
-### Atmosphere: 
-The atmosphere is very similar to the ocean in that is also represents a collection of 2D vector fields. We have not yet coupled Subzero with any atmosphere model. Therefore, for now, the atmosphere will be perscribed. It also has a u-velocity, v-velocity, and temperature field and can be created identically to the ocean. The two methods for creating the atmosphere are shown below:
-```
-atmos = Atmos(FT, grid, -0.3, 0.2, 0.0)
-
-atmos = Atmos(
-   FT,
-   fill(-0.3, 11, 11), # atmosphere values are stored on grid lines
-   fill(0.2, 11, 11),
-   zeros(FT, 11, 11)
-)
-```
-
-### Domain: 
-The domain includes both the boundaries of the simulation and the topographic features. It defines the areas where the floes cannot go. Before you can define a domain, you need to define each boundary wall. As of now, only rectangular boundaries around the edge of the grid are allowed so we need a north, east, south, and west boundary wall. We have four types of boundary wall: open, collision, periodic, and moving.
-
-With an open wall, if a floe overlaps with the boundary wall at all, the floe is removed from the simulation. With a collision wall, floes collide with the wall, and it is calculated similarly to a collision with another floe, except that since the wall cannot break, or be moved, it has an idealized force factor. With a periodic wall, if a floe overlaps with the wall, a copy of that floe is created passing back into the domain through the opposite wall. These two floes are equivalent and are linked. We call the copy a “ghost floe.” So, for example, if a floe is pushed partially out of the domain through the south wall by a current, a copy of the floe will be created, re-entering through the north wall. If one wall in the domain is periodic, its opposite wall must also be periodic, that is north-south and east-west. Moving boundaries are walls that can move with a constant velocity in either the x or y-direction, causing either a shear or compressive stress. For example, if the west wall is a moving wall with a x-velocity of 0.1m/s it will move with a 0.1m/s u velocity and a 0m/s v velocity towards the center of the domain. These types of walls are for increasing pressure on the ice to investigate stress and strain on the floes.  
-
-Here is an example of creating a set of boundary walls using the grid from above: 
-
-```julia 
-nboundary = PeriodicBoundary(North, grid) 
-sboundary = PeriodicBoundary(South, grid) 
-eboundary = CollisionBoundary(East, grid) 
-wboundary = OpenBoundary(West, grid) 
-``` 
-
-Once we have defined our walls, we can create a domain as follows: 
-
-```julia 
-domain = Domain(nboundary, sboundary, eboundary, wboundary)
-``` 
-
-Here is an example of how to create a moving wall as well that moves towards the center of the domain with u velocity of 0m/s and a v velocity of -0.1m/s:
-```julia 
-move_boundary = MovingBoundary(North, grid, 0.0, -0.1)
-```
-
-
-However, if we want topography, we can also add it to the domain. To do that, we would create one, or more, TopographyElements. Let us consider two simple square islands: 
-
-```julia 
-island1 = [[[6e4, 4e4], [6e4, 4.5e4], [6.5e4, 4.5e4], [6.5e4, 4e4], [6e4, 4e4]]]
-island2 = [[[8e4, 4e4], [8e4, 4.5e4], [8.5e4, 4.5e4], [8.5e4, 4e4], [8e4, 4e4]]] 
-topo_arr = initialize_topography_field(FT, [island1, island2]) 
-``` 
-
-We can then add an additional argument to the domain when it is created:  
-
-```julia 
-domain = Domain(nboundary, sboundary, eboundary, wboundary, topo_arr) 
-``` 
-
-These are the two ways to define a domain in Subzero.  
-
-For now, you will need to define ocean velocities that go around your topography, as Subzero does not change the given ocean velocities. This holds true on coupled scenarios as well. You need to make sure that if you do couple Subzero to Oceananigans that you set the ocean height to 0m at these locations so that the current flows around the topography. 
 
 ### Floes
 
