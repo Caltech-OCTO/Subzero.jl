@@ -6,6 +6,7 @@ Welcome to the Subzero.jl contributor guide. Here you can find information on:
 - [Documentation](#documentation)
 - [Reporting issues](#reporting-issues)
 - [Code changes](#code-changes)
+- [Acknowledgments](#acknowledgments)
 
 If you are new to open source development, here is a good guide to get started: [first-contributions][first-contributions]. If you want something Julia specific, check out this video: [Open source, Julia
 packages, git, and GitHub][tim-git].
@@ -52,6 +53,29 @@ For more information on documentation see:
 
 ## Reporting issues
 
+If you have found a bug or a problem with Subzero you can open an [issue][new-issue]. Try
+to include as much information about the problem as possible and some code that
+can be copy-pasted to reproduce it (see [How to create a Minimal, Reproducible
+Example][so-mre]).
+
+If you can identify a fix for the bug you can submit a pull request without first opening an
+issue, see [Code changes](#code-changes).
+
+## Code changes
+
+Bug fixes and improvements to the code, or to the unit tests are always welcome. If you have
+ideas about new features or functionality it might be good to first open an
+[issue][new-issue] to get feedback before spending too much time implementing something.
+
+When you are ready to make changes, check out the developer docs section of the documentation for insight into how the code is written and organized.
+
+Remember to always include (when applicable): unit tests which exercises the new code,
+and updated documentation.
+
+## Acknowledgments
+
+Thank you to the folks at [Ferrite.jl](https://github.com/Ferrite-FEM/Ferrite.jl) for having such amazing contributor docs. I took lots of inspiration and links from their wonderful, comprehensive page! Check them out for examples of documentation and guides done right!
+
 
 [first-contributions]: https://github.com/firstcontributions/first-contributions
 [tim-git]: https://youtu.be/cquJ9kPkwR8
@@ -62,3 +86,5 @@ For more information on documentation see:
 [julia-doc]: https://docs.julialang.org/en/v1/manual/documentation/
 [documenter]: https://juliadocs.github.io/Documenter.jl/
 [literate]: https://fredrikekre.github.io/Literate.jl/v2/
+[new-issue]: https://github.com/Caltech-OCTO/Subzero.jl/issues/new
+[so-mre]: https://stackoverflow.com/help/minimal-reproducible-example
