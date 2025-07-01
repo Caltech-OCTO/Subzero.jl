@@ -18,7 +18,16 @@ function jl_to_md(input, output)
     end
 end
 
-cp("CONTRIBUTING.md", "docs/src/contribute.md"; force = true)
+# Copy over contributor guidlines and adjust EditURL to point to the true source file
+open("docs/src/contribute.md", "w") do io
+    editurl = """
+    ```@meta
+    EditURL = "../../CONTRIBUTING.md"
+    ```
+    """
+    println(io, editurl)
+    write(io, read(joinpath(@__DIR__, "..", "CONTRIBUTING.md")))
+end
 
 # Converting any files in the literate folder to markdown
 println("Building tutorial...")
