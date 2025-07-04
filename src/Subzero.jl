@@ -10,7 +10,6 @@ end Subzero
 export
     Floe,
     Constants,
-    Model,
     Simulation,
     timestep_sim!,
     run!,
