@@ -222,13 +222,6 @@ floe_arr = initialize_floe_field(
 ```
 We now focus on the first two arguments. The first is the number of floes to attempt to create with Voronoi tesselation. We are not guarenteed to get exactly that number. It depends on the amount of open space in the domain and the generation of random seed points. For example, if the domain is filled with lots of topography and islands, it will be more difficult to hit the exact number of floes requested. However, it will be in the ballpark. The second argument is the concentrations, which is a matrix. We can split the domain into quadrents that are the same shape at matrix and then request concentrations of ice in each of those quadrents equal to the corresponding value in the concentrations matrix. The other arguments are the same as in the floe coordinate version on the function.
 
-### Making the Model
-Once you have made all of the above components, you are now able to make a model. You will do that as follows:
-```julia
-model = Model(grid, ocean, atmos, domain, floe_arr)
-```
-This model object now holds all of the previously created components. You will get an error if you did not make all of your componenets with the same `FT` type. If you did make all objects with the same value of `FT`, either `Float64` or `Float32`, then the model now has that type.
-
 ## Building a Simulation
 Your simulation will hold your model, as well as some runtime and physical parameters.
 
