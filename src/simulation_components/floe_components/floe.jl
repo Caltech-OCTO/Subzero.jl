@@ -1,5 +1,22 @@
-# Floe definition
-export Floe
+"""
+Structs and functions used to define floes and floe fields within Subzero
+"""
+
+"""
+Enum for differnt floe status
+"""
+@enum StatusTag begin
+    active = 1
+    remove = 2
+    fuse = 3
+end
+
+mutable struct Status
+    tag::StatusTag
+    fuse_idx::Vector{Int}
+end
+
+Status() = Status(active, Vector{Int}())  # active floe
 
 """
 Singular sea ice floe with fields describing current state.
@@ -86,13 +103,13 @@ Output:
         points were able to be generated.
 """
 function Floe(
-    ::Type{FT} = Float64;
+    ::Type{FT} = Float64,
     poly::Polys,
     hmean,
-    Δh,
+    Δh;
     floe_settings = FloeSettings(),
     rng = Xoshiro(),
-    kwargs...,
+    kwargs...
 ) where {FT <: AbstractFloat}
     floe = GO.tuples(poly, FT)
     rmholes!(floe)
@@ -136,7 +153,7 @@ function Floe(
         y_subfloe_points = y_subfloe_points,
         stress_instant = stress_instant,
         status = status,
-        kwargs...,
+        kwargs...
     )
 end
 
@@ -166,10 +183,10 @@ Output:
     points were able to be generated.
 """
 function Floe(
-    ::Type{FT} = Float64;
+    ::Type{FT} = Float64,
     coords::PolyVec,
     hmean,
-    Δh,
+    Δh;
     floe_settings = FloeSettings(),
     rng = Xoshiro(),
     kwargs...,
@@ -185,3 +202,25 @@ function Floe(
         kwargs...,
     ) 
 end
+
+
+"""
+Enum to index into floe interactions field with more intuituve names
+"""
+@enum InteractionFields begin
+    floeidx = 1
+    xforce = 2
+    yforce = 3
+    xpoint = 4
+    ypoint = 5
+    torque = 6
+    overlap = 7
+end
+"""
+Index into interactions field with InteractionFields enum objects
+"""
+Base.to_index(s::InteractionFields) = Int(s)
+"""
+Create a range of interactions field columns with InteractionFields enum objects
+"""
+Base.:(:)(a::InteractionFields, b::InteractionFields) = Int(a):Int(b)

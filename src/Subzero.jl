@@ -8,7 +8,6 @@ module Subzero
 end Subzero
 
 export
-    Floe,
     Constants,
     Simulation,
     timestep_sim!,
@@ -22,7 +21,6 @@ export
     FloeOutput,
     add_ghosts!,
     # Interaction field enum and elements
-    InteractionFields,
     floeidx,
     xforce,
     yforce,
@@ -106,7 +104,10 @@ include("simulation_components/domain_components/abstract_domains.jl")
 include("simulation_components/domain_components/boundaries.jl")
 include("simulation_components/domain_components/topography.jl")
 include("simulation_components/domain_components/domains.jl")
+include("simulation_components/floe_components/floe_status.jl")
+include("simulation_components/floe_components/floe_interaction.jl")
 include("simulation_components/floe.jl")
+include("simulation_components/floe_components/floe_field.jl")
 include("floe_utils.jl")
 include("simulation_components/oceans.jl")
 include("simulation_components/atmos.jl")
