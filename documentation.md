@@ -25,98 +25,9 @@ See the [tutorial](https://caltech-octo.github.io/Subzero.jl/dev/tutorial/) and 
 
 Start with these and then return here to learn how to make the rest of a simulation!
 
-
 ### Floes
 
-Floes are quite complex objects as they need a lot fields. Here we will talk about a floe struct's fields, as well as how to create a configuration of floes to start your simulation.
-
-#### Floe Struct Fields
-A floe's fields can be broken down into several catagories. We will go through each catagory and describe the fields within in briefly in table-form.
-
-The first catagory is **physical properties**. These have to do with the floe's physical shape. 
-
-Before listing the fields, one important thing to know is that a floe's coordinates are represented by a `PolyVec`, which is a shorthand for a vector of a vector of a vector of floats. This sounds complicated, but it is simply a way of representing a polygon's coordinates. A Polygon's coordinates are of the form below, where the xy-coordinates are the exterior border of the floe and the wz-coordinates, or any other following sets of coordinates, describe holes within the floe:
-
-```julia
-coords = [
-  [[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]],  # Exterior vertices of the polygon represented as a list of cartesian points
-  [[w1, z1], [w2, z2], ..., [wn, zn], [w1, z1]],  # Interior holes of the polygon represented as a list of cartesian points
-  ...,  # Additional holes within the polygon represented as a list of cartesian points
- ]
- ```
- We will use the term `PolyVec` to describe this form of coordiantes and you will see it in the code if you take a look at the code base. It is also the form that floe coordinates are saved in output files.
- 
-| Physical Fields| Meaning                            | Type          |
-| -------------- | ---------------------------------- | ------------- |
-| centroid       | floe's centroid                    | Float64 or Float32|
-| coords         | floe's coordinates                 | PolyVec of Float64 or Float32 |
-| height         | floe's height in [m]                 | Float64 or Float32|
-| area           | floe's area in [m^2]                 | Float64 or Float32|
-| mass           | floe's mass in [kg]                  | Float64 or Float32|
-| rmax           | floe's maximum radius, the maximum <br> distance from centroid to vertex in [m] | Float64 or Float32|
-| moment         | floe's mass moment of intertia in [kg m^2]    | Float64 or Float32|
-| angles         | list of floe's vertex angles in [degrees] | Vector of Float64 or Float32|
-
-The second catagory is **sub-floe points**. These are used for interpolation of the ocean and atmosphere onto the floe. They are a list of points within the floe. There are two ways they can be generated. One is for them are randomly generated, with the user providing an initial target number of points. These are generated with a monte carlo generator (explained below). The other way is for the points to be on a sub-grid within the floe. There are benefits and drawbacks to both strategies. 
-
-| Sub-floe Point Fields| Meaning                                 | Type                        |
-| ----------------- | --------------------------------------- | --------------------------- |
-| x_subfloe_points   | floe's sub-floe points x-coordinates | Vector of Float64 or Float32|
-| y_subfloe_points   | floe's sub-floe points points y-coordinates | Vector of Float64 or Float32|
-
-The third catagory is **velocities and orientations**. Floe's have both linear and angular velocity and keep track of the angle that they have rotated since the begining of the simulation.
-| Movement Fields| Meaning                         | Type               |
-| -------------- | ------------------------------- | ------------------ |
-| u              | floe's x-velocity in [m/s]        | Float64 or Float32 |
-| v              | floe's x-velocity in [m/s]        | Float64 or Float32 |
-| ξ              | floe's angular velocity in [rad/s]| Float64 or Float32 |
-| α              | rotation from starting position<br> in [rad]| Float64 or Float32 |
-
-The fourth catagory is **status**. These fields hold logistical information about each floe and through which process it originated.
-| Status Fields  | Meaning                         | Type               |
-| -------------- | ------------------------------- | ------------------ |
-| status         | if the floe is still active in the simulation        | Subzero.Status (see below)|
-| id             | unique floe id for tracking the floe throughout the simulation | Int |
-| ghost_id       | if floe is not a ghost, `ghost_id = 0`, else it is in `[1, 4]`<br> as each floe can have up to 4 ghosts| Int |
-| parent_id    | if floe is created from a fracture or the fusion of two floes, `parent_id` is a list of <br> the original floes' `id`, else it is emtpy | Vector of Ints |
-| ghosts         | indices of floe's ghost floes within the floe list| Vector of Ints |
-
-A Status object has two fields: a tag and a fuse index list. There are currently three different tags: `active`, `remove`, and `fuse`. If a floe is `active`, it will continue in the simulation at the end of a timestep. If a floe's tag is `remove`, it will be removed at the end of the timestep. This ususally happens if a floe exits the domain, or becomes unstable for some reason. If a floe is marked at `fuse`, this means that is is overlapping with another floe by more than the user defined maximum overlap percent (see [Physical Process Settings](#physical-process-settings) for more information on this maximum fraction value. If a floe is marked for fusion, the index of the floe it is supposed to fuse with will be listed in the `fuse_idx` list.  
-
-The fifth catagory is **forces and collisions**. These fields hold information about the forces on each floe and the collisions it has been in.
-| Force Fields      | Meaning                                    | Type                        |
-| ----------------- | ------------------------------------------ | --------------------------- |
-| fxOA              | x-force on floe from ocean and atmosphere in [N] | Float64 or Float32|
-| fyOA              | y-force on floe from ocean and atmosphere in [N] | Float64 or Float32|
-| trqOA             | torque on floe from ocean and atmosphere in [N m]| Float64 or Float32|
-| hflx_factor       | coefficent of floe height to get heat flux directly <br> under floe in [W/m^3]| Float64 or Float32|
-| overarea          | total overlap of floe from collisions in [m^2]   | Float64 or Float32|
-| collision_force   | forces on floe from collisions in [N]            | Float64 or Float32|
-| collision_trq     | torque on floe from collisions in [N m]          | Float64 or Float32|
-| interactions      | each row holds one collision's information, see below for more information | `n`x7 Matrix of Float64 or Float32 <br> where `n` is the number of collisions|
-| stress_accum      | stress accumulated over the floe over past timesteps given StressCalculator, where it is of the form [xx yx; xy yy] | 2x2 Matrix{AbstractFloat}|
-| stress_instant    | instantaneous stress on floe in current timestep | 2x2 Matrix{AbstractFloat} 
-| strain            | strain on floe where it is of the form [ux vx; uy vy] | 2x2 Matrix of Float64 or Float32|
-
-The `interactions` field is a matrix where every row is a different collision that the floe has experienced in the given timestep. There are then seven columns, which are as follows:
-- `floeidx`, which is the index of the floe that the current floe collided with
-- `xforce`, which is the force in the x-direction caused by the collision
-- `yforce`, which is the force in the y-direction caused by the collision
-- `xpoint`, which is the x-coordinate of the collision point, which is the x-centroid of the overlap between the floes
-- `ypoint`, which is the y-coordinate of the collision point, which is the y-centroid of the overlap between the floes
-- `torque`, which is the torque caused by the collision
-- `overlap`, which is the overlap area between the two floes in the collision. 
-You can use these column names to access columns of `interactions`. For example: `floe.interactions[:, xforce]` gives the list of x-force values for all collisions a given floe was involved in as that timestep.
-
-The fifth catagory is **previous values**.
-| Previous Value Fields | Meaning                                       | Type               |
-| --------------------- | --------------------------------------------- | -------------------|
-| p_dxdt                | previous timestep x-velocity (u) in [m/s]         | Float64 or Float32|
-| p_dydt                | previous timestep y-velocity (v) in [m/s]         | Float64 or Float32|
-| p_dudt                | previous timestep x-acceleration in [m/s^2]   | Float64 or Float32|
-| p_dvdt                | previous timestep y-acceleration in [m/s^2]   | Float64 or Float32|
-| p_dαdt                | previous timestep angular-velocity in [rad/s] | Float64 or Float32|
-| p_dξdt                | previous timestep time angular acceleration in [rad/s^2] | Float64 or Float32|
+See the [API](https://caltech-octo.github.io/Subzero.jl/dev/api/) on the documentaiton website for information on how to create individual floes. Note, that this is **not** recommended for users. Rather, users should use the `initialize_floe_field` function to create a field of floes to start the simulation. Individual floes should only be created by developers within the simulation.
 
 #### Floe Settings
 
@@ -154,31 +65,6 @@ floe_settings = FloeSettings(
 )
  ```
  Any fields that aren't specified are assigned their default value.
-
-#### Construct Individual Floes
-
-You can create one floe at a time using floe constructors that will set initial values for all of these fields depending on your inputs.
-
-Here is an example of using the PolyVec coordinates constructor, assume we have already created a PolyVec called `coords`:
-```julia
-coords = [[[3e4, 1e4], [3e4, 1.5e4], [3.5e4, 1.5e4], [3.5e4, 1e4], [3e4, 1e4]]]
-hmean = 0.25
-Δh = 0.1
-floe = Floe(
-    FT,
-    coords,
-    hmean,  # Floe height will be between 0.15 - 0.35
-    Δh;  # Δh is the maximum difference between hmean and actual floe height
-    floe_settings = floe_settings,
-    u = 0.0,
-    v = 0.0,
-    ξ = 0.0,
-    rng = Xoshiro(1), # seed of 1
-)
-```
-Only `coords`, `hmean`, and `Δh` are neccesary arguments. The rest aer optional, and the default values are the values shown in the code snippit above.
-
-However, it is not recomended that you manually create each floe. It is recomended that you use the `initialize_floe_field` functions instead to create your simulation's starting configuration of floes.
  
 #### Initial Floe Configuration
 It is recomeneded that you use the `initialize_floe_field` to create your starting configuration on floes. There are two ways to use this function. The first way is to provide a list of `PolyVecs` representing a list of the coordinates of all of the floes you want in the initial state. This will initialize all of the given polygons specified as floes. The other way is to provide a number of floes and a concentration over a specific area. This will create a starting floe field using voronoi tesselation that aims to achieve the requested number of floes and concentrations.

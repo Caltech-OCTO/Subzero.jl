@@ -68,7 +68,7 @@
             [-2.5, -2.5],
         ]])
         square_centroid = GO.centroid(square)
-        xpoints, ypoints = Subzero.generate_subfloe_points(
+        xpoints, ypoints, _ = Subzero.generate_subfloe_points(
             point_generator,
             square,
             square_centroid,
@@ -87,7 +87,7 @@
             [-2.0, -10.0],
         ]])
         tall_rect_centroid = GO.centroid(tall_rect)
-        xpoints, ypoints = Subzero.generate_subfloe_points(
+        xpoints, ypoints, _ = Subzero.generate_subfloe_points(
             point_generator,
             tall_rect,
             tall_rect_centroid,
@@ -111,7 +111,7 @@
             [-10.0, -2.0],
         ]])
         wide_rect_centroid = GO.centroid(wide_rect)
-        xpoints, ypoints = Subzero.generate_subfloe_points(
+        xpoints, ypoints, _ = Subzero.generate_subfloe_points(
             point_generator,
             wide_rect,
             wide_rect_centroid,
@@ -135,7 +135,7 @@
             [-8.0, -8.0],
         ]])
         trapeziod_centroid = GO.centroid(trapeziod)
-        xpoints, ypoints = Subzero.generate_subfloe_points(
+        xpoints, ypoints, _ = Subzero.generate_subfloe_points(
             point_generator,
             trapeziod,
             trapeziod_centroid,
@@ -482,7 +482,6 @@
                 [-1.75e4, 5e4],
             ]],
             0.25,
-            0.0,
         )
         area = floe.area
     # Standard Monte Carlo points for below floe - used to compare with MATLAB
@@ -496,12 +495,12 @@
         floe_settings = FloeSettings()
 
     # stationary floe, uniform zonal ocean flow
-        model1 = Model(
+        model1 = Model(;
             grid,
-            zonal_ocean,
-            zero_atmos,
+            ocean = zonal_ocean,
+            atmos = zero_atmos,
             domain,
-            StructArray([deepcopy(floe)]),
+            floes = StructArray([deepcopy(floe)]),
         )
         Subzero.timestep_coupling!(
             model1,
@@ -516,12 +515,12 @@
 
     # stationary floe, uniform meridional ocean flow
         meridional_ocean = Subzero.Ocean(; grid, u = 0.0, v = 1.0, temp = 0.0)
-        model2 = Subzero.Model(
+        model2 = Subzero.Model(;
             grid,
-            meridional_ocean,
-            zero_atmos,
+            ocean = meridional_ocean,
+            atmos = zero_atmos,
             domain,
-            StructArray([deepcopy(floe)]),
+            floes = StructArray([deepcopy(floe)]),
         )
         Subzero.timestep_coupling!(
             model2,
@@ -539,12 +538,12 @@
         floe3 = deepcopy(floe)
         floe3.u = 0.25
         floe3.v = 0.1
-        model3 = Subzero.Model(
+        model3 = Subzero.Model(;
             grid,
-            zero_ocean,
-            zero_atmos,
+            ocean = zero_ocean,
+            atmos = zero_atmos,
             domain,
-            StructArray([floe3]),
+            floes = StructArray([floe3]),
         )
         Subzero.timestep_coupling!(
             model3,
@@ -559,12 +558,12 @@
         
         # stationary floe, diagonal atmos flow
         diagonal_atmos = Subzero.Atmos(; grid, u = -1, v = -0.5, temp = 0.0)
-        model4 = Subzero.Model(
+        model4 = Subzero.Model(;
             grid,
-            zero_ocean,
-            diagonal_atmos,
+            ocean = zero_ocean,
+            atmos = diagonal_atmos,
             domain,
-            StructArray([deepcopy(floe)]),
+            floes = StructArray([deepcopy(floe)]),
         )
         Subzero.timestep_coupling!(
             model4,
@@ -592,12 +591,12 @@
             v = non_unif_vocn',
             temp = zeros(size(xgrid)),
         )
-        model5 = Subzero.Model(
+        model5 = Subzero.Model(;
             grid,
-            non_unif_ocean,
-            zero_atmos,
+            ocean = non_unif_ocean,
+            atmos = zero_atmos,
             domain,
-            StructArray([deepcopy(floe)]),
+            floes = StructArray([deepcopy(floe)]),
         )
         Subzero.timestep_coupling!(
             model5,
@@ -620,12 +619,12 @@
         floe6 = deepcopy(floe)
         floe6.u = 0.5
         floe6.v = -0.5
-        model6 = Subzero.Model(
+        model6 = Subzero.Model(;
             grid,
-            non_unif_ocean,
-            non_unif_atmos,
+            ocean = non_unif_ocean,
+            atmos = non_unif_atmos,
             domain,
-            StructArray([floe6]),
+            floes = StructArray([floe6]),
         )
         Subzero.timestep_coupling!(
             model6,

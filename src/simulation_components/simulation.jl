@@ -316,12 +316,12 @@ function restart!(initial_state_fn, checkpointer_fn, new_nΔt, new_output_writer
     filter!(f -> f.ghost_id == 0, new_floes)
     empty!.(new_floes.ghosts)
 
-    new_model = Model(
-        is["sim"].model.grid, 
-        cp["ocean"][string(last_tstep)], 
-        cp["atmos"][string(last_tstep)], 
-        is["sim"].model.domain, 
-        new_floes,
+    new_model = Model(;
+        grid = is["sim"].model.grid, 
+        ocean = cp["ocean"][string(last_tstep)], 
+        atmos = cp["atmos"][string(last_tstep)], 
+        domain = is["sim"].model.domain, 
+        floes = new_floes,
     )
 
     new_simulation = Simulation(

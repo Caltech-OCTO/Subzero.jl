@@ -14,4 +14,4 @@ mutable struct Status
     fuse_idx::Vector{Int}
 end
 
-Status() = Status(active, Vector{Int}())  # active floe
+Status(; tag = active) = Status(tag, Vector{Int}())  # active floe

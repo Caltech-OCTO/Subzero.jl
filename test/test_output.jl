@@ -11,12 +11,12 @@ function test_basic_outputwriters()
     )
     floe_coords = [[[7.5e4, 7.5e4], [7.5e4, 9.5e4], [9.5e4, 9.5e4], 
                     [9.5e4, 7.5e4], [7.5e4, 7.5e4]]]
-    model = Model(
+    model = Model(;
         grid,
         ocean,
         atmos,
         domain,
-        StructArray([Floe(floe_coords, 0.5, 0.0)]),
+        floes = StructArray([Floe(floe_coords, 0.5)]),
     )
 
     dir = "output/sim"

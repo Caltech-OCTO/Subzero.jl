@@ -9,7 +9,7 @@ const FT = Float64
 const Lx = 1e5
 const Ly = 1e5
 const Δgrid = 10000
-const hmean = 0.25
+const height = 0.25
 const Δh = 0.0
 const nΔt = 4000
 const Δt = 10
@@ -41,7 +41,7 @@ collision_domain_topo = Subzero.Domain(;
     topography = initialize_topography_field(; coords = [[[[2e4, 0.0], [2e4, 2e4], [2.5e4, 2e4], [2.5e4, 0.0], [2e4, 0.0]]]])
 )
 
-stationary_rect_floe = StructArray([Floe(
+stationary_rect_floe = StructArray([Floe{Float64}(
     [[
         [0.0, 0.0],
         [0.0, 2e4],
@@ -49,8 +49,7 @@ stationary_rect_floe = StructArray([Floe(
         [0.5e4, 0.0],
         [0.0, 0.0],
     ]],
-    hmean,
-    Δh,
+    height,
 )])
 zonal_3rect_floes = initialize_floe_field(
     FT,
@@ -78,7 +77,7 @@ zonal_3rect_floes = initialize_floe_field(
         ]],
     ],
     collision_domain_topo,
-    hmean,
+    height,
     Δh;
 )
 zonal_3rect_floes.u .= [3.0, -3.0, 0.0]
@@ -93,12 +92,12 @@ Simulation 1:
 Expected Behavior:
     Floe velocity quickly reaches ocean velocity and flows northward. 
 """
-model1 = Model(
+model1 = Model(;
     grid,
-    meridional_ocn,
-    zero_atmos,
-    open_domain_no_topo,
-    deepcopy(stationary_rect_floe),
+    ocean = meridional_ocn,
+    atmos = zero_atmos,
+    domain = open_domain_no_topo,
+    floes = deepcopy(stationary_rect_floe),
 )
 writers1 = OutputWriters(
     InitialStateOutputWriter(
@@ -128,12 +127,12 @@ Expected Behavior:
     Floe should drift to the right of movement due to Coriolis force in the
     northern hemisphere. 
 """
-model2 = Model(
+model2 = Model(;
     grid,
-    zero_ocn, 
-    zonal_atmos,
-    open_domain_no_topo,
-    deepcopy(stationary_rect_floe),
+    ocean = zero_ocn, 
+    atmos = zonal_atmos,
+    domain = open_domain_no_topo,
+    floes = deepcopy(stationary_rect_floe),
 )
 writers2 = OutputWriters(
     InitialStateOutputWriter(
@@ -165,12 +164,12 @@ Simulation 3:
 Expected Behavior:
     Floes should bounce off of the topography elements, walls, and each other. 
 """
-model3 = Model(
+model3 = Model(;
     grid,
-    zero_ocn,
-    zero_atmos,
-    collision_domain_topo,
-    deepcopy(zonal_3rect_floes),
+    ocean = zero_ocn,
+    atmos = zero_atmos,
+    domain = collision_domain_topo,
+    floes = deepcopy(zonal_3rect_floes),
 )
 writers3 = OutputWriters(
     InitialStateOutputWriter(
@@ -228,17 +227,17 @@ p2_coords = [[
     [6.5e4, 4.5e4],
 ]]
 p_floe_arr = StructArray(
-    [Floe(c, hmean, Δh) for c in [p1_coords, p2_coords]]
+    [Floe(c, height) for c in [p1_coords, p2_coords]]
 )
 p_floe_arr.u[1] = 1
 p_floe_arr.v[1] = 1
 p_floe_arr.u[2] = 1
-model4 = Model(
-    grid,
-    zero_ocn,
-    zero_atmos,
-    periodic_bounds_topo,
-    deepcopy(p_floe_arr),
+model4 = Model(;
+    grid = grid,
+    ocean = zero_ocn,
+    atmos = zero_atmos,
+    domain = periodic_bounds_topo,
+    floes = deepcopy(p_floe_arr),
 )
 writers4 = OutputWriters(
     InitialStateOutputWriter(
@@ -282,12 +281,12 @@ close(file)
 funky_floe_arr.u .= (-1)^rand(0:1) * (0.1 * rand(length(funky_floe_arr)))
 funky_floe_arr.v .= (-1)^rand(0:1) * (0.1 * rand(length(funky_floe_arr)))
 
-model5 = Model(
+model5 = Model(;
     grid,
-    zero_ocn,
-    zero_atmos,
-    open_domain_no_topo,
-    deepcopy(funky_floe_arr),
+    ocean = zero_ocn,
+    atmos = zero_atmos,
+    domain = open_domain_no_topo,
+    floes = deepcopy(funky_floe_arr),
 )
 writers5 = OutputWriters(
     InitialStateOutputWriter(

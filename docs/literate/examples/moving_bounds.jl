@@ -52,7 +52,7 @@ floe_arr.u .= 0  # set the inital floe velocities manually
 floe_arr.v .= -0.01;
 
 # ## Model creation
-model = Model(grid, ocean, atmos, domain, floe_arr)
+model = Model(; grid, ocean, atmos, domain, floes = floe_arr)
 
 # ## Output Writer Setup
 dir = "moving_bounds"

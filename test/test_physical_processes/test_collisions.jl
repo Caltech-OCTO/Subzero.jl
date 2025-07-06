@@ -48,7 +48,7 @@
         cshape_coord = [[[0.5e4, 2.7e4], [0.5e4, 3.5e4], [1.5e4, 3.5e4], [1.5e4, 2.7e4], [1.25e4, 2.7e4], [1.25e4, 3e4], [1e4, 3e4], [1e4, 2.7e4], [0.5e4, 2.7e4]]]
 
         # Test interactions between triange tip intersecting with a rectangle
-        tri, corner_rect = Floe(tri_coord, hmean, Δh), Floe(corner_rect_coord, hmean, Δh)
+        tri, corner_rect = Floe{Float64}(tri_coord, hmean), Floe{Float64}(corner_rect_coord, hmean)
         tri.u, corner_rect.v = 0.1, -0.1
         Subzero.floe_floe_interaction!(tri, 1, corner_rect, 2, consts, Δt, max_overlap)
         @test isapprox(tri.interactions[1, xforce], -64613382.47, atol = 1e-2)
@@ -62,7 +62,7 @@
         @test isapprox(tri.interactions[1, torque], 1069710443203.99, atol = 1e-2)
 
         # Sideways C intersected with rectangle so there are two areas of overlap
-        cshape_floe, corner_rect = Floe(cshape_coord, hmean, Δh), Floe(corner_rect_coord, hmean, Δh)
+        cshape_floe, corner_rect = Floe{Float64}(cshape_coord, hmean), Floe{Float64}(corner_rect_coord, hmean)
         cshape_floe.u, corner_rect.v = 0.3, -0.1
         Subzero.floe_floe_interaction!(cshape_floe, 1, corner_rect, 2, consts, Δt, max_overlap)
         @test isapprox(cshape_floe.interactions[1, xforce], -163013665.41, atol = 1e-2)
@@ -81,7 +81,7 @@
         @test isapprox(cshape_floe.interactions[2, torque], 1295472581868.05, atol = 1e-2)
 
         # Floes overlapping more than 55%  - rectangle and shifted rectangle
-        corner_rect, small_shift_corner_rect = Floe(corner_rect_coord, hmean, Δh), Floe(small_shift_corner_rect_coord, hmean, Δh)
+        corner_rect, small_shift_corner_rect = Floe(corner_rect_coord, hmean), Floe(small_shift_corner_rect_coord, hmean)
         corner_rect.v, small_shift_corner_rect.v = -0.1, -0.1
         Subzero.floe_floe_interaction!(corner_rect, 1, small_shift_corner_rect, 2, consts, Δt, max_overlap)
         @test corner_rect.status.tag == Subzero.fuse 
@@ -89,14 +89,14 @@
         @test isempty(corner_rect.interactions)
 
         # Two floes (original and original with a small shift) overlapping by more than 55%
-        corner_rect, middle_rect = Floe(corner_rect_coord, hmean, Δh), Floe(middle_rect_coord, hmean, Δh)
+        corner_rect, middle_rect = Floe(corner_rect_coord, hmean), Floe(middle_rect_coord, hmean)
         corner_rect.v = -0.1
         Subzero.floe_floe_interaction!(corner_rect, 1, middle_rect, 2, consts, Δt, max_overlap)
         @test corner_rect.status.tag == Subzero.fuse 
         @test corner_rect.status.fuse_idx == [2]
         
         # Two floes (original and original with a big shift) have such a small overlap that forces are not calculated
-        corner_rect, big_shift_corner_rect = Floe(corner_rect_coord, hmean, Δh), Floe(big_shift_corner_rect_coord, hmean, Δh)
+        corner_rect, big_shift_corner_rect = Floe(corner_rect_coord, hmean), Floe(big_shift_corner_rect_coord, hmean)
         corner_rect.v, big_shift_corner_rect.v = -0.1, -0.1
         Subzero.floe_floe_interaction!(big_shift_corner_rect, 1, corner_rect, 2, consts, Δt, max_overlap)
         @test isempty(big_shift_corner_rect.interactions)
@@ -122,7 +122,7 @@
         corner_coords = [[[9.5e4, 7e4], [9e4, 7.5e4], [10e4, 1.05e5], [10.05e4, 9.5e4], [9.5e4, 7e4]]]
     
         # Test floe overlapping slightly with collision boundary (one region)
-        east_small_floe = Floe(east_small_coords, hmean, Δh)
+        east_small_floe = Floe(east_small_coords, hmean)
         east_small_floe.u, east_small_floe.v = 0.5, 0.25
         Subzero.floe_domain_interaction!(east_small_floe, topo_domain, consts, Δt, max_overlap)
         @test east_small_floe.interactions[1, floeidx] == -3
@@ -133,7 +133,7 @@
         @test isapprox(east_small_floe.interactions[1, ypoint], 21060.606, atol = 1e-3)
         
         # Test floe overlapping slightly with collision boundary (two regions)
-        cshape_floe = Floe(cshape_coord, hmean, Δh)
+        cshape_floe = Floe(cshape_coord, hmean)
         cshape_floe.v = -0.1
         Subzero.floe_domain_interaction!(cshape_floe, topo_domain, consts, Δt, max_overlap)
         @test cshape_floe.interactions[1, floeidx] == -3
@@ -150,38 +150,38 @@
         @test isapprox(cshape_floe.interactions[2, overlap], 50000000, atol = 1e-2)
 
         # Test floe overlapping >75% with collision boundary
-        east_large_floe = Floe(east_large_coords, hmean, Δh)
+        east_large_floe = Floe(east_large_coords, hmean)
         east_large_floe.u, east_large_floe.v = -0.4, 0.2
         Subzero.floe_domain_interaction!(east_large_floe, topo_domain, consts, Δt, max_overlap)
         @test isempty(east_large_floe.interactions)
         @test east_large_floe.status.tag == Subzero.remove
 
         # Test floe overlapping >75% with collision boundary -> but max overlap is now 1
-        east_large_floe = Floe(east_large_coords, hmean, Δh)
+        east_large_floe = Floe(east_large_coords, hmean)
         east_large_floe.u, east_large_floe.v = -0.4, 0.2
         Subzero.floe_domain_interaction!(east_large_floe, topo_domain, consts, Δt, 1.0)
         @test !isempty(east_large_floe.interactions)
         @test east_large_floe.num_inters > 0
 
         # Test floe passing through open boundary is killed
-        west_floe = Floe(west_coords, hmean, Δh)
+        west_floe = Floe(west_coords, hmean)
         Subzero.floe_domain_interaction!(west_floe, topo_domain, consts, Δt, max_overlap)
         @test west_floe.status.tag == Subzero.remove
 
         # Test floes not not interact with periodic boundary
-        north_floe = Floe(north_coords, hmean, Δh)
+        north_floe = Floe(north_coords, hmean)
         Subzero.floe_domain_interaction!(north_floe, topo_domain, consts, Δt, max_overlap)
         @test north_floe.status.tag == north_floe.status.tag && north_floe.interactions == north_floe.interactions
 
         # Test floe overlapping with topography -> different from Subzero since topography are now boundaries
-        topo_overlap_floe = Floe(topo_overlap_coords, hmean, Δh)
+        topo_overlap_floe = Floe(topo_overlap_coords, hmean)
         Subzero.floe_domain_interaction!(topo_overlap_floe, topo_domain, consts, Δt, max_overlap)
         @test topo_overlap_floe.interactions[1, xforce] < 0
         @test topo_overlap_floe.interactions[1, yforce] < 0
         @test topo_overlap_floe.interactions[1, floeidx] == -5
 
         # Test floe in corner hitting more than one wall at once
-        corner_floe = Floe(corner_coords, hmean, Δh)
+        corner_floe = Floe(corner_coords, hmean)
         Subzero.floe_domain_interaction!(corner_floe, collision_domain, consts, Δt, max_overlap)
         @test all(corner_floe.interactions[:, xforce] .<= 0)
         @test all(corner_floe.interactions[:, yforce] .<= 0)

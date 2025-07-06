@@ -35,7 +35,7 @@ domain = Domain(; north = nboundary, south = sboundary, east = eboundary, west =
 floe_arr = initialize_floe_field(FT, 400, [0.85], domain, hmean, Δh; rng = Xoshiro(1))
 
 # Model creation
-model = Model(grid, ocean, atmos, domain, floe_arr)
+model = Model(; grid, ocean, atmos, domain, floes = floe_arr)
 
 # Simulation setup
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))

@@ -42,11 +42,14 @@ function poly_to_floes!(
     a = GO.area(poly)
     if a >= floe_settings.min_floe_area && a > 0
         if !hashole(poly)
-            floe = Floe(
-                FT,
+             height = clamp(
+                hmean + (-1)^rand(rng, 0:1) * rand(rng, FT) * Δh,
+                floe_settings.min_floe_height,
+                floe_settings.max_floe_height,
+            )
+            floe = Floe{FT}(
                 poly::Polys,
-                hmean,
-                Δh;
+                height;
                 floe_settings = floe_settings,
                 rng = rng,
                 kwargs...

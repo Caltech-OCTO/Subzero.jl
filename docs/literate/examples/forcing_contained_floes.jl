@@ -98,7 +98,7 @@ floe_arr = initialize_floe_field(
 )
 
 # ## Model Creation
-model = Model(grid, ocean, atmos, domain, floe_arr)
+model = Model(; grid, ocean, atmos, domain, floes = floe_arr)
 
 # ## Output Writer Creation
 dir = "forcing_contained_floes"

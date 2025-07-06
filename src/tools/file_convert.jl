@@ -24,7 +24,7 @@ function matfloe2julfloes(filename)
     coords = vars["floe"]["c_alpha"]
     coords = splitdims(coords)
     coords = Subzero.translate([coords], vars["floe"]["Xi"], vars["floe"]["Yi"])
-    floe = Floe(coords, vars["floe"]["h"], 0.0)
+    floe = Floe(coords, vars["floe"]["h"])
     floe.centroid = [vars["floe"]["Xi"], vars["floe"]["Yi"]]
     floe.x_subfloe_points = vec(vars["floe"]["X"])[vec(vars["floe"]["A"]) .== 1]
     floe.y_subfloe_points = vec(vars["floe"]["Y"])[vec(vars["floe"]["A"]) .== 1]

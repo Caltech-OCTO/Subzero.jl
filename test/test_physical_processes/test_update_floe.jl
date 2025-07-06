@@ -14,8 +14,7 @@
         for i in 1:2
             f = Floe(
                 floe_dict["coords"][i],
-                floe_dict["height"][i],
-                0.0,
+                floe_dict["height"][i];
                 u = floe_dict["u"][i],
                 v = floe_dict["v"][i],
                 ξ = floe_dict["ξ"][i],
@@ -49,7 +48,7 @@
             [10.0, 0.0],
             [0.0, 0.0],
         ]]
-        f1 = Floe(coords1, 0.5, 0.0)  # this is a square
+        f1 = Floe(coords1, 0.5)  # this is a square
         mass1 = f1.mass
         triangle_coords = [[
             [0.0, 0.0],
@@ -90,8 +89,7 @@
         ]]
         sqr_floe = Floe(
             square_coords,
-            0.5,
-            0.0,
+            0.5;
             u = 0.1,
             v = 0.25,
             ξ = -0.5,
@@ -102,8 +100,7 @@
 
         tri_floe = Floe(
             triangle_coords,
-            0.5,
-            0.0,
+            0.5;
             u = 0.1,
             v = 0.25,
             ξ = -0.5,
@@ -194,8 +191,7 @@
         Subzero.translate!(triangle_coords, 10.0, 0.0)
         sqr_floe = Floe(
             square_coords,
-            0.5,
-            0.0,
+            0.5;
             u = 0.1,
             v = 0.25,
             ξ = -0.5,
@@ -206,8 +202,7 @@
 
         tri_floe = Floe(
             triangle_coords,
-            0.5,
-            0.0,
+            0.5;
             u = 0.3,
             v = 0.05,
             ξ = 0.2,
@@ -346,8 +341,7 @@
         #  One floe splitting into two floes
         initial_floe = Floe(
             initial_coords,
-            0.5,
-            0.0
+            0.5
         )
         initial_floe.u = 0.1
         initial_floe.v = -0.2
@@ -384,16 +378,8 @@
             [initial_floe.centroid[2]],
         )
         new_floes = StructArray([
-            Floe(
-                left_coords,
-                0.5,
-                0.0
-            ),
-            Floe(
-                right_and_mid_coords,
-                0.5,
-                0.0,
-            )
+            Floe(left_coords, 0.5),
+            Floe(right_and_mid_coords, 0.5)
         ])
         Subzero.conserve_momentum_fracture_floe!(
             initial_floe,
@@ -435,21 +421,9 @@
 
         # One floe splitting into three floes
         new_floes = StructArray([
-            Floe(
-                left_coords,
-                0.5,
-                0.0
-            ),
-            Floe(
-                right_coords,
-                0.5,
-                0.0
-            ),
-            Floe(
-                mid_coords,
-                0.5,
-                0.0,
-            )
+            Floe(left_coords, 0.5),
+            Floe(right_coords, 0.5),
+            Floe(mid_coords, 0.5)
         ])
         Subzero.conserve_momentum_fracture_floe!(
             initial_floe,

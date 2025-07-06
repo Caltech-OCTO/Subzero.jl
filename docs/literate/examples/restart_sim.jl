@@ -60,7 +60,7 @@ floe_arr = initialize_floe_field(
 )
 
 # ## Create Model
-model = Model(grid, ocean, atmos, domain, floe_arr)
+model = Model(;grid, ocean, atmos, domain, floes = floe_arr)
 
 # ## Create Outout Writers
 initwriter = InitialStateOutputWriter(dir = dirs[1], overwrite = true)

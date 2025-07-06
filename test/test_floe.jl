@@ -27,20 +27,20 @@
     @test interactions[overlap] == 7
 
     # Test with coords inputs
-    floe_from_coords = Floe(floe_coords[1], hmean, Δh; u = 0.2, rng = rng)
+    floe_from_coords = Floe(floe_coords[1], hmean; u = 0.2, rng = rng)
     @test typeof(floe_from_coords) <: Floe
     @test floe_from_coords.u == 0.2
-    @test 0.49 <= floe_from_coords.height <= 0.51
+    @test floe_from_coords.height == 0.5
     @test floe_from_coords.centroid == collect(centroid1)
     @test floe_from_coords.area == area1
     @test floe_from_coords.status.tag == Subzero.active
     
     # Test with polygon input
-    floe_from_poly = Floe(poly1, hmean, Δh; v = -0.2, rng = Xoshiro(1))
+    floe_from_poly = Floe(poly1, hmean; v = -0.2, rng = Xoshiro(1))
     @test typeof(floe_from_poly) <: Floe
     @test floe_from_poly.u == 0.0
     @test floe_from_poly.v == -0.2
-    @test 0.49 <= floe_from_poly.height <= 0.51
+    @test floe_from_poly.height == 0.5
     @test floe_from_poly.centroid == collect(centroid1)
     @test floe_from_poly.area == area1
     @test floe_from_poly.status.tag == Subzero.active

@@ -1,3 +1,4 @@
+export make_polygon
 
 """
     valid_ringvec(coords::RingVec{FT})

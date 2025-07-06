@@ -88,7 +88,6 @@
         floes = StructArray([Floe(
             [[[0.0, 0.0], [0, 1], [1 ,1], [1, 0]]],
             0.25,  # Floe has a height of 0.25
-            0.0,
         )])
         yield_curve = HiblerYieldCurve(floes)
         old_poly = yield_curve.poly
@@ -115,7 +114,6 @@
                 [-50548.186, -49995.968],
             ]],
             0.25,
-            0.0,
             u = 0.1,
             v = -0.2,
             ξ = 0.05,
@@ -134,7 +132,6 @@
                 [1467.795, -25319.563],
             ]],
             0.25,
-            0.0,
         )
         no_frac_small = Floe(  # This floe is too small to fracture or deform
             [[
@@ -145,7 +142,6 @@
                 [1e3, 1e3],
             ]],
             0.25,
-            0.0,
         )
         frac_deform_floe.stress_accum = frac_stress
         frac_deform_floe.interactions = collect([

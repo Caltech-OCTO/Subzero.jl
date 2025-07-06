@@ -65,7 +65,7 @@ floe_arr = initialize_floe_field(
 )
 
 # ## Model Creation
-model = Model(grid, ocean, atmos, domain, floe_arr)
+model = Model(; grid, ocean, atmos, domain, floes = floe_arr)
 
 # ## Constants Creation
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
