@@ -20,15 +20,7 @@ export
     GridOutput,
     FloeOutput,
     add_ghosts!,
-    # Interaction field enum and elements
-    floeidx,
-    xforce,
-    yforce,
-    xpoint,
-    ypoint,
-    torque,
-    overlap, 
-    initialize_floe_field,
+    # Interaction field enum and elements 
     NoFracture,
     HiblerYieldCurve,
     MohrsCone,

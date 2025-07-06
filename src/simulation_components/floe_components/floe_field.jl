@@ -1,3 +1,5 @@
+export initialize_floe_field
+
 #=
     _poly_to_floes!(
         ::Type{FT},
