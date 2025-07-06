@@ -252,7 +252,7 @@ end
 # Pretty printing for Floe showing key physical fields
 function Base.show(io::IO, floe::Floe{FT}; digits = 5) where FT
     overall_summary = "Floe{$FT}"
-    floe_centroid_summary = "Centroid of $(round.(floe.centroid[1], digits = digits)) m"
+    floe_centroid_summary = "Centroid of $(round.(floe.centroid, digits = digits)) m"
     floe_height_summary = "Height of $(round(floe.height, digits = digits)) m"
     floe_area_summary = "Area of $(round(floe.area, digits = digits)) m^2"
     floe_velocity_summary = "Velocity of (u, v, ξ) of ($(round(floe.u, digits = digits)), $(round(floe.v, digits = digits)), $(round(floe.ξ, digits = digits))) in (m/s, m/s, rad/s)"

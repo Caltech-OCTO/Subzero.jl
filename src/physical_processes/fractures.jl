@@ -387,7 +387,7 @@ function split_floe(
     # Generate voronoi tesselation in floe's bounding box
     scale_fac = fill(2floe.rmax, 2)
     trans_vec = [floe.centroid[1] - floe.rmax, floe.centroid[2] - floe.rmax]
-    pieces = generate_voronoi_coords(
+    pieces = _generate_voronoi_coords(
         fracture_settings.npieces,
         scale_fac,
         trans_vec,
@@ -407,7 +407,7 @@ function split_floe(
             if pieces_areas[i] > 0
                 mass = floe.mass * (pieces_areas[i]/total_area)
                 height = mass / (floe_settings.ρi * pieces_areas[i])
-                poly_to_floes!(
+                _poly_to_floes!(
                     FT,
                     new_floes,
                     pieces_polys[i],

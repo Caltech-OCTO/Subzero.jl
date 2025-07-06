@@ -1,5 +1,5 @@
-"""
-    poly_to_floes!(
+#=
+    _poly_to_floes!(
         ::Type{FT},
         floes,
         poly,
@@ -27,8 +27,8 @@ Inputs:
     rng                 <RNG> random number generator to generate random floe
                             attributes - default uses Xoshiro256++ algorithm
     kwargs...           Any additional keywords to pass to floe constructor
-"""
-function poly_to_floes!(
+=#
+function _poly_to_floes!(
     ::Type{FT},
     floes,
     poly,
@@ -61,7 +61,7 @@ function poly_to_floes!(
             new_regions = GO.cut(poly, GI.Line([(cx - rmax, cy), (cx + rmax, cy)]), FT)
             n = 0
             for r in new_regions
-                n += poly_to_floes!(FT, floes, r, hmean, Δh, rmax;
+                n += _poly_to_floes!(FT, floes, r, hmean, Δh, rmax;
                     floe_settings = floe_settings, rng = rng, kwargs...)
             end
             return n
@@ -135,7 +135,7 @@ function _initialize_floe_field(
     end
     # Turn polygons into floes
     for p in floe_polys
-        poly_to_floes!(
+        _poly_to_floes!(
             FT,
             floe_arr,
             p,
@@ -170,7 +170,7 @@ function _initialize_floe_field(
 end
 
 """
-    generate_voronoi_coords(
+    _generate_voronoi_coords(
         desired_points,
         scale_fac,
         trans_vec,
@@ -201,7 +201,7 @@ Outputs:
         the domain_coords. If less polygons than min_to_warn are generated, the
         user will be warned. 
 """
-function generate_voronoi_coords(
+function _generate_voronoi_coords(
     desired_points::Int,
     scale_fac,
     trans_vec,
@@ -351,7 +351,7 @@ function _initialize_floe_field(
                 open_area = sum(GO.area, open_cell; init = 0.0)
                 # Generate coords with voronoi tesselation and make into floes
                 ncells = ceil(Int, nfloes * open_area / open_water_area / c)
-                floe_coords = generate_voronoi_coords(
+                floe_coords = _generate_voronoi_coords(
                     ncells,
                     [collen, rowlen],
                     trans_vec,
@@ -369,7 +369,7 @@ function _initialize_floe_field(
                         idx = pop!(floe_idx)
                         poly_pieces_list = intersect_polys(floe_poly_list[idx], open_cell_mpoly)
                         for piece in poly_pieces_list
-                            n_new_floes = poly_to_floes!(
+                            n_new_floes = _poly_to_floes!(
                                 FT,
                                 floe_arr,
                                 piece,
