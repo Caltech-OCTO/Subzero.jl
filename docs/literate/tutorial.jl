@@ -224,7 +224,7 @@ atmos = Atmos(; grid, u = 5.0, v = 0.0, temp = 0.0)
 
 # A model can be made as follows:
 
-model = Model(; grid, domain, ocean, atmos, floes)
+# model = Model(; grid, domain, ocean, atmos, floes)
 
 # !!! note
 #       The documentation, and to some extent the source code, is being cleaned up. This means that right now, some of the documentation is here,

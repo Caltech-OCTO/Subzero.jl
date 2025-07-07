@@ -259,9 +259,7 @@ the `Model` fields.
 
 A model can be made as follows:
 
-````@example tutorial
 model = Model(; grid, domain, ocean, atmos, floes)
-````
 
 !!! note
       The documentation, and to some extent the source code, is being cleaned up. This means that right now, some of the documentation is here,

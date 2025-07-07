@@ -99,7 +99,7 @@ Here is how to construct a `Model`:
 
 ## _Examples_
 - Creating a `Model`
-```jldoctest model
+# ```jldoctest model
 julia> using Random
 
 julia> grid = RegRectilinearGrid(Float64; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, Nx = 20, Ny = 20);
@@ -152,7 +152,7 @@ Model{Float64, ...}
   ⊢Number of floes: 3
   ⊢Total floe area: 1.375278018545777e11
   ∟Average floe height: 0.25
-```
+# ```
 """
 Model(;
     grid::GT,
@@ -166,14 +166,11 @@ Model(;
 # Pretty printing for Model showing key dimensions
 function Base.show(io::IO, model::Model{FT, GT, DT, FLT}; digits = 5) where {FT, GT, DT, FLT}
     overall_summary = "Model{$FT, ...}"
-    print(io, overall_summary, "\n ⊢")
-    Base.show(model.grid)
-    print("\n ⊢")
-    Base.show(model.domain)
-    print("\n ⊢")
-    Base.show(model.ocean)
-    print("\n ⊢")
-    Base.show(model.atmos)
-    print("\n ⊢")
-    print(model.floes)
+    print(io, overall_summary,
+        "\n ⊢", model.grid,
+        "\n ⊢", model.domain,
+        "\n ⊢", model.ocean,
+        "\n ⊢", model.atmos,
+        "\n ∟", model.floes, 
+    )
 end

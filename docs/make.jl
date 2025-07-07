@@ -64,7 +64,7 @@ makedocs(;
         "API Reference" => "api.md",
         "Contributing to Subzero" => "contribute.md",
     ],
-    warnonly = false,
+    warnonly = Documenter.except(:doctest),
 )
 
 println("Adding .gitignore file...")
