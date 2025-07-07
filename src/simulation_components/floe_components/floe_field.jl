@@ -393,3 +393,15 @@ function _initialize_floe_field(
     floe_arr.id .= range(1, length(floe_arr))
     return floe_arr
 end
+
+function Base.show(io::IO, floes::StructArray{Floe{FT}}; digits = 5) where FT
+    overall_summary = "Floe List:"
+    total_number_summary = "Number of floes: $(length(floes))"
+    total_area_summary = "Total floe area: $(round(sum(floes.area); digits))"
+    avg_height_summary = "Average floe height: $(round(mean(floes.height); digits))"
+    print(io, overall_summary, "\n",
+        "  ⊢", total_number_summary, "\n",
+        "  ⊢", total_area_summary, "\n",
+        "  ∟", avg_height_summary)
+
+end

@@ -125,7 +125,7 @@ abstract type AbstractBoundary{
 function show_boundary_poly_val_strings(boundary::AbstractBoundary; digits)
     points = join(Set(GI.getpoint(boundary.poly))|>collect, ", ")
     points_summary = "polygon points are defined by the following set: $points"
-    val_summary = "val is $(round(boundary.val, digits = digits))"
+    val_summary = "val is $(round(boundary.val; digits))"
     return points_summary, val_summary
 end
 

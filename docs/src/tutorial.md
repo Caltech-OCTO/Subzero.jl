@@ -246,11 +246,26 @@ atmos = Atmos(; grid, u = 5.0, v = 0.0, temp = 0.0)
 Again since all of the fields are constant, we won't plot them, but you can, using the `heatmap`
 function as shown above.
 
-## Creating the rest of the model and simulation...
+## Creating the Floes
+
+## Creating a Model
+
+A `Model` combines all of the above components into the `Struct` that defines the physical aspects
+of a Subzero simulation. There are a few constraints: the domain must fall within the grid, the ocean
+and atmosphere must share the same grid (which can always be updated when the infrastructure for different
+grids is in place), and all fields must share the same Float type (i.e. `Float64` or `Float32`). This Float
+type will then be the Float type of the model, so it cannot be directly specified like it can when creating
+the `Model` fields.
+
+A model can be made as follows:
+
+````@example tutorial
+model = Model(; grid, domain, ocean, atmos, floes)
+````
 
 !!! note
       The documentation, and to some extent the source code, is being cleaned up. This means that right now, some of the documentation is here,
-      and some is on the (documentation.md)[https://github.com/Caltech-OCTO/Subzero.jl/blob/main/documentation.md] section of the GitHub. Once
+      and some is on the [documentation.md](https://github.com/Caltech-OCTO/Subzero.jl/blob/main/documentation.md) section of the GitHub. Once
       you have reached this part of the tutorial, please switch back over there.
 
 ---

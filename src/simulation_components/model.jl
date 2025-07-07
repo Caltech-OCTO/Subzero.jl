@@ -116,7 +116,7 @@ julia> ocean = Ocean(Float64; u = 0.5, v = 0.25, temp = 0.0, grid);
 
 julia> atmos = Atmos(Float64; u = 0.0, v = 0.1, temp = 0.0, grid);
 
-julia> floes = initialize_floe_field(Float64, 50, [0.75], domain, 0.25, 0; rng = Xoshiro(1));
+julia> floes = initialize_floe_field(Float64, 3, [0.5], domain, 0.25, 0; rng = Xoshiro(1));
 
 julia> Model(; grid, domain, ocean, atmos, floes)
 Model{Float64, ...}
@@ -146,7 +146,10 @@ Model{Float64, ...}
   ⊢Average v-velocity of: 0.1 m/s
   ∟Average temperature of: 0.0 C
 
- ⊢
+ ⊢Floe List:
+  ⊢Number of floes: 3
+  ⊢Total floe area: 1.375278018545777e11
+  ∟Average floe height: 0.25
 ```
 """
 Model(;
@@ -170,6 +173,5 @@ function Base.show(io::IO, model::Model{FT, GT, DT, FLT}; digits = 5) where {FT,
     print("\n\n ⊢")
     Base.show(model.atmos)
     print("\n\n ⊢")
-    # TODO: add in floes once there is a show for floes
-    #Base.show(model.floes)
+    print(model.floes)
 end

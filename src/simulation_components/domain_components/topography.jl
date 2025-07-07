@@ -81,8 +81,8 @@ _normal_direction_correct!(_, _, ::TopographyElement) = return
 # Pretty printing for TopographyElement showing key types and fields
 function Base.show(io::IO, topo_element::TopographyElement{FT}; digits = 5) where FT
     overall_summary = "TopographyElement{$FT}"
-    centroid_summary = "centroid is ($(round(GI.x(topo_element.centroid), digits = digits)), $(round(GI.y(topo_element.centroid); digits = digits))) in meters"
-    rmax_summary = "maximum radius is $(round(topo_element.rmax, digits = digits)) meters"
+    centroid_summary = "centroid is ($(round(GI.x(topo_element.centroid); digits)), $(round(GI.y(topo_element.centroid); digits = digits))) in meters"
+    rmax_summary = "maximum radius is $(round(topo_element.rmax; digits)) meters"
     print(io, overall_summary, "\n",
         "  ⊢", centroid_summary, "\n",
         "  ∟", rmax_summary)
