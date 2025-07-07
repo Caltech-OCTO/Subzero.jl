@@ -2,21 +2,21 @@ WARN  failed to run `@example` block in docs/src/examples/simple_strait.md:150-1
 ```@example simple_strait
 run!(simulation)
 ```
- [2025/07/07 01:52:03.083] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
+ [2025/07/07 03:32:23.367] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
 DEBUG Evaluating @example block:
-plot_sim(joinpath(dir, floe_fn), joinpath(dir, init_fn), Δt, joinpath(dir, "simple_strait.mp4")) [2025/07/07 01:52:03.084] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
-DEBUG Running ExpanderPipeline on index.md [2025/07/07 01:52:06.761] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:54
+plot_sim(joinpath(dir, floe_fn), joinpath(dir, init_fn), Δt, joinpath(dir, "simple_strait.mp4")) [2025/07/07 03:32:23.367] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+DEBUG Running ExpanderPipeline on index.md [2025/07/07 03:32:27.134] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:54
 DEBUG Evaluating @docs block:
-Subzero [2025/07/07 01:52:06.761] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:420
-DEBUG Running ExpanderPipeline on tutorial.md [2025/07/07 01:52:06.771] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:54
+Subzero [2025/07/07 03:32:27.134] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:420
+DEBUG Running ExpanderPipeline on tutorial.md [2025/07/07 03:32:27.143] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:54
 DEBUG Evaluating @meta block:
-EditURL = "../literate/tutorial.jl" [2025/07/07 01:52:06.771] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:337
+EditURL = "../literate/tutorial.jl" [2025/07/07 03:32:27.143] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:337
 DEBUG Evaluating @example block:
 using Subzero  # bring Subzero into scope
 using CairoMakie, GeoInterfaceMakie # bring plotting packages into scope
-import GeoInterface as GI [2025/07/07 01:52:06.772] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+import GeoInterface as GI [2025/07/07 03:32:27.145] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
-grid = RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = 0.0, yf = 1e5, Nx = 20, Ny = 10) [2025/07/07 01:52:06.774] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+grid = RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = 0.0, yf = 1e5, Nx = 20, Ny = 10) [2025/07/07 03:32:27.146] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 fig = Figure();
 ax1 = Axis(fig[1, 1];  # set up axis tick marks to match grid cells
@@ -29,36 +29,36 @@ ax1 = Axis(fig[1, 1];  # set up axis tick marks to match grid cells
 lines!(  # plot boundary of grid with a dashed line
     [grid.x0, grid.x0, grid.xf, grid.xf, grid.x0],  # point x-values
     [grid.y0, grid.yf, grid.yf, grid.y0, grid.y0];  # point y-values
-    linestyle = :dash, linewidth = 3.0) [2025/07/07 01:52:06.775] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+    linestyle = :dash, linewidth = 3.0) [2025/07/07 03:32:27.147] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 colsize!(fig.layout, 1, Aspect(1, 2))
 resize_to_layout!(fig)
-fig  # display the figure [2025/07/07 01:52:07.004] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+fig  # display the figure [2025/07/07 03:32:27.380] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 north_bound = CollisionBoundary(North; grid)
 south_bound = CollisionBoundary(South; grid)
 east_bound = PeriodicBoundary(East; grid)
-west_bound = PeriodicBoundary(West; grid) [2025/07/07 01:52:07.357] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+west_bound = PeriodicBoundary(West; grid) [2025/07/07 03:32:27.742] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 poly!(   # plot each of the boundaries with a 50% transparent color so we can see the overlap
     [north_bound.poly, south_bound.poly, east_bound.poly, west_bound.poly];
     color = [(:purple, 0.5), (:purple, 0.5), (:teal, 0.5), (:teal, 0.5)],
 )
 ax1.title = "Grid and Boundary Setup"
-fig  # display the figure [2025/07/07 01:52:07.416] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+fig  # display the figure [2025/07/07 03:32:27.806] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 island1 = GI.Polygon([[(-6e4, 7.5e4), (-4e4, 5e4), (-2.5e4, 7e4), (-6e4, 7.5e4)]])
 island2 = GI.Polygon([[(5e4, 2.5e4), (5e4, 5.5e4), (7.5e4, 3e4), (5e4, 2.5e4)]])
-topo_list = [island1, island2] [2025/07/07 01:52:09.200] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+topo_list = [island1, island2] [2025/07/07 03:32:29.665] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
-topo_field = initialize_topography_field(; polys = topo_list) [2025/07/07 01:52:09.423] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+topo_field = initialize_topography_field(; polys = topo_list) [2025/07/07 03:32:29.892] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 topo_color = RGBf(115/255, 93/255, 55/255)  # brown color for topography
 poly!(topo_field.poly; color = topo_color) # plot the topography
 ax1.title = "Grid and Domain Setup"
-fig  # display the figure [2025/07/07 01:52:09.533] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+fig  # display the figure [2025/07/07 03:32:30.007] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
-domain = Domain(; north = north_bound, south = south_bound, east = east_bound, west = west_bound, topography = topo_field) [2025/07/07 01:52:09.697] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+domain = Domain(; north = north_bound, south = south_bound, east = east_bound, west = west_bound, topography = topo_field) [2025/07/07 03:32:30.173] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 function shear_flow_velocities(Nx, Ny, min_u, max_u)
     u_vals = fill(min_u, Nx, Ny)  # fill in field with min value
@@ -81,7 +81,7 @@ function shear_flow_velocities(Nx, Ny, min_u, max_u)
 end
 
 u_vals = shear_flow_velocities(grid.Nx + 1, grid.Ny + 1, 0.0, 0.25)
-ocean = Ocean(; u = u_vals, v = 0.0, temp = -1.0, grid) [2025/07/07 01:52:09.770] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+ocean = Ocean(; u = u_vals, v = 0.0, temp = -1.0, grid) [2025/07/07 03:32:30.247] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 ax2 = Axis(fig[2, 1]; title = "Ocean U-Velocities [m/s]", xticklabelrotation = pi/4)
 xs = grid.x0:grid.Δx:grid.xf
@@ -89,38 +89,31 @@ ys = grid.y0:grid.Δy:grid.yf
 u_hm = heatmap!(ax2, xs, ys, ocean.u)
 Colorbar(fig[2, end+1], u_hm)
 resize_to_layout!(fig)
-fig [2025/07/07 01:52:09.985] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+fig [2025/07/07 03:32:30.423] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
-atmos = Atmos(; grid, u = 5.0, v = 0.0, temp = 0.0) [2025/07/07 01:52:10.124] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
-DEBUG Evaluating @example block:
-model = Model(; grid, domain, ocean, atmos, floes) [2025/07/07 01:52:10.126] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
-WARN  failed to run `@example` block in docs/src/tutorial.md:262-264
-```@example tutorial
-model = Model(; grid, domain, ocean, atmos, floes)
-```
- [2025/07/07 01:52:10.159] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
-INFO  CrossReferences: building cross-references. [2025/07/07 01:52:10.537] --> /home/runner/.julia/packages/Documenter/uNI6f/src/builder_pipeline.jl:230
-WARN  invalid local link/image: file does not exist in docs/src/api.md [2025/07/07 01:52:11.164] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
-WARN  invalid local link/image: file does not exist in docs/src/api.md [2025/07/07 01:52:11.166] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
+atmos = Atmos(; grid, u = 5.0, v = 0.0, temp = 0.0) [2025/07/07 03:32:30.561] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+INFO  CrossReferences: building cross-references. [2025/07/07 03:32:31.000] --> /home/runner/.julia/packages/Documenter/uNI6f/src/builder_pipeline.jl:230
+WARN  invalid local link/image: file does not exist in docs/src/api.md [2025/07/07 03:32:31.646] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
+WARN  invalid local link/image: file does not exist in docs/src/api.md [2025/07/07 03:32:31.648] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
 WARN  Cannot resolve @ref for md"[`AbstractDomainElement`](@ref)" in docs/src/api.md.
 - No docstring found in doc for binding `Subzero.AbstractDomainElement`.
-- No docstring found in doc for binding `Subzero.AbstractDomainElement`. [2025/07/07 01:52:11.338] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
+- No docstring found in doc for binding `Subzero.AbstractDomainElement`. [2025/07/07 03:32:31.826] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
 WARN  Cannot resolve @ref for md"[`AbstractDomainElement`](@ref)" in docs/src/api.md.
 - No docstring found in doc for binding `Subzero.AbstractDomainElement`.
-- No docstring found in doc for binding `Subzero.AbstractDomainElement`. [2025/07/07 01:52:11.341] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
+- No docstring found in doc for binding `Subzero.AbstractDomainElement`. [2025/07/07 03:32:31.830] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
 WARN  Cannot resolve @ref for md"[`Floe`](@ref)" in docs/src/api.md.
 - No docstring found in doc for binding `Subzero.Floe`.
-- No docstring found in doc for binding `Subzero.Floe`. [2025/07/07 01:52:11.341] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
+- No docstring found in doc for binding `Subzero.Floe`. [2025/07/07 03:32:31.830] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
 WARN  Cannot resolve @ref for md"[`Floe`](@ref)" in docs/src/api.md.
 - No docstring found in doc for binding `Subzero.Floe`.
-- No docstring found in doc for binding `Subzero.Floe`. [2025/07/07 01:52:11.343] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
+- No docstring found in doc for binding `Subzero.Floe`. [2025/07/07 03:32:31.832] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
 WARN  Cannot resolve @ref for md"[`AbstractSubFloePointsGenerator`](@ref)" in docs/src/api.md.
 - No docstring found in doc for binding `Subzero.AbstractSubFloePointsGenerator`.
-- No docstring found in doc for binding `Main.AbstractSubFloePointsGenerator`. [2025/07/07 01:52:11.344] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
-WARN  invalid local link/image: file does not exist in docs/src/index.md [2025/07/07 01:52:11.352] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
-WARN  invalid local link/image: file does not exist in docs/src/tutorial.md [2025/07/07 01:52:11.352] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
-INFO  CheckDocument: running document checks. [2025/07/07 01:52:13.436] --> /home/runner/.julia/packages/Documenter/uNI6f/src/builder_pipeline.jl:237
-DEBUG checking for missing docstrings. [2025/07/07 01:52:13.436] --> /home/runner/.julia/packages/Documenter/uNI6f/src/docchecks.jl:42
+- No docstring found in doc for binding `Main.AbstractSubFloePointsGenerator`. [2025/07/07 03:32:31.833] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
+WARN  invalid local link/image: file does not exist in docs/src/index.md [2025/07/07 03:32:31.841] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
+WARN  invalid local link/image: file does not exist in docs/src/tutorial.md [2025/07/07 03:32:31.842] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
+INFO  CheckDocument: running document checks. [2025/07/07 03:32:33.886] --> /home/runner/.julia/packages/Documenter/uNI6f/src/builder_pipeline.jl:237
+DEBUG checking for missing docstrings. [2025/07/07 03:32:33.886] --> /home/runner/.julia/packages/Documenter/uNI6f/src/docchecks.jl:42
 WARN  203 docstrings not included in the manual:
 
     Subzero.calc_ocean_forcing! :: NTuple{9, Any}
@@ -285,8 +278,8 @@ WARN  203 docstrings not included in the manual:
     Subzero.AbstractOutputWriter
     Subzero.write_data! :: Tuple{Any, Any, Any}
     Subzero.calc_atmosphere_forcing :: NTuple{7, Any}
-    Subzero.InitialStateOutputWriter
     Subzero.InitialStateOutputWriter :: Tuple{InitialStateOutputWriter}
+    Subzero.InitialStateOutputWriter
     Subzero.InitialStateOutputWriter :: Tuple{}
     Subzero.SubGridPointsGenerator :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any}}} where FT<:AbstractFloat
     Subzero.SubGridPointsGenerator :: Union{Tuple{FT}, Tuple{RegRectilinearGrid, Int64}} where FT<:AbstractFloat
@@ -329,47 +322,53 @@ WARN  203 docstrings not included in the manual:
 
 These are docstrings in the checked modules (configured with the modules keyword)
 that are not included in canonical @docs or @autodocs blocks.
- [2025/07/07 01:52:15.274] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
-DEBUG checking footnote links. [2025/07/07 01:52:15.274] --> /home/runner/.julia/packages/Documenter/uNI6f/src/docchecks.jl:123
-INFO  Populate: populating indices. [2025/07/07 01:52:15.274] --> /home/runner/.julia/packages/Documenter/uNI6f/src/builder_pipeline.jl:247
-INFO  RenderDocument: rendering document. [2025/07/07 01:52:15.274] --> /home/runner/.julia/packages/Documenter/uNI6f/src/builder_pipeline.jl:265
-INFO  HTMLWriter: rendering HTML pages. [2025/07/07 01:52:16.093] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:766
-DEBUG Rendering examples/moving_bounds.md [6] [2025/07/07 01:52:16.223] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/07/07 01:52:16.894] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
-DEBUG Rendering api.md [8] [2025/07/07 01:52:18.638] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/07/07 01:52:18.638] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
-DEBUG source_url [2025/07/07 01:52:19.243] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.269] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.269] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.269] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.270] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.270] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.270] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.270] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.313] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.314] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.314] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.315] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.315] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.318] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.346] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.347] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.347] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.348] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.362] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.362] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/07 01:52:19.362] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG Rendering contribute.md [9] [2025/07/07 01:52:19.364] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/07/07 01:52:19.365] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
-DEBUG Rendering examples/forcing_contained_floes.md [5] [2025/07/07 01:52:19.366] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/07/07 01:52:19.366] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
-DEBUG Rendering examples/shear_flow.md [3] [2025/07/07 01:52:19.499] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/07/07 01:52:19.500] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
-DEBUG Rendering examples/simple_strait.md [4] [2025/07/07 01:52:19.502] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/07/07 01:52:19.503] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
-DEBUG Rendering examples/restart_sim.md [7] [2025/07/07 01:52:19.505] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/07/07 01:52:19.506] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
-DEBUG Rendering index.md [1] [2025/07/07 01:52:19.508] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/07/07 01:52:19.509] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
-DEBUG source_url [2025/07/07 01:52:19.712] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG Rendering tutorial.md [2] [2025/07/07 01:52:19.719] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
+ [2025/07/07 03:32:35.902] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
+DEBUG checking footnote links. [2025/07/07 03:32:35.902] --> /home/runner/.julia/packages/Documenter/uNI6f/src/docchecks.jl:123
+INFO  Populate: populating indices. [2025/07/07 03:32:35.902] --> /home/runner/.julia/packages/Documenter/uNI6f/src/builder_pipeline.jl:247
+INFO  RenderDocument: rendering document. [2025/07/07 03:32:35.902] --> /home/runner/.julia/packages/Documenter/uNI6f/src/builder_pipeline.jl:265
+INFO  HTMLWriter: rendering HTML pages. [2025/07/07 03:32:36.687] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:766
+DEBUG Rendering examples/moving_bounds.md [6] [2025/07/07 03:32:36.819] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/07/07 03:32:37.497] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
+DEBUG Rendering api.md [8] [2025/07/07 03:32:39.323] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/07/07 03:32:39.324] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
+DEBUG source_url [2025/07/07 03:32:39.939] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:39.966] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:39.967] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:39.967] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:39.967] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:39.967] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:39.968] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:39.968] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:40.015] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:40.015] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:40.016] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:40.016] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:40.017] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:40.020] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:40.053] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:40.054] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:40.054] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:40.055] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:40.069] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:40.070] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG source_url [2025/07/07 03:32:40.070] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG Rendering contribute.md [9] [2025/07/07 03:32:40.072] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/07/07 03:32:40.072] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
+DEBUG Rendering examples/forcing_contained_floes.md [5] [2025/07/07 03:32:40.073] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/07/07 03:32:40.074] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
+DEBUG Rendering examples/shear_flow.md [3] [2025/07/07 03:32:40.211] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/07/07 03:32:40.212] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
+DEBUG Rendering examples/simple_strait.md [4] [2025/07/07 03:32:40.215] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/07/07 03:32:40.215] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
+DEBUG Rendering examples/restart_sim.md [7] [2025/07/07 03:32:40.218] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/07/07 03:32:40.219] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
+DEBUG Rendering index.md [1] [2025/07/07 03:32:40.222] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/07/07 03:32:40.222] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
+DEBUG source_url [2025/07/07 03:32:40.432] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
+DEBUG Rendering tutorial.md [2] [2025/07/07 03:32:40.439] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/07/07 03:32:40.440] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
+WARN  For 5 @example blocks, the 'text/html' representation of the resulting
+object is above the threshold (example_size_threshold: 8192 bytes).
+- 5 blocks had 'image/png' fallback image representation available, using that.
+  On pages: examples/forcing_contained_floes.md, tutorial.md
+ [2025/07/07 03:32:40.682] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:847
