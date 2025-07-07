@@ -1,5 +1,6 @@
 using Documenter, Literate
 using Subzero
+using Random
 import GeoInterface as GI
 import GeometryOps as GO
 import LibGEOS as LG
@@ -63,7 +64,7 @@ makedocs(;
         "API Reference" => "api.md",
         "Contributing to Subzero" => "contribute.md",
     ],
-    warnonly = true,
+    warnonly = false,
 )
 
 println("Adding .gitignore file...")

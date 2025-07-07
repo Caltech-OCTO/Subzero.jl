@@ -100,6 +100,8 @@ Here is how to construct a `Model`:
 ## _Examples_
 - Creating a `Model`
 ```jldoctest model
+julia> using Random
+
 julia> grid = RegRectilinearGrid(Float64; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, Nx = 20, Ny = 20);
 
 julia> north = CollisionBoundary(North, Float64; grid);
@@ -164,14 +166,14 @@ Model(;
 # Pretty printing for Model showing key dimensions
 function Base.show(io::IO, model::Model{FT, GT, DT, FLT}; digits = 5) where {FT, GT, DT, FLT}
     overall_summary = "Model{$FT, ...}"
-    print(io, overall_summary, "\n\n ⊢")
+    print(io, overall_summary, "\n ⊢")
     Base.show(model.grid)
-    print("\n\n ⊢")
+    print("\n ⊢")
     Base.show(model.domain)
-    print("\n\n ⊢")
+    print("\n ⊢")
     Base.show(model.ocean)
-    print("\n\n ⊢")
+    print("\n ⊢")
     Base.show(model.atmos)
-    print("\n\n ⊢")
+    print("\n ⊢")
     print(model.floes)
 end

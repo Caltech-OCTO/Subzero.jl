@@ -97,18 +97,18 @@ julia> height = 1.0;
 
 julia> Floe{Float64}(coords, height)
 Floe{Float64}
-  ⊢Centroid of [5.0, 2.5] m
+  ⊢Centroid of (5.0, 2.5) m
   ⊢Height of 1.0 m
   ⊢Area of 50.0 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 ```
 - Creating a `Floe` with a polygon:
 ```jldoctest floe
-julia> poly = make_polygon(coords)
+julia> poly = make_polygon(coords);
 
 julia> Floe{Float32}(poly, height; u = 1.0, ξ = 0.02)
 Floe{Float32}
-  ⊢Centroid of [5.0, 2.5] m
+  ⊢Centroid of (5.0, 2.5) m
   ⊢Height of 1.0 m
   ⊢Area of 50.0 m^2
   ∟Velocity of (u, v, ξ) of (1.0, 0.0, 0.02) in (m/s, m/s, rad/s)
@@ -252,7 +252,8 @@ end
 # Pretty printing for Floe showing key physical fields
 function Base.show(io::IO, floe::Floe{FT}; digits = 5) where FT
     overall_summary = "Floe{$FT}"
-    floe_centroid_summary = "Centroid of $(round.(floe.centroid; digits)) m"
+
+    floe_centroid_summary = "Centroid of ($(round(floe.centroid[1]; digits)), $(round(floe.centroid[2]; digits))) m"
     floe_height_summary = "Height of $(round(floe.height; digits)) m"
     floe_area_summary = "Area of $(round(floe.area; digits)) m^2"
     floe_velocity_summary = "Velocity of (u, v, ξ) of ($(round(floe.u; digits)), $(round(floe.v; digits)), $(round(floe.ξ; digits))) in (m/s, m/s, rad/s)"
