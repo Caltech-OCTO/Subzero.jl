@@ -20,7 +20,6 @@ export
     GridOutput,
     FloeOutput,
     add_ghosts!,
-    # Interaction field enum and elements 
     NoFracture,
     HiblerYieldCurve,
     MohrsCone,
