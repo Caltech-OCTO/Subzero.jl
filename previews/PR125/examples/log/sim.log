@@ -2,21 +2,21 @@ WARN  failed to run `@example` block in docs/src/examples/simple_strait.md:150-1
 ```@example simple_strait
 run!(simulation)
 ```
- [2025/08/11 16:18:02.543] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+ [2025/08/11 18:24:44.558] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
 DEBUG Evaluating @example block:
-plot_sim(joinpath(dir, floe_fn), joinpath(dir, init_fn), Δt, joinpath(dir, "simple_strait.mp4")) [2025/08/11 16:18:02.543] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
-DEBUG Running ExpanderPipeline on index.md [2025/08/11 16:18:06.195] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:54
+plot_sim(joinpath(dir, floe_fn), joinpath(dir, init_fn), Δt, joinpath(dir, "simple_strait.mp4")) [2025/08/11 18:24:44.558] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+DEBUG Running ExpanderPipeline on index.md [2025/08/11 18:24:49.149] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:54
 DEBUG Evaluating @docs block:
-Subzero [2025/08/11 16:18:06.195] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:420
-DEBUG Running ExpanderPipeline on tutorial.md [2025/08/11 16:18:06.205] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:54
+Subzero [2025/08/11 18:24:49.149] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:420
+DEBUG Running ExpanderPipeline on tutorial.md [2025/08/11 18:24:49.158] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:54
 DEBUG Evaluating @meta block:
-EditURL = "../literate/tutorial.jl" [2025/08/11 16:18:06.205] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:337
+EditURL = "../literate/tutorial.jl" [2025/08/11 18:24:49.159] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:337
 DEBUG Evaluating @example block:
 using Subzero  # bring Subzero into scope
 using CairoMakie, GeoInterfaceMakie # bring plotting packages into scope
-import GeoInterface as GI [2025/08/11 16:18:06.206] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+import GeoInterface as GI [2025/08/11 18:24:49.160] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
-grid = RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = 0.0, yf = 1e5, Nx = 20, Ny = 10) [2025/08/11 16:18:06.207] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+grid = RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = 0.0, yf = 1e5, Nx = 20, Ny = 10) [2025/08/11 18:24:49.161] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 fig = Figure();
 ax1 = Axis(fig[1, 1];  # set up axis tick marks to match grid cells
@@ -29,36 +29,36 @@ ax1 = Axis(fig[1, 1];  # set up axis tick marks to match grid cells
 lines!(  # plot boundary of grid with a dashed line
     [grid.x0, grid.x0, grid.xf, grid.xf, grid.x0],  # point x-values
     [grid.y0, grid.yf, grid.yf, grid.y0, grid.y0];  # point y-values
-    linestyle = :dash, linewidth = 3.0) [2025/08/11 16:18:06.209] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+    linestyle = :dash, linewidth = 3.0) [2025/08/11 18:24:49.162] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 colsize!(fig.layout, 1, Aspect(1, 2))
 resize_to_layout!(fig)
-fig  # display the figure [2025/08/11 16:18:06.438] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+fig  # display the figure [2025/08/11 18:24:49.404] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 north_bound = CollisionBoundary(North; grid)
 south_bound = CollisionBoundary(South; grid)
 east_bound = PeriodicBoundary(East; grid)
-west_bound = PeriodicBoundary(West; grid) [2025/08/11 16:18:06.798] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+west_bound = PeriodicBoundary(West; grid) [2025/08/11 18:24:49.767] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 poly!(   # plot each of the boundaries with a 50% transparent color so we can see the overlap
     [north_bound.poly, south_bound.poly, east_bound.poly, west_bound.poly];
     color = [(:purple, 0.5), (:purple, 0.5), (:teal, 0.5), (:teal, 0.5)],
 )
 ax1.title = "Grid and Boundary Setup"
-fig  # display the figure [2025/08/11 16:18:06.861] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+fig  # display the figure [2025/08/11 18:24:49.834] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 island1 = GI.Polygon([[(-6e4, 7.5e4), (-4e4, 5e4), (-2.5e4, 7e4), (-6e4, 7.5e4)]])
 island2 = GI.Polygon([[(5e4, 2.5e4), (5e4, 5.5e4), (7.5e4, 3e4), (5e4, 2.5e4)]])
-topo_list = [island1, island2] [2025/08/11 16:18:08.686] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+topo_list = [island1, island2] [2025/08/11 18:24:51.693] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
-topo_field = initialize_topography_field(; polys = topo_list) [2025/08/11 16:18:08.912] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+topo_field = initialize_topography_field(; polys = topo_list) [2025/08/11 18:24:51.925] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 topo_color = RGBf(115/255, 93/255, 55/255)  # brown color for topography
 poly!(topo_field.poly; color = topo_color) # plot the topography
 ax1.title = "Grid and Domain Setup"
-fig  # display the figure [2025/08/11 16:18:09.025] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+fig  # display the figure [2025/08/11 18:24:52.045] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
-domain = Domain(; north = north_bound, south = south_bound, east = east_bound, west = west_bound, topography = topo_field) [2025/08/11 16:18:09.189] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+domain = Domain(; north = north_bound, south = south_bound, east = east_bound, west = west_bound, topography = topo_field) [2025/08/11 18:24:52.211] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 function shear_flow_velocities(Nx, Ny, min_u, max_u)
     u_vals = fill(min_u, Nx, Ny)  # fill in field with min value
@@ -81,7 +81,7 @@ function shear_flow_velocities(Nx, Ny, min_u, max_u)
 end
 
 u_vals = shear_flow_velocities(grid.Nx + 1, grid.Ny + 1, 0.0, 0.25)
-ocean = Ocean(; u = u_vals, v = 0.0, temp = -1.0, grid) [2025/08/11 16:18:09.261] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+ocean = Ocean(; u = u_vals, v = 0.0, temp = -1.0, grid) [2025/08/11 18:24:52.285] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 ax2 = Axis(fig[2, 1]; title = "Ocean U-Velocities [m/s]", xticklabelrotation = pi/4)
 xs = grid.x0:grid.Δx:grid.xf
@@ -89,32 +89,32 @@ ys = grid.y0:grid.Δy:grid.yf
 u_hm = heatmap!(ax2, xs, ys, ocean.u)
 Colorbar(fig[2, end+1], u_hm)
 resize_to_layout!(fig)
-fig [2025/08/11 16:18:09.490] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+fig [2025/08/11 18:24:52.476] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
-atmos = Atmos(; grid, u = 5.0, v = 0.0, temp = 0.0) [2025/08/11 16:18:09.630] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
-INFO  CrossReferences: building cross-references. [2025/08/11 16:18:10.013] --> /home/runner/.julia/packages/Documenter/eoWm2/src/builder_pipeline.jl:230
-WARN  invalid local link/image: file does not exist in docs/src/api.md [2025/08/11 16:18:10.651] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
-WARN  invalid local link/image: file does not exist in docs/src/api.md [2025/08/11 16:18:10.652] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+atmos = Atmos(; grid, u = 5.0, v = 0.0, temp = 0.0) [2025/08/11 18:24:52.619] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+INFO  CrossReferences: building cross-references. [2025/08/11 18:24:53.020] --> /home/runner/.julia/packages/Documenter/eoWm2/src/builder_pipeline.jl:230
+WARN  invalid local link/image: file does not exist in docs/src/api.md [2025/08/11 18:24:53.732] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+WARN  invalid local link/image: file does not exist in docs/src/api.md [2025/08/11 18:24:53.734] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
 WARN  Cannot resolve @ref for md"[`AbstractDomainElement`](@ref)" in docs/src/api.md.
 - No docstring found in doc for binding `Subzero.AbstractDomainElement`.
-- No docstring found in doc for binding `Subzero.AbstractDomainElement`. [2025/08/11 16:18:10.825] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+- No docstring found in doc for binding `Subzero.AbstractDomainElement`. [2025/08/11 18:24:53.918] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
 WARN  Cannot resolve @ref for md"[`AbstractDomainElement`](@ref)" in docs/src/api.md.
 - No docstring found in doc for binding `Subzero.AbstractDomainElement`.
-- No docstring found in doc for binding `Subzero.AbstractDomainElement`. [2025/08/11 16:18:10.829] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+- No docstring found in doc for binding `Subzero.AbstractDomainElement`. [2025/08/11 18:24:53.922] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
 WARN  Cannot resolve @ref for md"[`Floe`](@ref)" in docs/src/api.md.
 - No docstring found in doc for binding `Subzero.Floe`.
-- No docstring found in doc for binding `Subzero.Floe`. [2025/08/11 16:18:10.829] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+- No docstring found in doc for binding `Subzero.Floe`. [2025/08/11 18:24:53.922] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
 WARN  Cannot resolve @ref for md"[`Floe`](@ref)" in docs/src/api.md.
 - No docstring found in doc for binding `Subzero.Floe`.
-- No docstring found in doc for binding `Subzero.Floe`. [2025/08/11 16:18:10.831] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+- No docstring found in doc for binding `Subzero.Floe`. [2025/08/11 18:24:53.924] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
 WARN  Cannot resolve @ref for md"[`AbstractSubFloePointsGenerator`](@ref)" in docs/src/api.md.
 - No docstring found in doc for binding `Subzero.AbstractSubFloePointsGenerator`.
-- No docstring found in doc for binding `Main.AbstractSubFloePointsGenerator`. [2025/08/11 16:18:10.832] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
-WARN  invalid local link/image: file does not exist in docs/src/index.md [2025/08/11 16:18:10.840] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
-WARN  invalid local link/image: file does not exist in docs/src/tutorial.md [2025/08/11 16:18:10.840] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
-INFO  CheckDocument: running document checks. [2025/08/11 16:18:12.868] --> /home/runner/.julia/packages/Documenter/eoWm2/src/builder_pipeline.jl:237
-DEBUG checking for missing docstrings. [2025/08/11 16:18:12.868] --> /home/runner/.julia/packages/Documenter/eoWm2/src/docchecks.jl:42
-WARN  199 docstrings not included in the manual:
+- No docstring found in doc for binding `Main.AbstractSubFloePointsGenerator`. [2025/08/11 18:24:53.925] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+WARN  invalid local link/image: file does not exist in docs/src/index.md [2025/08/11 18:24:53.933] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+WARN  invalid local link/image: file does not exist in docs/src/tutorial.md [2025/08/11 18:24:53.934] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+INFO  CheckDocument: running document checks. [2025/08/11 18:24:56.009] --> /home/runner/.julia/packages/Documenter/eoWm2/src/builder_pipeline.jl:237
+DEBUG checking for missing docstrings. [2025/08/11 18:24:56.009] --> /home/runner/.julia/packages/Documenter/eoWm2/src/docchecks.jl:42
+WARN  201 docstrings not included in the manual:
 
     Subzero.AbstractFractureCriteria
     Subzero.MohrsCone :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any}}} where FT<:AbstractFloat
@@ -134,8 +134,8 @@ WARN  199 docstrings not included in the manual:
     Subzero.auto_extension :: Tuple{Any, Any}
     Subzero.check_cell_bounds :: Tuple{Any, Any, Any, Any, Any, Union{CollisionBoundary, MovingBoundary, OpenBoundary}, PeriodicBoundary}
     Subzero.check_cell_bounds :: Tuple{Any, Any, Any, Any, Any, PeriodicBoundary, Union{CollisionBoundary, MovingBoundary, OpenBoundary}}
-    Subzero.check_cell_bounds :: Tuple{Any, Any, Any, Any, Any, Union{CollisionBoundary, MovingBoundary, OpenBoundary}, Union{CollisionBoundary, MovingBoundary, OpenBoundary}}
     Subzero.check_cell_bounds :: Tuple{Any, Any, Any, Any, Any, PeriodicBoundary, PeriodicBoundary}
+    Subzero.check_cell_bounds :: Tuple{Any, Any, Any, Any, Any, Union{CollisionBoundary, MovingBoundary, OpenBoundary}, Union{CollisionBoundary, MovingBoundary, OpenBoundary}}
     Subzero.InteractionFields
     Subzero.OutputWriters
     Subzero.hashole :: Union{Tuple{Array{Array{Vector{FT}, 1}, 1}}, Tuple{FT}} where FT<:AbstractFloat
@@ -246,8 +246,8 @@ WARN  199 docstrings not included in the manual:
     Subzero.HiblerYieldCurve :: Tuple
     Subzero.timestep_coupling! :: NTuple{5, Any}
     Subzero.InitialStateOutputWriter
-    Subzero.InitialStateOutputWriter :: Tuple{InitialStateOutputWriter}
     Subzero.InitialStateOutputWriter :: Tuple{}
+    Subzero.InitialStateOutputWriter :: Tuple{InitialStateOutputWriter}
     Subzero.write_floe_data! :: Tuple{Any, Any, Any}
     Subzero.calc_atmosphere_forcing :: NTuple{7, Any}
     Subzero.dissolve_floe! :: Tuple{Any, RegRectilinearGrid, Any, Any}
@@ -258,6 +258,8 @@ WARN  199 docstrings not included in the manual:
     Subzero.MonteCarloPointsGenerator :: Tuple
     Subzero.grid_line_index :: Tuple{Any, Any, Any}
     Subzero.add_floe_volume! :: NTuple{4, Any}
+    Subzero._initialize_floe_field! :: Union{Tuple{FT}, Tuple{Type{FT}, Any, Subzero.CoordinateListFieldGenerator, Any}} where FT
+    Subzero._initialize_floe_field! :: Union{Tuple{FT}, Tuple{Type{FT}, Any, Subzero.VoronoiTesselationFieldGenerator, Any}} where FT
     Subzero.timestep_floe_properties! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{<:Floe{FT}}, Any, Any, Any}} where FT
     Subzero.compare_oa_checkpointer_data :: Tuple{Any, Any}
     Subzero.add_ghosts! :: Union{Tuple{FT}, Tuple{Any, Domain{FT, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}}}} where FT<:AbstractFloat
@@ -318,55 +320,54 @@ WARN  199 docstrings not included in the manual:
 
 These are docstrings in the checked modules (configured with the modules keyword)
 that are not included in canonical @docs or @autodocs blocks.
- [2025/08/11 16:18:14.718] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
-DEBUG checking footnote links. [2025/08/11 16:18:14.718] --> /home/runner/.julia/packages/Documenter/eoWm2/src/docchecks.jl:123
-INFO  Populate: populating indices. [2025/08/11 16:18:14.718] --> /home/runner/.julia/packages/Documenter/eoWm2/src/builder_pipeline.jl:247
-INFO  RenderDocument: rendering document. [2025/08/11 16:18:14.718] --> /home/runner/.julia/packages/Documenter/eoWm2/src/builder_pipeline.jl:265
-INFO  HTMLWriter: rendering HTML pages. [2025/08/11 16:18:15.530] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:766
-DEBUG Rendering examples/moving_bounds.md [6] [2025/08/11 16:18:15.655] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/08/11 16:18:16.294] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
-DEBUG Rendering api.md [8] [2025/08/11 16:18:18.169] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/08/11 16:18:18.170] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
-DEBUG source_url [2025/08/11 16:18:18.772] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.797] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.797] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.798] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.798] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.798] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.798] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.799] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.842] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.843] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.843] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.843] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.844] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.847] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.878] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.879] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.879] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.879] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.894] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.894] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG source_url [2025/08/11 16:18:18.894] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG Rendering contribute.md [9] [2025/08/11 16:18:18.896] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/08/11 16:18:18.897] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
-DEBUG Rendering examples/forcing_contained_floes.md [5] [2025/08/11 16:18:18.898] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/08/11 16:18:18.898] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
-DEBUG Rendering examples/shear_flow.md [3] [2025/08/11 16:18:19.032] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/08/11 16:18:19.033] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
-DEBUG Rendering examples/simple_strait.md [4] [2025/08/11 16:18:19.036] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/08/11 16:18:19.037] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
-DEBUG Rendering examples/restart_sim.md [7] [2025/08/11 16:18:19.039] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/08/11 16:18:19.040] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
-DEBUG Rendering index.md [1] [2025/08/11 16:18:19.043] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/08/11 16:18:19.043] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
-DEBUG source_url [2025/08/11 16:18:19.250] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
-DEBUG Rendering tutorial.md [2] [2025/08/11 16:18:19.257] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/08/11 16:18:19.258] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
+ [2025/08/11 18:24:58.036] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+DEBUG checking footnote links. [2025/08/11 18:24:58.036] --> /home/runner/.julia/packages/Documenter/eoWm2/src/docchecks.jl:123
+INFO  Populate: populating indices. [2025/08/11 18:24:58.036] --> /home/runner/.julia/packages/Documenter/eoWm2/src/builder_pipeline.jl:247
+INFO  RenderDocument: rendering document. [2025/08/11 18:24:58.036] --> /home/runner/.julia/packages/Documenter/eoWm2/src/builder_pipeline.jl:265
+INFO  HTMLWriter: rendering HTML pages. [2025/08/11 18:24:58.820] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:766
+DEBUG Rendering examples/moving_bounds.md [6] [2025/08/11 18:24:58.950] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/08/11 18:24:59.617] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
+DEBUG Rendering api.md [8] [2025/08/11 18:25:01.477] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/08/11 18:25:01.478] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
+DEBUG source_url [2025/08/11 18:25:02.116] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.143] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.144] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.144] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.144] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.144] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.145] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.145] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.191] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.192] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.193] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.193] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.194] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.197] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.232] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.233] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.233] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.234] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.250] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.250] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/11 18:25:02.250] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG Rendering contribute.md [9] [2025/08/11 18:25:02.252] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/08/11 18:25:02.253] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
+DEBUG Rendering examples/forcing_contained_floes.md [5] [2025/08/11 18:25:02.254] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/08/11 18:25:02.255] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
+DEBUG Rendering examples/shear_flow.md [3] [2025/08/11 18:25:02.395] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/08/11 18:25:02.396] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
+DEBUG Rendering examples/simple_strait.md [4] [2025/08/11 18:25:02.398] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/08/11 18:25:02.399] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
+DEBUG Rendering examples/restart_sim.md [7] [2025/08/11 18:25:02.402] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/08/11 18:25:02.403] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
+DEBUG Rendering index.md [1] [2025/08/11 18:25:02.405] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/08/11 18:25:02.406] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
+DEBUG source_url [2025/08/11 18:25:02.616] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG Rendering tutorial.md [2] [2025/08/11 18:25:02.624] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/08/11 18:25:02.624] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
 WARN  For 5 @example blocks, the 'text/html' representation of the resulting
 object is above the threshold (example_size_threshold: 8192 bytes).
 - 5 blocks had 'image/png' fallback image representation available, using that.
   On pages: examples/forcing_contained_floes.md, tutorial.md
- [2025/08/11 16:18:19.497] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:847
-INFO  Automatic `version="0.1.0"` for inventory from ../Project.toml [2025/08/11 16:18:19.499] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/write_inventory.jl:84
-DEBUG pr_head_repo = 'Caltech-OCTO/Subzero.jl' vs repo = 'Caltech-OCTO/Subzero.jl' [2025/08/11 16:18:21.540] --> /home/runner/.julia/packages/Documenter/eoWm2/src/deployconfig.jl:561
+ [2025/08/11 18:25:02.868] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:847
+INFO  Automatic `version="0.1.0"` for inventory from ../Project.toml [2025/08/11 18:25:02.869] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/write_inventory.jl:84
