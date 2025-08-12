@@ -1,8 +1,50 @@
-export initialize_floe_field
+export initialize_floe_field, AbstractFloeFieldGenerator, CoordinateListFieldGenerator, VoronoiTesselationFieldGenerator
 
 
+"""
+    YourFloeFieldGenerator{FT} <: AbstractFloeFieldGenerator{FT}
+
+Each simulation run with requires a field of ice floes, which is simply a list of [`Floe`](@ref) structs.
+However, there are various ways to create a floe field, and various configurations of floes that
+user might want to create. 
+
+To make it easier for the user to define a new floe creation functionality, this process uses multiple dispatch
+on subtypes of the `AbstractFloeFieldGenerator` type. The generators hold the information needed to generate a floe
+field - and the method is determined by the generator type. Right now, there are two subtypes implemented.
+
+The first is the `CoordinateListFieldGenerator`. This generator takes in a list of floe coordinates (along with other arguments)
+to create a list of floes. The second is the `VoronoiTesselationFieldGenerator`. This generator tesselates the domain with floes and then randomly keeps
+various floes to match the user-provided floe concentration. 
+
+Users and developers can create new generators to easily implement new floe generators. For example, it would be good to have a
+generator that creates floes with a user-defined FSD.
+
+## _API_
+The following methods must be implemented for all subtypes:
+- `_initialize_floe_field!(::Type{FT}, floe_arr, generator::CoordinateListFieldGenerator, domain; kwargs...)`: 
+"""
 abstract type AbstractFloeFieldGenerator{FT <: AbstractFloat}  end
 
+"""
+    initialize_floe_field(FT; generator, domain, supress_warnings, floe_settings, rng, kwargs...)
+
+Create a field of floes using the provided generator. Regardless of generator, the floe array will be a vector of
+[`Floe`](@ref) structs, but the exact shape/location/number of the floes will be determined by the generator, which must
+be a subtype of the [`AbstractFloeFieldGenerator`](@ref). After floe creation, the unique, numerical ids of the floes within
+the floe field will be set.
+
+## _Positional arguments_
+- $FT_DEF
+
+## _Keyword arguments_
+- `generator::AbstractFloeFieldGenerator`: generator type that determines how the floe field is generated
+- `domain::Domain`: simulation domain
+- `supress_warnings::Bool`: boolean flag on if warnings regarding floe area and centroid position should checked
+- `floe_settings::FloeSettings`: floe settings that determine individual floe characteristics - also needed to create a `Simulation` object
+- `rng::RandomNumberGenerator`:: random number generator needed to randomly assign floe characteristics (e.g height), depending on the generator
+- `floe_bounds::Polys`: bounding box for floes to be generated within - only used for `VoronoiTesselationFieldGenerator`
+- `kwargs...`: other keywords night be needed if new generator types are implemented. 
+"""
 function initialize_floe_field(
     ::Type{FT} = Float64;
     generator::AbstractFloeFieldGenerator{FT}, domain,
@@ -14,13 +56,22 @@ function initialize_floe_field(
     # add floes using whichever process
     _initialize_floe_field!(FT, floe_arr, generator, domain; floe_settings, rng, kwargs...)
     # warn about floes that don't match floe settings
-    !supress_warnings && warn_floe_validity(FT, floe_arr, domain, floe_settings)
+    !supress_warnings && _warn_floe_validity(FT, floe_arr, domain, floe_settings)
     # add numerical ids to all floes
     floe_arr.id .= range(1, length(floe_arr))
     return floe_arr
 end
 
-function warn_floe_validity(::Type{FT}, floe_arr, domain, floe_settings) where FT
+#=
+    _warn_floe_validity(FT, floe_arr, domain, floe_settings)
+
+After floe field is created, check if the area of each of the floes is greater than the minimum floe area define by
+the `floe_settings` and if the floe centroids are all within the domain. 
+
+Additional checks could be added, or this function could dispatch off of the generator in the future if this needs to
+be mroe specific to the floe generation method.
+=#
+function _warn_floe_validity(::Type{FT}, floe_arr, domain, floe_settings) where FT
     # find a reasonable minimum floe area given user input OR domain size
     min_floe_area = floe_settings.min_floe_area
     if floe_settings.min_floe_area ≤ 0
@@ -39,56 +90,103 @@ function warn_floe_validity(::Type{FT}, floe_arr, domain, floe_settings) where F
     return
 end
 
+# Concrete subtype of AbstractFloeFieldGenerator - see below for documentation
 struct CoordinateListFieldGenerator{FT} <: AbstractFloeFieldGenerator{FT}
-    coords::Vector{PolyVec{FT}}
+    polys::Vector{Polys{FT}}
     hmean::FT
     Δh::FT
 end
 
+"""
+    CoordinateListFieldGenerator{FT} <: AbstractFloeFieldGenerator{FT}
+
+A concrete implementatin of [`AbstractFloeFieldGenerator`](@ref) that generates a floe field from a list of floe coordinates.
+The floe coordinates are turned into polygons. The heights are a random distribution around `hmean` between `hmean - Δh` and `hmean + Δh`.
+
+The fields are:
+
+- `polys::Vector{Polys{FT}}`: list of polygons in the form of [`PolyVec`](@ref)s. 
+- `hmean::FT`: mean height of the generated floe field.
+- `Δh::FT`: range of floe heights around the mean (i.e. random distribution around `hmean` between `hmean - Δh` and `hmean + Δh`)
+
+Here is how to construct a `CoordinateListFieldGenerator`:
+
+    CoordinateListFieldGenerator([FT = Float64]; coords, hmean, Δh)
+
+## _Positional arguments_
+- $FT_DEF
+
+## _Keyword arguments_
+- `coords::Vector{PolyVec{FT}}`: list of polygon coordinates in the form of [`PolyVec`](@ref)s
+- `hmean::FT`: mean height of the generated floe field.
+- `Δh::FT`: range of floe heights around the mean (i.e. random distribution around `hmean` between `hmean - Δh` and `hmean + Δh`)
+- `kwargs...`
+
+!!! note
+    It is now strongly reccomended to generate floe fields by first making a generator, but the functionality to create floes from a 
+    list of coordiantes existed prior to the `AbstractFloeFieldGenerator` multiple dispatch setup. Therefore, the user can also call
+    `initialize_floe_field(FT, coords, domain, hmean, Δh; kwargs...)` and that will automatically create a `CoordinateListFieldGenerator`
+    to preserve existing functionality. However, this is NOT reccomended and only exists for backwards compatability. See source code if needed.
+
+## _Examples_
+
+```jldoctest
+julia> coords = [[[(0.0, 0.0), (0.0, 100.0), (100.0, 100.0), (0.0, 0.0)]], [[(150.0, 0.0), (150.0, 100.0), (200.0, 100.0), (150.0, 0.0)]]];
+julia> generator = CoordinateListFieldGenerator(Float64; coords, hmean = 1, Δh = 0.25)
+CoordinateListFieldGenerator:
+  ⊢Number of polygons: 2
+  ⊢Mean height: 1.0
+  ∟Height range: 0.25
+```
+"""
+function CoordinateListFieldGenerator(::Type{FT} = Float64; coords, hmean, Δh) where FT
+    polys = [make_polygon(valid_polyvec!(c)) for c in coords]
+    return CoordinateListFieldGenerator{FT}(polys, hmean, Δh)
+end
+
+# Pretty printing for CoordinateListFieldGenerator
+function Base.show(io::IO, generator::CoordinateListFieldGenerator{FT}; digits = 5) where FT
+    overall_summary = "CoordinateListFieldGenerator:"
+    total_number_summary = "Number of polygons: $(length(generator.polys))"
+    mean_height_summary = "Mean height: $(round(mean(generator.hmean); digits))"
+    variance_height_summary = "Height range: $(round(mean(generator.Δh); digits))"
+    print(io, overall_summary, "\n",
+        "  ⊢", total_number_summary, "\n",
+        "  ⊢", mean_height_summary, "\n",
+        "  ∟", variance_height_summary)
+end
+
+#=
+    initialize_floe_field(FT, coords, domain, hmean, Δh; kwargs...)
+
+Function to preserve backwards compatability that allows the creation of a floe field from coordiantes without first
+making a CoordinateListFieldGenerator.
+=#
 function initialize_floe_field(::Type{FT}, coords::Vector{<:PolyVec}, domain, hmean, Δh; kwargs...) where FT
-    generator = CoordinateListFieldGenerator{FT}(coords, hmean, Δh)
+    generator = CoordinateListFieldGenerator(FT; coords, hmean, Δh)
     return initialize_floe_field(FT; generator, domain, kwargs...)
 end
 
+#=
+    initialize_floe_field(FT, coords, domain, hmean, Δh; kwargs...)
+
+Function to preserve backwards compatability that allows the creation of a floe field from coordiantes without first
+making a CoordinateListFieldGenerator. Default value of `FT = Float64`.
+=#
 initialize_floe_field(coords::Vector{<:PolyVec}, args...; kwargs...) = initialize_floe_field(Float64, coords, args...; kwargs...)
 
-
-"""
-    _initialize_floe_field(
-        ::Type{FT},
-        coords,
-        domain,
-        hmean,
-        Δh;
-        floe_settings,
-        rng,
-    )
-
-Create a field of floes from a list of polygon coordiantes. User is wanrned if
-floe's do not meet minimum size requirment. 
-Inputs:
-    Type{FT}            <AbstractFloat> Type for grid's numberical fields -
-                            determines simulation run type
-    coords              <Vector{PolyVec}> list of polygon coords to make into floes
-    domain              <Domain> model domain 
-    hmean               <Float> average floe height
-    Δh                  <Float> height range - floes will range in height from
-                            hmean ± Δh
-    floe_settings       <FloeSettings> settings needed to initialize floes
-    rng                 <RNG> random number generator to generate random floe
-                            attributes - default uses Xoshiro256++ algorithm
-Output:
-    floe_arr <StructArray{Floe}> list of floes created from given polygon
-    coordinates
-"""
+#=
+Create a field of floes from a list of polygons. This function dispatches off of CoordinateListFieldGenerator.
+It also removes overlaps with topography and then just passes each polygon to _poly_to_floes!.
+=#
 function _initialize_floe_field!(
     ::Type{FT}, floe_arr, generator::CoordinateListFieldGenerator, domain;
     floe_settings, rng = Xoshiro(), kwargs...,
 ) where FT
-    floe_polys = [make_polygon(valid_polyvec!(c)) for c in generator.coords]
+    floe_polys = generator.polys
     # Remove overlaps with topography
     if !isempty(domain.topography)
-        floe_polys = diff_polys(make_multipolygon(generator.coords), make_multipolygon(domain.topography.poly), FT)
+        floe_polys = diff_polys(make_multipolygon(generator.polys), make_multipolygon(domain.topography.poly), FT)
     end
     # Turn polygons into floes
     for p in floe_polys
@@ -98,6 +196,7 @@ function _initialize_floe_field!(
     end
 end
 
+# Concrete subtype of AbstractFloeFieldGenerator - see below for documentation
 struct VoronoiTesselationFieldGenerator{FT} <: AbstractFloeFieldGenerator{FT}
     nfloes::Int
     concentrations::Matrix{FT}
@@ -105,57 +204,99 @@ struct VoronoiTesselationFieldGenerator{FT} <: AbstractFloeFieldGenerator{FT}
     Δh::FT
 end
 
+"""
+    VoronoiTesselationFieldGenerator{FT} <: AbstractFloeFieldGenerator{FT}
 
+A concrete implementatin of [`AbstractFloeFieldGenerator`](@ref) that generates a floe field using voronoi tesselation according to user
+input number of floes and concentrations. The heights are a random distribution around `hmean` between `hmean - Δh` and `hmean + Δh`.
+
+The fields are:
+
+- `nfloes::Int`:number of floes to try to create - note you might not end up with this number of floes.
+        Topography in domain and multiple concentrations can decrease number of floes created
+- `concentrations::Matrix{FT}`: matrix of concentrations to fill domain.
+        If size(concentrations) = N, M then split the domain into NxM cells, each to be filled with the corresponding concentration. If concentration is
+        below 0, it will default to 0. If it is above 1, itwill default to 1
+- `hmean::FT`: mean height of the generated floe field.
+- `Δh::FT`: range of floe heights around the mean (i.e. random distribution around `hmean` between `hmean - Δh` and `hmean + Δh`)
+
+Here is how to construct a `VoronoiTesselationFieldGenerator`:
+
+    VoronoiTesselationFieldGenerator([FT = Float64]; nfloes, concentrations, hmean, Δh)
+
+## _Positional arguments_
+- $FT_DEF
+
+## _Keyword arguments_
+- `nfloes::Int`:number of floes to try to create (see above for more info)
+- `concentrations::Matrix{FT}`: matrix of concentrations to fill domain (see above for more info)
+- `hmean::FT`: mean height of the generated floe field.
+- `Δh::FT`: range of floe heights around the mean (i.e. random distribution around `hmean` between `hmean - Δh` and `hmean + Δh`)
+- floe_bounds
+- `kwargs...`
+
+!!! note
+    It is now strongly reccomended to generate floe fields by first making a generator, but the functionality to create floes from a 
+    voronoi tesselation existed prior to the `AbstractFloeFieldGenerator` multiple dispatch setup. Therefore, the user can also call
+    `initialize_floe_field(FT, nfloes, concentrations, hmean, Δh; kwargs...)` and that will automatically create a `VoronoiTesselationFieldGenerator`
+    to preserve existing functionality. However, this is NOT reccomended and only exists for backwards compatability. See source code if needed.
+
+## _Examples_
+
+```jldoctest
+julia> nfloes = 20;
+julia> concentrations = [0.5];
+julia> generator = VoronoiTesselationFieldGenerator(Float64; nfloes, concentrations, hmean = 1, Δh = 0.25)
+VoronoiTesselationFieldGenerator:
+  ⊢Requested number of floes: 20
+  ⊢Requested concentrations [0.5;;]
+  ⊢Mean height: 1.0
+  ∟Height range: 0.25
+```
+"""
+VoronoiTesselationFieldGenerator(::Type{FT} = Float64; nfloes, concentrations, hmean, Δh, kwargs...) where FT = VoronoiTesselationFieldGenerator{FT}(nfloes, concentrations[:, :], hmean, Δh)
+
+# Pretty printing for VoronoiTesselationFieldGenerator
+function Base.show(io::IO, generator::VoronoiTesselationFieldGenerator{FT}; digits = 5) where FT
+    overall_summary = "VoronoiTesselationFieldGenerator:"
+    total_number_summary = "Requested number of floes: $(generator.nfloes)"
+    concentration_summary = "Requested concentrations $(generator.concentrations)"
+    mean_height_summary = "Mean height: $(round(mean(generator.hmean); digits))"
+    variance_height_summary = "Height range: $(round(mean(generator.Δh); digits))"
+    print(io, overall_summary, "\n",
+        "  ⊢", total_number_summary, "\n",
+        "  ⊢", concentration_summary, "\n",
+        "  ⊢", mean_height_summary, "\n",
+        "  ∟", variance_height_summary)
+end
+
+#=
+    initialize_floe_field(FT, nfloes, concentrations, domain, hmean, Δh; kwargs...)
+
+Function to preserve backwards compatability that allows the creation of a floe field from voronoi tesselation without first
+making a VoronoiTesselationFieldGenerator.
+=#
 function initialize_floe_field(
     ::Type{FT}, nfloes::Int, concentrations, domain, hmean, Δh;
     kwargs...
 ) where FT
-    generator = VoronoiTesselationFieldGenerator{FT}(nfloes, concentrations[:, :], hmean, Δh)
+    generator = VoronoiTesselationFieldGenerator(FT; nfloes, concentrations, hmean, Δh)
     return initialize_floe_field(FT; generator, domain, kwargs...)
 end
 
+#=
+    initialize_floe_field(FT, nfloes, concentrations, domain, hmean, Δh; kwargs...)
+
+Function to preserve backwards compatability that allows the creation of a floe field from voronoi tesselation without first
+making a VoronoiTesselationFieldGenerator. Default value of `FT = Float64`.
+=#
 initialize_floe_field(nfloes::Int, args...; kwargs...) = initialize_floe_field(Float64, nfloes, args...; kwargs...)
 
-"""
-    _initialize_floe_field(
-        ::Type{FT},
-        nfloes,
-        concentrations,
-        domain,
-        hmean,
-        Δh;
-        floe_settings,
-        rng,
-    )
-
-Create a field of floes using Voronoi Tesselation.
-Inputs:
-    Type{FT}        <AbstractFloat> Type for grid's numberical fields -
-                        determines simulation run type
-    nfloes          <Int> number of floes to try to create - note you
-                        might not end up with this number of floes -
-                        topography in domain and multiple concentrations can
-                        decrease number of floes created
-    concentrations  <Matrix> matrix of concentrations to fill domain. If
-                        size(concentrations) = N, M then split the domain
-                        into NxM cells, each to be filled with the
-                        corresponding concentration. If concentration is
-                        below 0, it will default to 0. If it is above 1, it
-                        will default to 1
-    domain          <Domain> model domain 
-    hmean           <Float> average floe height
-    Δh              <Float> height range - floes will range in height from
-                        hmean - Δh to hmean + Δh
-    floe_bounds     <PolyVec> coordinates of boundary within which to populate floes. This
-                        can be smaller that the domain, but will be limited to open space
-                        within the domain
-    floe_settings   <FloeSettings> settings needed to initialize floes
-    rng             <RNG> random number generator to generate random floe
-                        attributes - default uses Xoshiro256++
-Output:
-    floe_arr <StructArray> list of floes created using Voronoi Tesselation
-        of the domain with given concentrations.
-"""
+#=
+Create a field of floes using voronoi tesselation. This function dispatches off of VoronoiTesselationFieldGenerator.
+It also removes overlaps with topography and then tries to satisy each quardants concentration and also match the requested
+total number of floes as closely as possible.
+=#
 function _initialize_floe_field!(
     ::Type{FT}, floe_arr, generator::VoronoiTesselationFieldGenerator, domain;
     floe_settings, rng,
@@ -296,16 +437,7 @@ function _poly_to_floes!(  # TODO: maybe move to floe utils??
     return 0
 end
 
-"""
-    _generate_voronoi_coords(
-        desired_points,
-        scale_fac,
-        trans_vec,
-        domain_coords,
-        rng;
-        max_tries = 10,
-    )
-
+#=
 Generate voronoi coords within a bounding box defined by its lower left corner
 and its height and width. Attempt to generate `npieces` cells within the box.
 Inputs:
@@ -327,7 +459,7 @@ Outputs:
         voronoi tesselation. These polygons all fall within the space defined by
         the domain_coords. If less polygons than min_to_warn are generated, the
         user will be warned. 
-"""
+=#
 function _generate_voronoi_coords(  # TODO: maybe move to floe utils since it is used in mutliple places!
     desired_points::Int,
     scale_fac,
