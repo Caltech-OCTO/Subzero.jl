@@ -3,19 +3,34 @@ Types to hold parameters for simulation's physical process settings
 """
 
 """
-    FloeSettings
+    FloeSettings{FT, GT, CT}
 
-Settings needed to create floes within the model.
-- ρi is the density of all floes within the model
-- min_floe_area is the minimum floe area within the model before removal
-- min_floe_height is the minimum floe height within the model before removal
-- max_floe_height is the maximum floe height within the model before the height
-    can't increase any further
-- min_aspect_ratio is the minimum ratio between the x-length and y-length of any
-    floe prior to removal
-- subfloe_point_generator is the method of subfloe point generation for each
+When you create a floe or a set of floes, you have the option to create a floe settings object. This set of settings controls certian floe fields and calculations.
+
+The following fields are part of the floe settings (with default values):
+  - ρi: floe's density (920.0 g/L)
+  - min_floe_area: minimum floe area (1e6 m^2)
+  - min_floe_height: minimum floe height (0.1 m)
+  - max_floe_height: maximum floe height (10.0 m)
+  - min_aspect_ratio: minimum ratio between floe x-length and y-length by maximum coordiante values (0.05)
+  - maximum_ξ: the absolute maximum rotational velocity a floe can reach before it is capped at maximum_ξ (1e-5 rad/s)
+  - subfloe_point_generator: generates floe's subfloe points (`MonteCarloPointsGenerator()`), which determines the method of subfloe point generation for each
     floe within the model
-- stress_calculator is the method of calculating current stress of floe
+  - stress_calculator: generates the calculator for stress ('DecayAreaScaledCalculator()'), which determines the method of calculating current stress of floe
+
+If any of the minimum values are exceeded, a floe is removed in the course of the simulation. If any of the maximum values are reached, the value is capped at the given value.
+
+There are two types of subfloe point generators, see [`AbstractSubFloePointsGenerator`](@ref) for more information.
+You can make a floe settings object as follows:
+```julia
+floe_settings = FloeSettings(
+  min_floe_area = 1e5,
+  max_floe_height = 5,
+  subfloe_point_generator = SubGridPointsGenerator(grid, 2),
+  stress_calculator = DecayAreaScaledCalculator(50),
+)
+ ```
+ Any fields that aren't specified are assigned their default value.
 """
 @kwdef struct FloeSettings{
     FT <: AbstractFloat,

@@ -5,12 +5,24 @@ Functions needed for coupling the ice, ocean, and atmosphere.
 """
     AbstractSubFloePointsGenerator
 
-Abstract type for parameters determining generation of sub-floe points used for
-interpolation. The points generated using these parameters will be used to find
-stresses on each floe from the ocean and the atmosphere. There must be a
-`generate_subfloe_points` function that dispatches off of the subtype of
-AbstractSubFloePointsGenerator to generate the points for a given floe.
-Points generated must all be within a given floe.
+Abstract type for parameters determining generation of sub-floe points used for interpolation. The points generated using these parameters will be used to find
+stresses on each floe from the ocean and the atmosphere. There must be a `generate_subfloe_points` function that dispatches off of the subtype of
+`AbstractSubFloePointsGenerator` to generate the points for a given floe. Points generated must all be within a given floe.
+
+The first is a `MonteCarloPointsGenerator`. This generates random points within the floe. You can create a MonteCarloPoint generator with three fields: `npoints` (default 1000),
+`ntries` (default 100), and `err` (default 0.1). `npoints` is the number of points to attempt to generate, `ntries` is the number of tries to generate a set of points that meets
+the acceptable error, and `err` is the percent of floe are that can not be covered by monte carlo points for it to be a valid set of subfloe points. The user will not end up with
+`npoints` monte carlo points. These are the number of points generated in a bounding box around the floe. However, every point that is outside of the floe will be removed. The monte
+carlo points are repeatedly generated until a set is created with less that `err`. If a set cannot be determined in `ntries` tries, the floe will be marked for removal using the `status` field (see below).
+
+The second type of subfloe point generator is the `SubGridPointsGenerator`. This generator places points along a grid within the floe. The user can define how fine that grid should be
+in comparison with the model's grid. A `SubGridPointsGenerator` takes in two arguemnts: the model's `grid` and `npoint_per_cell`, which defines how many subfloe points the user wants
+within the model's grid cell in botht the x and y direction (i.e. `npoint_per_cell = 3` will give 9 points in a grid cell, three in both x and y in a grid pattern).
+
+Both of these have different benefits. `MonteCarloPointsGenerator` guarentee that all floes have a somewhat similar number of subfloe points. However, since these points are randomly placed,
+they are not neccesarily evenly spread out. There may not even be one point per model grid cell, which causes errors when two-way coupling as stress from ice to ocean is calcualted with
+subfloe points. On the other hand with a `SubGridPointsGenerator`, each floe has a number of points proportional to its area. However, these points are mainly evenly spaced and it is
+guarenteed that there is at least one per every model grid cell. Therefore, you must use `SubGridPointsGenerator` when two-way coupling. 
 """
 abstract type AbstractSubFloePointsGenerator{FT<:AbstractFloat} end
 

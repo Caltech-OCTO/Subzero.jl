@@ -304,7 +304,7 @@ function _initialize_floe_field!(
     kwargs...,
 ) where FT
     nfloes_added = 0
-    # Availible space in domain
+    # Availible space in whole domain
     domain_poly = _make_bounding_box_polygon(FT, domain.west.val, domain.east.val, domain.south.val, domain.north.val)
     open_water = intersect_polys(floe_bounds, domain_poly, FT)
     if !isempty(domain.topography)
@@ -375,7 +375,6 @@ function _initialize_floe_field!(
         end
     end
 end
-
 
 #=
 Split a given polygon around any holes before turning each region with an area greater than

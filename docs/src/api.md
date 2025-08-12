@@ -50,6 +50,15 @@ Ocean
 Atmos
 ```
 
+## Floes
+```@docs
+Floe
+AbstractFloeFieldGenerator
+CoordinateListFieldGenerator
+VoronoiTesselationFieldGenerator
+initialize_floe_field
+```
+
 ### Model
 ```@docs
 Model

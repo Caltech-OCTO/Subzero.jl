@@ -19,94 +19,9 @@ You have a lot of flexibility in designing a simulation within Subzero. First, y
 
 ## Building a Model
 
-### Grid, Domain, Ocean, Atmosphere
-
-See the [tutorial](https://caltech-octo.github.io/Subzero.jl/dev/tutorial/) and [API](https://caltech-octo.github.io/Subzero.jl/dev/api/) sections of the documentation website for information on how to setup these pieces of the `model`.
+See the [tutorial](https://caltech-octo.github.io/Subzero.jl/dev/tutorial/) and [API](https://caltech-octo.github.io/Subzero.jl/dev/api/) sections of the documentation website for information on how to setup a `Model`.
 
 Start with these and then return here to learn how to make the rest of a simulation!
-
-### Floes
-
-See the [API](https://caltech-octo.github.io/Subzero.jl/dev/api/) on the documentaiton website for information on how to create individual floes. Note, that this is **not** recommended for users. Rather, users should use the `initialize_floe_field` function to create a field of floes to start the simulation. Individual floes should only be created by developers within the simulation.
-
-#### Floe Settings
-
-When you create a floe or a set of floes, you have the option to create a floe settings object. This set of settings controls certian floe fields and calculations.
-
-The following fields are part of the floe settings (with default values):
-  - ρi: floe's density (920.0 g/L)
-  - min_floe_area: minimum floe area (1e6 m^2)
-  - min_floe_height: minimum floe height (0.1 m)
-  - max_floe_height: maximum floe height (10.0 m)
-  - min_aspect_ratio: minimum ratio between floe x-length and y-length by maximum coordiante values (0.05)
-  - maximum_ξ: the absolute maximum rotational velocity a floe can reach before it is capped at maximum_ξ (1e-5 rad/s)
-  - subfloe_point_generator: generates floe's subfloe points (`MonteCarloPointsGenerator()`)
-  - stress_calculator: generates the calculator for stress ('DecayAreaScaledCalculator()')
-
-If any of the minimum values are exceeded, a floe is removed in the course of the simulation. If any of the maximum values are reached, the value is capped at the given value.
-
-There are two types of subfloe point generators.
-
-The first is a `MonteCarloPointsGenerator`. This generates random points within the floe. You can create a MonteCarloPoint generator with three fields: `npoints` (default 1000), `ntries` (default 100), and `err` (default 0.1). `npoints` is the number of points to attempt to generate, `ntries` is the number of tries to generate a set of points that meets the acceptable error, and `err` is the percent of floe are that can not be covered by monte carlo points for it to be a valid set of subfloe points. The user will not end up with `npoints` monte carlo points. These are the number of points generated in a bounding box around the floe. However, every point that is outside of the floe will be removed. The monte carlo points are repeatedly generated until a set is created with less that `err`. If a set cannot be determined in `ntries` tries, the floe will be marked for removal using the `status` field (see below).
-
-The second type of subfloe point generator is the `SubGridPointsGenerator`. This generator places points along a grid within the floe. The user can define how fine that grid should be in comparison with the model's grid. A `SubGridPointsGenerator` takes in two arguemnts: the model's `grid` and `npoint_per_cell`, which defines how many subfloe points the user wants within the model's grid cell in botht the x and y direction (i.e. `npoint_per_cell = 3` will give 9 points in a grid cell, three in both x and y in a grid pattern).
-
-Both of these have different benefits. `MonteCarloPointsGenerator` guarentee that all floes have a somewhat similar number of subfloe points. However, since these points are randomly placed, they are not neccesarily evenly spread out. There may not even be one point per model grid cell, which causes errors when two-way coupling as stress from ice to ocean is calcualted with subfloe points. 
-
-On the other hand with a `SubGridPointsGenerator`, each floe has a number of points proportional to its area. However, these points are mainly evenly spaced and it is guarenteed that there is at least one per every model grid cell. Therefore, you must use `SubGridPointsGenerator` when two-way coupling. 
-
-You can make a floe settings object as follows:
-```julia
-floe_settings = FloeSettings(
-  min_floe_area = 1e5,
-  max_floe_height = 5,
-  subfloe_point_generator = SubGridPointsGenerator(grid, 2),
-  stress_calculator = DecayAreaScaledCalculator(50),
-)
- ```
- Any fields that aren't specified are assigned their default value.
- 
-#### Initial Floe Configuration
-It is recomeneded that you use the `initialize_floe_field` to create your starting configuration on floes. There are two ways to use this function. The first way is to provide a list of `PolyVecs` representing a list of the coordinates of all of the floes you want in the initial state. This will initialize all of the given polygons specified as floes. The other way is to provide a number of floes and a concentration over a specific area. This will create a starting floe field using voronoi tesselation that aims to achieve the requested number of floes and concentrations.
-
-Both of these functions share most arguments. They are as follows (with default values if they exist):
-- `domain`, which is the model's domain so that the floes can be fit into the open space using polygon intersections/differences
-- `hmean`, which is the mean height of all floes created
-- `Δh`, which is the maximum potential height difference from `hmean` between floes
-- `floe_settings = FloeSettings()`, which specifies many values needed to create floes, as detailed above
-- `rng = Xoshiro()`, which is a random number generator so that floe creation is reproducible if a seeded random number generator is provided
-
-Note that all arguments with default values are optional keyword arguments.
-
-Here is an example of creating a small floe field using the version of `initialize_floe_field` that takes in lists of `PolyVec`s. For a real simulation, you would probably generate a list of coordinates and read them in from a file but we create these by hand here for simplicity. Assume we have already created a `domain`.
-```julia
-floe1 = [[[6e4, 2e4], [6e4, 5e4], [9e4, 5e4], [9e4, 2e4], [6e4, 2e4]]]
-floe2 = [[[5.5e4, 2e4], [5.25e4, 4e4], [5.75e4, 4e4], [5.5e4, 2e4]]]
-floe_field = initialize_floe_field(
-  FT,
-  [floe1, floe2],
-  domain,
-  0.25,  # mean height of 0.25
-  0.0;  # all floes will be the same height
-  rng = Xoshiro(1),
-  floe_settings = floe_settings,
-)
-```
-
-Now here is an an example of creating a large floe field using the version of `initialize_floe_field` that uses Voronoi tesselation. Again assume we have already created a `domain`.
-```julia
-floe_arr = initialize_floe_field(
-    FT,
-    100,  # attempt to initialize 100 floes
-    [1.0; 0.0],  # the top half of the domain is fully packed and the bottom has no floes
-    domain,
-    0.25,  # mean height of 0.25
-    0.10;  # floe heights will range from 0.15-0.35
-    floe_settings = floe_settings,
-    rng = Xoshiro(1),
-)
-```
-We now focus on the first two arguments. The first is the number of floes to attempt to create with Voronoi tesselation. We are not guarenteed to get exactly that number. It depends on the amount of open space in the domain and the generation of random seed points. For example, if the domain is filled with lots of topography and islands, it will be more difficult to hit the exact number of floes requested. However, it will be in the ballpark. The second argument is the concentrations, which is a matrix. We can split the domain into quadrents that are the same shape at matrix and then request concentrations of ice in each of those quadrents equal to the corresponding value in the concentrations matrix. The other arguments are the same as in the floe coordinate version on the function.
 
 ## Building a Simulation
 Your simulation will hold your model, as well as some runtime and physical parameters.
