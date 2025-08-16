@@ -22,6 +22,8 @@ const Ly = 1e5
 const Δgrid = 2e3
 const hmean = 0.25
 const Δh = 0.0
+const nfloes = 300
+const concentrations = [0.4]
 const Δt = 20
 const nΔt = 10000;
 
@@ -83,19 +85,10 @@ atmos = Atmos(; grid, u = 0.0, v = 0.0, temp = -1.0)
 floe_settings = FloeSettings(
     subfloe_point_generator = SubGridPointsGenerator(grid, 2),
 )
-# Floe Creation - bound floes within smaller part of the domain
+# ## Floe Creation - bound floes within smaller part of the domain
+floe_generator = VoronoiTesselationFieldGenerator(; nfloes, concentrations, hmean, Δh)
 floe_bounds = Subzero.make_polygon([[[0.1Lx, 0.1Ly], [0.1Lx, 0.9Ly], [0.9Lx, 0.9Ly], [0.9Lx, 0.1Ly], [0.1Lx, 0.1Ly]]])
-floe_arr = initialize_floe_field(
-    FT,
-    300,
-    [0.4],
-    domain,
-    hmean,
-    Δh;
-    floe_bounds = floe_bounds,
-    rng = Xoshiro(1),
-    floe_settings = floe_settings
-)
+floe_arr = initialize_floe_field(FT; generator = floe_generator, domain, floe_bounds, rng = Xoshiro(1), floe_settings)
 
 # ## Model Creation
 model = Model(; grid, ocean, atmos, domain, floes = floe_arr)

@@ -132,6 +132,7 @@ Here is how to construct a `CoordinateListFieldGenerator`:
 
 ```jldoctest
 julia> coords = [[[(0.0, 0.0), (0.0, 100.0), (100.0, 100.0), (0.0, 0.0)]], [[(150.0, 0.0), (150.0, 100.0), (200.0, 100.0), (150.0, 0.0)]]];
+
 julia> generator = CoordinateListFieldGenerator(Float64; coords, hmean = 1, Δh = 0.25)
 CoordinateListFieldGenerator:
   ⊢Number of polygons: 2
@@ -196,12 +197,22 @@ function _initialize_floe_field!(
     end
 end
 
+const FLOE_CONC_STR = "Concentrations per cell in a VoronoiTesselationFieldGenerator must be between 0 and 1. Values less than zero will be set to 0 and those greater than 1 will be set to 1."
+
 # Concrete subtype of AbstractFloeFieldGenerator - see below for documentation
 struct VoronoiTesselationFieldGenerator{FT} <: AbstractFloeFieldGenerator{FT}
     nfloes::Int
     concentrations::Matrix{FT}
     hmean::FT
     Δh::FT
+
+    function VoronoiTesselationFieldGenerator{FT}(nfloes, concentrations, hmean, Δh) where FT
+        if !all(0 .<= concentrations .<= 1)
+            @warn FLOE_CONC_STR
+        end
+        clamped_concentrations = clamp.(concentrations, 0, 1)
+        new{FT}(nfloes, clamped_concentrations, hmean, Δh)
+    end
 end
 
 """
@@ -245,7 +256,9 @@ Here is how to construct a `VoronoiTesselationFieldGenerator`:
 
 ```jldoctest
 julia> nfloes = 20;
+
 julia> concentrations = [0.5];
+
 julia> generator = VoronoiTesselationFieldGenerator(Float64; nfloes, concentrations, hmean = 1, Δh = 0.25)
 VoronoiTesselationFieldGenerator:
   ⊢Requested number of floes: 20
@@ -303,22 +316,23 @@ function _initialize_floe_field!(
     floe_bounds = _make_bounding_box_polygon(FT, domain.west.val, domain.east.val, domain.south.val, domain.north.val),
     kwargs...,
 ) where FT
-    nfloes_added = 0
-    # Availible space in whole domain
+    nfloes_added = 0 
     domain_poly = _make_bounding_box_polygon(FT, domain.west.val, domain.east.val, domain.south.val, domain.north.val)
-    open_water = intersect_polys(floe_bounds, domain_poly, FT)
-    if !isempty(domain.topography)
-        open_water = diff_polys(make_multipolygon(open_water), make_multipolygon(domain.topography.poly), FT)
-    end
-    open_water_mp = make_multipolygon(open_water)
     (bounds_xmin, bounds_xmax), (bounds_ymin, bounds_ymax) = GI.extent(domain_poly)
-    open_water_area = GO.area(open_water_mp, FT)
     # Split domain into cells with given concentrations
     nrows, ncols = size(generator.concentrations)
     Lx = bounds_xmax - bounds_xmin
     Ly = bounds_ymax - bounds_ymin
     rowlen = Ly / nrows
     collen = Lx / ncols
+    # Availible space in whole domain
+    open_water = intersect_polys(floe_bounds, domain_poly, FT)
+    if !isempty(domain.topography)
+        open_water = diff_polys(make_multipolygon(open_water), make_multipolygon(domain.topography.poly), FT)
+    end
+    open_water_mp = make_multipolygon(open_water)
+    open_water_area = GO.area(open_water_mp, FT)
+    total_covered_water_area = (sum(generator.concentrations) / (nrows * ncols)) * open_water_area
     # Loop over cells
     for j in range(1, ncols)
         for i in range(1, nrows)
@@ -336,7 +350,7 @@ function _initialize_floe_field!(
                 open_coords = [find_poly_coords(cell) for cell in open_cell]
                 open_area = sum(GO.area, open_cell; init = 0.0)
                 # Generate coords with voronoi tesselation that fill the whole open space
-                ncells = ceil(Int, generator.nfloes * open_area / open_water_area / c)
+                ncells = ceil(Int, generator.nfloes * ((open_area) / total_covered_water_area))
                 floe_coords = _generate_voronoi_coords(
                     ncells,
                     [collen, rowlen],

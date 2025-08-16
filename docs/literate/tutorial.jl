@@ -229,24 +229,20 @@ atmos = Atmos(; grid, u = 5.0, v = 0.0, temp = 0.0)
 # all floes have a height between `hmean - Δh` and `hmean + Δh`.
 
 nfloes = 30
-concentrations = [0.85, 0.0]  # the left half of the domain is 85% packed and the right has no floes
+concentrations = [0.5 0.0]  # the left half of the domain is 85% packed and the right has no floes
 hmean, Δh = 1.0, 0.25
 generator = VoronoiTesselationFieldGenerator(; nfloes, concentrations, hmean, Δh)
 
-# ### Calling `initialize_floe_field`
+# ### Creating `FloeSettings`
 
-# This generator is then the first keyword argument to the [`initialize_floe_field`](@ref) function. The other required keyword
-# is the simulation domain. After that, we have optional keywords, including but not limited to `supress_warnings`, `rng`, and `floe_settings`.
-# `supress_warnings` is a boolean that can turn off checks to ensure that all floe's have at least the minimum set area (see [`FloeSettings`](@ref) below)
-# and that all floe centroids are within the `domain`. `rng` is a random number generator, possibly seeded for reproducability, used to generate floe heights
-# and other random choices, like which floes to keep/remove to meet the requested concentrations. Finally, [`FloeSettings`](@ref) can be used to set things like
-# the minimum allowed floe area, the maximum hieght, the density of ice, and the `subfloe_point_generator`, which determines how to couple between the ice and ocean/atmosphere.
-# There are also other fields within the [`FloeSettings`](@ref)!! It is important to understand all of its fields.
+# [`FloeSettings`](@ref) can be used to set things like the minimum allowed floe area, the maximum hieght, the density of ice, and the
+# `subfloe_point_generator`, which determines how to couple between the ice and ocean/atmosphere. There are also other fields within the
+# [`FloeSettings`](@ref)!! It is important to understand all of its fields.
 
 # !!! note
 #       For consistency, `FloeSettings` also must be passed into the [`Simulation`](@ref) struct. 
 
-# Here we will just pass in a `FloeSettings` struct out of all of the optional keyword arguments.
+# Here we will just create a `FloeSettings` struct with just a few of the keyword options.
 
 floe_settings = FloeSettings(
   min_floe_area = 1e5,
@@ -254,7 +250,22 @@ floe_settings = FloeSettings(
   subfloe_point_generator = SubGridPointsGenerator(grid, 2),
 )
 
+# ### Calling `initialize_floe_field`
+
+# This generator is then the first keyword argument to the [`initialize_floe_field`](@ref) function. The other required keyword
+# is the simulation domain. After that, we have optional keywords, including but not limited to `supress_warnings`, `rng`, and `floe_settings`.
+# `supress_warnings` is a boolean that can turn off checks to ensure that all floe's have at least the minimum set area (see [`FloeSettings`](@ref) below)
+# and that all floe centroids are within the `domain`. `rng` is a random number generator, possibly seeded for reproducability, used to generate floe heights
+# and other random choices, like which floes to keep/remove to meet the requested concentrations.
+
 floes = initialize_floe_field(; generator, domain, floe_settings, rng = Xoshiro(2))
+
+# We can add the floes to the domain above.
+
+floe_color = RGBf(217/255, 226/255, 225/255)  # blue color for floes
+poly!(ax1, floes.poly; color = floe_color) # plot the topography
+ax1.title = "Grid, Domain, and Floe Setup"
+fig  # display the figure
 
 # ## Creating a Model
 

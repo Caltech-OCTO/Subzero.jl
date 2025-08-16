@@ -56,17 +56,8 @@ floe_settings = FloeSettings(
     subfloe_point_generator = SubGridPointsGenerator(grid, 2),
     stress_calculator = DecayAreaScaledCalculator(),
 )
-
-floe_arr = initialize_floe_field(
-    FT,
-    75,
-    [0.7],
-    domain,
-    hmean,
-    Δh;
-    rng = Xoshiro(3),
-    floe_settings = floe_settings,
-)
+floe_generator = VoronoiTesselationFieldGenerator(; nfloes = 75, concentrations = [0.7], hmean, Δh)
+floe_arr = initialize_floe_field(FT; generator = floe_generator, domain, rng = Xoshiro(3), floe_settings = floe_settings)
 
 # ## Model Creation
 model = Model(; grid, ocean, atmos, domain, floes = floe_arr)

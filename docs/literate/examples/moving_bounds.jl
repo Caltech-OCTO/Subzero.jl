@@ -19,12 +19,14 @@ const FT = Float64
 const Lx = 1e5
 const Ly = 1e5
 const Δgrid = 2e3
+const nfloes = 100
+const concentrations = [1.0]
 const hmean = 0.25
 const Δh = 0.125
 const Δt = 20
 const nΔt = 1500;
 
-# ## Model instantiation
+# ## Grid, Ocean, and Atmosphere instantiation
 grid = RegRectilinearGrid(; x0 = 0.0, xf = Lx, y0 = 0.0, yf = Ly, Δx = Δgrid, Δy = Δgrid)
 ocean = Ocean(; grid, u = 0.0, v = 0.0, temp = 0.0)
 atmos = Atmos(; grid, u = 0.0, v = 0.0, temp = -1.0)
@@ -38,17 +40,11 @@ wboundary = PeriodicBoundary(West; grid)
 domain = Domain(; north = nboundary, south = sboundary, east = eboundary, west = wboundary)
 
 # ## Floe creation
-floe_arr = initialize_floe_field(
-    FT,
-    100,
-    [1.0],
-    domain,
-    hmean,
-    Δh;
-    rng = Xoshiro(1),
-)
-nfloes = length(floe_arr)
-floe_arr.u .= 0  # set the inital floe velocities manually
+floe_generator = VoronoiTesselationFieldGenerator(; nfloes, concentrations, hmean, Δh)
+floe_arr = initialize_floe_field(; generator = floe_generator, domain, rng = Xoshiro(1))
+
+# You can also set the inital floe velocities manually like this:
+floe_arr.u .= 0
 floe_arr.v .= -0.01;
 
 # ## Model creation

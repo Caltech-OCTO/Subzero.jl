@@ -16,6 +16,7 @@ The very first step of running a Subzero simulation is to bring the package into
 using Subzero  # bring Subzero into scope
 using CairoMakie, GeoInterfaceMakie # bring plotting packages into scope
 import GeoInterface as GI
+using Random
 ````
 
 ## Creating a Grid
@@ -248,6 +249,67 @@ function as shown above.
 
 ## Creating the Floes
 
+Within the simulation, there is a floe field, which is a list of [`Floe`](@ref) structs. For more information on these structs, see [`Floe`](@ref) documentation.
+However, it is **not** recommended for users to create individual floes. Rather, users should use the `initialize_floe_field` function to create a field of floes
+to start the simulation. Individual floes should only be created by developers when adding new simulation functionality.
+
+### Creating a `AbstractFloeFieldGenerator`
+To use [`initialize_floe_field`](@ref), you first need to create a concrete subtype of [`AbstractFloeFieldGenerator`](@ref). Right now, there are two implemented.
+The first is the [`CoordinateListFieldGenerator`](@ref). This generator takes in a list of floe coordinates (along with other arguments) to create a list of floes.
+The second is the [`VoronoiTesselationFieldGenerator`](@ref). This generator tesselates the domain with floes and then randomly keeps various floes to match the
+user-provided floe concentration.
+
+Here we will use the `VoronoiTesselationFieldGenerator` to generate a floe field. This generator object requires an input of the number of floes to be created (`nfloes`),
+a vector/matrix of concentrations to split the field into (`concentrations`), a mean height for the generated floe field (`hmean`), and a maximum range of heights (`Δh`) such that
+all floes have a height between `hmean - Δh` and `hmean + Δh`.
+
+````@example tutorial
+nfloes = 30
+concentrations = [0.5 0.0]  # the left half of the domain is 85% packed and the right has no floes
+hmean, Δh = 1.0, 0.25
+generator = VoronoiTesselationFieldGenerator(; nfloes, concentrations, hmean, Δh)
+````
+
+### Creating `FloeSettings`
+
+[`FloeSettings`](@ref) can be used to set things like the minimum allowed floe area, the maximum hieght, the density of ice, and the
+`subfloe_point_generator`, which determines how to couple between the ice and ocean/atmosphere. There are also other fields within the
+[`FloeSettings`](@ref)!! It is important to understand all of its fields.
+
+!!! note
+      For consistency, `FloeSettings` also must be passed into the [`Simulation`](@ref) struct.
+
+Here we will just create a `FloeSettings` struct with just a few of the keyword options.
+
+````@example tutorial
+floe_settings = FloeSettings(
+  min_floe_area = 1e5,
+  max_floe_height = 5,
+  subfloe_point_generator = SubGridPointsGenerator(grid, 2),
+)
+````
+
+### Calling `initialize_floe_field`
+
+This generator is then the first keyword argument to the [`initialize_floe_field`](@ref) function. The other required keyword
+is the simulation domain. After that, we have optional keywords, including but not limited to `supress_warnings`, `rng`, and `floe_settings`.
+`supress_warnings` is a boolean that can turn off checks to ensure that all floe's have at least the minimum set area (see [`FloeSettings`](@ref) below)
+and that all floe centroids are within the `domain`. `rng` is a random number generator, possibly seeded for reproducability, used to generate floe heights
+and other random choices, like which floes to keep/remove to meet the requested concentrations.
+
+````@example tutorial
+floes = initialize_floe_field(; generator, domain, floe_settings, rng = Xoshiro(2))
+````
+
+We can add the floes to the domain above.
+
+````@example tutorial
+floe_color = RGBf(217/255, 226/255, 225/255)  # blue color for floes
+poly!(ax1, floes.poly; color = floe_color) # plot the topography
+ax1.title = "Grid, Domain, and Floe Setup"
+fig  # display the figure
+````
+
 ## Creating a Model
 
 A `Model` combines all of the above components into the `Struct` that defines the physical aspects
@@ -259,7 +321,9 @@ the `Model` fields.
 
 A model can be made as follows:
 
+````@example tutorial
 model = Model(; grid, domain, ocean, atmos, floes)
+````
 
 !!! note
       The documentation, and to some extent the source code, is being cleaned up. This means that right now, some of the documentation is here,

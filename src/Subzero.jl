@@ -69,7 +69,8 @@ const RingVec{T} = R where {
     R <: AbstractArray{V},
 }
 
-const Polys{T, V} = GI.Polygon{false, false, Vector{GI.LinearRing{false, false, Vector{Tuple{T, T}}, Nothing, Nothing}}, Nothing, Nothing} where T
+const Polys{T} = GI.Polygon{false, false, Vector{GI.LinearRing{false, false, Vector{Tuple{T, T}}, Nothing, Nothing}}, Nothing, Nothing} where T
+const MultiPolys{T} = GI.MultiPolygon{false, false, Vector{Polys{T}}, Nothing, Nothing} where T
 
 Base.convert(::Type{Polys{Float32}}, p::Polys{<:Real}) = GO.tuples(p, Float32)
 Base.convert(::Type{Polys{Float64}}, p::Polys{<:Real}) = GO.tuples(p, Float64)
