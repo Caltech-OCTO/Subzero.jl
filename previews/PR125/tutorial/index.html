@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Tutorial · Subzero.jl</title><meta name="title" content="Tutorial · Subzero.jl"/><meta property="og:title" content="Tutorial · Subzero.jl"/><meta property="twitter:title" content="Tutorial · Subzero.jl"/><meta name="description" content="Documentation for Subzero.jl."/><meta property="og:description" content="Documentation for Subzero.jl."/><meta property="twitter:description" content="Documentation for Subzero.jl."/><meta property="og:url" content="https://Caltech-OCTO.github.io/SubzeroDocumentation/stable/tutorial/"/><meta property="twitter:url" content="https://Caltech-OCTO.github.io/SubzeroDocumentation/stable/tutorial/"/><link rel="canonical" href="https://Caltech-OCTO.github.io/SubzeroDocumentation/stable/tutorial/"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">Subzero.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Introduction</a></li><li class="is-active"><a class="tocitem" href>Tutorial</a><ul class="internal"><li><a class="tocitem" href="#Core-ideas-behind-Subzero.jl-simulations"><span>Core ideas behind Subzero.jl simulations</span></a></li><li><a class="tocitem" href="#Creating-a-Grid"><span>Creating a Grid</span></a></li><li><a class="tocitem" href="#Creating-Boundaries"><span>Creating Boundaries</span></a></li><li><a class="tocitem" href="#Creating-Topography"><span>Creating Topography</span></a></li><li><a class="tocitem" href="#Creating-a-Domian"><span>Creating a Domian</span></a></li><li><a class="tocitem" href="#Creating-an-Ocean"><span>Creating an Ocean</span></a></li><li><a class="tocitem" href="#Creating-an-Atmosphere"><span>Creating an Atmosphere</span></a></li><li><a class="tocitem" href="#Creating-the-Floes"><span>Creating the Floes</span></a></li><li><a class="tocitem" href="#Creating-a-Model"><span>Creating a Model</span></a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../examples/shear_flow/">Shear Flow with Periodic Boundaries</a></li><li><a class="tocitem" href="../examples/simple_strait/">Simple Strait Simulation</a></li><li><a class="tocitem" href="../examples/forcing_contained_floes/">Floes Bounded by Ocean Currents</a></li><li><a class="tocitem" href="../examples/moving_bounds/">Moving Boundaries</a></li><li><a class="tocitem" href="../examples/restart_sim/">Restart Simulation</a></li></ul></li><li><a class="tocitem" href="../api/">API Reference</a></li><li><a class="tocitem" href="../contribute/">Contributing to Subzero</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Tutorial</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Tutorial</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/Caltech-OCTO/Subzero.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/Caltech-OCTO/Subzero.jl/blob/main/docs/literate/tutorial.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Tutorial"><a class="docs-heading-anchor" href="#Tutorial">Tutorial</a><a id="Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#Tutorial" title="Permalink"></a></h1><p>This is the user tutorial for Subzero.jl. It will walk you through the typical workflow of buidling a discrete-element model (DEM) with Subzero.jl as well as running and plotting your simulatuion.</p><h2 id="Core-ideas-behind-Subzero.jl-simulations"><a class="docs-heading-anchor" href="#Core-ideas-behind-Subzero.jl-simulations">Core ideas behind Subzero.jl simulations</a><a id="Core-ideas-behind-Subzero.jl-simulations-1"></a><a class="docs-heading-anchor-permalink" href="#Core-ideas-behind-Subzero.jl-simulations" title="Permalink"></a></h2><p>The very first step of running a Subzero simulation is to bring the package into scope.</p><pre><code class="language-julia hljs">using Subzero  # bring Subzero into scope
 using CairoMakie, GeoInterfaceMakie # bring plotting packages into scope
-import GeoInterface as GI</code></pre><h2 id="Creating-a-Grid"><a class="docs-heading-anchor" href="#Creating-a-Grid">Creating a Grid</a><a id="Creating-a-Grid-1"></a><a class="docs-heading-anchor-permalink" href="#Creating-a-Grid" title="Permalink"></a></h2><p>Each Subzero model requires a grid object. The grid object defines the grid for the ocean and atmosphere. Ocean and atmosphere vectors (like <code>u</code> and <code>v</code> velocities) and tracers (like temperature) are recorded on these grid points and grid lines. The grid points are then used for interpolation for coupling between the ice, ocean, and atmosphere.</p><p>All Subzero grid objects are concrete types of the abstract type <a href="../api/#Subzero.AbstractRectilinearGrid"><code>AbstractRectilinearGrid</code></a>. Right now, all grid objects must be Rectilinear. Currently the only implemented concrete type is a <a href="../api/#Subzero.RegRectilinearGrid"><code>RegRectilinearGrid</code></a>. If you are interested in implementing another type of grid, see the <a href="&quot;devdocs.md&quot;">developer documentation</a>.</p><p>Here, we will go ahead and create an instance of <code>RegRectilinearGrid</code>. We need to specify the grid endpoints and either the number of grid cells in both directions, or the size of the grid cells. Here we will specity the number of grid cells in the x-direction, <code>Nx</code>, and in the y-direction, <code>Ny</code>.</p><pre><code class="language-julia hljs">grid = RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = 0.0, yf = 1e5, Nx = 20, Ny = 10)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">RegRectilinearGrid{Float64}
+import GeoInterface as GI
+using Random</code></pre><h2 id="Creating-a-Grid"><a class="docs-heading-anchor" href="#Creating-a-Grid">Creating a Grid</a><a id="Creating-a-Grid-1"></a><a class="docs-heading-anchor-permalink" href="#Creating-a-Grid" title="Permalink"></a></h2><p>Each Subzero model requires a grid object. The grid object defines the grid for the ocean and atmosphere. Ocean and atmosphere vectors (like <code>u</code> and <code>v</code> velocities) and tracers (like temperature) are recorded on these grid points and grid lines. The grid points are then used for interpolation for coupling between the ice, ocean, and atmosphere.</p><p>All Subzero grid objects are concrete types of the abstract type <a href="../api/#Subzero.AbstractRectilinearGrid"><code>AbstractRectilinearGrid</code></a>. Right now, all grid objects must be Rectilinear. Currently the only implemented concrete type is a <a href="../api/#Subzero.RegRectilinearGrid"><code>RegRectilinearGrid</code></a>. If you are interested in implementing another type of grid, see the <a href="&quot;devdocs.md&quot;">developer documentation</a>.</p><p>Here, we will go ahead and create an instance of <code>RegRectilinearGrid</code>. We need to specify the grid endpoints and either the number of grid cells in both directions, or the size of the grid cells. Here we will specity the number of grid cells in the x-direction, <code>Nx</code>, and in the y-direction, <code>Ny</code>.</p><pre><code class="language-julia hljs">grid = RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = 0.0, yf = 1e5, Nx = 20, Ny = 10)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">RegRectilinearGrid{Float64}
   ⊢x extent (-100000.0 to 100000.0) with 20 grid cells of size 10000.0 m
   ∟y extent (0.0 to 100000.0) with 10 grid cells of size 10000.0 m</code></pre><p>We plot a dashed box around the grid so that we can see the that the grid matches the extent given. We also place tick-marks at the desired grid cell lengths. Finally, set the plot&#39;s aspect ration to <code>2</code> as the x-extent is two-times larger than the y-extent.</p><pre><code class="language-julia hljs">fig = Figure();
 ax1 = Axis(fig[1, 1];  # set up axis tick marks to match grid cells
@@ -81,4 +82,158 @@ fig</code></pre><img src="9d1d5d95.png" alt="Example block output"/><div class="
   ⊢Tracer fields of dimension (21, 11)
   ⊢Average u-velocity of: 5.0 m/s
   ⊢Average v-velocity of: 0.0 m/s
-  ∟Average temperature of: 0.0 C</code></pre><p>Again since all of the fields are constant, we won&#39;t plot them, but you can, using the <code>heatmap</code> function as shown above.</p><h2 id="Creating-the-Floes"><a class="docs-heading-anchor" href="#Creating-the-Floes">Creating the Floes</a><a id="Creating-the-Floes-1"></a><a class="docs-heading-anchor-permalink" href="#Creating-the-Floes" title="Permalink"></a></h2><h2 id="Creating-a-Model"><a class="docs-heading-anchor" href="#Creating-a-Model">Creating a Model</a><a id="Creating-a-Model-1"></a><a class="docs-heading-anchor-permalink" href="#Creating-a-Model" title="Permalink"></a></h2><p>A <code>Model</code> combines all of the above components into the <code>Struct</code> that defines the physical aspects of a Subzero simulation. There are a few constraints: the domain must fall within the grid, the ocean and atmosphere must share the same grid (which can always be updated when the infrastructure for different grids is in place), and all fields must share the same Float type (i.e. <code>Float64</code> or <code>Float32</code>). This Float type will then be the Float type of the model, so it cannot be directly specified like it can when creating the <code>Model</code> fields.</p><p>A model can be made as follows:</p><p>model = Model(; grid, domain, ocean, atmos, floes)</p><div class="admonition is-info" id="Note-848232d56615e9f7"><header class="admonition-header">Note<a class="admonition-anchor" href="#Note-848232d56615e9f7" title="Permalink"></a></header><div class="admonition-body"><p>The documentation, and to some extent the source code, is being cleaned up. This means that right now, some of the documentation is here,   and some is on the <a href="https://github.com/Caltech-OCTO/Subzero.jl/blob/main/documentation.md">documentation.md</a> section of the GitHub. Once   you have reached this part of the tutorial, please switch back over there.</p></div></div><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Introduction</a><a class="docs-footer-nextpage" href="../examples/shear_flow/">Shear Flow with Periodic Boundaries »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Monday 11 August 2025 18:25">Monday 11 August 2025</span>. Using Julia version 1.11.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+  ∟Average temperature of: 0.0 C</code></pre><p>Again since all of the fields are constant, we won&#39;t plot them, but you can, using the <code>heatmap</code> function as shown above.</p><h2 id="Creating-the-Floes"><a class="docs-heading-anchor" href="#Creating-the-Floes">Creating the Floes</a><a id="Creating-the-Floes-1"></a><a class="docs-heading-anchor-permalink" href="#Creating-the-Floes" title="Permalink"></a></h2><p>Within the simulation, there is a floe field, which is a list of <a href="../api/#Subzero.Floe"><code>Floe</code></a> structs. For more information on these structs, see <a href="../api/#Subzero.Floe"><code>Floe</code></a> documentation. However, it is <strong>not</strong> recommended for users to create individual floes. Rather, users should use the <code>initialize_floe_field</code> function to create a field of floes to start the simulation. Individual floes should only be created by developers when adding new simulation functionality.</p><h3 id="Creating-a-AbstractFloeFieldGenerator"><a class="docs-heading-anchor" href="#Creating-a-AbstractFloeFieldGenerator">Creating a <code>AbstractFloeFieldGenerator</code></a><a id="Creating-a-AbstractFloeFieldGenerator-1"></a><a class="docs-heading-anchor-permalink" href="#Creating-a-AbstractFloeFieldGenerator" title="Permalink"></a></h3><p>To use <a href="../api/#Subzero.initialize_floe_field"><code>initialize_floe_field</code></a>, you first need to create a concrete subtype of <a href="../api/#Subzero.AbstractFloeFieldGenerator"><code>AbstractFloeFieldGenerator</code></a>. Right now, there are two implemented. The first is the <a href="../api/#Subzero.CoordinateListFieldGenerator"><code>CoordinateListFieldGenerator</code></a>. This generator takes in a list of floe coordinates (along with other arguments) to create a list of floes. The second is the <a href="../api/#Subzero.VoronoiTesselationFieldGenerator"><code>VoronoiTesselationFieldGenerator</code></a>. This generator tesselates the domain with floes and then randomly keeps various floes to match the user-provided floe concentration.</p><p>Here we will use the <code>VoronoiTesselationFieldGenerator</code> to generate a floe field. This generator object requires an input of the number of floes to be created (<code>nfloes</code>), a vector/matrix of concentrations to split the field into (<code>concentrations</code>), a mean height for the generated floe field (<code>hmean</code>), and a maximum range of heights (<code>Δh</code>) such that all floes have a height between <code>hmean - Δh</code> and <code>hmean + Δh</code>.</p><pre><code class="language-julia hljs">nfloes = 30
+concentrations = [0.5 0.0]  # the left half of the domain is 85% packed and the right has no floes
+hmean, Δh = 1.0, 0.25
+generator = VoronoiTesselationFieldGenerator(; nfloes, concentrations, hmean, Δh)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">VoronoiTesselationFieldGenerator:
+  ⊢Requested number of floes: 30
+  ⊢Requested concentrations [0.5 0.0]
+  ⊢Mean height: 1.0
+  ∟Height range: 0.25</code></pre><h3 id="Creating-FloeSettings"><a class="docs-heading-anchor" href="#Creating-FloeSettings">Creating <code>FloeSettings</code></a><a id="Creating-FloeSettings-1"></a><a class="docs-heading-anchor-permalink" href="#Creating-FloeSettings" title="Permalink"></a></h3><p><a href="@ref"><code>FloeSettings</code></a> can be used to set things like the minimum allowed floe area, the maximum hieght, the density of ice, and the <code>subfloe_point_generator</code>, which determines how to couple between the ice and ocean/atmosphere. There are also other fields within the <a href="@ref"><code>FloeSettings</code></a>!! It is important to understand all of its fields.</p><div class="admonition is-info" id="Note-c2bf1144db4ac22b"><header class="admonition-header">Note<a class="admonition-anchor" href="#Note-c2bf1144db4ac22b" title="Permalink"></a></header><div class="admonition-body"><p>For consistency, <code>FloeSettings</code> also must be passed into the <a href="@ref"><code>Simulation</code></a> struct.</p></div></div><p>Here we will just create a <code>FloeSettings</code> struct with just a few of the keyword options.</p><pre><code class="language-julia hljs">floe_settings = FloeSettings(
+  min_floe_area = 1e5,
+  max_floe_height = 5,
+  subfloe_point_generator = SubGridPointsGenerator(grid, 2),
+)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">FloeSettings{Float64, SubGridPointsGenerator{Float64}, DecayAreaScaledCalculator{Float64}}(920.0, 100000.0, 0.1, 5.0, 0.05, 1.0e-5, SubGridPointsGenerator{Float64}(3535.5339059327375), DecayAreaScaledCalculator{Float64}(0.2, 0.0))</code></pre><h3 id="Calling-initialize_floe_field"><a class="docs-heading-anchor" href="#Calling-initialize_floe_field">Calling <code>initialize_floe_field</code></a><a id="Calling-initialize_floe_field-1"></a><a class="docs-heading-anchor-permalink" href="#Calling-initialize_floe_field" title="Permalink"></a></h3><p>This generator is then the first keyword argument to the <a href="../api/#Subzero.initialize_floe_field"><code>initialize_floe_field</code></a> function. The other required keyword is the simulation domain. After that, we have optional keywords, including but not limited to <code>supress_warnings</code>, <code>rng</code>, and <code>floe_settings</code>. <code>supress_warnings</code> is a boolean that can turn off checks to ensure that all floe&#39;s have at least the minimum set area (see <a href="@ref"><code>FloeSettings</code></a> below) and that all floe centroids are within the <code>domain</code>. <code>rng</code> is a random number generator, possibly seeded for reproducability, used to generate floe heights and other random choices, like which floes to keep/remove to meet the requested concentrations.</p><pre><code class="language-julia hljs">floes = initialize_floe_field(; generator, domain, floe_settings, rng = Xoshiro(2))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">30-element StructArray(::Vector{GeoInterface.Wrappers.Polygon{false, false, Vector{GeoInterface.Wrappers.LinearRing{false, false, Vector{Tuple{Float64, Float64}}, Nothing, Nothing}}, Nothing, Nothing}}, ::Vector{Vector{Float64}}, ::Vector{Vector{Vector{Vector{Float64}}}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Vector{Float64}}, ::Vector{Vector{Float64}}, ::Vector{Vector{Float64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Subzero.Status}, ::Vector{Int64}, ::Vector{Int64}, ::Vector{Vector{Int64}}, ::Vector{Vector{Int64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Matrix{Float64}}, ::Vector{Float64}, ::Vector{Matrix{Float64}}, ::Vector{Int64}, ::Vector{Matrix{Float64}}, ::Vector{Matrix{Float64}}, ::Vector{Matrix{Float64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}) with eltype Floe{Float64}:
+ Floe{Float64}
+  ⊢Centroid of (-79969.66576, 62991.93681) m
+  ⊢Height of 0.92188 m
+  ⊢Area of 9.959791056972e7 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (-6549.1728, 24854.04631) m
+  ⊢Height of 0.96523 m
+  ⊢Area of 2.122688961513e8 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (-10542.08342, 73406.16081) m
+  ⊢Height of 0.84973 m
+  ⊢Area of 2.5681233071673e8 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (-34916.5513, 97462.99567) m
+  ⊢Height of 1.18492 m
+  ⊢Area of 4.179013170122e7 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (-19654.67708, 59318.12721) m
+  ⊢Height of 1.13022 m
+  ⊢Area of 3.0962203676612e8 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (-94312.95697, 61176.02829) m
+  ⊢Height of 1.10987 m
+  ⊢Area of 1.2650748762842e8 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (-95484.36703, 76880.10286) m
+  ⊢Height of 0.85547 m
+  ⊢Area of 2.1510977074353e8 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (-26024.57799, 35841.56632) m
+  ⊢Height of 0.98756 m
+  ⊢Area of 1.8921716140793e8 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (-22019.42417, 69730.32329) m
+  ⊢Height of 0.98449 m
+  ⊢Area of 1.0401673260735e8 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (-89483.76045, 36935.06251) m
+  ⊢Height of 1.1732 m
+  ⊢Area of 8.694151756001e7 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ ⋮
+ Floe{Float64}
+  ⊢Centroid of (-58258.08622, 53949.454) m
+  ⊢Height of 0.83279 m
+  ⊢Area of 2.3123725622521e8 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (-97649.94074, 37944.32468) m
+  ⊢Height of 0.94541 m
+  ⊢Area of 7.382748454329e7 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (-3853.90218, 50675.00378) m
+  ⊢Height of 0.87695 m
+  ⊢Area of 1.9300004160694e8 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (-14623.4278, 51074.44967) m
+  ⊢Height of 0.78269 m
+  ⊢Area of 1.1351044310307e8 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (-16866.26924, 4544.23137) m
+  ⊢Height of 0.90876 m
+  ⊢Area of 1.7999502977453e8 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (-10143.59706, 36942.49494) m
+  ⊢Height of 1.02356 m
+  ⊢Area of 1.6096068570281e8 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (-44322.91086, 48807.05738) m
+  ⊢Height of 1.1729 m
+  ⊢Area of 2.7054267250841e8 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (-48589.86049, 25279.4067) m
+  ⊢Height of 0.99481 m
+  ⊢Area of 1.2682673677351e8 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (-24891.08326, 96743.25895) m
+  ⊢Height of 1.23747 m
+  ⊢Area of 7.927306061261e7 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+</code></pre><p>We can add the floes to the domain above.</p><pre><code class="language-julia hljs">floe_color = RGBf(217/255, 226/255, 225/255)  # blue color for floes
+poly!(ax1, floes.poly; color = floe_color) # plot the topography
+ax1.title = &quot;Grid, Domain, and Floe Setup&quot;
+fig  # display the figure</code></pre><img src="479ce41d.png" alt="Example block output"/><h2 id="Creating-a-Model"><a class="docs-heading-anchor" href="#Creating-a-Model">Creating a Model</a><a id="Creating-a-Model-1"></a><a class="docs-heading-anchor-permalink" href="#Creating-a-Model" title="Permalink"></a></h2><p>A <code>Model</code> combines all of the above components into the <code>Struct</code> that defines the physical aspects of a Subzero simulation. There are a few constraints: the domain must fall within the grid, the ocean and atmosphere must share the same grid (which can always be updated when the infrastructure for different grids is in place), and all fields must share the same Float type (i.e. <code>Float64</code> or <code>Float32</code>). This Float type will then be the Float type of the model, so it cannot be directly specified like it can when creating the <code>Model</code> fields.</p><p>A model can be made as follows:</p><pre><code class="language-julia hljs">model = Model(; grid, domain, ocean, atmos, floes)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Model{Float64, ...}
+ ⊢RegRectilinearGrid{Float64}
+  ⊢x extent (-100000.0 to 100000.0) with 20 grid cells of size 10000.0 m
+  ∟y extent (0.0 to 100000.0) with 10 grid cells of size 10000.0 m
+ ⊢Domain
+  ⊢Northern boundary of type CollisionBoundary{North, Float64}
+  ⊢Southern boundary of type CollisionBoundary{South, Float64}
+  ⊢Eastern boundary of type PeriodicBoundary{East, Float64}
+  ⊢Western boundary of type PeriodicBoundary{West, Float64}
+  ∟2-element TopograpahyElement{Float64} list
+ ⊢Ocean{Float64}
+  ⊢Vector fields of dimension (21, 11)
+  ⊢Tracer fields of dimension (21, 11)
+  ⊢Average u-velocity of: 0.11364 m/s
+  ⊢Average v-velocity of: 0.0 m/s
+  ∟Average temperature of: -1.0 C
+ ⊢Atmos{Float64}
+  ⊢Vector fields of dimension (21, 11)
+  ⊢Tracer fields of dimension (21, 11)
+  ⊢Average u-velocity of: 5.0 m/s
+  ⊢Average v-velocity of: 0.0 m/s
+  ∟Average temperature of: 0.0 C
+ ∟Floe List:
+  ⊢Number of floes: 30
+  ⊢Total floe area: 4.83056872799733e9
+  ∟Average floe height: 1.0125</code></pre><div class="admonition is-info" id="Note-848232d56615e9f7"><header class="admonition-header">Note<a class="admonition-anchor" href="#Note-848232d56615e9f7" title="Permalink"></a></header><div class="admonition-body"><p>The documentation, and to some extent the source code, is being cleaned up. This means that right now, some of the documentation is here,   and some is on the <a href="https://github.com/Caltech-OCTO/Subzero.jl/blob/main/documentation.md">documentation.md</a> section of the GitHub. Once   you have reached this part of the tutorial, please switch back over there.</p></div></div><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Introduction</a><a class="docs-footer-nextpage" href="../examples/shear_flow/">Shear Flow with Periodic Boundaries »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Saturday 16 August 2025 23:57">Saturday 16 August 2025</span>. Using Julia version 1.11.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
