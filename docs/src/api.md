@@ -64,6 +64,23 @@ initialize_floe_field
 Model
 ```
 
+# Constants
+```@docs
+Constants
+```
+
+# Physical Process Settings
+```@docs
+```
+
+# Simulations
+```@docs
+Simulation
+timestep_sim!
+run!
+restart!
+```
+
 ## Developer-Used Types
 ```@docs
 CellFloes
