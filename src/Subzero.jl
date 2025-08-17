@@ -8,10 +8,6 @@ module Subzero
 end Subzero
 
 export
-    Constants,
-    Simulation,
-    timestep_sim!,
-    run!,
     AbstractOutputWriter,
     CheckpointOutputWriter,
     GridOutputWriter, 
@@ -120,5 +116,6 @@ include("tools/compare_files.jl")
 include("logger.jl")
 # Simulation
 include("output.jl")
+include("simulation_components/constants.jl")
 include("simulation_components/simulation.jl")
 end

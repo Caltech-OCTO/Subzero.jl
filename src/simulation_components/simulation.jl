@@ -1,3 +1,5 @@
+export Simulation, timestep_sim!, run!, restart!
+
 """
     Simulation{FT<:AbstractFloat, DT<:Domain{FT}}
 
@@ -181,7 +183,7 @@ function timestep_sim!(sim, tstep, start_tstep = 0)
 end
 
 """
-    startup_sim(sim)
+    _startup_sim(sim)
 
 Required actions to setup simulation. For example, setting up the simulation
 logger.
@@ -194,7 +196,7 @@ Inputs:
 Outputs:
     None.
 """
-function startup_sim(sim, logger = nothing, messages_per_tstep = 1)
+function _startup_sim(sim, logger = nothing, messages_per_tstep = 1)
     # Set up logger
     if isnothing(logger)
         logger = SubzeroLogger(sim, messages_per_tstep)
@@ -206,7 +208,7 @@ function startup_sim(sim, logger = nothing, messages_per_tstep = 1)
 end
 
 """
-    teardown_sim(sim)
+    _teardown_sim(sim)
 
 Required actions to tear down simulation. For example, flushing the simulation's
 logger and closing the stream.
@@ -215,7 +217,7 @@ Inputs:
 Outputs:
     None.
 """
-function teardown_sim(sim)
+function _teardown_sim(sim)
     # Finish logging
     logger = current_logger()
     if hasfield(typeof(logger), :stream)
@@ -246,14 +248,14 @@ Outputs:
     folder. 
 """
 function run!(sim; logger = nothing, messages_per_tstep = 1, start_tstep = 0)
-    startup_sim(sim, logger, messages_per_tstep)
+    _startup_sim(sim, logger, messages_per_tstep)
     tstep = start_tstep
     while tstep <= (start_tstep + sim.nΔt)
         # Timestep the simulation forward
         timestep_sim!(sim, tstep, start_tstep)
         tstep+=1
     end
-    teardown_sim(sim)
+    _teardown_sim(sim)
     return
 end
 
