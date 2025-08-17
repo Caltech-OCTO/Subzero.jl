@@ -1,22 +1,23 @@
-WARN  failed to run `@example` block in docs/src/examples/simple_strait.md:150-152
+WARN  failed to run `@example` block in docs/src/examples/simple_strait.md:141-143
 ```@example simple_strait
 run!(simulation)
 ```
- [2025/07/06 22:02:29.118] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
+ [2025/08/17 17:44:53.691] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
 DEBUG Evaluating @example block:
-plot_sim(joinpath(dir, floe_fn), joinpath(dir, init_fn), Δt, joinpath(dir, "simple_strait.mp4")) [2025/07/06 22:02:29.119] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
-DEBUG Running ExpanderPipeline on index.md [2025/07/06 22:02:32.741] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:54
+plot_sim(joinpath(dir, floe_fn), joinpath(dir, init_fn), Δt, joinpath(dir, "simple_strait.mp4")) [2025/08/17 17:44:53.691] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+DEBUG Running ExpanderPipeline on index.md [2025/08/17 17:44:58.414] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:54
 DEBUG Evaluating @docs block:
-Subzero [2025/07/06 22:02:32.741] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:420
-DEBUG Running ExpanderPipeline on tutorial.md [2025/07/06 22:02:32.750] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:54
+Subzero [2025/08/17 17:44:58.415] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:420
+DEBUG Running ExpanderPipeline on tutorial.md [2025/08/17 17:44:58.425] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:54
 DEBUG Evaluating @meta block:
-EditURL = "../literate/tutorial.jl" [2025/07/06 22:02:32.750] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:337
+EditURL = "../literate/tutorial.jl" [2025/08/17 17:44:58.425] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:337
 DEBUG Evaluating @example block:
 using Subzero  # bring Subzero into scope
 using CairoMakie, GeoInterfaceMakie # bring plotting packages into scope
-import GeoInterface as GI [2025/07/06 22:02:32.752] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+import GeoInterface as GI
+using Random [2025/08/17 17:44:58.426] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
-grid = RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = 0.0, yf = 1e5, Nx = 20, Ny = 10) [2025/07/06 22:02:32.753] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+grid = RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = 0.0, yf = 1e5, Nx = 20, Ny = 10) [2025/08/17 17:44:58.428] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 fig = Figure();
 ax1 = Axis(fig[1, 1];  # set up axis tick marks to match grid cells
@@ -29,36 +30,36 @@ ax1 = Axis(fig[1, 1];  # set up axis tick marks to match grid cells
 lines!(  # plot boundary of grid with a dashed line
     [grid.x0, grid.x0, grid.xf, grid.xf, grid.x0],  # point x-values
     [grid.y0, grid.yf, grid.yf, grid.y0, grid.y0];  # point y-values
-    linestyle = :dash, linewidth = 3.0) [2025/07/06 22:02:32.754] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+    linestyle = :dash, linewidth = 3.0) [2025/08/17 17:44:58.429] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 colsize!(fig.layout, 1, Aspect(1, 2))
 resize_to_layout!(fig)
-fig  # display the figure [2025/07/06 22:02:32.980] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+fig  # display the figure [2025/08/17 17:44:58.666] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 north_bound = CollisionBoundary(North; grid)
 south_bound = CollisionBoundary(South; grid)
 east_bound = PeriodicBoundary(East; grid)
-west_bound = PeriodicBoundary(West; grid) [2025/07/06 22:02:33.331] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+west_bound = PeriodicBoundary(West; grid) [2025/08/17 17:44:59.028] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 poly!(   # plot each of the boundaries with a 50% transparent color so we can see the overlap
     [north_bound.poly, south_bound.poly, east_bound.poly, west_bound.poly];
     color = [(:purple, 0.5), (:purple, 0.5), (:teal, 0.5), (:teal, 0.5)],
 )
 ax1.title = "Grid and Boundary Setup"
-fig  # display the figure [2025/07/06 22:02:33.391] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+fig  # display the figure [2025/08/17 17:44:59.091] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 island1 = GI.Polygon([[(-6e4, 7.5e4), (-4e4, 5e4), (-2.5e4, 7e4), (-6e4, 7.5e4)]])
 island2 = GI.Polygon([[(5e4, 2.5e4), (5e4, 5.5e4), (7.5e4, 3e4), (5e4, 2.5e4)]])
-topo_list = [island1, island2] [2025/07/06 22:02:35.178] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+topo_list = [island1, island2] [2025/08/17 17:45:00.925] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
-topo_field = initialize_topography_field(; polys = topo_list) [2025/07/06 22:02:35.401] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+topo_field = initialize_topography_field(; polys = topo_list) [2025/08/17 17:45:01.153] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 topo_color = RGBf(115/255, 93/255, 55/255)  # brown color for topography
 poly!(topo_field.poly; color = topo_color) # plot the topography
 ax1.title = "Grid and Domain Setup"
-fig  # display the figure [2025/07/06 22:02:35.515] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+fig  # display the figure [2025/08/17 17:45:01.271] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
-domain = Domain(; north = north_bound, south = south_bound, east = east_bound, west = west_bound, topography = topo_field) [2025/07/06 22:02:35.726] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+domain = Domain(; north = north_bound, south = south_bound, east = east_bound, west = west_bound, topography = topo_field) [2025/08/17 17:45:01.437] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 function shear_flow_velocities(Nx, Ny, min_u, max_u)
     u_vals = fill(min_u, Nx, Ny)  # fill in field with min value
@@ -81,7 +82,7 @@ function shear_flow_velocities(Nx, Ny, min_u, max_u)
 end
 
 u_vals = shear_flow_velocities(grid.Nx + 1, grid.Ny + 1, 0.0, 0.25)
-ocean = Ocean(; u = u_vals, v = 0.0, temp = -1.0, grid) [2025/07/06 22:02:35.799] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+ocean = Ocean(; u = u_vals, v = 0.0, temp = -1.0, grid) [2025/08/17 17:45:01.513] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
 ax2 = Axis(fig[2, 1]; title = "Ocean U-Velocities [m/s]", xticklabelrotation = pi/4)
 xs = grid.x0:grid.Δx:grid.xf
@@ -89,287 +90,290 @@ ys = grid.y0:grid.Δy:grid.yf
 u_hm = heatmap!(ax2, xs, ys, ocean.u)
 Colorbar(fig[2, end+1], u_hm)
 resize_to_layout!(fig)
-fig [2025/07/06 22:02:35.973] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
+fig [2025/08/17 17:45:01.702] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
 DEBUG Evaluating @example block:
-atmos = Atmos(; grid, u = 5.0, v = 0.0, temp = 0.0) [2025/07/06 22:02:36.112] --> /home/runner/.julia/packages/Documenter/uNI6f/src/expander_pipeline.jl:837
-INFO  CrossReferences: building cross-references. [2025/07/06 22:02:36.491] --> /home/runner/.julia/packages/Documenter/uNI6f/src/builder_pipeline.jl:230
-WARN  invalid local link/image: file does not exist in docs/src/api.md [2025/07/06 22:02:37.113] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
-WARN  invalid local link/image: file does not exist in docs/src/api.md [2025/07/06 22:02:37.115] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
+atmos = Atmos(; grid, u = 5.0, v = 0.0, temp = 0.0) [2025/08/17 17:45:01.848] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+DEBUG Evaluating @example block:
+nfloes = 30
+concentrations = [0.5 0.0]  # the left half of the domain is 85% packed and the right has no floes
+hmean, Δh = 1.0, 0.25
+generator = VoronoiTesselationFieldGenerator(; nfloes, concentrations, hmean, Δh) [2025/08/17 17:45:01.954] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+DEBUG Evaluating @example block:
+floe_settings = FloeSettings(
+  min_floe_area = 1e5,
+  max_floe_height = 5,
+  subfloe_point_generator = SubGridPointsGenerator(grid, 2),
+) [2025/08/17 17:45:02.100] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+DEBUG Evaluating @example block:
+floes = initialize_floe_field(; generator, domain, floe_settings, rng = Xoshiro(2)) [2025/08/17 17:45:02.159] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+DEBUG Evaluating @example block:
+floe_color = RGBf(217/255, 226/255, 225/255)  # blue color for floes
+poly!(ax1, floes.poly; color = floe_color) # plot the topography
+ax1.title = "Grid, Domain, and Floe Setup"
+fig  # display the figure [2025/08/17 17:45:02.759] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+DEBUG Evaluating @example block:
+model = Model(; grid, domain, ocean, atmos, floes) [2025/08/17 17:45:02.875] --> /home/runner/.julia/packages/Documenter/eoWm2/src/expander_pipeline.jl:837
+INFO  CrossReferences: building cross-references. [2025/08/17 17:45:03.645] --> /home/runner/.julia/packages/Documenter/eoWm2/src/builder_pipeline.jl:230
+WARN  invalid local link/image: file does not exist in docs/src/api.md [2025/08/17 17:45:04.295] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+WARN  invalid local link/image: file does not exist in docs/src/api.md [2025/08/17 17:45:04.297] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
 WARN  Cannot resolve @ref for md"[`AbstractDomainElement`](@ref)" in docs/src/api.md.
 - No docstring found in doc for binding `Subzero.AbstractDomainElement`.
-- No docstring found in doc for binding `Subzero.AbstractDomainElement`. [2025/07/06 22:02:37.283] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
+- No docstring found in doc for binding `Subzero.AbstractDomainElement`. [2025/08/17 17:45:04.415] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
 WARN  Cannot resolve @ref for md"[`AbstractDomainElement`](@ref)" in docs/src/api.md.
 - No docstring found in doc for binding `Subzero.AbstractDomainElement`.
-- No docstring found in doc for binding `Subzero.AbstractDomainElement`. [2025/07/06 22:02:37.286] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
-WARN  Cannot resolve @ref for md"[`Floe`](@ref)" in docs/src/api.md.
-- No docstring found in doc for binding `Subzero.Floe`.
-- No docstring found in doc for binding `Subzero.Floe`. [2025/07/06 22:02:37.286] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
+- No docstring found in doc for binding `Subzero.AbstractDomainElement`. [2025/08/17 17:45:04.419] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+WARN  Cannot resolve @ref for md"[`FloeSettings`](@ref)" in docs/src/api.md.
+- No docstring found in doc for binding `Subzero.FloeSettings`.
+- No docstring found in doc for binding `Subzero.FloeSettings`. [2025/08/17 17:45:04.421] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+WARN  Cannot resolve @ref for md"[`CollisionSettings`](@ref)" in docs/src/api.md.
+- No docstring found in doc for binding `Subzero.CollisionSettings`.
+- No docstring found in doc for binding `Subzero.CollisionSettings`. [2025/08/17 17:45:04.421] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+WARN  Cannot resolve @ref for md"[`DamageStressCalculator`](@ref)" in docs/src/api.md.
+- No docstring found in doc for binding `Subzero.DamageStressCalculator`.
+- No docstring found in doc for binding `Subzero.DamageStressCalculator`. [2025/08/17 17:45:04.421] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+WARN  Cannot resolve @ref for md"[`PolyVec`](@ref)" in docs/src/api.md.
+- No docstring found in doc for binding `Subzero.PolyVec`.
+- No docstring found in doc for binding `Subzero.PolyVec`. [2025/08/17 17:45:04.422] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+WARN  Cannot resolve @ref for md"[`PolyVec`](@ref)" in docs/src/api.md.
+- No docstring found in doc for binding `Subzero.PolyVec`.
+- No docstring found in doc for binding `Subzero.PolyVec`. [2025/08/17 17:45:04.422] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
 WARN  Cannot resolve @ref for md"[`AbstractSubFloePointsGenerator`](@ref)" in docs/src/api.md.
 - No docstring found in doc for binding `Subzero.AbstractSubFloePointsGenerator`.
-- No docstring found in doc for binding `Main.AbstractSubFloePointsGenerator`. [2025/07/06 22:02:37.288] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
-WARN  invalid local link/image: file does not exist in docs/src/index.md [2025/07/06 22:02:37.296] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
-WARN  invalid local link/image: file does not exist in docs/src/tutorial.md [2025/07/06 22:02:37.296] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
-INFO  CheckDocument: running document checks. [2025/07/06 22:02:39.367] --> /home/runner/.julia/packages/Documenter/uNI6f/src/builder_pipeline.jl:237
-DEBUG checking for missing docstrings. [2025/07/06 22:02:39.367] --> /home/runner/.julia/packages/Documenter/uNI6f/src/docchecks.jl:42
-WARN  209 docstrings not included in the manual:
+- No docstring found in doc for binding `Main.AbstractSubFloePointsGenerator`. [2025/08/17 17:45:04.424] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+WARN  invalid local link/image: file does not exist in docs/src/index.md [2025/08/17 17:45:04.431] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+WARN  invalid local link/image: file does not exist in docs/src/tutorial.md [2025/08/17 17:45:04.432] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+WARN  Cannot resolve @ref for md"[`FloeSettings`](@ref)" in docs/src/tutorial.md.
+- No docstring found in doc for binding `Subzero.FloeSettings`. [2025/08/17 17:45:04.610] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+WARN  Cannot resolve @ref for md"[`FloeSettings`](@ref)" in docs/src/tutorial.md.
+- No docstring found in doc for binding `Subzero.FloeSettings`. [2025/08/17 17:45:04.610] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+WARN  Cannot resolve @ref for md"[`Simulation`](@ref)" in docs/src/tutorial.md.
+- No docstring found in doc for binding `Subzero.Simulation`. [2025/08/17 17:45:04.610] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+WARN  Cannot resolve @ref for md"[`FloeSettings`](@ref)" in docs/src/tutorial.md.
+- No docstring found in doc for binding `Subzero.FloeSettings`. [2025/08/17 17:45:04.611] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+INFO  CheckDocument: running document checks. [2025/08/17 17:45:06.536] --> /home/runner/.julia/packages/Documenter/eoWm2/src/builder_pipeline.jl:237
+DEBUG checking for missing docstrings. [2025/08/17 17:45:06.536] --> /home/runner/.julia/packages/Documenter/eoWm2/src/docchecks.jl:42
+WARN  193 docstrings not included in the manual:
 
-    Subzero.calc_ocean_forcing! :: NTuple{9, Any}
-    Subzero.conserve_momentum_transfer_mass! :: Union{NTuple{6, Any}, NTuple{7, Any}, NTuple{8, Any}}
-    Subzero.domain_in_grid :: Tuple{Domain, AbstractRectilinearGrid}
-    Subzero.floe_domain_raft! :: Tuple{Any, Any, Union{StructArrays.LazyRow{<:AbstractDomainElement}, AbstractDomainElement}, Vararg{Any, 8}}
-    Subzero.remove_floe_overlap! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{<:Floe{FT}}, Vararg{Any, 10}}} where FT<:AbstractFloat
-    Subzero.poly_to_floes! :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any, 5}}} where FT<:AbstractFloat
-    Subzero.grid_yg_index :: Tuple{Any, Any, RegRectilinearGrid}
-    Subzero.potential_interaction :: NTuple{4, Any}
-    Subzero.write_checkpoint_data! :: Tuple{Any, Any}
-    Subzero.floe_domain_interaction! :: Union{Tuple{FT}, Tuple{Any, Domain, Any, Any, FT}} where FT<:AbstractFloat
-    Subzero.mc_interpolation :: NTuple{7, Any}
     Subzero.MohrsCone :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any}}} where FT<:AbstractFloat
     Subzero.MohrsCone :: Union{Tuple, Tuple{FT}} where FT
     Subzero.MohrsCone
     Subzero.MohrsCone :: Tuple
-    Subzero.conserve_momentum_change_floe_shape! :: Union{NTuple{6, Any}, NTuple{7, Any}}
     Subzero.AbstractFractureCriteria
-    Subzero.in_bounds :: Tuple{Any, Any, Any, Union{CollisionBoundary, MovingBoundary, OpenBoundary}, Union{CollisionBoundary, MovingBoundary, OpenBoundary}}
-    Subzero.in_bounds :: Tuple{Any, Any, Any, Union{CollisionBoundary, MovingBoundary, OpenBoundary}, PeriodicBoundary}
-    Subzero.in_bounds :: Tuple{Any, Any, Any, PeriodicBoundary, Union{CollisionBoundary, MovingBoundary, OpenBoundary}}
-    Subzero.in_bounds :: Tuple{Any, Any, Any, PeriodicBoundary, PeriodicBoundary}
-    Subzero.SimplificationSettings :: Union{Tuple{Type{FT}}, Tuple{FT}} where FT<:AbstractFloat
-    Subzero.SimplificationSettings
-    Subzero.calc_linear_momentum :: Tuple{Any, Any, Any}
-    Subzero.MonteCarloPointsGenerator :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any}}} where FT<:AbstractFloat
-    Subzero.MonteCarloPointsGenerator
-    Subzero.MonteCarloPointsGenerator :: Tuple
-    Subzero.calc_strain! :: Union{Tuple{Union{Floe{FT}, StructArrays.LazyRow{Floe{FT}}}}, Tuple{FT}} where FT
-    Subzero.find_grid_cell_index :: Tuple{Any, Any, RegRectilinearGrid}
-    Subzero.timestep_sim! :: Union{Tuple{Any, Any}, Tuple{Any, Any, Any}}
+    Subzero.floe_floe_raft! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{<:Floe{FT}}, Vararg{Any, 10}}} where FT
+    Subzero.FractureSettings
+    Subzero.startup_sim :: Union{Tuple{Any}, Tuple{Any, Any}, Tuple{Any, Any, Any}}
+    Subzero.remove_floes! :: NTuple{5, Any}
+    Subzero.smooth_floes! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{Floe{FT}}, Vararg{Any, 6}}} where FT<:AbstractFloat
+    Subzero.calc_friction_forces :: Union{Tuple{FT}, Tuple{Any, Any, Any, Matrix{FT}, Any, Any, Any}} where FT
     Subzero.generate_subfloe_points :: Union{Tuple{FT}, Tuple{MonteCarloPointsGenerator{FT}, Vararg{Any, 5}}} where FT<:AbstractFloat
     Subzero.generate_subfloe_points :: Union{Tuple{FT}, Tuple{SubGridPointsGenerator{FT}, Vararg{Any, 5}}} where FT<:AbstractFloat
-    Subzero.CouplingSettings
-    Subzero.remove_floes! :: NTuple{5, Any}
-    Subzero.euclidian_dist :: Tuple{Any, Any, Any}
-    Subzero.update_criteria! :: Union{Tuple{FT}, Tuple{HiblerYieldCurve{FT}, Any}} where FT
-    Subzero.update_criteria! :: Tuple{MohrsCone, Any}
-    Subzero.timestep_ridging_rafting! :: Union{Tuple{FT}, Tuple{Any, Any, Any, Any, RidgeRaftSettings{FT}, Any, Any, Any}, Tuple{Any, Any, Any, Any, RidgeRaftSettings{FT}, Vararg{Any, 4}}} where FT<:AbstractFloat
-    Subzero.update_new_rotation_conserve! :: NTuple{9, Any}
-    Subzero.compare_oa_checkpointer_data :: Tuple{Any, Any}
-    Subzero.grid_xg_index :: Tuple{Any, Any, RegRectilinearGrid}
-    Subzero.FloeSettings :: Union{Tuple{Type{FT}}, Tuple{CT}, Tuple{GT}, Tuple{FT}} where {FT<:AbstractFloat, GT<:Subzero.AbstractSubFloePointsGenerator, CT<:AbstractStressCalculator}
-    Subzero.FloeSettings
-    Subzero.generate_voronoi_coords :: Union{Tuple{FT}, Tuple{Int64, Any, Any, Vector{<:Array{Array{Vector{var"#s207"}, 1}, 1} where var"#s207"<:FT}, Any, Int64}} where FT<:AbstractFloat
-    Logging.handle_message :: Tuple{Subzero.SubzeroLogger, Vararg{Any, 7}}
-    Subzero.initialize_netcdf_file! :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any, 6}}} where FT
-    Subzero.simplify_floes! :: NTuple{7, Any}
-    Subzero.calc_one_way_coupling! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{Floe{FT}}, Vararg{Any, 6}}} where FT
-    Subzero.floe_floe_raft! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{<:Floe{FT}}, Vararg{Any, 10}}} where FT
-    Subzero.auto_extension :: Tuple{Any, Any}
-    Subzero.compare_floe_data :: Tuple{Any, Any}
-    Subzero.OutputWriters
-    Subzero.rotate_radians! :: Tuple{Array{Array{Vector{T}, 1}, 1} where T<:Real, Any}
-    Subzero.add_point! :: Tuple{Subzero.CellFloes, Subzero.CellStresses, Vararg{Any, 5}}
-    Subzero.add_point! :: Tuple{Subzero.CellFloes, Any, Any, Any}
-    Subzero.NoFracture
-    Subzero.update_boundaries! :: Tuple{Any, Any}
-    Subzero.calc_normal_force :: Union{Tuple{FT}, Tuple{Any, Any, Any, Any, Any, FT}} where FT<:AbstractFloat
-    Subzero._calculate_hibler :: Union{Tuple{FT}, Tuple{Type{FT}, Any, Any, Any}} where FT
-    Subzero.find_shared_edges_midpoint :: Union{Tuple{FT}, Tuple{Array{Array{Vector{FT}, 1}, 1}, Any}} where FT
-    Subzero.FloeOutputWriter :: Union{Tuple{FloeOutputWriter}, Tuple{FloeOutputWriter, Any}}
-    Subzero.FloeOutputWriter
-    Subzero.FloeOutputWriter :: Tuple{Any}
-    Subzero.get_known_grid_outputs :: Tuple{}
-    Subzero.find_ghosts! :: Union{Tuple{FT}, Tuple{Any, Any, PeriodicBoundary{East, FT}, PeriodicBoundary{West, FT}}} where FT<:AbstractFloat
-    Subzero.find_ghosts! :: Union{Tuple{FT}, Tuple{Any, Any, PeriodicBoundary{North, FT}, PeriodicBoundary{South, FT}}} where FT<:AbstractFloat
-    Subzero.hashole :: Union{Tuple{Array{Array{Vector{FT}, 1}, 1}}, Tuple{FT}} where FT<:AbstractFloat
-    Subzero.hashole :: Tuple{GeoInterface.Wrappers.Polygon{false, false, Array{GeoInterface.Wrappers.LinearRing{false, false, Array{Tuple{T, T}, 1}, Nothing, Nothing}, 1}, Nothing, Nothing} where T}
-    Subzero.WeldSettings :: Union{Tuple{Type{FT}}, Tuple{FT}} where FT<:AbstractFloat
-    Subzero.WeldSettings
-    Subzero.conserve_momentum_fracture_floe! :: Union{Tuple{FT}, Tuple{Any, StructArrays.StructArray{<:Floe{FT}}, Any}} where FT
-    Subzero.check_for_edge_mid :: Union{Tuple{FT}, Tuple{Any, Any, Any, Any, Any, FT}} where FT
-    Subzero.floe_floe_ridge! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{<:Floe{FT}}, Vararg{Any, 10}}} where FT
-    Subzero.deepcopy_floe :: Union{Tuple{StructArrays.LazyRow{Floe{FT}}}, Tuple{FT}} where FT
-    Subzero.timestep_welding! :: Union{Tuple{FT}, Tuple{Any, Any, Any, Any, WeldSettings{FT}, Any, Any, Any}, Tuple{Any, Any, Any, Any, WeldSettings{FT}, Vararg{Any, 4}}} where FT<:AbstractFloat
-    Subzero.prettytime :: Tuple{Any}
-    Subzero._get_velocity :: Union{Tuple{FT}, Tuple{Union{Floe{FT}, StructArrays.LazyRow{Floe{FT}}}, FT, FT}} where FT
-    Subzero.determine_fractures :: Tuple{Any, Subzero.AbstractFractureCriteria, Any}
-    Subzero.calc_kinetic_energy :: NTuple{5, Any}
-    Subzero.write_init_state_data! :: Tuple{Any}
-    Subzero.PolyVec
-    Subzero.grid_line_index :: Tuple{Any, Any, Any}
     Subzero.which_points_on_edges :: Tuple{Any, Any}
-    Subzero.compare_grid_data :: Tuple{Any, Any}
-    Subzero.intersect_polys :: Union{Tuple{FT}, Tuple{Any, Any}, Tuple{Any, Any, Type{FT}}} where FT
-    Subzero.Constants :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any}}} where FT<:AbstractFloat
-    Subzero.Constants :: Tuple
-    Subzero.RingVec
-    Subzero.startup_sim :: Union{Tuple{Any}, Tuple{Any, Any}, Tuple{Any, Any, Any}}
-    Subzero.DecayAreaScaledCalculator :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any}}} where FT<:AbstractFloat
-    Subzero.DecayAreaScaledCalculator
-    Subzero.DecayAreaScaledCalculator :: Tuple
-    Subzero.plot_conservation :: NTuple{7, Any}
-    Subzero.fuse_two_floes! :: Union{Tuple{FT}, Tuple{Union{Floe{FT}, StructArrays.LazyRow{Floe{FT}}}, Vararg{Any, 5}}} where FT
-    Subzero.restart! :: NTuple{4, Any}
-    Subzero.grid_cell_index :: Tuple{Any, Any, Any}
-    Subzero.calc_elastic_forces :: Union{Tuple{FT}, Tuple{Any, Any, Any, Any, FT}} where FT<:AbstractFloat
-    Subzero.grid_yc_index :: Tuple{Any, Any, RegRectilinearGrid}
-    Subzero.calc_torque! :: Union{Tuple{Union{Floe{FT}, StructArrays.LazyRow{<:Floe{FT}}}}, Tuple{FT}} where FT<:AbstractFloat
-    Subzero.floe_to_grid_info! :: Union{Tuple{FT}, Tuple{Any, Any, Any, FT, FT, Vararg{Any, 5}}} where FT
-    Subzero.add_floe_ghosts! :: Union{Tuple{FLT}, Tuple{FT}, Tuple{FLT, Any, Any}} where {FT<:AbstractFloat, FLT<:(StructArrays.StructArray{<:Floe{FT}})}
-    Subzero.smooth_floes! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{Floe{FT}}, Vararg{Any, 6}}} where FT<:AbstractFloat
-    Subzero.split_floe :: Union{Tuple{FT}, Tuple{Union{Floe{FT}, StructArrays.LazyRow{Floe{FT}}}, Vararg{Any, 4}}} where FT
-    Subzero.calc_subfloe_values! :: Union{Tuple{FT}, Tuple{Union{Floe{FT}, StructArrays.LazyRow{Floe{FT}}}, Vararg{Any, 4}}} where FT<:AbstractFloat
-    Subzero.calc_stress! :: Union{Tuple{FT}, Tuple{Union{Floe{FT}, StructArrays.LazyRow{Floe{FT}}}, Any, Any}} where FT
-    Subzero.timestep_floe_properties! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{<:Floe{FT}}, Any, Any, Any}} where FT
-    Subzero.add_floe_volume! :: NTuple{4, Any}
-    Subzero.add_ghosts! :: Union{Tuple{FT}, Tuple{Any, Domain{FT, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}}}} where FT<:AbstractFloat
-    Subzero.add_ghosts! :: Union{Tuple{FT}, Tuple{Any, Domain{FT, <:PeriodicBoundary, <:PeriodicBoundary, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}}}} where FT<:AbstractFloat
-    Subzero.add_ghosts! :: Union{Tuple{FT}, Tuple{Any, Domain{FT, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}, <:PeriodicBoundary, <:PeriodicBoundary}}} where FT<:AbstractFloat
-    Subzero.add_ghosts! :: Union{Tuple{FT}, Tuple{Any, Domain{FT, <:PeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary}}} where FT<:AbstractFloat
-    Subzero.valid_polyvec! :: Tuple{Any}
-    Subzero.dissolve_floe! :: Tuple{Any, RegRectilinearGrid, Any, Any}
-    Subzero.calc_eulerian_data! :: Union{Tuple{FLT}, Tuple{FT}, Tuple{FLT, Any, Any}} where {FT<:AbstractFloat, FLT<:(StructArrays.StructArray{<:Floe{FT}})}
-    Subzero.calc_two_way_coupling! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{Floe{FT}}, RegRectilinearGrid, Vararg{Any, 6}}} where FT
-    Subzero.shift_cell_idx :: Tuple{Any, Any, Union{CollisionBoundary, MovingBoundary, OpenBoundary}}
-    Subzero.shift_cell_idx :: Tuple{Any, Any, PeriodicBoundary}
-    Subzero.check_energy_momentum_conservation_julia :: Union{Tuple{Any}, Tuple{Any, Any}, Tuple{Any, Any, Any}}
-    Subzero.grid_xc_index :: Tuple{Any, Any, RegRectilinearGrid}
-    Subzero.translate :: Union{Tuple{FT}, Tuple{Array{Array{Vector{FT}, 1}, 1}, Any, Any}} where FT<:AbstractFloat
-    Subzero.SubzeroLogger :: Union{Tuple{String}, Tuple{String, Any}}
-    Subzero.SubzeroLogger :: Union{Tuple{Any}, Tuple{Any, Any}}
-    Subzero.SubzeroLogger
-    Subzero._calculate_mohrs :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any, 4}}} where FT
-    Subzero._calculate_mohrs :: Union{Tuple{Type{FT}}, Tuple{FT}, Tuple{Type{FT}, Any}, Tuple{Type{FT}, Any, Any}, Tuple{Type{FT}, Any, Any, Any}} where FT
-    Subzero.replace_floe! :: Union{Tuple{FT}, Tuple{Union{Floe{FT}, StructArrays.LazyRow{Floe{FT}}}, Vararg{Any, 4}}} where FT
-    Subzero.DamageStressCalculator :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any}}} where FT<:AbstractFloat
-    Subzero.DamageStressCalculator
-    Subzero.DamageStressCalculator :: Tuple
-    Subzero._initialize_floe_field :: Union{Tuple{V}, Tuple{FT}, Tuple{Type{FT}, V, Any, Any, Any}} where {FT<:AbstractFloat, V<:(AbstractVector)}
-    Subzero._initialize_floe_field :: Union{Tuple{FT}, Tuple{Type{FT}, Int64, Vararg{Any, 4}}} where FT<:AbstractFloat
-    Subzero.find_poly_coords :: Tuple{Any}
-    Subzero.FractureSettings
-    Subzero.grids_from_lines :: Tuple{Any, Any}
-    Subzero.AbstractSubFloePointsGenerator
-    Subzero.deform_floe! :: Union{Tuple{FT}, Tuple{Any, GeoInterface.Wrappers.Polygon{false, false, Array{GeoInterface.Wrappers.LinearRing{false, false, Array{Tuple{FT, FT}, 1}, Nothing, Nothing}, 1}, Nothing, Nothing}, Vararg{Any, 4}}} where FT
-    Subzero.valid_ringvec! :: Tuple{Any}
-    Subzero.teardown_sim :: Tuple{Any}
-    Subzero.Simulation
+    Subzero.getattrs :: Tuple{Symbol}
+    Subzero.auto_extension :: Tuple{Any, Any}
     Subzero.check_cell_bounds :: Tuple{Any, Any, Any, Any, Any, Union{CollisionBoundary, MovingBoundary, OpenBoundary}, PeriodicBoundary}
     Subzero.check_cell_bounds :: Tuple{Any, Any, Any, Any, Any, PeriodicBoundary, Union{CollisionBoundary, MovingBoundary, OpenBoundary}}
     Subzero.check_cell_bounds :: Tuple{Any, Any, Any, Any, Any, Union{CollisionBoundary, MovingBoundary, OpenBoundary}, Union{CollisionBoundary, MovingBoundary, OpenBoundary}}
     Subzero.check_cell_bounds :: Tuple{Any, Any, Any, Any, Any, PeriodicBoundary, PeriodicBoundary}
-    Subzero.AbstractStressCalculator
-    Subzero.find_interp_knots :: Tuple{Any, Any, Any, Any, Int64, Union{CollisionBoundary, MovingBoundary, OpenBoundary}}
-    Subzero.find_interp_knots :: Tuple{Any, Any, Any, Any, Int64, PeriodicBoundary}
-    Subzero.write_floe_data! :: Tuple{Any, Any, Any}
-    Subzero.floe_domain_ridge! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{<:Floe{FT}}, Any, Union{StructArrays.LazyRow{<:AbstractDomainElement}, AbstractDomainElement}, Vararg{Any, 8}}} where FT
-    Subzero.floe_floe_interaction! :: Union{Tuple{FT}, Tuple{Any, Any, Any, Any, Any, Any, FT}} where FT<:AbstractFloat
-    Subzero.timestep_collisions! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{<:Floe{FT}}, Vararg{Any, 6}}} where FT<:AbstractFloat
-    Subzero.calc_angular_momentum :: NTuple{7, Any}
-    Subzero.InteractionFields
+    Subzero.OutputWriters
+    Subzero.hashole :: Union{Tuple{Array{Array{Vector{FT}, 1}, 1}}, Tuple{FT}} where FT<:AbstractFloat
+    Subzero.hashole :: Tuple{GeoInterface.Wrappers.Polygon{false, false, Array{GeoInterface.Wrappers.LinearRing{false, false, Array{Tuple{T, T}, 1}, Nothing, Nothing}, 1}, Nothing, Nothing} where T}
+    Subzero.translate :: Union{Tuple{FT}, Tuple{Array{Array{Vector{FT}, 1}, 1}, Any, Any}} where FT<:AbstractFloat
+    Subzero.floe_floe_ridge! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{<:Floe{FT}}, Vararg{Any, 10}}} where FT
     Subzero.initialize_jld2_file! :: NTuple{5, Any}
-    Subzero.check_energy_momentum_conservation_matlab :: Union{Tuple{Any}, Tuple{Any, Any}, Tuple{Any, Any, Any}}
-    Subzero.StatusTag
-    Subzero.translate! :: Union{Tuple{FT}, Tuple{Array{Array{Vector{FT}, 1}, 1}, Any, Any}} where FT<:AbstractFloat
-    Subzero.getattrs :: Tuple{Symbol}
+    Subzero.grid_yg_index :: Tuple{Any, Any, RegRectilinearGrid}
+    Subzero.conserve_momentum_change_floe_shape! :: Union{NTuple{6, Any}, NTuple{7, Any}}
+    Subzero.check_for_edge_mid :: Union{Tuple{FT}, Tuple{Any, Any, Any, Any, Any, FT}} where FT
+    Subzero.PolyVec
+    Subzero.check_energy_momentum_conservation_julia :: Union{Tuple{Any}, Tuple{Any, Any}, Tuple{Any, Any, Any}}
     Subzero.floe_domain_element_interaction! :: Union{Tuple{FT}, Tuple{Union{Floe{FT}, StructArrays.LazyRow{Floe{FT}}}, OpenBoundary, Vararg{Any, 4}}} where FT
-    Subzero.floe_domain_element_interaction! :: Union{Tuple{FT}, Tuple{Any, Union{CollisionBoundary, MovingBoundary, TopographyElement}, Any, Any, Any, FT}} where FT
     Subzero.floe_domain_element_interaction! :: Tuple{Any, PeriodicBoundary, Vararg{Any, 4}}
+    Subzero.floe_domain_element_interaction! :: Union{Tuple{FT}, Tuple{Any, Union{CollisionBoundary, MovingBoundary, TopographyElement}, Any, Any, Any, FT}} where FT
+    Subzero.calc_linear_momentum :: Tuple{Any, Any, Any}
+    Subzero.plot_conservation :: NTuple{7, Any}
+    Subzero.prettytime :: Tuple{Any}
+    Subzero.valid_ringvec! :: Tuple{Any}
+    Subzero.update_boundaries! :: Tuple{Any, Any}
+    Subzero.grids_from_lines :: Tuple{Any, Any}
+    Subzero.DecayAreaScaledCalculator :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any}}} where FT<:AbstractFloat
+    Subzero.DecayAreaScaledCalculator
+    Subzero.DecayAreaScaledCalculator :: Tuple
+    Subzero.check_energy_momentum_conservation_matlab :: Union{Tuple{Any}, Tuple{Any, Any}, Tuple{Any, Any, Any}}
+    Subzero.WeldSettings :: Union{Tuple{Type{FT}}, Tuple{FT}} where FT<:AbstractFloat
+    Subzero.WeldSettings
+    Subzero.update_ghost_timestep_vals! :: Tuple{Any, Any, Any}
+    Subzero.floe_floe_interaction! :: Union{Tuple{FT}, Tuple{Any, Any, Any, Any, Any, Any, FT}} where FT<:AbstractFloat
+    Subzero.potential_interaction :: NTuple{4, Any}
+    Subzero.timestep_ridging_rafting! :: Union{Tuple{FT}, Tuple{Any, Any, Any, Any, RidgeRaftSettings{FT}, Any, Any, Any}, Tuple{Any, Any, Any, Any, RidgeRaftSettings{FT}, Vararg{Any, 4}}} where FT<:AbstractFloat
+    Subzero.GridOutputWriter :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any}}} where FT<:AbstractFloat
+    Subzero.GridOutputWriter :: Union{Tuple{FT}, Tuple{Any, AbstractRectilinearGrid, Any}} where FT<:AbstractFloat
+    Subzero.GridOutputWriter
+    Subzero.GridOutputWriter :: Tuple
+    Subzero.GridOutputWriter :: Tuple{GridOutputWriter}
+    Subzero.calc_torque! :: Union{Tuple{Union{Floe{FT}, StructArrays.LazyRow{<:Floe{FT}}}}, Tuple{FT}} where FT<:AbstractFloat
+    Subzero.center_cell_coords :: Union{Tuple{FT}, Tuple{Type{FT}, Int64, Int64, RegRectilinearGrid, Any, Any}} where FT
+    Subzero._calculate_hibler :: Union{Tuple{FT}, Tuple{Type{FT}, Any, Any, Any}} where FT
+    Subzero._get_velocity :: Union{Tuple{FT}, Tuple{Union{Floe{FT}, StructArrays.LazyRow{Floe{FT}}}, FT, FT}} where FT
+    Subzero.calc_kinetic_energy :: NTuple{5, Any}
+    Subzero.conserve_momentum_transfer_mass! :: Union{NTuple{6, Any}, NTuple{7, Any}, NTuple{8, Any}}
+    Subzero.calc_stress! :: Union{Tuple{FT}, Tuple{Union{Floe{FT}, StructArrays.LazyRow{Floe{FT}}}, Any, Any}} where FT
+    Subzero.calc_two_way_coupling! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{Floe{FT}}, RegRectilinearGrid, Vararg{Any, 6}}} where FT
     Subzero.fracture_floes! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{<:Floe{FT}}, Vararg{Any, 5}}} where FT<:AbstractFloat
-    Subzero.AbstractOutputWriter
-    Subzero.write_data! :: Tuple{Any, Any, Any}
-    Subzero.calc_atmosphere_forcing :: NTuple{7, Any}
-    Subzero.InitialStateOutputWriter
-    Subzero.InitialStateOutputWriter :: Tuple{InitialStateOutputWriter}
-    Subzero.InitialStateOutputWriter :: Tuple{}
+    Subzero.grid_yc_index :: Tuple{Any, Any, RegRectilinearGrid}
+    Subzero.replace_floe! :: Union{Tuple{FT}, Tuple{Union{Floe{FT}, StructArrays.LazyRow{Floe{FT}}}, Vararg{Any, 4}}} where FT
+    Subzero.Simulation
+    Subzero.timestep_collisions! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{<:Floe{FT}}, Vararg{Any, 6}}} where FT<:AbstractFloat
+    Subzero.add_floe_ghosts! :: Union{Tuple{FLT}, Tuple{FT}, Tuple{FLT, Any, Any}} where {FT<:AbstractFloat, FLT<:(StructArrays.StructArray{<:Floe{FT}})}
+    Subzero.in_bounds :: Tuple{Any, Any, Any, Union{CollisionBoundary, MovingBoundary, OpenBoundary}, Union{CollisionBoundary, MovingBoundary, OpenBoundary}}
+    Subzero.in_bounds :: Tuple{Any, Any, Any, Union{CollisionBoundary, MovingBoundary, OpenBoundary}, PeriodicBoundary}
+    Subzero.in_bounds :: Tuple{Any, Any, Any, PeriodicBoundary, Union{CollisionBoundary, MovingBoundary, OpenBoundary}}
+    Subzero.in_bounds :: Tuple{Any, Any, Any, PeriodicBoundary, PeriodicBoundary}
+    Subzero.calc_normal_force :: Union{Tuple{FT}, Tuple{Any, Any, Any, Any, Any, FT}} where FT<:AbstractFloat
+    Subzero.SimplificationSettings :: Union{Tuple{Type{FT}}, Tuple{FT}} where FT<:AbstractFloat
+    Subzero.SimplificationSettings
+    Subzero.write_grid_data! :: NTuple{4, Any}
+    Subzero.deepcopy_floe :: Union{Tuple{StructArrays.LazyRow{Floe{FT}}}, Tuple{FT}} where FT
+    Subzero.calc_strain! :: Union{Tuple{Union{Floe{FT}, StructArrays.LazyRow{Floe{FT}}}}, Tuple{FT}} where FT
+    Subzero.CouplingSettings
+    Logging.handle_message :: Tuple{Subzero.SubzeroLogger, Vararg{Any, 7}}
+    Subzero.floe_to_grid_info! :: Union{Tuple{FT}, Tuple{Any, Any, Any, FT, FT, Vararg{Any, 5}}} where FT
     Subzero.SubGridPointsGenerator :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any}}} where FT<:AbstractFloat
     Subzero.SubGridPointsGenerator :: Union{Tuple{FT}, Tuple{RegRectilinearGrid, Int64}} where FT<:AbstractFloat
     Subzero.SubGridPointsGenerator
     Subzero.SubGridPointsGenerator :: Tuple
-    Subzero.RidgeRaftSettings :: Union{Tuple{Type{FT}}, Tuple{FT}} where FT<:AbstractFloat
-    Subzero.RidgeRaftSettings
-    Subzero.ghosts_on_bounds! :: Union{Tuple{FLT}, Tuple{FT}, Tuple{FLT, Any, Any, Any}} where {FT<:AbstractFloat, FLT<:(StructArrays.StructArray{<:Floe{FT}})}
-    Subzero.CheckpointOutputWriter :: Union{Tuple{CheckpointOutputWriter}, Tuple{CheckpointOutputWriter, Any}}
-    Subzero.CheckpointOutputWriter
-    Subzero.CheckpointOutputWriter :: Tuple{Any}
-    Subzero.GridOutputWriter :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any}}} where FT<:AbstractFloat
-    Subzero.GridOutputWriter :: Union{Tuple{FT}, Tuple{Any, AbstractRectilinearGrid, Any}} where FT<:AbstractFloat
-    Subzero.GridOutputWriter
-    Subzero.GridOutputWriter :: Tuple{GridOutputWriter}
-    Subzero.GridOutputWriter :: Tuple
+    Subzero.teardown_sim :: Tuple{Any}
+    Subzero.compare_grid_data :: Tuple{Any, Any}
+    Subzero.calc_ocean_forcing! :: NTuple{9, Any}
+    Subzero.valid_polyvec! :: Tuple{Any}
+    Subzero.floe_domain_interaction! :: Union{Tuple{FT}, Tuple{Any, Domain, Any, Any, FT}} where FT<:AbstractFloat
+    Subzero.find_grid_cell_index :: Tuple{Any, Any, RegRectilinearGrid}
+    Subzero.add_point! :: Tuple{Subzero.CellFloes, Any, Any, Any}
+    Subzero.add_point! :: Tuple{Subzero.CellFloes, Subzero.CellStresses, Vararg{Any, 5}}
+    Subzero.fuse_two_floes! :: Union{Tuple{FT}, Tuple{Union{Floe{FT}, StructArrays.LazyRow{Floe{FT}}}, Vararg{Any, 5}}} where FT
+    Subzero.grid_cell_index :: Tuple{Any, Any, Any}
+    Subzero.bin_floe_centroids :: NTuple{5, Any}
+    Subzero.get_known_grid_outputs :: Tuple{}
+    Subzero.FloeOutputWriter :: Union{Tuple{FloeOutputWriter}, Tuple{FloeOutputWriter, Any}}
+    Subzero.FloeOutputWriter
+    Subzero.FloeOutputWriter :: Tuple{Any}
+    Subzero.floe_domain_raft! :: Tuple{Any, Any, Union{StructArrays.LazyRow{<:AbstractDomainElement}, AbstractDomainElement}, Vararg{Any, 8}}
+    Subzero.find_poly_coords :: Tuple{Any}
+    Subzero.level_to_string :: Tuple{Any}
+    Subzero.calc_angular_momentum :: NTuple{7, Any}
+    Subzero.calc_subfloe_values! :: Union{Tuple{FT}, Tuple{Union{Floe{FT}, StructArrays.LazyRow{Floe{FT}}}, Vararg{Any, 4}}} where FT<:AbstractFloat
+    Subzero.CollisionSettings :: Union{Tuple{Type{FT}}, Tuple{FT}} where FT<:AbstractFloat
+    Subzero.CollisionSettings
+    Subzero.SubzeroLogger :: Union{Tuple{String}, Tuple{String, Any}}
+    Subzero.SubzeroLogger :: Union{Tuple{Any}, Tuple{Any, Any}}
+    Subzero.SubzeroLogger
+    Subzero.which_vertices_match_points :: Union{Tuple{FT}, Tuple{Any, GeoInterface.Wrappers.Polygon{false, false, Array{GeoInterface.Wrappers.LinearRing{false, false, Array{Tuple{FT, FT}, 1}, Nothing, Nothing}, 1}, Nothing, Nothing}}, Tuple{Any, GeoInterface.Wrappers.Polygon{false, false, Array{GeoInterface.Wrappers.LinearRing{false, false, Array{Tuple{FT, FT}, 1}, Nothing, Nothing}, 1}, Nothing, Nothing}, Any}} where FT
+    Subzero.AbstractSubFloePointsGenerator
+    Subzero.write_checkpoint_data! :: Tuple{Any, Any}
+    Subzero.update_criteria! :: Union{Tuple{FT}, Tuple{HiblerYieldCurve{FT}, Any}} where FT
+    Subzero.update_criteria! :: Tuple{MohrsCone, Any}
+    Subzero.grid_xg_index :: Tuple{Any, Any, RegRectilinearGrid}
+    Subzero.euclidian_dist :: Tuple{Any, Any, Any}
+    Subzero.calc_one_way_coupling! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{Floe{FT}}, Vararg{Any, 6}}} where FT
     Subzero.HiblerYieldCurve :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any}}} where FT<:AbstractFloat
     Subzero.HiblerYieldCurve :: Union{Tuple{StructArrays.StructArray{<:Floe{FT}}}, Tuple{FT}, Tuple{StructArrays.StructArray{<:Floe{FT}}, Any}, Tuple{StructArrays.StructArray{<:Floe{FT}}, Any, Any}} where FT<:AbstractFloat
     Subzero.HiblerYieldCurve
     Subzero.HiblerYieldCurve :: Tuple
-    Subzero.run! :: Tuple{Any}
-    Base.to_index :: Tuple{InteractionFields}
-    Subzero.AbstractDomainElement
-    Subzero.calc_friction_forces :: Union{Tuple{FT}, Tuple{Any, Any, Any, Matrix{FT}, Any, Any, Any}} where FT
-    Subzero.fuse_floes! :: NTuple{5, Any}
-    Subzero.which_vertices_match_points :: Union{Tuple{FT}, Tuple{Any, GeoInterface.Wrappers.Polygon{false, false, Array{GeoInterface.Wrappers.LinearRing{false, false, Array{Tuple{FT, FT}, 1}, Nothing, Nothing}, 1}, Nothing, Nothing}}, Tuple{Any, GeoInterface.Wrappers.Polygon{false, false, Array{GeoInterface.Wrappers.LinearRing{false, false, Array{Tuple{FT, FT}, 1}, Nothing, Nothing}, 1}, Nothing, Nothing}, Any}} where FT
     Subzero.timestep_coupling! :: NTuple{5, Any}
+    Subzero.InitialStateOutputWriter
+    Subzero.InitialStateOutputWriter :: Tuple{}
+    Subzero.InitialStateOutputWriter :: Tuple{InitialStateOutputWriter}
+    Subzero.write_floe_data! :: Tuple{Any, Any, Any}
+    Subzero.calc_atmosphere_forcing :: NTuple{7, Any}
+    Subzero.dissolve_floe! :: Tuple{Any, RegRectilinearGrid, Any, Any}
     Subzero.find_center_cell_index :: Tuple{Any, Any, RegRectilinearGrid}
-    Subzero.CollisionSettings :: Union{Tuple{Type{FT}}, Tuple{FT}} where FT<:AbstractFloat
-    Subzero.CollisionSettings
-    Subzero.center_cell_coords :: Union{Tuple{FT}, Tuple{Type{FT}, Int64, Int64, RegRectilinearGrid, Any, Any}} where FT
-    Subzero.bin_floe_centroids :: NTuple{5, Any}
-    Subzero.update_ghost_timestep_vals! :: Tuple{Any, Any, Any}
-    Subzero.write_grid_data! :: NTuple{4, Any}
-    Subzero.initialize_floe_field :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any}}} where FT
-    Subzero.initialize_floe_field :: Tuple
-    Subzero.level_to_string :: Tuple{Any}
-    Base.:: :: Tuple{InteractionFields, InteractionFields}
-    Subzero.Floe :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any}}} where FT<:AbstractFloat
-    Subzero.Floe :: Union{Tuple{FT}, Tuple{GeoInterface.Wrappers.Polygon{false, false, Array{GeoInterface.Wrappers.LinearRing{false, false, Array{Tuple{T, T}, 1}, Nothing, Nothing}, 1}, Nothing, Nothing} where T, Any, Any}} where FT<:AbstractFloat
-    Subzero.Floe :: Union{Tuple{FT}, Tuple{Array{Array{Vector{T}, 1}, 1} where T<:Real, Any, Any}} where FT<:AbstractFloat
-    Subzero.Floe
-    Subzero.Floe :: Tuple
+    Subzero.compare_floe_data :: Tuple{Any, Any}
+    Subzero.MonteCarloPointsGenerator :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any}}} where FT<:AbstractFloat
+    Subzero.MonteCarloPointsGenerator
+    Subzero.MonteCarloPointsGenerator :: Tuple
+    Subzero.grid_line_index :: Tuple{Any, Any, Any}
+    Subzero.add_floe_volume! :: NTuple{4, Any}
+    Subzero.timestep_floe_properties! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{<:Floe{FT}}, Any, Any, Any}} where FT
+    Subzero.compare_oa_checkpointer_data :: Tuple{Any, Any}
+    Subzero.add_ghosts! :: Union{Tuple{FT}, Tuple{Any, Domain{FT, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}}}} where FT<:AbstractFloat
+    Subzero.add_ghosts! :: Union{Tuple{FT}, Tuple{Any, Domain{FT, <:PeriodicBoundary, <:PeriodicBoundary, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}}}} where FT<:AbstractFloat
+    Subzero.add_ghosts! :: Union{Tuple{FT}, Tuple{Any, Domain{FT, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}, <:Union{CollisionBoundary, MovingBoundary, OpenBoundary}, <:PeriodicBoundary, <:PeriodicBoundary}}} where FT<:AbstractFloat
+    Subzero.add_ghosts! :: Union{Tuple{FT}, Tuple{Any, Domain{FT, <:PeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary, <:PeriodicBoundary}}} where FT<:AbstractFloat
+    Subzero.Constants :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any}}} where FT<:AbstractFloat
+    Subzero.Constants :: Tuple
+    Subzero.write_data! :: Tuple{Any, Any, Any}
+    Subzero.determine_fractures :: Tuple{Any, Subzero.AbstractFractureCriteria, Any}
+    Subzero.translate! :: Union{Tuple{FT}, Tuple{Array{Array{Vector{FT}, 1}, 1}, Any, Any}} where FT<:AbstractFloat
+    Subzero.rotate_radians! :: Tuple{Array{Array{Vector{T}, 1}, 1} where T<:Real, Any}
+    Subzero.calc_eulerian_data! :: Union{Tuple{FLT}, Tuple{FT}, Tuple{FLT, Any, Any}} where {FT<:AbstractFloat, FLT<:(StructArrays.StructArray{<:Floe{FT}})}
+    Subzero.floe_domain_ridge! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{<:Floe{FT}}, Any, Union{StructArrays.LazyRow{<:AbstractDomainElement}, AbstractDomainElement}, Vararg{Any, 8}}} where FT
+    Subzero.restart! :: NTuple{4, Any}
+    Subzero.FloeSettings :: Union{Tuple{Type{FT}}, Tuple{CT}, Tuple{GT}, Tuple{FT}} where {FT<:AbstractFloat, GT<:Subzero.AbstractSubFloePointsGenerator, CT<:AbstractStressCalculator}
+    Subzero.FloeSettings
+    Subzero.timestep_welding! :: Union{Tuple{FT}, Tuple{Any, Any, Any, Any, WeldSettings{FT}, Any, Any, Any}, Tuple{Any, Any, Any, Any, WeldSettings{FT}, Vararg{Any, 4}}} where FT<:AbstractFloat
+    Subzero.deform_floe! :: Union{Tuple{FT}, Tuple{Any, GeoInterface.Wrappers.Polygon{false, false, Array{GeoInterface.Wrappers.LinearRing{false, false, Array{Tuple{FT, FT}, 1}, Nothing, Nothing}, 1}, Nothing, Nothing}, Vararg{Any, 4}}} where FT
+    Subzero._calculate_mohrs :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any, 4}}} where FT
+    Subzero._calculate_mohrs :: Union{Tuple{Type{FT}}, Tuple{FT}, Tuple{Type{FT}, Any}, Tuple{Type{FT}, Any, Any}, Tuple{Type{FT}, Any, Any, Any}} where FT
+    Subzero.grid_xc_index :: Tuple{Any, Any, RegRectilinearGrid}
+    Subzero.simplify_floes! :: NTuple{7, Any}
+    Subzero.mc_interpolation :: NTuple{7, Any}
+    Subzero.AbstractStressCalculator
+    Subzero.remove_floe_overlap! :: Union{Tuple{FT}, Tuple{StructArrays.StructArray{<:Floe{FT}}, Vararg{Any, 10}}} where FT<:AbstractFloat
+    Subzero.find_shared_edges_midpoint :: Union{Tuple{FT}, Tuple{Array{Array{Vector{FT}, 1}, 1}, Any}} where FT
+    Subzero.RidgeRaftSettings :: Union{Tuple{Type{FT}}, Tuple{FT}} where FT<:AbstractFloat
+    Subzero.RidgeRaftSettings
+    Subzero.RingVec
+    Subzero.find_ghosts! :: Union{Tuple{FT}, Tuple{Any, Any, PeriodicBoundary{East, FT}, PeriodicBoundary{West, FT}}} where FT<:AbstractFloat
+    Subzero.find_ghosts! :: Union{Tuple{FT}, Tuple{Any, Any, PeriodicBoundary{North, FT}, PeriodicBoundary{South, FT}}} where FT<:AbstractFloat
+    Subzero.timestep_sim! :: Union{Tuple{Any, Any}, Tuple{Any, Any, Any}}
+    Subzero.calc_elastic_forces :: Union{Tuple{FT}, Tuple{Any, Any, Any, Any, FT}} where FT<:AbstractFloat
+    Subzero.shift_cell_idx :: Tuple{Any, Any, Union{CollisionBoundary, MovingBoundary, OpenBoundary}}
+    Subzero.shift_cell_idx :: Tuple{Any, Any, PeriodicBoundary}
+    Subzero.initialize_netcdf_file! :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any, 6}}} where FT
+    Subzero.split_floe :: Union{Tuple{FT}, Tuple{Union{Floe{FT}, StructArrays.LazyRow{Floe{FT}}}, Vararg{Any, 4}}} where FT
+    Subzero.update_new_rotation_conserve! :: NTuple{9, Any}
+    Subzero.DamageStressCalculator :: Union{Tuple{FT}, Tuple{Type{FT}, Vararg{Any}}} where FT<:AbstractFloat
+    Subzero.DamageStressCalculator
+    Subzero.DamageStressCalculator :: Tuple
+    Subzero.conserve_momentum_fracture_floe! :: Union{Tuple{FT}, Tuple{Any, StructArrays.StructArray{<:Floe{FT}}, Any}} where FT
+    Subzero.fuse_floes! :: NTuple{5, Any}
+    Subzero.find_interp_knots :: Tuple{Any, Any, Any, Any, Int64, Union{CollisionBoundary, MovingBoundary, OpenBoundary}}
+    Subzero.find_interp_knots :: Tuple{Any, Any, Any, Any, Int64, PeriodicBoundary}
+    Subzero.ghosts_on_bounds! :: Union{Tuple{FLT}, Tuple{FT}, Tuple{FLT, Any, Any, Any}} where {FT<:AbstractFloat, FLT<:(StructArrays.StructArray{<:Floe{FT}})}
+    Subzero.CheckpointOutputWriter :: Union{Tuple{CheckpointOutputWriter}, Tuple{CheckpointOutputWriter, Any}}
+    Subzero.CheckpointOutputWriter
+    Subzero.CheckpointOutputWriter :: Tuple{Any}
+    Subzero.run! :: Tuple{Any}
+    Subzero.write_init_state_data! :: Tuple{Any}
+    Subzero.AbstractOutputWriter
+    Subzero.NoFracture
+    Subzero.AbstractDomainElement
+    Subzero.intersect_polys :: Union{Tuple{FT}, Tuple{Any, Any}, Tuple{Any, Any, Type{FT}}} where FT
 
 These are docstrings in the checked modules (configured with the modules keyword)
 that are not included in canonical @docs or @autodocs blocks.
- [2025/07/06 22:02:41.347] --> /home/runner/.julia/packages/Documenter/uNI6f/src/utilities/utilities.jl:49
-DEBUG checking footnote links. [2025/07/06 22:02:41.347] --> /home/runner/.julia/packages/Documenter/uNI6f/src/docchecks.jl:123
-INFO  Populate: populating indices. [2025/07/06 22:02:41.347] --> /home/runner/.julia/packages/Documenter/uNI6f/src/builder_pipeline.jl:247
-INFO  RenderDocument: rendering document. [2025/07/06 22:02:41.347] --> /home/runner/.julia/packages/Documenter/uNI6f/src/builder_pipeline.jl:265
-INFO  HTMLWriter: rendering HTML pages. [2025/07/06 22:02:42.110] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:766
-DEBUG Rendering examples/moving_bounds.md [6] [2025/07/06 22:02:42.237] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/07/06 22:02:42.937] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
-DEBUG Rendering api.md [8] [2025/07/06 22:02:44.675] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/07/06 22:02:44.675] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
-DEBUG source_url [2025/07/06 22:02:45.300] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.326] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.326] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.327] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.327] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.327] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.327] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.328] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.370] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.371] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.372] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.372] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.373] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.376] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.406] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.407] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.408] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.408] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.422] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.422] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG source_url [2025/07/06 22:02:45.422] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:933
-DEBUG Rendering contribute.md [9] [2025/07/06 22:02:45.424] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/07/06 22:02:45.425] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
-DEBUG Rendering examples/forcing_contained_floes.md [5] [2025/07/06 22:02:45.426] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/07/06 22:02:45.427] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
-WARN  Generated HTML over size_threshold_warn limit: examples/forcing_contained_floes.md
-    Generated file size: 133.93 (KiB)
-    size_threshold_warn: 100.0 (KiB)
-    size_threshold:      488.28 (KiB)
-    HTML file:           examples/forcing_contained_floes/index.html [2025/07/06 22:02:45.576] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:1906
-DEBUG Rendering examples/shear_flow.md [3] [2025/07/06 22:02:45.576] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/07/06 22:02:45.576] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
-WARN  Generated HTML over size_threshold_warn limit: examples/shear_flow.md
-    Generated file size: 128.28 (KiB)
-    size_threshold_warn: 100.0 (KiB)
-    size_threshold:      488.28 (KiB)
-    HTML file:           examples/shear_flow/index.html [2025/07/06 22:02:45.594] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:1906
-DEBUG Rendering examples/simple_strait.md [4] [2025/07/06 22:02:45.595] --> /home/runner/.julia/packages/Documenter/uNI6f/src/html/HTMLWriter.jl:818
-DEBUG edit_url [2025/07/06 22:02:45.595] --> /home/runner/.julia/packages/Documenter/uNI6f/src/documents.jl:905
+ [2025/08/17 17:45:08.409] --> /home/runner/.julia/packages/Documenter/eoWm2/src/utilities/utilities.jl:49
+DEBUG checking footnote links. [2025/08/17 17:45:08.409] --> /home/runner/.julia/packages/Documenter/eoWm2/src/docchecks.jl:123
+INFO  Populate: populating indices. [2025/08/17 17:45:08.409] --> /home/runner/.julia/packages/Documenter/eoWm2/src/builder_pipeline.jl:247
+INFO  RenderDocument: rendering document. [2025/08/17 17:45:08.409] --> /home/runner/.julia/packages/Documenter/eoWm2/src/builder_pipeline.jl:265
+INFO  HTMLWriter: rendering HTML pages. [2025/08/17 17:45:09.188] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:766
+DEBUG Rendering examples/moving_bounds.md [6] [2025/08/17 17:45:09.315] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/08/17 17:45:09.971] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
+DEBUG Rendering api.md [8] [2025/08/17 17:45:11.785] --> /home/runner/.julia/packages/Documenter/eoWm2/src/html/HTMLWriter.jl:818
+DEBUG edit_url [2025/08/17 17:45:11.786] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:905
+DEBUG source_url [2025/08/17 17:45:12.400] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/17 17:45:12.426] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/17 17:45:12.427] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/17 17:45:12.427] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/17 17:45:12.427] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/17 17:45:12.427] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/17 17:45:12.428] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/17 17:45:12.428] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/17 17:45:12.472] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/17 17:45:12.473] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/17 17:45:12.473] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/17 17:45:12.474] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/17 17:45:12.474] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/17 17:45:12.477] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/17 17:45:12.509] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/17 17:45:12.510] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/17 17:45:12.510] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
+DEBUG source_url [2025/08/17 17:45:12.752] --> /home/runner/.julia/packages/Documenter/eoWm2/src/documents.jl:933
