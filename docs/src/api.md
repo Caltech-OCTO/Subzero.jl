@@ -76,10 +76,15 @@ Constants
 # Simulations
 ```@docs
 Simulation
-timestep_sim!
 run!
 restart!
 ```
+
+## Developer-Used Methods
+```@docs
+timestep_sim!
+```
+
 
 ## Developer-Used Types
 ```@docs

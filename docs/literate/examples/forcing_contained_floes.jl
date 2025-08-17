@@ -82,10 +82,8 @@ fig
 # ## Atmosphere Creation
 atmos = Atmos(; grid, u = 0.0, v = 0.0, temp = -1.0)
 
-floe_settings = FloeSettings(
-    subfloe_point_generator = SubGridPointsGenerator(grid, 2),
-)
 # ## Floe Creation - bound floes within smaller part of the domain
+floe_settings = FloeSettings(subfloe_point_generator = SubGridPointsGenerator(grid, 2))
 floe_generator = VoronoiTesselationFieldGenerator(; nfloes, concentrations, hmean, Δh)
 floe_bounds = Subzero.make_polygon([[[0.1Lx, 0.1Ly], [0.1Lx, 0.9Ly], [0.9Lx, 0.9Ly], [0.9Lx, 0.1Ly], [0.1Lx, 0.1Ly]]])
 floe_arr = initialize_floe_field(FT; generator = floe_generator, domain, floe_bounds, rng = Xoshiro(1), floe_settings)
@@ -111,6 +109,7 @@ simulation = Simulation(
     verbose = true,
     writers = writers,
     rng = Xoshiro(1),
+    floe_settings,
 )
 
 # ## Running the Simulation

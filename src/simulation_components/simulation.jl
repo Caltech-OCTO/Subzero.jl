@@ -1,14 +1,38 @@
 export Simulation, timestep_sim!, run!, restart!
 
 """
-    Simulation{FT<:AbstractFloat, DT<:Domain{FT}}
+    Simulation{FT, MT, CT, PT, ST, RT, OT}
 
-Simulation which holds a model and parameters needed for running the simulation.
-This includes physical constants (consts), a random number generator (rng), the
-number of seconds in a timestep (Δt), and the number of timesteps to run (nΔt).
-We also have a flag for verbose, which will print out the number of timesteps
-every 50 timesteps and a simulation name, which can be used when saving files.
-The user can also define settings for each physical process.
+Simulation which holds a model and the parameters, settings, and output writers needed for running the simulation.
+
+## _Fields_ / _Keyword Arguments_
+### General
+- `model::MT`: Model to simulate
+- `consts::Constants{FT}`: Constants used in Simulation (default = Constants())
+- `rng::RT`: Random number generator (default = Xoshiro())
+- `verbose::Bool`: String output printed during run (Default = false)
+- `name::String`: Simulation name for printing/saving (Default = "sim")
+### Timesteping Information
+- `Δt::Int`: Simulation timestep in seconds
+- `nΔt::Int`: Total timesteps simulation runs for
+### Physical Processes
+- `floe_settings::FloeSettings{FT, PT, ST}`: Settings that control floe size/mass/etc - no default!
+- `coupling_settings::CouplingSettings`: Settings that control coupling between floes/ocean/atmosphere (Default = CouplingSettings())
+- `collision_settings::CollisionSettings{FT}`: Settings that control floe collisions with other floes and the domain (Default = CollisionSettings())
+- `fracture_settings::FractureSettings{CT}`: Settings that control floe fracturing (Default = FractureSettings())
+- `simp_settings::SimplificationSettings{FT}`: Settings that control the simplification of floes (Default = SimplificationSettings())
+- `ridgeraft_settings::RidgeRaftSettings{FT}`: Settings that control floe ridging and rafting (Default = RidgeRaftSettings())
+- `weld_settings::WeldSettings{FT}`: Settings that control floe welding (Default = WeldSettings())
+### Output Writers
+- `writers::OT`: Simulation output writers (Default = OutputWriters())
+
+!!! note
+    Unlike almost all of the other constructors that are used to create the structs that are fed into the `Simulation`
+    constructor, the `Simulation` constructor doesn't have a `FT` argument to set the Float-type of the simulation. This
+    is because it will simply use the Float-type of all of the fields, which _must_ all match! 
+
+!!! note
+    If a `FloeSettings` object is required since it is also an input to the [`_initialize_floe_field!`](@ref) functions.
 """
 @kwdef struct Simulation{
     FT<:AbstractFloat,
@@ -24,16 +48,16 @@ The user can also define settings for each physical process.
         <:StructVector{<:CheckpointOutputWriter},
     },
 }
-    model::MT                           # Model to simulate
-    consts::Constants{FT} = Constants() # Constants used in Simulation
+    model::MT                               # Model to simulate
+    consts::Constants{FT} = Constants()     # Constants used in Simulation
     rng::RT = Xoshiro()                     # Random number generator 
-    verbose::Bool = false               # String output printed during run
-    name::String = "sim"                # Simulation name for printing/saving
+    verbose::Bool = false                   # String output printed during run
+    name::String = "sim"                    # Simulation name for printing/saving
     # Timesteps ----------------------------------------------------------------
-    Δt::Int = 10                        # Simulation timestep (seconds)
-    nΔt::Int = 7500                     # Total timesteps simulation runs for
+    Δt::Int                     # Simulation timestep (seconds)
+    nΔt::Int                    # Total timesteps simulation runs for
     # Physical Processes -------------------------------------------------------
-    floe_settings::FloeSettings{FT, PT, ST} = FloeSettings()
+    floe_settings::FloeSettings{FT, PT, ST}
     coupling_settings::CouplingSettings = CouplingSettings()
     collision_settings::CollisionSettings{FT} = CollisionSettings()
     fracture_settings::FractureSettings{CT} = FractureSettings()
@@ -44,16 +68,26 @@ The user can also define settings for each physical process.
     writers::OT = OutputWriters()
 end
 
+const SIM_DEF = "`sim::Simulation`: simulation to be run"
+
 """
-timestep_sim!(sim, tstep, start_tstep)
+    timestep_sim!(sim, tstep, start_tstep)
 
 Run one step of the simulation and write output. 
-Inputs:
-    sim          <Simulation> simulation to advance
-    tstep        <Int> current timestep
-    start_tstep  <Int> timestep simulation started on
-Outputs:
-    None. Simulation advances by one timestep. 
+
+## _Positional arguments_
+- $SIM_DEF
+- `tstep::Int`: simulation's current timestep
+- `start_tstep::Int`: timestep simulation started on (Default = 0)
+
+## _Returns_
+-  None. Simulation advances by one timestep. 
+
+!!! note
+    The order of the function calls within `timestep_sim!` matter quite a lot! Swapping the order can break things as certian fields are cleared at the end of function calls. This migth be worth debugging at some point.
+
+!!! note
+    This function must be updated to add any new functionalitites. It might be worth modularizing somehow to smooth that process over and make it easier to add new science functionality.
 """
 function timestep_sim!(sim, tstep, start_tstep = 0)
     sim.verbose && mod(tstep, 50) == 0 && println(tstep, " timesteps")
@@ -182,41 +216,15 @@ function timestep_sim!(sim, tstep, start_tstep = 0)
     return 
 end
 
-"""
-    _startup_sim(sim)
-
-Required actions to setup simulation. For example, setting up the simulation
-logger.
-Inputs:
-    sim                 <Simulation>
-    logger              <AbstractLogger> logger for simulation - default is
-                            Subzero logger
-    messages_per_tstep  <Int> number of messages to print per timestep if using
-                            default SubzeroLogger, else not needed
-Outputs:
-    None.
-"""
-function _startup_sim(sim, logger = nothing, messages_per_tstep = 1)
-    # Set up logger
-    if isnothing(logger)
-        logger = SubzeroLogger(sim, messages_per_tstep)
-    end
+# Required actions to setup simulation. Right now, this only entails setting up the simulation's logger.
+function _startup_sim(sim, logger, messages_per_tstep = 1)
     global_logger(logger)
     # Start sim notice
     sim.verbose && println(sim.name * " is running!")
     return
 end
 
-"""
-    _teardown_sim(sim)
-
-Required actions to tear down simulation. For example, flushing the simulation's
-logger and closing the stream.
-Inputs:
-    sim <Simulation>
-Outputs:
-    None.
-"""
+# Required actions to tear down simulation. Right now, this just involves flushing the simulation's logger and closing the stream.
 function _teardown_sim(sim)
     # Finish logging
     logger = current_logger()
@@ -231,23 +239,26 @@ function _teardown_sim(sim)
 end
 
 """
-    run!(sim; logger = nothing, messages_per_tstep = 1, start_tstep = 0)
+    run!(sim; logger, messages_per_tstep, start_tstep)
 
-Run given simulation and generate output for given writers.
-Simulation calculations will be done with Floats of type T (Float64 of Float32).
+Run given simulation and generate output for given output writers.
+Simulation calculations will be done with Floats of type FT (Float64 of Float32).
 
-Inputs:
-    sim                 <Simulation> simulation to Run
-    logger              <AbstractLogger> logger for simulation - default is
-                            Subzero logger
-    messages_per_tstep  <Int> number of messages to print per timestep if using
-                            default SubzeroLogger, else not needed
-    start_tstep         <Int> which timestep to start the simulation on
-Outputs:
-    None. The simulation will be run and outputs will be saved in the output
-    folder. 
+## _Positional arguments_
+    - $SIM_DEF
+
+## _Keyword arguments_
+    - `logger::AbstractLogger`: logger for simulation (Default = Nothing, which triggers use of [`SubzeroLogger`](@ref)
+    - `messages_per_tstep::Int`"` number of messages to print per timestep if using default SubzeroLogger, else not needed (Default = 1)
+    - `start_tstep::Int`: which timestep to start the simulation on (Default = 0)
+## _Returns_
+    - None. The simulation will be run and outputs will be saved in the output folder. 
 """
 function run!(sim; logger = nothing, messages_per_tstep = 1, start_tstep = 0)
+    # Set up logger if needed
+    if isnothing(logger)
+        logger = SubzeroLogger(sim, messages_per_tstep)
+    end
     _startup_sim(sim, logger, messages_per_tstep)
     tstep = start_tstep
     while tstep <= (start_tstep + sim.nΔt)
@@ -260,7 +271,7 @@ function run!(sim; logger = nothing, messages_per_tstep = 1, start_tstep = 0)
 end
 
 """
-    restart!(initial_state_fn, checkpointer_fn, new_nΔt, new_output_writers; start_tstep = 0)
+    restart!(initial_state_fn, checkpointer_fn, new_nΔt, new_output_writers; start_tstep)
 
 Continue the simulation run started with the given initial state and floe file for an
 additional `new_nΔt` timesteps and with the new output_writers provided. The simulation will
@@ -269,6 +280,18 @@ restart with a recorded timestep of `start_tstep`.
 Note that this `restart!` function may not fit your needs and you may need to write your
 own. This function is meant to act as a simplest case and as a template for users to write
 their own restart functions. 
+
+## _Positional arguments_
+    - `initial_state_fn::String`: file path to previously run simulation's initial state file
+    - `checkpointer_fn::String`: file path to previously run simulation's checkpointer file.
+    The simulation will restart right after the checkpoint captured in this file
+    - `new_output_writers::OutputWriters`: new output writers for the new simulation - new ones are required to the output writes to new, unique files.
+
+## _Keyword arguments_
+    - `start_tstep::Int`: which timestep to start the simulation on (Default = 0)
+
+## _Returns_
+    - None. The simulation will be run and outputs will be saved in the output folder. 
 """
 function restart!(initial_state_fn, checkpointer_fn, new_nΔt, new_output_writers; start_tstep = 0)
     is = jldopen(initial_state_fn)
@@ -295,8 +318,13 @@ function restart!(initial_state_fn, checkpointer_fn, new_nΔt, new_output_writer
         nΔt = new_nΔt,
         verbose = is["sim"].verbose,
         writers = new_output_writers,
+        floe_settings = is["sim"].floe_settings,
         coupling_settings = is["sim"].coupling_settings,
+        collision_settings = is["sim"].collision_settings,
+        fracture_settings = is["sim"].fracture_settings,
         simp_settings = is["sim"].simp_settings,
+        ridgeraft_settings = is["sim"].ridgeraft_settings,
+        weld_settings = is["sim"].weld_settings,
     )
     run!(new_simulation; start_tstep = start_tstep)
     return

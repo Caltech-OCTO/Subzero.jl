@@ -71,8 +71,7 @@ floewriter = FloeOutputWriter(50, dir = dir, filename = floe_fn, overwrite = tru
 writers = OutputWriters(initwriter, floewriter)
 
 # ## Simulation Creation
-simulation = Simulation(; model, consts, writers, Δt, nΔt, floe_settings,
-    verbose = true, rng = Xoshiro(1))
+simulation = Simulation(; model, consts, writers, Δt, nΔt, floe_settings, verbose = true, rng = Xoshiro(1))
 
 # ## Running the Simulation
 run!(simulation)

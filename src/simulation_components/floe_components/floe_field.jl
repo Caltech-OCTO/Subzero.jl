@@ -39,16 +39,16 @@ the floe field will be set.
 ## _Keyword arguments_
 - `generator::AbstractFloeFieldGenerator`: generator type that determines how the floe field is generated
 - `domain::Domain`: simulation domain
-- `supress_warnings::Bool`: boolean flag on if warnings regarding floe area and centroid position should checked
 - `floe_settings::FloeSettings`: floe settings that determine individual floe characteristics - also needed to create a `Simulation` object
+- `supress_warnings::Bool`: boolean flag on if warnings regarding floe area and centroid position should checked
 - `rng::RandomNumberGenerator`:: random number generator needed to randomly assign floe characteristics (e.g height), depending on the generator
 - `floe_bounds::Polys`: bounding box for floes to be generated within - only used for `VoronoiTesselationFieldGenerator`
 - `kwargs...`: other keywords night be needed if new generator types are implemented. 
 """
 function initialize_floe_field(
     ::Type{FT} = Float64;
-    generator::AbstractFloeFieldGenerator{FT}, domain,
-    supress_warnings = false, floe_settings = FloeSettings(min_floe_area = 0.0), rng = Xoshiro(),
+    generator::AbstractFloeFieldGenerator{FT}, domain, floe_settings,
+    supress_warnings = false, rng = Xoshiro(),
     kwargs...,
 ) where FT
     # initialize empty floe field array
@@ -377,8 +377,8 @@ function _initialize_floe_field!(
                                 generator.hmean,
                                 generator.Δh,
                                 domain.east.val - domain.west.val;
-                                floe_settings = floe_settings,
-                                rng = rng,
+                                floe_settings,
+                                rng,
                             )
                             floes_area += sum(Iterators.drop(floe_arr.area, nfloes_added))
                             nfloes_added += n_new_floes
@@ -402,8 +402,7 @@ Inputs:
     Δh                  <AbstratFloat> height range - floes will range in height
                         from hmean - Δh to hmean + Δh
     rmax                <AbstractFloat> maximum radius of floe (could be larger given context)
-    floe_settings       <FloeSettings> settings needed to initialize floe
-                            settings
+    floe_settings       <FloeSettings> settings needed to initialize floe settings
     rng                 <RNG> random number generator to generate random floe
                             attributes - default uses Xoshiro256++ algorithm
     kwargs...           Any additional keywords to pass to floe constructor
@@ -415,7 +414,7 @@ function _poly_to_floes!(  # TODO: maybe move to floe utils??
     hmean,
     Δh,
     rmax;
-    floe_settings = FloeSettings(min_floe_area = 0),
+    floe_settings,
     rng = Xoshiro(),
     kwargs...
 ) where {FT <: AbstractFloat}
@@ -430,8 +429,8 @@ function _poly_to_floes!(  # TODO: maybe move to floe utils??
             floe = Floe{FT}(
                 poly::Polys,
                 height;
-                floe_settings = floe_settings,
-                rng = rng,
+                floe_settings,
+                rng,
                 kwargs...
             )
             push!(floes, floe)
@@ -442,7 +441,7 @@ function _poly_to_floes!(  # TODO: maybe move to floe utils??
             n = 0
             for r in new_regions
                 n += _poly_to_floes!(FT, floes, r, hmean, Δh, rmax;
-                    floe_settings = floe_settings, rng = rng, kwargs...)
+                    floe_settings, rng, kwargs...)
             end
             return n
         end

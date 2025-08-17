@@ -40,8 +40,9 @@ wboundary = PeriodicBoundary(West; grid)
 domain = Domain(; north = nboundary, south = sboundary, east = eboundary, west = wboundary)
 
 # ## Floe creation
+floe_settings = FloeSettings()
 floe_generator = VoronoiTesselationFieldGenerator(; nfloes, concentrations, hmean, Δh)
-floe_arr = initialize_floe_field(; generator = floe_generator, domain, rng = Xoshiro(1))
+floe_arr = initialize_floe_field(; generator = floe_generator, domain, floe_settings, rng = Xoshiro(1))
 
 # You can also set the inital floe velocities manually like this:
 floe_arr.u .= 0
@@ -82,7 +83,8 @@ simulation = Simulation(
     verbose = true,
     writers = writers,
     rng = Xoshiro(1),
-    ridgeraft_settings = ridgeraft_settings,
+    ridgeraft_settings,
+    floe_settings,
 )
 
 # ## Running the Simulation

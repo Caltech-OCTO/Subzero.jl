@@ -57,7 +57,7 @@
     rmax_cpoly = 2sqrt(5^2 + 5^2)
     # Test polygon with no holes
     floe_arr = StructArray{Floe{FT}}(undef, 0)
-    n_new = Subzero._poly_to_floes!(FT, floe_arr, rect_poly, hmean, Δh, rmax_rect)
+    n_new = Subzero._poly_to_floes!(FT, floe_arr, rect_poly, hmean, Δh, rmax_rect; floe_settings = FloeSettings())
     @test n_new == 1 && length(floe_arr) == 1
     @test !Subzero.hashole(floe_arr.coords[1])
 
@@ -66,7 +66,7 @@
     @test n_new == 0 && length(floe_arr) == 1
 
     # Test with polygon with a hole that is split into 3 polyons
-    n_new = Subzero._poly_to_floes!(FT, floe_arr, c_hole_poly, hmean, Δh, rmax_cpoly)
+    n_new = Subzero._poly_to_floes!(FT, floe_arr, c_hole_poly, hmean, Δh, rmax_cpoly; floe_settings = FloeSettings())
     @test n_new == 3 && length(floe_arr) == 4
     @test !any(Subzero.hashole.(floe_arr.coords))
 
@@ -95,6 +95,7 @@
         domain_no_topo,
         0.5,
         0.1;
+        floe_settings = FloeSettings(),
     ))
     nfloes = length(floe_coords)
     @test typeof(floe_arr) <: StructArray{<:Floe}
@@ -232,5 +233,6 @@
         domain_with_topo,
         0.5,
         0.1;
+        floe_settings = FloeSettings(),
     )) <: StructArray{<:Floe{Float32}}
 end

@@ -77,6 +77,7 @@ simulation = Simulation(
     verbose = true,
     writers = writers,
     rng = Xoshiro(1),
+    floe_settings,
 )
 
 # ## Run the first part of the simulation

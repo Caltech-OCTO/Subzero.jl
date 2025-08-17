@@ -34,6 +34,7 @@
             domain,
             1.0,
             0.0;
+            floe_settings = FloeSettings(),
         )
         if !isnothing(Δx)
             for i in eachindex(Δx)
