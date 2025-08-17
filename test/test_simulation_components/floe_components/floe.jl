@@ -10,6 +10,7 @@
     Δh = 0.01
     rng = Xoshiro(1)
     fs_small_min_area = FloeSettings(min_floe_area = 55)
+    fs_no_min_area = FloeSettings(min_floe_area = 0)
 
     # Test generating monte carlo points
     file = jldopen("inputs/floe_shapes.jld2", "r")
@@ -57,7 +58,7 @@
     rmax_cpoly = 2sqrt(5^2 + 5^2)
     # Test polygon with no holes
     floe_arr = StructArray{Floe{FT}}(undef, 0)
-    n_new = Subzero._poly_to_floes!(FT, floe_arr, rect_poly, hmean, Δh, rmax_rect; floe_settings = FloeSettings())
+    n_new = Subzero._poly_to_floes!(FT, floe_arr, rect_poly, hmean, Δh, rmax_rect; floe_settings = fs_no_min_area)
     @test n_new == 1 && length(floe_arr) == 1
     @test !Subzero.hashole(floe_arr.coords[1])
 
@@ -66,7 +67,7 @@
     @test n_new == 0 && length(floe_arr) == 1
 
     # Test with polygon with a hole that is split into 3 polyons
-    n_new = Subzero._poly_to_floes!(FT, floe_arr, c_hole_poly, hmean, Δh, rmax_cpoly; floe_settings = FloeSettings())
+    n_new = Subzero._poly_to_floes!(FT, floe_arr, c_hole_poly, hmean, Δh, rmax_cpoly; floe_settings = fs_no_min_area)
     @test n_new == 3 && length(floe_arr) == 4
     @test !any(Subzero.hashole.(floe_arr.coords))
 
@@ -95,7 +96,7 @@
         domain_no_topo,
         0.5,
         0.1;
-        floe_settings = FloeSettings(),
+        floe_settings = fs_no_min_area,
     ))
     nfloes = length(floe_coords)
     @test typeof(floe_arr) <: StructArray{<:Floe}
@@ -233,6 +234,6 @@
         domain_with_topo,
         0.5,
         0.1;
-        floe_settings = FloeSettings(),
+        floe_settings = fs_no_min_area,
     )) <: StructArray{<:Floe{Float32}}
 end
