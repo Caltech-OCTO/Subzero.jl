@@ -7,31 +7,6 @@ module Subzero
     read(path, String)
 end Subzero
 
-export
-    AbstractOutputWriter,
-    CheckpointOutputWriter,
-    GridOutputWriter, 
-    FloeOutputWriter,
-    InitialStateOutputWriter,
-    GridOutput,
-    FloeOutput,
-    add_ghosts!,
-    NoFracture,
-    HiblerYieldCurve,
-    MohrsCone,
-    CollisionSettings,
-    FractureSettings,
-    CouplingSettings,
-    SimplificationSettings,
-    RidgeRaftSettings,
-    WeldSettings,
-    FloeSettings,
-    PolyVec,
-    OutputWriters,
-    check_energy_momentum_conservation_julia,
-    MonteCarloPointsGenerator,
-    SubGridPointsGenerator
-
 import Base.@kwdef # this is being exported as of version 1.9
 import Base.show
 import GeometryOps as GO
@@ -85,7 +60,6 @@ const RMAX_DEF = "`rmax::FT`: Float length representing the maximum radius of a 
 from the centroid to any given vertex"
 
 # Types
-include("simulation_components/stress_calculators.jl")
 # Model
 include("simulation_components/grids.jl")
 include("simulation_components/domain_components/abstract_domains.jl")
@@ -96,6 +70,9 @@ include("simulation_components/floe_components/floe_status.jl")
 include("simulation_components/floe_components/floe_interaction.jl")
 include("simulation_components/floe_components/floe.jl")
 include("simulation_components/floe_components/floe_field.jl")
+include("simulation_components/floe_components/stress_calculators.jl")
+include("simulation_components/floe_components/subfloe_points_generators.jl")
+include("simulation_components/floe_components/floe_settings.jl")
 include("floe_utils.jl")
 include("simulation_components/oceans.jl")
 include("simulation_components/atmos.jl")
@@ -115,7 +92,7 @@ include("tools/conservation_em.jl")
 include("tools/compare_files.jl")
 include("logger.jl")
 # Simulation
-include("output.jl")
+include("simulation_components/output_components/output.jl")
 include("simulation_components/constants.jl")
 include("simulation_components/simulation.jl")
 end

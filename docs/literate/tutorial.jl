@@ -247,7 +247,7 @@ generator = VoronoiTesselationFieldGenerator(; nfloes, concentrations, hmean, Δ
 floe_settings = FloeSettings(
   min_floe_area = 1e5,
   max_floe_height = 5,
-  subfloe_point_generator = SubGridPointsGenerator(grid, 2),
+  subfloe_point_generator = SubGridPointsGenerator(; grid, npoint_per_cell = 2),
 )
 
 # ### Calling `initialize_floe_field`

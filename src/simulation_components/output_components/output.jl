@@ -1,6 +1,4 @@
-"""
-Structs and functions to calculate and write output from the simulation
-"""
+export AbstractOutputWriter, CheckpointOutputWriter, GridOutputWriter,  FloeOutputWriter, InitialStateOutputWriter, OutputWriters
 
 #----------------------- Types of Output Writers -----------------------#
 """

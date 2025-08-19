@@ -47,7 +47,7 @@
         @test status2.tag == Subzero.active
     
         mc_x3, mc_y3, status3 = Subzero.generate_subfloe_points(
-            MonteCarloPointsGenerator{Float32}(),
+            MonteCarloPointsGenerator(Float32),
             GO.tuples(origin_poly, Float32),
             origin_centroid,
             area,
@@ -58,7 +58,7 @@
         @test eltype(mc_x3) == eltype(mc_y3) == Float32
 
         # test generating sub-grid points for grid with Δx = Δy = 10
-        point_generator = SubGridPointsGenerator{Float64}(10/sqrt(2))
+        point_generator = SubGridPointsGenerator(Float64; Δg = 10/sqrt(2))
         # Floe is smaller than grid cells --> centroid and vertices added
         square = Subzero.make_polygon([[
             [-2.5, -2.5],

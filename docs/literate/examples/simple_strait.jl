@@ -53,7 +53,7 @@ atmos = Atmos(; grid, u = 0.0, v = 0.0, temp = 0.0)
 
 # ## Floe Creation
 floe_settings = FloeSettings(
-    subfloe_point_generator = SubGridPointsGenerator(grid, 2),
+    subfloe_point_generator = SubGridPointsGenerator(; grid, npoint_per_cell = 2),
     stress_calculator = DecayAreaScaledCalculator(),
 )
 floe_generator = VoronoiTesselationFieldGenerator(; nfloes = 75, concentrations = [0.7], hmean, Δh)

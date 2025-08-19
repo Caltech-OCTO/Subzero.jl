@@ -45,7 +45,7 @@
             end
         end
         assign_random_velocities!(floes)
-        add_ghosts!(floes, domain)
+        Subzero.add_ghosts!(floes, domain)
         Subzero.timestep_collisions!(  # Add interactions
             floes,
             length(floes),

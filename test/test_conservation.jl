@@ -45,7 +45,7 @@ function conservation_simulation(
         writers = writers,
     )
     run!(simulation)
-    em_lists = check_energy_momentum_conservation_julia(
+    em_lists = Subzero.check_energy_momentum_conservation_julia(
         joinpath(dir, "floes.jld2"),
         dir,
         plot
