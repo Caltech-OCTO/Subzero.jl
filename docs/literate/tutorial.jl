@@ -244,7 +244,7 @@ generator = VoronoiTesselationFieldGenerator(; nfloes, concentrations, hmean, Δ
 
 # Here we will just create a `FloeSettings` struct with just a few of the keyword options.
 
-floe_settings = FloeSettings(
+floe_settings = FloeSettings(;
   min_floe_area = 1e5,
   max_floe_height = 5,
   subfloe_point_generator = SubGridPointsGenerator(; grid, npoint_per_cell = 2),
@@ -279,6 +279,41 @@ fig  # display the figure
 # A model can be made as follows:
 
 model = Model(; grid, domain, ocean, atmos, floes)
+
+# ## Constants
+
+# We can then set a group of [`Constants`](@ref), which are a set of important physical parameters, like the ocean coriolis frequency and
+# the air density. All constants have a default value, so you only need to change the ones that specifically affect your simulation. 
+# Here, I will just use the default values:
+
+consts = Constants()
+
+# ## Settings
+
+# In addition to the [`FloeSettings`](@ref) discussed above, there are also settings for all of the other physical processes that can happens
+# during a Subzero run. Here, I will just use all default settings except for the `FractureSettings`, but each of the following settings doecumentation
+# has examples on how to turn features on/off and tune their behavior.
+
+# The list of existing settings is:
+# - [`FloeSettings`](@ref)
+# - [`CouplingSettings`](@ref)
+# - [`CollisionSettings`](@ref)
+# - [`FractureSettings`](@ref)
+# - [`SimplificationSettings`](@ref)
+# - [`RidgeRaftSettings`](@ref)
+# - [`WeldSettings`](@ref)
+
+fracture_settings = FractureSettings(
+        fractures_on = true,
+        criteria = HiblerYieldCurve(floes),
+        Δt = 75,
+        npieces = 3,
+        deform_on = false,
+)
+
+# ## Simulation
+
+# ## 
 
 # !!! note
 #       The documentation, and to some extent the source code, is being cleaned up. This means that right now, some of the documentation is here,

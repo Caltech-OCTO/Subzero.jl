@@ -71,6 +71,13 @@ Constants
 
 # Physical Process Settings
 ```@docs
+FloeSettings
+CouplingSettings
+CollisionSettings
+FractureSettings
+SimplificationSettings
+RidgeRaftSettings
+WeldSettings
 ```
 
 # Simulations

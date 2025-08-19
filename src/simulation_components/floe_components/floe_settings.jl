@@ -12,8 +12,8 @@ export FloeSettings
     max_floe_height::FT = 10.0
     min_aspect_ratio::FT = 0.05
     maximum_ξ::FT = 1e-5
-    subfloe_point_generator::GT
-    stress_calculator::CT
+    subfloe_point_generator::GT = MonteCarloPointsGenerator()
+    stress_calculator::CT = DecayAreaScaledCalculator()
 
     function FloeSettings{FT, GT, CT}(
         ρi,
@@ -60,6 +60,27 @@ export FloeSettings
             stress_calculator,
         )
     end
+
+    FloeSettings(
+        ρi,
+        min_floe_area,
+        min_floe_height,
+        max_floe_height,
+        min_aspect_ratio,
+        maximum_ξ,
+        subfloe_point_generator::GT,
+        stress_calculator::CT,
+    ) where {GT <: AbstractSubFloePointsGenerator, CT <: AbstractStressCalculator} = 
+        FloeSettings{Float64, GT, CT}(
+            ρi,
+            min_floe_area,
+            min_floe_height,
+            max_floe_height,
+            min_aspect_ratio,
+            maximum_ξ,
+            subfloe_point_generator,
+            stress_calculator,
+        )
 end
 
 """
@@ -125,14 +146,14 @@ FloeSettings{Float32, SubGridPointsGenerator{Float32}, DecayAreaScaledCalculator
 ```
 """
 FloeSettings(
-    ::Type{FT} = Float64;
+    ::Type{FT};
     subfloe_point_generator::GT = MonteCarloPointsGenerator(FT),
     stress_calculator::CT = DecayAreaScaledCalculator(FT),
     kwargs...,
 ) where {FT <: AbstractFloat, GT <: AbstractSubFloePointsGenerator, CT <: AbstractStressCalculator} =
     FloeSettings{FT, GT, CT}(;
-        subfloe_point_generator,
-        stress_calculator,
+        subfloe_point_generator = subfloe_point_generator,
+        stress_calculator = stress_calculator,
         kwargs...,
     )
 
