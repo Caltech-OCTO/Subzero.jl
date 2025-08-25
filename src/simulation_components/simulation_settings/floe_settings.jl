@@ -85,21 +85,21 @@ end
 
 """
 
-   FloeSettings{FT, GT, CT}
+    FloeSettings{FT, GT, CT}
 
 When you create a floe or a set of floes, you have the option to create a floe settings object. This set of settings controls certian floe fields and calculations.
 
 ## _Fields_
-  - `ρi::FT`: floe's density (920.0 g/L)
-  - `min_floe_area::FT`: minimum floe area (1e6 m^2)
-  - `min_floe_height::FT`: minimum floe height (0.1 m)
-  - `max_floe_height::FT`: maximum floe height (10.0 m)
-  - `min_aspect_ratio::FT`: minimum ratio between floe x-length and y-length by maximum coordiante values (0.05)
-  - `maximum_ξ::FT`: the absolute maximum rotational velocity a floe can reach before it is capped at maximum_ξ (1e-5 rad/s)
+  - `ρi::FT`: floe's density (Default = 920.0 g/L)
+  - `min_floe_area::FT`: minimum floe area (Default = 1e6 m^2)
+  - `min_floe_height::FT`: minimum floe height (Default = 0.1 m)
+  - `max_floe_height::FT`: maximum floe height (Default = 10.0 m)
+  - `min_aspect_ratio::FT`: minimum ratio between floe x-length and y-length by maximum coordiante values (Default = 0.05)
+  - `maximum_ξ::FT`: the absolute maximum rotational velocity a floe can reach before it is capped at maximum_ξ (Default = 1e-5 rad/s)
   - `subfloe_point_generator::GT`: subtype of [`AbstractSubFloePointsGenerator`](@ref), which generates floe's subfloe points.
-  These points which determines the method of subfloe point generation is used for each floe (Default = MonteCarloPointsGenerator)
-  - `stress_calculator::CT`: subtype of [`AbstractStressCalculator`](@ref), which generates the calculator for stress, which 
-  in turn determines the method of calculating current stress of floes during the simulation (Default = DecayAreaScaledCalculator)
+        These points which determines the method of subfloe point generation is used for each floe (Default = MonteCarloPointsGenerator)
+  - `stress_calculator::CT`: subtype of [`AbstractStressCalculator`](@ref), which generates the calculator for stress, which in turn determines
+        the method of calculating current stress of floes during the simulation (Default = DecayAreaScaledCalculator)
 
 If any of the minimum values are exceeded, a floe is removed in the course of the simulation. If any of the maximum values are reached,
 the value is capped at the given value.
@@ -112,7 +112,7 @@ Here is how to construct a `FloeSettings`:
 - $FT_DEF
 
 ## _Keyword arguments_
-- `kwargs...`: any of the above fields!
+- Each of the above fields is an optional keyword argument.
 
 ## _Examples_
 - Creating default `FloeSettings` 

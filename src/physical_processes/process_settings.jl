@@ -16,7 +16,7 @@ Settings needed for coupling within the model.
     `two_way_coupling_on` does NOT set up the coupling with Oceananigans. The user still must do that. This simply calcualtes the fields that are needed for coupling so that they can be passed.
 
 ## _Keyword arguments_
-- `kwargs...`: any of the above fields!
+- Each of the above fields is an optional keyword argument.
 
 ## _Examples_
 - Creating default `CouplingSettings` 
@@ -133,7 +133,7 @@ will be set to 0 and 1 respectively.
 - $FT_DEF
 
 ## _Keyword arguments_
-- `kwargs...`: any of the above fields!
+- Each of the above fields is an optional keyword argument.
 
 ## _Examples_
 - Creating default `CollisionSettings` 
@@ -164,13 +164,18 @@ Settings needed for fractures within the model.
 - `npieces::Int`: how many pieces to try to split a fractured floe into (Default = 3)
 
 ## _Keyword arguments_
-- `kwargs...`: any of the above fields!
+- Each of the above fields is an optional keyword argument.
 
 ## _Examples_
 - Creating default `FractureSettings` 
 ```jldoctest
 julia> FractureSettings()
-FractureSettings{NoFracture}(false, NoFracture(), 0, false, 3)
+FractureSettings{NoFracture}
+  ⊢ fractures_on = false
+  ⊢ criteria = NoFracture
+  ⊢ Δt = 0
+  ⊢ deform_on = false
+  ⊢ npieces = 3
 ```
 
 - Creating a Float32 `FractureSettings` with fractures on
@@ -307,7 +312,7 @@ Settings needed for floe simplification within the simulation.
 - $FT_DEF
 
 ## _Keyword arguments_
-- `kwargs...`: any of the above fields!
+- Each of the above fields is an optional keyword argument.
 
 ## _Examples_
 - Creating default `SimplificationSettings` 
@@ -459,7 +464,7 @@ Settings needed for ridging and rafting within the simulation.
 - $FT_DEF
 
 ## _Keyword arguments_
-- `kwargs...`: any of the above fields!
+- Each of the above fields is an optional keyword argument.
 
 ## _Examples_
 - Creating default `RidgeRaftSettings` 
@@ -601,7 +606,7 @@ Settings needed for welding within the simulation.
 - $FT_DEF
 
 ## _Keyword arguments_
-- `kwargs...`: any of the above fields!
+- Each of the above fields is an optional keyword argument.
 
 ## _Examples_
 - Creating default `WeldSettings` 

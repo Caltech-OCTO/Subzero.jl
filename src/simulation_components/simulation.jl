@@ -6,16 +6,16 @@ export Simulation, timestep_sim!, run!, restart!
 Simulation which holds a model and the parameters, settings, and output writers needed for running the simulation.
 
 ## _Fields_ / _Keyword Arguments_
-### General
+### _General_
 - `model::MT`: Model to simulate
 - `consts::Constants{FT}`: Constants used in Simulation (default = Constants())
 - `rng::RT`: Random number generator (default = Xoshiro())
 - `verbose::Bool`: String output printed during run (Default = false)
 - `name::String`: Simulation name for printing/saving (Default = "sim")
-### Timesteping Information
+### _Timesteping Information_
 - `Δt::Int`: Simulation timestep in seconds
 - `nΔt::Int`: Total timesteps simulation runs for
-### Physical Processes
+### _Physical Processes_
 - `floe_settings::FloeSettings{FT, PT, ST}`: Settings that control floe size/mass/etc - no default!
 - `coupling_settings::CouplingSettings`: Settings that control coupling between floes/ocean/atmosphere (Default = CouplingSettings())
 - `collision_settings::CollisionSettings{FT}`: Settings that control floe collisions with other floes and the domain (Default = CollisionSettings())
@@ -23,7 +23,7 @@ Simulation which holds a model and the parameters, settings, and output writers 
 - `simp_settings::SimplificationSettings{FT}`: Settings that control the simplification of floes (Default = SimplificationSettings())
 - `ridgeraft_settings::RidgeRaftSettings{FT}`: Settings that control floe ridging and rafting (Default = RidgeRaftSettings())
 - `weld_settings::WeldSettings{FT}`: Settings that control floe welding (Default = WeldSettings())
-### Output Writers
+### _Output Writers_
 - `writers::OT`: Simulation output writers (Default = OutputWriters())
 
 !!! note
@@ -245,14 +245,15 @@ Run given simulation and generate output for given output writers.
 Simulation calculations will be done with Floats of type FT (Float64 of Float32).
 
 ## _Positional arguments_
-    - $SIM_DEF
+- $SIM_DEF
 
 ## _Keyword arguments_
-    - `logger::AbstractLogger`: logger for simulation (Default = Nothing, which triggers use of [`SubzeroLogger`](@ref)
-    - `messages_per_tstep::Int`"` number of messages to print per timestep if using default SubzeroLogger, else not needed (Default = 1)
-    - `start_tstep::Int`: which timestep to start the simulation on (Default = 0)
+- `logger::AbstractLogger`: logger for simulation (Default = Nothing, which triggers use of [`SubzeroLogger`](@ref)
+- `messages_per_tstep::Int`"` number of messages to print per timestep if using default SubzeroLogger, else not needed (Default = 1)
+- `start_tstep::Int`: which timestep to start the simulation on (Default = 0)
+
 ## _Returns_
-    - None. The simulation will be run and outputs will be saved in the output folder. 
+- None. The simulation will be run and outputs will be saved in the output folder. 
 """
 function run!(sim; logger = nothing, messages_per_tstep = 1, start_tstep = 0)
     # Set up logger if needed

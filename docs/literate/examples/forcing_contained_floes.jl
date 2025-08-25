@@ -101,7 +101,7 @@ writers = OutputWriters(initwriter, floewriter)
 # ## Simulation Creation
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 consts = Constants(E = modulus)
-simulation = Simulation(
+simulation = Simulation(;
     model = model,
     consts = consts,
     Δt = Δt,
@@ -109,7 +109,7 @@ simulation = Simulation(
     verbose = true,
     writers = writers,
     rng = Xoshiro(1),
-    floe_settings,
+    floe_settings = floe_settings,
 )
 
 # ## Running the Simulation

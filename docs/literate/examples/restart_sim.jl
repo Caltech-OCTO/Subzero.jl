@@ -68,8 +68,8 @@ writers = OutputWriters(initwriter, floewriter, checkpointer)
 
 # ## Create Simulation and Constants 
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
-consts = Constants(E = modulus, f = 0, turnθ = 0)
-simulation = Simulation(
+consts = Constants(; E = modulus, f = 0, turnθ = 0)
+simulation = Simulation(;
     model = model,
     consts = consts,
     Δt = Δt,

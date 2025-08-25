@@ -61,7 +61,7 @@ model = Model(; grid, ocean, atmos, domain, floes = floe_arr)
 
 # ## Constants Creation
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
-consts = Constants(E = modulus)
+consts = Constants(; E = modulus)
 
 # ## Output Creation
 dir = "shear_flow"

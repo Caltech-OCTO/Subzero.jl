@@ -37,9 +37,9 @@ All constants have default values that will be used if the user does not provide
 - `μ::FT`: Coefficent of friction (default = 0.2)
 - `E::FT`: Young's Modulus (default = 6e6)
 
-Here is how to construct an `Atmos`:
+Here is how to construct a `Constants`:
 
-    Atmos([FT = Float64]; kwargs...)
+    Constants([FT = Float64]; kwargs...)
 
 ## _Positional arguments_
 - $FT_DEF

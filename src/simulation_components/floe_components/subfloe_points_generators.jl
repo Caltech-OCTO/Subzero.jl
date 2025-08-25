@@ -86,7 +86,7 @@ MonteCarloPointsGenerator{Float64}(1000, 10, 0.1)
 
 - Creating a `MonteCarloPointsGenerator` of type Float32
 ```jldoctest atmos
-julia> MonteCarloPointsGenerator(Float32; 100, 5, 0.05)
+julia> MonteCarloPointsGenerator(Float32; npoints = 100, ntries = 5, err = 0.05)
 MonteCarloPointsGenerator{Float32}(100, 5, 0.05f0)
 ```
 """
@@ -202,7 +202,7 @@ The user can define how fine that grid should be in comparison with the model's 
 - Creating a `SubGridPointsGenerator` with `Δg`
 ```jldoctest
 julia> SubGridPointsGenerator(Δg = 1000)
-SubGridPointsGenerator{Float64}(1000)
+SubGridPointsGenerator{Float64}(1000.0)
 ```
 
 - Creating a `SubGridPointsGenerator` with `grid` and `npoint_per_cell`

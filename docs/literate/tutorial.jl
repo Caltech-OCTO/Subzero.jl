@@ -290,9 +290,9 @@ consts = Constants()
 
 # ## Settings
 
-# In addition to the [`FloeSettings`](@ref) discussed above, there are also settings for all of the other physical processes that can happens
-# during a Subzero run. Here, I will just use all default settings except for the `FractureSettings`, but each of the following settings doecumentation
-# has examples on how to turn features on/off and tune their behavior.
+# In addition to the [`FloeSettings`](@ref) discussed above, there are also settings for all of the other physical processes that can happen
+# during a Subzero run. Here, I will just use all default settings except for the `FractureSettings`, but each of the following settings have documentation
+# detailing how to turn features on/off and tune their behavior.
 
 # The list of existing settings is:
 # - [`FloeSettings`](@ref)
@@ -311,7 +311,13 @@ fracture_settings = FractureSettings(
         deform_on = false,
 )
 
+# ## Output Writers
+
+# This is still detailed in the [documentation.md](https://github.com/Caltech-OCTO/Subzero.jl/blob/main/documentation.md) file!!
+
 # ## Simulation
+
+# At this point, you are ready to make a simulation! 
 
 # ## 
 
