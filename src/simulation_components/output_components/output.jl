@@ -7,7 +7,7 @@ const TSTEP_DEF = "`tstep::Int`: current simulation timestep"
 
 An abstract type for output writers that provide data from simulation runs.
 
-Right now, there are four types of output writers: [`InitialStateOuputWriter`](@ref), [`CheckpointOutputWriter`](@ref), [`FloeOutputWriter`](@ref), and [`GridOutputWriter`](@ref).
+Right now, there are four types of output writers: [`InitialStateOutputWriter`](@ref), [`CheckpointOutputWriter`](@ref), [`FloeOutputWriter`](@ref), and [`GridOutputWriter`](@ref).
 
 They currently don't dispatch off of anything.
 """

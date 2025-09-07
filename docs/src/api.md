@@ -87,10 +87,10 @@ WeldSettings
 ## Output Writers
 ```@docs
 AbstractOutputWriter
+InitialStateOutputWriter
 CheckpointOutputWriter
 GridOutputWriter
 FloeOutputWriter
-InitialStateOutputWriter
 OutputWriters
 SubzeroLogger
 ```
