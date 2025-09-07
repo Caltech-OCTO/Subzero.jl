@@ -68,8 +68,6 @@ Simulation which holds a model and the parameters, settings, and output writers 
     writers::OT = OutputWriters()
 end
 
-const SIM_DEF = "`sim::Simulation`: simulation to be run"
-
 """
     timestep_sim!(sim, tstep, start_tstep)
 
