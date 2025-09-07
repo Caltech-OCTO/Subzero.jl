@@ -20,7 +20,7 @@ function determine_fractures(
     floe_settings, 
 )
     # Determine if floe stresses are in or out of criteria allowable regions
-    update_criteria!(criteria, floes)
+    _update_criteria!(criteria, floes)
     # If stresses are outside of criteria regions, we will fracture the floe
     frac_idx = [!GO.coveredby(find_σpoint(get_floe(floes, i), floe_settings), criteria.poly) for i in eachindex(floes)]
     frac_idx[floes.area .< floe_settings.min_floe_area] .= false

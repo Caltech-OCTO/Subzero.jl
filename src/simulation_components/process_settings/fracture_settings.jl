@@ -17,10 +17,10 @@ Right now, the subtypes serve as dispatch types for the following two methods.
 
 ## API
 The following methods must be implemented for all subtypes:
-- `_update_criteria!(criteria::AbstractFractureCriteria, floes::StructArray{<:Floe})`
+- `__update_criteria!(criteria::AbstractFractureCriteria, floes::StructArray{<:Floe})`
 - `_determine_fractures(criteria::AbstractFractureCriteria, floes::StructArray{<:Floe}, floe_settings::FloeSettings)`
 
-`_update_criteria!` is called in the `fracture_floes!` function and takes the fracture
+`__update_criteria!` is called in the `fracture_floes!` function and takes the fracture
 criteria and the current ice floe pack and updates the fracture criteria given the state
 of the ice floe pack if needed.
 
@@ -35,7 +35,7 @@ polygon, the minimum and maximum eigenvalues of its stress field will be its
 location in principal stress space. If that stress point falls outside of
 the criteria-verticies defined polygon it is a stress great enough to fracture
 the floe. Otherwise the floe will not be fractured.
-Each fracture criteria type must also have an update_criteria! function defined
+Each fracture criteria type must also have an _update_criteria! function defined
 that is used to update the criteria each timestep. If the criteria does not need
 to be updated, this function can be empty.
 """
@@ -45,10 +45,11 @@ abstract type AbstractFractureCriteria end
 #= Default function to NOT update the fracture criteria before determining floe fractures as
 the simulation progresses. Any criteria that should not update as the simulation runs can
 simply skip implementing this function and fall back on this default. =#
-_update_criteria!(::AbstractFractureCriteria, _) = nothing
+__update_criteria!(::AbstractFractureCriteria, _) = nothing
 
 """
     NoFracture<:AbstractFractureCriteria
+
 Type of AbstractFractureCriteria representing when fracturing functionality is turned off.
 If this is the type provided to the simulation's `FractureSettings`, then fractures will not
 occur. As fracturing will not occur, this subtype depends on the default API functions.
@@ -60,62 +61,26 @@ won't even be called due to given the `fractures_on` keyword is `false`. It is d
 API completeness. =#
 _determine_fractures(::NoFracture, _, _) = nothing
 
-
-"""
-    HiblerYieldCurve{FT<:AbstractFloat}<:AbstractFractureCriteria
-
-Type of AbstractFractureCriteria that creates a yield curve that determines if a
-floe fractures based off if its stress in principal stress space  is inside or
-outside of the yield curve.
-Fields:
-    pstar       <AbstractFloat> used to tune ellipse for optimal fracturing
-    c           <AbstractFloat> used to tune ellipse for optimal fracturing
-    verticies   <PolyVec> vertices of criteria in principal stress space
-Note:
-    Hibler's paper says that: Both pstar and c relate the ice strength to the
-    ice thickness and compactness. c is determined to that 10% open water
-    reduces the strength substantially and pstar is considered a free parameter
-"""
+# Concrete subtype of AbstractFractureCriteria - see documentation below
 mutable struct HiblerYieldCurve{FT<:AbstractFloat}<:AbstractFractureCriteria
     pstar::FT
     c::FT
     poly::Polys{FT}
 end
 
-"""
-    HiblerYieldCurve(::Type{FT}, args...)
-
-A float type FT can be provided as the first argument of any HiblerYieldCurve
-constructor. A HiblerYieldCurve of type FT will be created by passing all
-other arguments to the correct constructor. 
-"""
-HiblerYieldCurve(::Type{FT}, args...) where {FT <: AbstractFloat}=
-    HiblerYieldCurve{FT}(args...)
-
-"""
-    HiblerYieldCurve(args...)
-
-If a type isn't specified, HiblerYieldCurve will be of type Float64 and the
-correct constructor will be called with all other arguments.
-"""
-HiblerYieldCurve(args...) = HiblerYieldCurve{Float64}(args...)
-
-"""
+#=
     _calculate_hibler(FT, floes, pstar, c)
 
 Calculate Hibler's Elliptical Yield Curve as described in his 1979 paper
 "A Dynamic Thermodynamic Sea Ice Model".
-Inputs:
-    floes   <StructArray{Floes}> model's list of floes
-    pstar   <AbstractFloat> used to tune ellipse for optimal fracturing
-    c       <AbstractFloat> used to tune ellipse for optimal fracturing
-Outputs:
-    vertices <PolyVec{AbstractFloat}> vertices of elliptical yield curve
-Note:
-    Hibler's paper says that: Both pstar and c relate the ice strength to the
-    ice thickness and compactness. c is determined to that 10% open water
-    reduces the strength substantially and pstar is considered a free parameter. 
-"""
+
+Uses the mean height of the current floe field and two tuning parameters to
+determine the shape of the elliptical yield curve.
+
+Hibler's paper says that: Both pstar and c relate the ice strength to the
+ice thickness and compactness. c is determined so that 10% open water
+reduces the strength substantially and pstar is considered a free parameter.
+=#
 function _calculate_hibler(::Type{FT}, mean_height, pstar, c) where FT
     compactness = 1  # Could be a user input with future development
     p = pstar*mean_height*exp(-c*(1-compactness))
@@ -130,113 +95,102 @@ function _calculate_hibler(::Type{FT}, mean_height, pstar, c) where FT
 end
 
 """
-    HiblerYieldCurve(floes, pstar = 2.25e5, c = 20.0)
+    HiblerYieldCurve{FT} <: AbstractFractureCriteria
 
-Calculates Hibler's Elliptical Yield curve using parameters pstar, c, and the
-current floe field. 
-Inputs:
-    floes   <StructArray{Floes}> model's list of floes
-    pstar   <AbstractFloat> used to tune ellipse for optimal fracturing
-    c       <AbstractFloat> used to tune ellipse for optimal fracturing
-Outputs:
-    HiblerYieldCurve struct with vertices determined using the _calculate_hibler
-    function.
+Concrete subtype of AbstractFractureCriteria that calculates Hibler's Elliptical
+Yield curve using parameters `pstar`, `c`, and the current floe field. This is an
+elliptical yield curve that determines if a floe fractures based off if its stress
+in principal stress space is inside or outside of that elliptical yield curve.
+
+##  _Fields_
+- `pstar::AbstractFloat`: parameter used to tune ellipse for optimal fracturing (Default = 2.25e5)
+- `c::AbstractFloat`: parameter used to tune ellipse for optimal fracturing (Default = 20)
+- `poly::Polys{FT}`: polygon that defines the yield curve in principal stress space
+
+!!! note
+    Based on Hibler's 1979 paper "A Dynamic Thermodynamic Sea Ice Model". Hibler's paper
+    says that: Both `pstar` and `c` relate the ice strength to the ice thickness and compactness.
+    `c` is determined so that 10% open water reduces the strength substantially and `pstar` is considered
+    a free parameter.
+
+Here is how to construct a `HiblerYieldCurve` object:
+
+    HiblerYieldCurve([FT = Float64]; floes, pstar, c)
+
+## _Positional arguments_
+- $FT_DEF
+
+## _Keyword arguments_
+- `floes::StructArray{Floes}`: models's list of floes
+- `pstar::AbstractFloat`: parameter used to tune ellipse for optimal fracturing (Default = 2.25e5)
+- `c::AbstractFloat`: parameter used to tune ellipse for optimal fracturing (Default = 20)
+
+## _Examples_
+- Creating default `HiblerYieldCurve` 
+```jldoctest hibler_setup
+julia> using Random
+
+julia> grid = RegRectilinearGrid(Float64; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, Nx = 20, Ny = 20);
+
+julia> north, south, east, west = CollisionBoundary(North, Float64; grid), CollisionBoundary(South, Float64; grid), CollisionBoundary(East, Float64; grid), CollisionBoundary(West, Float64; grid);
+
+julia> domain = Domain(; north, south, east, west);
+
+julia> floes = initialize_floe_field(Float64, 3, [0.5], domain, 0.25, 0; floe_settings = FloeSettings(Float64), rng = Xoshiro(1));
+
+julia> hibler = HiblerYieldCurve(Float64; floes)
+HiblerYieldCurve{Float64}(225000.0, 20.0, GeoInterface.Wrappers.Polygon{false, false}([GeoInterface.Wrappers.LinearRing([(3.637978807091713e-12, 0.0), … (98) … , (3.637978807091713e-12, 0.0)])]))
+```
+
+```jldoctest hibler_setup
+julia> hibler = HiblerYieldCurve(Float32; floes, c = 24)
+HiblerYieldCurve{Float32}(225000.0f0, 24.0f0, GeoInterface.Wrappers.Polygon{false, false}([GeoInterface.Wrappers.LinearRing([(3.637979e-12, 0.0), (-948.52374, 835.2742), … (97) … , (3.637979e-12, 0.0)])]))
+````
 """
-HiblerYieldCurve{FT}(
-    floes::StructArray{<:Floe{FT}},
-    pstar = 2.25e5,
-    c = 20.0,
-) where {FT <: AbstractFloat} =
-    HiblerYieldCurve{FT}(
-        pstar,
-        c,
-        _calculate_hibler(FT, mean(floes.height), pstar, c),
+function HiblerYieldCurve(::Type{FT} = Float64; floes, pstar = 2.25e5, c = 20.0) where FT
+    vertices = _calculate_hibler(FT, mean(floes.height), pstar, c)
+    return HiblerYieldCurve{FT}(pstar, c, vertices)
+end
+
+# syntactic sugar so previous versions of the code still work - not suggested! 
+HiblerYieldCurve(floes, pstar = 2.25e5, c = 20.0) = HiblerYieldCurve(; floes, pstar, c)
+
+#=
+Update the Hibler Yield Curve vertices based on the current set of floes. The
+criteria changes based off of the average height of the floes.
+=#
+function _update_criteria!(criteria::HiblerYieldCurve{FT}, floes) where FT
+    criteria.poly = _calculate_hibler(
+        FT,
+        mean(floes.height),
+        criteria.pstar,
+        criteria.c
     )
+    return
+end
 
-"""
-MohrsCone{FT<:AbstractFloat}<:AbstractFractureCriteria
-
-Type of AbstractFractureCriteria that creates a cone in principal stress space
-that determines if a floe fractures based off if its stress in principal stress
-space  is inside or outside of the cone.
-Fields:
-    verticies   <PolyVec> vertices of criteria in principal stress space
-Note:
-    Concepts from the following papter -
-    Weiss, Jérôme, and Erland M. Schulson. "Coulombic faulting from the grain
-    scale to the geophysical scale: lessons from ice." Journal of Physics D:
-    Applied Physics 42.21 (2009): 214017.
-"""
+# Concrete subtype of AbstractFractureCriteria - see documentation below
 struct MohrsCone{FT<:AbstractFloat}<:AbstractFractureCriteria
     poly::Polys{FT}
 end
 
-"""
-    MohrsCone(::Type{FT}, args...)
-
-A float type FT can be provided as the first argument of any MohrsCone
-constructor. A MohrsCone of type FT will be created by passing all
-other arguments to the correct constructor. 
-"""
-MohrsCone(::Type{FT}, args...) where {FT <: AbstractFloat}=
-    MohrsCone{FT}(args...)
-
-"""
-    MohrsCone(args...)
-
-If a type isn't specified, MohrsCone will be of type Float64 and the correct
-constructor will be called with all other arguments.
-"""
-MohrsCone(args...) = MohrsCone{Float64}(args...)
-
-"""
-    _calculate_mohrs(FT, σ1, σ2, σ11, σ22)
-
-Creates PolyVec from vertex values for Mohr's Cone (triangle in 2D)
-Inputs:
-    σ1  <AbstractFloat> x-coordiante of first point in cone
-    σ2  <AbstractFloat> y-coordiante of first point in cone
-    σ11 <AbstractFloat> x-coordinate of one vertex of cone and negative of the
-            y-coordinate of adjacend vertex in principal stress space
-    σ22 <AbstractFloat> y-coordinate of one vertex of cone and negative of the
-    x-coordinate of adjacend vertex in principal stress space
-Output:
-    Mohr's Cone vertices (triangle since we are in 2D) in principal stress space
-"""
+#=
+Creates polygon from vertex values for Mohr's Cone (triangle in 2D) in principal stress space
+Equations taken from original version of Subzero written in MATLAB.
+=#
 function _calculate_mohrs(::Type{FT}, σ1, σ2, σ11, σ22) where FT
     # TODO: eventually make with SVectors! 
     points = [(σ1, σ2),  (σ11, σ22), (σ22, σ11), (σ1, σ2)]
     return GI.Polygon([points])
 end
 
-"""
-    _calculate_mohrs(
-        FT,
-        q,
-        σc,
-        σ11;
-        σ1 = nothing,
-        σ2 = nothing,
-        σ22 = nothing,
-    )
+#=
+Calculate Mohr's Cone coordinates in principal stress space and turn into a polygon
+based off of coefficent of friction, uniaxial compressive strength, and the x-coordiante of
+one vertex of the hibler cone (triangle in 2D)
 
-Calculate Mohr's Cone coordinates in principal stress space.
-Inputs:
-    q   <AbstractFloat> based on the coefficient of internal friction (µi) by
-            ((μi^2 + 1)^(1/2) + μi^2
-    σc  <AbstractFloat> uniaxial compressive strength
-    σ11 <AbstractFloat> negative of the x-coordinate of one vertex of cone
-            (triangle in 2D) and negative of the y-coordinate of adjacend vertex
-            in principal stress space
-Outputs:
-    Mohr's Cone vertices (triangle since we are in 2D) in principal stress space
-Note:
-    Concepts from the following papter -
-    Weiss, Jérôme, and Erland M. Schulson. "Coulombic faulting from the grain
-    scale to the geophysical scale: lessons from ice." Journal of Physics D:
-    Applied Physics 42.21 (2009): 214017.
-    Equations taken from original version of Subzero written in MATLAB
-"""
+Equations taken from original version of Subzero written in MATLAB.
+=#
 function _calculate_mohrs(
     ::Type{FT},
     q = 5.2,
@@ -250,39 +204,68 @@ function _calculate_mohrs(
 end
 
 """
-    MohrsCone{FT}(val::AbstractFloat, args...)
+    MohrsCone{FT} <: AbstractFractureCriteria
 
-Calculate Mohr's Cone vertices given _calculate_mohrs arguments.
-"""
-MohrsCone{FT}(args...) where FT = MohrsCone{FT}(_calculate_mohrs(FT, args...))
+Concrete subtype of AbstractFractureCriteria that creates a conical yield curve in principal stress space.
+This conical yield curve determines if a floe fractures based off if its stress in principal stress space
+is inside or outside of that elliptical yield curve.
 
-"""
-    update_criteria!(criteria::HiblerYieldCurve, floes)
+##  _Fields_
+- `poly::Polys{FT}`: polygon that defines the yield curve in principal stress space
 
-Update the Hibler Yield Curve vertices based on the current set of floes. The
-criteria changes based off of the average height of the floes.
-Inputs:
-    criteria    <HiblerYieldCurve> simulation's fracture criteria
-    floes       <StructArray{Floe}> model's list of floes
-Outputs:
-    None. Updates the criteria's vertices field to update new criteria. 
+!!! note
+    Based on concepts from Weiss, Jérôme, and Erland M. Schulson. "Coulombic faulting from the grain
+    scale to the geophysical scale: lessons from ice." Journal of Physics D: Applied Physics 42.21 (2009): 214017.
+    Equations taken from original version of Subzero written in MATLAB.
+
+Here is how to construct a `MohrsCone` object:
+
+    MohrsCone([FT = Float64]; kwargs...)
+
+
+## _Positional arguments_
+- $FT_DEF
+
+## _Keyword arguments_
+- `q::AbstractFloat`: based on the coefficient of internal friction (µi) by ((μi^2 + 1)^(1/2) + μi^2
+- `σc::AbstractFloat`: uniaxial compressive strength
+- `σ11::AbstractFloat`: negative of the x-coordinate of one vertex of cone (triangle in 2D) and negative
+    of the y-coordinate of adjacend vertex in principal stress space
+- `σ1::AbstractFloat`: x-coordiante of first point in cone
+- `σ2::AbstractFloat`: y-coordiante of first point in cone
+- `σ22::AbstractFloat`: y-coordinate of one vertex of cone and negative of the x-coordinate of
+    adjacend vertex in principal stress space
+
+
+## _Examples_
+- Creating default `MohrsCone` 
+```jldoctest
+julia> MohrsCone()
+MohrsCone{Float64}(GeoInterface.Wrappers.Polygon{false, false}([GeoInterface.Wrappers.LinearRing([(59523.80952380952, 59523.80952380953), … (2) … , (59523.80952380952, 59523.80952380953)])]))
+```
+
+- Creating Float32 `MohrsCone` 
+```jldoctest
+julia> MohrsCone(Float32)
+MohrsCone{Float32}(GeoInterface.Wrappers.Polygon{false, false}([GeoInterface.Wrappers.LinearRing([(59523.81, 59523.81), (33750.0, -74500.0), … (1) … , (59523.81, 59523.81)])]))
+```
 """
-function update_criteria!(criteria::HiblerYieldCurve{FT}, floes) where FT
-    criteria.poly = _calculate_hibler(
-        FT,
-        mean(floes.height),
-        criteria.pstar,
-        criteria.c
-    )
-    return
+function MohrsCone(::Type{FT} = Float64; q = 5.2, σc = 2.5e5, σ11 = -3.375e4,
+    σ1 = nothing, σ2 = nothing, σ22 = nothing,
+) where FT
+    poly = if isnothing(σ1) || isnothing(σ2) || isnothing(σ22)
+        _calculate_mohrs(FT, q, σc, σ11)
+    else
+        _calculate_mohrs(FT, -σ1, -σ2, -σ11, -σ22)
+    end
+    return MohrsCone{FT}(poly)
 end
 
-"""
-    update_criteria!(::MohrsCone, floes)
+# syntactic sugar so previous versions of the code still work - not suggested! 
+MohrsCone(args...) = MohrsCone(; args...)
 
-Mohr's cone is not time or floe dependent so it doesn't need to be updates.
-"""
-function update_criteria!(::MohrsCone, floes)
+# Mohr's cone is not time or floe dependent so it doesn't need to be updates.
+function _update_criteria!(::MohrsCone, floes)
     return
 end
 
