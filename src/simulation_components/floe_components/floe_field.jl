@@ -1,5 +1,6 @@
 export initialize_floe_field, AbstractFloeFieldGenerator, CoordinateListFieldGenerator, VoronoiTesselationFieldGenerator
 
+const FLOES_DEF = "`floes::StructArray{Floe}`: simulation floes"
 
 """
     YourFloeFieldGenerator{FT} <: AbstractFloeFieldGenerator{FT}

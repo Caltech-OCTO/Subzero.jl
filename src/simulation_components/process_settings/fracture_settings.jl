@@ -1,4 +1,4 @@
-export NoFracture, HiblerYieldCurve, MohrsCone, FractureSettings
+export AbstractFractureCriteria, NoFracture, HiblerYieldCurve, MohrsCone, FractureSettings
 
 """
     abstract type AbstractFractureCriteria
@@ -38,6 +38,8 @@ the floe. Otherwise the floe will not be fractured.
 Each fracture criteria type must also have an _update_criteria! function defined
 that is used to update the criteria each timestep. If the criteria does not need
 to be updated, this function can be empty.
+
+See the existing concrete subtypes: [`NoFracture`](@ref), [`MohrsCone`](@ref), and [`HiblerYieldCurve`](@ref).
 """
 abstract type AbstractFractureCriteria end
 
@@ -139,13 +141,21 @@ julia> domain = Domain(; north, south, east, west);
 julia> floes = initialize_floe_field(Float64, 3, [0.5], domain, 0.25, 0; floe_settings = FloeSettings(Float64), rng = Xoshiro(1));
 
 julia> hibler = HiblerYieldCurve(Float64; floes)
-HiblerYieldCurve{Float64}(225000.0, 20.0, GeoInterface.Wrappers.Polygon{false, false}([GeoInterface.Wrappers.LinearRing([(3.637978807091713e-12, 0.0), … (98) … , (3.637978807091713e-12, 0.0)])]))
+HiblerYieldCurve{Float64}
+  ⊢ pstar: 225000.0
+  ⊢ c: 20.0
+  ⊢ yield curve area: 2.48338091663081e9
+  ⊢ yield curve centroid: (-28125.0, -28125.0)
 ```
 
 ```jldoctest hibler_setup
 julia> hibler = HiblerYieldCurve(Float32; floes, c = 24)
-HiblerYieldCurve{Float32}(225000.0f0, 24.0f0, GeoInterface.Wrappers.Polygon{false, false}([GeoInterface.Wrappers.LinearRing([(3.637979e-12, 0.0), (-948.52374, 835.2742), … (97) … , (3.637979e-12, 0.0)])]))
-````
+HiblerYieldCurve{Float32}
+  ⊢ pstar: 225000.0
+  ⊢ c: 24.0
+  ⊢ yield curve area: 2.4833810505e9
+  ⊢ yield curve centroid: (-28124.99995, -28125.00086)
+```
 """
 function HiblerYieldCurve(::Type{FT} = Float64; floes, pstar = 2.25e5, c = 20.0) where FT
     vertices = _calculate_hibler(FT, mean(floes.height), pstar, c)
@@ -167,6 +177,16 @@ function _update_criteria!(criteria::HiblerYieldCurve{FT}, floes) where FT
         criteria.c
     )
     return
+end
+
+# Pretty printing for HiblerYieldCurve showing key dimensions
+function Base.show(io::IO, curve::HiblerYieldCurve{FT}; digits = 5) where {FT}
+    overall_summary = "HiblerYieldCurve{$FT}"
+    pstar_summary = "  ⊢ pstar: " * string(curve.pstar)
+    c_summary = "  ⊢ c: " * string(curve.c)
+    area_summary = "  ⊢ yield curve area: " * string(round(GO.area(curve.poly); digits))
+    centroid_summary = "  ⊢ yield curve centroid: " * string(round.(GO.centroid(curve.poly); digits))
+    print(io, overall_summary, "\n", pstar_summary, "\n", c_summary, "\n", area_summary, "\n", centroid_summary)
 end
 
 # Concrete subtype of AbstractFractureCriteria - see documentation below
@@ -227,27 +247,31 @@ Here is how to construct a `MohrsCone` object:
 - $FT_DEF
 
 ## _Keyword arguments_
-- `q::AbstractFloat`: based on the coefficient of internal friction (µi) by ((μi^2 + 1)^(1/2) + μi^2
-- `σc::AbstractFloat`: uniaxial compressive strength
+- `q::AbstractFloat`: based on the coefficient of internal friction (``µ_i``) by ``(μ_i^2 + 1)^(1/2) + μ_i^2`` (Default = 5.2)
+- `σc::AbstractFloat`: uniaxial compressive strength (Default = 2.5e5)
 - `σ11::AbstractFloat`: negative of the x-coordinate of one vertex of cone (triangle in 2D) and negative
-    of the y-coordinate of adjacend vertex in principal stress space
-- `σ1::AbstractFloat`: x-coordiante of first point in cone
-- `σ2::AbstractFloat`: y-coordiante of first point in cone
+    of the y-coordinate of adjacend vertex in principal stress space (Default = -3.375e4)
+- `σ1::AbstractFloat`: x-coordiante of first point in cone (Default = nothing)
+- `σ2::AbstractFloat`: y-coordiante of first point in cone (Default = nothing)
 - `σ22::AbstractFloat`: y-coordinate of one vertex of cone and negative of the x-coordinate of
-    adjacend vertex in principal stress space
+    adjacend vertex in principal stress space (Default = nothing)
 
+!!! note
+    The user must supply either `q`, `σc`, and `σ11` OR all four of `σ1`, `σ2`, `σ11`, and `σ22`. 
 
 ## _Examples_
 - Creating default `MohrsCone` 
 ```jldoctest
 julia> MohrsCone()
-MohrsCone{Float64}(GeoInterface.Wrappers.Polygon{false, false}([GeoInterface.Wrappers.LinearRing([(59523.80952380952, 59523.80952380953), … (2) … , (59523.80952380952, 59523.80952380953)])]))
+MohrsCone{Float64}
+  ⊢ Points: (59523.80952, 59523.80952), (33750.0, -74500.0), (-74500.0, 33750.0), (59523.80952, 59523.80952)
 ```
 
 - Creating Float32 `MohrsCone` 
 ```jldoctest
 julia> MohrsCone(Float32)
-MohrsCone{Float32}(GeoInterface.Wrappers.Polygon{false, false}([GeoInterface.Wrappers.LinearRing([(59523.81, 59523.81), (33750.0, -74500.0), … (1) … , (59523.81, 59523.81)])]))
+MohrsCone{Float32}
+  ⊢ Points: (59523.81f0, 59523.81f0), (33750.0f0, -74500.0f0), (-74500.0f0, 33750.0f0), (59523.81f0, 59523.81f0)
 ```
 """
 function MohrsCone(::Type{FT} = Float64; q = 5.2, σc = 2.5e5, σ11 = -3.375e4,
@@ -267,6 +291,19 @@ MohrsCone(args...) = MohrsCone(; args...)
 # Mohr's cone is not time or floe dependent so it doesn't need to be updates.
 function _update_criteria!(::MohrsCone, floes)
     return
+end
+
+# Pretty printing for MohrsCone showing key dimensions
+function Base.show(io::IO, cone::MohrsCone{FT}; digits = 5) where {FT}
+    overall_summary = "MohrsCone{$FT}"
+    points_summary = "  ⊢ Points: "
+    for (i, point) in enumerate(GI.getpoint(cone.poly))
+        if i > 1
+            points_summary *= ", "
+        end
+        points_summary *= string(round.(point; digits))
+    end
+    print(io, overall_summary, "\n", points_summary)
 end
 
 """

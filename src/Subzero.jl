@@ -59,6 +59,9 @@ point that is the centroid of either a floe or topography"
 const RMAX_DEF = "`rmax::FT`: Float length representing the maximum radius of a floe or topography \
 from the centroid to any given vertex"
 
+const SIM_DEF = "`sim::Simulation`: simulation to be run"
+
+
 # Types
 # Model
 include("simulation_components/grids.jl")
@@ -77,6 +80,8 @@ include("floe_utils.jl")
 include("simulation_components/oceans.jl")
 include("simulation_components/atmos.jl")
 include("simulation_components/model.jl")
+# Outputs
+include("simulation_components/output_components/logger.jl")
 # Physical Processes
 include("simulation_components/process_settings/process_settings.jl")
 include("simulation_components/process_settings/fracture_settings.jl")
@@ -91,7 +96,6 @@ include("physical_processes/welding.jl")
 include("plotting.jl")
 include("tools/conservation_em.jl")
 include("tools/compare_files.jl")
-include("logger.jl")
 # Simulation
 include("simulation_components/output_components/output.jl")
 include("simulation_components/constants.jl")

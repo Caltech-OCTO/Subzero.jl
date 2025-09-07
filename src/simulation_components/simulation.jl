@@ -258,7 +258,7 @@ Simulation calculations will be done with Floats of type FT (Float64 of Float32)
 function run!(sim; logger = nothing, messages_per_tstep = 1, start_tstep = 0)
     # Set up logger if needed
     if isnothing(logger)
-        logger = SubzeroLogger(sim, messages_per_tstep)
+        logger = SubzeroLogger(; sim, messages_per_tstep)
     end
     _startup_sim(sim, logger, messages_per_tstep)
     tstep = start_tstep

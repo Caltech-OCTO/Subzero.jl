@@ -1,57 +1,38 @@
 import Logging: shouldlog, min_enabled_level, catch_exceptions, handle_message
+export SubzeroLogger
+
+# Logger for Subzero - see documentation below
+struct SubzeroLogger <: Logging.AbstractLogger
+    stream::IO
+    min_level::Logging.LogLevel
+    message_limits::Dict{Union{String, Symbol},Int}
+    messages_per_tstep::Int
+end
 
 """
-    SubzeroLogger
+    SubzeroLogger(; sim = nothing, filename = " ", messages_per_tstep = 1)
 
 Logger for Subzero. Logs unique messages `messages_per_tstep` times per timestep
 to prevent overwhelming number of messages timesteps from multiple floes
 triggering the same log event.
-Fields:
-- stream: ogs are written to this IO
-- min_level: minimum log event level to write
-- message_limits: dictionary with message IDs for key whose values are the
+
+## _Fields_
+- `stream::IO`: logs are written to this IO
+- `min_level::Logging.LogLevel`: minimum log event level to write
+- `message_limits::Dict{Any, Int}`: dictionary with message IDs for key whose values are the
     number of times that message can still be written in current timestep - 
     current timestep is stored in same dictionary under key 'tstep'
-- messages_per_tstep: maximum number of times a given message should be written
-    per timestep
-"""
-struct SubzeroLogger <: Logging.AbstractLogger
-    stream::IO
-    min_level::Logging.LogLevel
-    message_limits::Dict{Any,Int}
-    messages_per_tstep::Int
+- `messages_per_tstep::Int`: maximum number of times a given message should be written per timestep
 
-    function SubzeroLogger(
-        stream,
-        min_level,
-        message_limits,
-        messages_per_tstep,
-    )
-        if !haskey(message_limits, "tstep")
-            message_limits["tstep"] = 0  # timestep key/value pair must exist
-        end
-        new(
-            stream,
-            min_level,
-            message_limits,
-            messages_per_tstep,
-        )
+## _Keyword arguments_
+- `sim::Simulation`: Subzero simulation - used to get simulation name (Default = nothing), which is then used to name log file
+- `filename::String`: if simulation isn't provided, a filename (+ path) must be provided to save log file
+- `messages_per_tstep::Int`: maximum number of times a given message should be written per timestep
+"""
+function SubzeroLogger(; sim = nothing, filename::String = "", messages_per_tstep = 1)
+    if !isnothing(sim)
+       filename = "./log/$(sim.name).log"
     end
-end
-
-"""
-    SubzeroLogger(sim, messages_per_tstep = 1)
-
-Constructor from Subzero logger.
-Inputs:
-    filename            <String> file path to file to write log events into
-    messages_per_tstep  <Int> maximum number of times a given message should be
-                            written per timestep
-Outputs:
-    Subzero logger that saves log to file with the same name as the simulation's
-    name field and optional keyword arguments set. 
-"""
-function SubzeroLogger(filename::String, messages_per_tstep = 1)
     # Create folder and file
     logfolder = dirname(filename)
     mkpath(logfolder)
@@ -60,40 +41,17 @@ function SubzeroLogger(filename::String, messages_per_tstep = 1)
     return SubzeroLogger(
         open(filename, "w+"),
         Logging.Info,
-        Dict{Any,Int}(),
+        Dict("tstep" => 0),
         messages_per_tstep,  # number of messages per timestep (per message)
     )
 end
-
-"""
-    SubzeroLogger(sim; messages_per_tstep = 1)
-
-Created Subzero logger and writes log events to log file in current directory to
-file with the same name as the simulation's name field.
-Inputs:
-    sim                 <Simulation>
-    messages_per_tstep  <Int> maximum number of times a given message should be
-                        written per timestep
-Outputs:
-    Subzero logger that saves log to file with the same name as the simulation's
-    name field and optional keyword arguments set. 
-"""
-SubzeroLogger(sim, messages_per_tstep = 1) =
-    SubzeroLogger(
-        "./log/$(sim.name).log",
-        messages_per_tstep,
-    )
 
 # Required logging functions
 shouldlog(logger::SubzeroLogger, level, _module, group, id) = true
 min_enabled_level(logger::SubzeroLogger) = Logging.Info
 catch_exceptions(logger::SubzeroLogger) = false
 
-"""
-    level_to_string(level)
-
-Returns string with log event name given log event level
-"""
+# Returns string with log event name given log event level
 function level_to_string(level)
     level == Logging.Error && return "ERROR"
     level == Logging.Warn  && return "WARN "
@@ -102,30 +60,17 @@ function level_to_string(level)
     return string(level)
 end
 
-"""
-    handle_message(
-        logger::SubzeroLogger,
-        level,
-        message,
-        _module,
-        group,
-        id,
-        filepath,
-        line;
-        tstep = nothing,
-        kwargs...,
-    )
-
+#= 
 Function that determines if log event should be written to file depending on how
 many times that event has been written to file in current timestep.
 
-Note:
-    This is called when a log macro is called (e.g. @warn), not explicitly by
-    the user. Additionally, it is not threadsafe so a message may be written
-    more times than `messages_per_tstep`, but it should be in the ballpark.
-    Putting a lock would slow down logging and isn't worth it given that this
-    problem only records a few extra log events. 
-"""
+
+This is called when a log macro is called (e.g. @warn), not explicitly by
+the user. Additionally, it is not threadsafe so a message may be written
+more times than `messages_per_tstep`, but it should be in the ballpark.
+Putting a lock would slow down logging and isn't worth it given that this
+problem only records a few extra log events. 
+=#
 function handle_message(
     logger::SubzeroLogger,
     level,
