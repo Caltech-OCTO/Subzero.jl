@@ -5,6 +5,8 @@ export Simulation, timestep_sim!, run!, restart!
 
 Simulation which holds a model and the parameters, settings, and output writers needed for running the simulation.
 
+Only keyword arguments are used! 
+
 ## _Fields_ / _Keyword Arguments_
 ### _General_
 - `model::MT`: Model to simulate

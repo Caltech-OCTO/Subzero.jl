@@ -47,6 +47,10 @@ Here is how to construct a `Constants`:
 ## _Keyword arguments_
 - Each of the above fields is an optional keyword argument.
 
+!!! note
+    Young's Modulus is usually calculated using the total floe area after floe initialization in the original Subzero code:
+    `E = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))`
+
 ## _Examples_
 - Creating `Constants` with a zero Coriolis frequency
 ```jldoctest

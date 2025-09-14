@@ -30,9 +30,9 @@ end
     InitialStateOuputWriter <: AbstractOutputWriter
 
 Concrete subtype of AbstractOutputWriter that records the intial state of the
-simulation. Writes JLD2 file with initial simulation state to the filepath
-specified. If overwrite is true, and there is a file of the given name at the
-filepath, that file will be overwritten.
+simulation so that you can re-load it later. Writes JLD2 file with initial simulation
+state to the filepath specified. If overwrite is true, and there is a file of the given
+name at the filepath, that file will be overwritten.
 
 ## _Fields_
 - $FILEPATH_DEF
@@ -189,7 +189,12 @@ end
 Floe subtype of AbstractOutputWriter that holds information for outputting floe
 information from model throughout simulation. Output will be saved to the file
 defined by `filename` every `Δtout` timesteps. Only outputs within the outputs list will
-be saved. File will be saved as a JLD2 file to filepath. If the given file
+be saved. The `outputs` field takes in a list of symbols corresponding to floe fields.
+For example, if you want the floe output writer to output the floes centroid and coordinates
+then `outputs = [:centroid, :coords]`. If you want all floe fields then you can simply omit
+the outputs field all together and all floe fields will be output.
+
+File will be saved as a JLD2 file to filepath. If the given file
 doesn't end in ".jld2", the extension will be appended. If `overwrite` is true then
 if there is already a file of the given name, it will be overwriten. Else it
 will thrown an error. 
@@ -204,13 +209,18 @@ will thrown an error.
 - `Δtout::Int`: number of timesteps between output
 
 ## _Keyword arguments_
-- `outputs::Vector{Symbol}`: list of Floe field names (as symbols) to output
+- `outputs::Vector{Symbol}`: list of Floe field names (as symbols) to output (Default outputs all `Floe` fields)
 - $DIR_DEF (Default = ".")
 - $FILENAME_DEF (Default = ".")
 - $OVERWRITE_DEF (Default = "initial_state.jld2")
 - $JLD2_KW_DEF
 - `writer::FloeOutputWriter`: OPTIONAL argument - if present, the `dir`, `filename`, and `overwrite` of the provided
 writer will be used for the new writer, rather than the above argument
+
+!!! note
+    If you have Periodic walls, and thus ghost floes in your simulation, these will also be saved by the `FloeOutputWriter`.
+    If you want to exclude these floes from your analysis or when otherwise using the `FloeOutputWriter` output, you can do
+    so by only including floes with a `ghost_id = 0` when post-processing. 
 
 Here is how to construct an FloeOutputWriter:
 
@@ -400,6 +410,10 @@ from an existing writer, copying all fields unless the new field values are expl
 - $FILENAME_DEF (Default = ".")
 - $OVERWRITE_DEF (Default = "initial_state.jld2")
 - `average::Bool`: if true, average gridded data over timesteps between outputs, else just calculate at output timestep
+
+!!! note
+    The argument/field `average` currently doesn't do anything! Only instantaneous values can be saved. The argument was added
+    so that this would be an easy change in the future. 
 
 Here is how to construct a new GridOutputWriter using an existing GridOutputWriter:
 
