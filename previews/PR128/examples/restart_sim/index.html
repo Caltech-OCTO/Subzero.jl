@@ -198,7 +198,11 @@ checkpointer = CheckpointOutputWriter(
     jld2_kw = Dict{Symbol, Any}(),
 )
 floewriter = FloeOutputWriter(50, dir = dirs[1], overwrite = true)
-writers = OutputWriters(initwriter, floewriter, checkpointer)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">OutputWriters{StructArrays.StructVector{InitialStateOutputWriter, @NamedTuple{filepath::Vector{String}, overwrite::Vector{Bool}}, Int64}, StructArrays.StructVector{FloeOutputWriter, @NamedTuple{Δtout::Vector{Int64}, outputs::Vector{Vector{Symbol}}, filepath::Vector{String}, overwrite::Vector{Bool}}, Int64}, StructArrays.StructVector{GridOutputWriter, @NamedTuple{outputs::Vector{Vector{Symbol}}, Δtout::Vector{Int64}, filepath::Vector{String}, overwrite::Vector{Bool}, xg::Vector{Vector{FT} where FT&lt;:AbstractFloat}, yg::Vector{Vector{FT} where FT&lt;:AbstractFloat}, data::Vector{Array{FT, 3} where FT&lt;:AbstractFloat}, average::Vector{Bool}}, Int64}, StructArrays.StructVector{CheckpointOutputWriter, @NamedTuple{Δtout::Vector{Int64}, filepath::Vector{String}, overwrite::Vector{Bool}}, Int64}}(InitialStateOutputWriter[InitialStateOutputWriter(&quot;restart_sim/run1/initial_state.jld2&quot;, true)], FloeOutputWriter[FloeOutputWriter(50, [:poly, :centroid, :coords, :height, :area, :mass, :rmax, :moment, :angles, :x_subfloe_points  …  :stress_accum, :stress_instant, :strain, :damage, :p_dxdt, :p_dydt, :p_dudt, :p_dvdt, :p_dξdt, :p_dαdt], &quot;restart_sim/run1/floes.jld2&quot;, true)], GridOutputWriter[], CheckpointOutputWriter[CheckpointOutputWriter(250, &quot;restart_sim/run1/checkpoint.jld2&quot;, true)])</code></pre><h2 id="Create-Simulation-and-Constants"><a class="docs-heading-anchor" href="#Create-Simulation-and-Constants">Create Simulation and Constants</a><a id="Create-Simulation-and-Constants-1"></a><a class="docs-heading-anchor-permalink" href="#Create-Simulation-and-Constants" title="Permalink"></a></h2><pre><code class="language-julia hljs">modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
+writers = OutputWriters(initwriter, floewriter, checkpointer)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">OutputWriters
+  ⊢1 InitialStateOuputWriter(s)
+  ⊢1 CheckpointOutputWriter(s)
+  ⊢1 FloeOutputWriter(s)
+  ∟0 GridOutputWriter(s)</code></pre><h2 id="Create-Simulation-and-Constants"><a class="docs-heading-anchor" href="#Create-Simulation-and-Constants">Create Simulation and Constants</a><a id="Create-Simulation-and-Constants-1"></a><a class="docs-heading-anchor-permalink" href="#Create-Simulation-and-Constants" title="Permalink"></a></h2><pre><code class="language-julia hljs">modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
 consts = Constants(; E = modulus, f = 0, turnθ = 0)
 simulation = Simulation(;
     model = model,
@@ -209,80 +213,16 @@ simulation = Simulation(;
     writers = writers,
     rng = Xoshiro(1),
     floe_settings,
-)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Simulation{Float64, Model{Float64, RegRectilinearGrid{Float64}, Domain{Float64, PeriodicBoundary{North, Float64}, PeriodicBoundary{South, Float64}, PeriodicBoundary{East, Float64}, PeriodicBoundary{West, Float64}, StructArrays.StructVector{TopographyElement{Float64}, @NamedTuple{poly::Vector{GeoInterface.Wrappers.Polygon{false, false, Vector{GeoInterface.Wrappers.LinearRing{false, false, Vector{Tuple{Float64, Float64}}, Nothing, Nothing}}, Nothing, Nothing}}, centroid::Vector{Vector{Float64}}, rmax::Vector{Float64}}, Int64}}, StructArrays.StructVector{Floe{Float64}, @NamedTuple{poly::Vector{GeoInterface.Wrappers.Polygon{false, false, Vector{GeoInterface.Wrappers.LinearRing{false, false, Vector{Tuple{Float64, Float64}}, Nothing, Nothing}}, Nothing, Nothing}}, centroid::Vector{Vector{Float64}}, coords::Vector{Vector{Vector{Vector{Float64}}}}, height::Vector{Float64}, area::Vector{Float64}, mass::Vector{Float64}, rmax::Vector{Float64}, moment::Vector{Float64}, angles::Vector{Vector{Float64}}, x_subfloe_points::Vector{Vector{Float64}}, y_subfloe_points::Vector{Vector{Float64}}, α::Vector{Float64}, u::Vector{Float64}, v::Vector{Float64}, ξ::Vector{Float64}, status::Vector{Subzero.Status}, id::Vector{Int64}, ghost_id::Vector{Int64}, parent_ids::Vector{Vector{Int64}}, ghosts::Vector{Vector{Int64}}, fxOA::Vector{Float64}, fyOA::Vector{Float64}, trqOA::Vector{Float64}, hflx_factor::Vector{Float64}, overarea::Vector{Float64}, collision_force::Vector{Matrix{Float64}}, collision_trq::Vector{Float64}, interactions::Vector{Matrix{Float64}}, num_inters::Vector{Int64}, stress_accum::Vector{Matrix{Float64}}, stress_instant::Vector{Matrix{Float64}}, strain::Vector{Matrix{Float64}}, damage::Vector{Float64}, p_dxdt::Vector{Float64}, p_dydt::Vector{Float64}, p_dudt::Vector{Float64}, p_dvdt::Vector{Float64}, p_dξdt::Vector{Float64}, p_dαdt::Vector{Float64}}, Int64}}, NoFracture, SubGridPointsGenerator{Float64}, DecayAreaScaledCalculator{Float64}, Xoshiro, OutputWriters{StructArrays.StructVector{InitialStateOutputWriter, @NamedTuple{filepath::Vector{String}, overwrite::Vector{Bool}}, Int64}, StructArrays.StructVector{FloeOutputWriter, @NamedTuple{Δtout::Vector{Int64}, outputs::Vector{Vector{Symbol}}, filepath::Vector{String}, overwrite::Vector{Bool}}, Int64}, StructArrays.StructVector{GridOutputWriter, @NamedTuple{outputs::Vector{Vector{Symbol}}, Δtout::Vector{Int64}, filepath::Vector{String}, overwrite::Vector{Bool}, xg::Vector{Vector{FT} where FT&lt;:AbstractFloat}, yg::Vector{Vector{FT} where FT&lt;:AbstractFloat}, data::Vector{Array{FT, 3} where FT&lt;:AbstractFloat}, average::Vector{Bool}}, Int64}, StructArrays.StructVector{CheckpointOutputWriter, @NamedTuple{Δtout::Vector{Int64}, filepath::Vector{String}, overwrite::Vector{Bool}}, Int64}}}(Model{Float64, ...}
- ⊢RegRectilinearGrid{Float64}
-  ⊢x extent (0.0 to 100000.0) with 10 grid cells of size 10000.0 m
-  ∟y extent (0.0 to 100000.0) with 10 grid cells of size 10000.0 m
- ⊢Domain
-  ⊢Northern boundary of type PeriodicBoundary{North, Float64}
-  ⊢Southern boundary of type PeriodicBoundary{South, Float64}
-  ⊢Eastern boundary of type PeriodicBoundary{East, Float64}
-  ⊢Western boundary of type PeriodicBoundary{West, Float64}
-  ∟0-element TopograpahyElement{Float64} list
- ⊢Ocean{Float64}
-  ⊢Vector fields of dimension (11, 11)
-  ⊢Tracer fields of dimension (11, 11)
-  ⊢Average u-velocity of: 0.90909 m/s
-  ⊢Average v-velocity of: 0.0 m/s
-  ∟Average temperature of: 0.0 C
- ⊢Atmos{Float64}
-  ⊢Vector fields of dimension (11, 11)
-  ⊢Tracer fields of dimension (11, 11)
-  ⊢Average u-velocity of: 0.0 m/s
-  ⊢Average v-velocity of: 0.0 m/s
-  ∟Average temperature of: 0.0 C
- ∟Floe List:
-  ⊢Number of floes: 21
-  ⊢Total floe area: 7.16084073175878e9
-  ∟Average floe height: 2.0, Constants{Float64}
-  ⊢ ρo = 1027.0
-  ⊢ ρa = 1.2
-  ⊢ Cd_io = 0.003
-  ⊢ Cd_ia = 0.001
-  ⊢ Cd_ao = 0.00125
-  ⊢ f = 0.0
-  ⊢ turnθ = 0.0
-  ⊢ L = 293000.0
-  ⊢ k = 2.14
-  ⊢ ν = 0.3
-  ⊢ μ = 0.2
-  ⊢ E = 3.595334669716184e7
-, Xoshiro(0xfff0241072ddab67, 0xc53bc12f4c3f0b4e, 0x56d451780b2dd4ba, 0x50a4aa153d208dd8, 0x3649a58b3b63d5db), true, &quot;sim&quot;, 20, 2500, FloeSettings{Float64, SubGridPointsGenerator{Float64}, DecayAreaScaledCalculator{Float64}}
-  ⊢ ρi = 920.0
-  ⊢ min_floe_area = 1.0e6
-  ⊢ min_floe_height = 0.1
-  ⊢ max_floe_height = 10.0
-  ⊢ min_aspect_ratio = 0.05
-  ⊢ maximum_ξ = 1.0e-5
-  ⊢ subfloe_point_generator = SubGridPointsGenerator{Float64}(3535.5339059327375)
-  ⊢ stress_calculator = DecayAreaScaledCalculator{Float64}(0.2, 0.0)
-, CouplingSettings(true, 10, 1, false), CollisionSettings{Float64}(true, 0.55, 0.75), FractureSettings{NoFracture}
-  ⊢ fractures_on = false
-  ⊢ criteria = NoFracture
-  ⊢ Δt = 0
-  ⊢ deform_on = false
-  ⊢ npieces = 3
-, SimplificationSettings{Float64}(true, 30, 100.0, 20), RidgeRaftSettings{Float64}
-  ⊢ ridge_raft_on = false
-  ⊢ Δt = 0
-  ⊢ ridge_probability = 0.95
-  ⊢ raft_probability = 0.95
-  ⊢ min_overlap_frac = 0.01
-  ⊢ min_ridge_height = 0.2
-  ⊢ max_floe_ridge_height = 5.0
-  ⊢ max_domain_ridge_height = 1.25
-  ⊢ max_floe_raft_height = 0.25
-  ⊢ max_domain_raft_height = 0.25
-  ⊢ domain_gain_probability = 1.0
-, WeldSettings{Float64}
-  ⊢ weld_on = false
-  ⊢ Δts = Int64[]
-  ⊢ Nxs = Int64[]
-  ⊢ Nys = Int64[]
-  ⊢ min_weld_area = 1.0e6
-  ⊢ max_weld_area = 2.0e9
-  ⊢ welding_coeff = 150.0
-, OutputWriters{StructArrays.StructVector{InitialStateOutputWriter, @NamedTuple{filepath::Vector{String}, overwrite::Vector{Bool}}, Int64}, StructArrays.StructVector{FloeOutputWriter, @NamedTuple{Δtout::Vector{Int64}, outputs::Vector{Vector{Symbol}}, filepath::Vector{String}, overwrite::Vector{Bool}}, Int64}, StructArrays.StructVector{GridOutputWriter, @NamedTuple{outputs::Vector{Vector{Symbol}}, Δtout::Vector{Int64}, filepath::Vector{String}, overwrite::Vector{Bool}, xg::Vector{Vector{FT} where FT&lt;:AbstractFloat}, yg::Vector{Vector{FT} where FT&lt;:AbstractFloat}, data::Vector{Array{FT, 3} where FT&lt;:AbstractFloat}, average::Vector{Bool}}, Int64}, StructArrays.StructVector{CheckpointOutputWriter, @NamedTuple{Δtout::Vector{Int64}, filepath::Vector{String}, overwrite::Vector{Bool}}, Int64}}(InitialStateOutputWriter[InitialStateOutputWriter(&quot;restart_sim/run1/initial_state.jld2&quot;, true)], FloeOutputWriter[FloeOutputWriter(50, [:poly, :centroid, :coords, :height, :area, :mass, :rmax, :moment, :angles, :x_subfloe_points  …  :stress_accum, :stress_instant, :strain, :damage, :p_dxdt, :p_dydt, :p_dudt, :p_dvdt, :p_dξdt, :p_dαdt], &quot;restart_sim/run1/floes.jld2&quot;, true)], GridOutputWriter[], CheckpointOutputWriter[CheckpointOutputWriter(250, &quot;restart_sim/run1/checkpoint.jld2&quot;, true)]))</code></pre><h2 id="Run-the-first-part-of-the-simulation"><a class="docs-heading-anchor" href="#Run-the-first-part-of-the-simulation">Run the first part of the simulation</a><a id="Run-the-first-part-of-the-simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Run-the-first-part-of-the-simulation" title="Permalink"></a></h2><pre><code class="language- hljs">run!(simulation)</code></pre><h2 id="Run-second-part-of-the-simulation"><a class="docs-heading-anchor" href="#Run-second-part-of-the-simulation">Run second part of the simulation</a><a id="Run-second-part-of-the-simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Run-second-part-of-the-simulation" title="Permalink"></a></h2><pre><code class="language- hljs">new_initwriter = InitialStateOutputWriter(initwriter; dir = dirs[2])
+)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Simulation
+  ⊢Timestep: 20 seconds
+  ⊢Runtime: 2500 timesteps
+  ⊢RNG: Xoshiro(0xfff0241072ddab67, 0xc53bc12f4c3f0b4e, 0x56d451780b2dd4ba, 0x50a4aa153d208dd8, 0x3649a58b3b63d5db)
+  ⊢verbose: true
+  ⊢model
+  ⊢consts
+  ⊢floe_settings
+  ⊢collision_settings
+  ∟ ...</code></pre><h2 id="Run-the-first-part-of-the-simulation"><a class="docs-heading-anchor" href="#Run-the-first-part-of-the-simulation">Run the first part of the simulation</a><a id="Run-the-first-part-of-the-simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Run-the-first-part-of-the-simulation" title="Permalink"></a></h2><pre><code class="language- hljs">run!(simulation)</code></pre><h2 id="Run-second-part-of-the-simulation"><a class="docs-heading-anchor" href="#Run-second-part-of-the-simulation">Run second part of the simulation</a><a id="Run-second-part-of-the-simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Run-second-part-of-the-simulation" title="Permalink"></a></h2><pre><code class="language- hljs">new_initwriter = InitialStateOutputWriter(initwriter; dir = dirs[2])
 new_floewriter = FloeOutputWriter(floewriter; dir = dirs[2])
 writers = OutputWriters(new_initwriter, new_floewriter)  # didn&#39;t save checkpoint since not restarting
 Subzero.restart!(
@@ -299,4 +239,4 @@ end</code></pre><h3 id="First-Part-of-Simulation"><a class="docs-heading-anchor"
 <source src="../restart_sim/run1/restart_floes.mp4" type="video/mp4">
 </video><h3 id="Second-Part-of-Simulation"><a class="docs-heading-anchor" href="#Second-Part-of-Simulation">Second Part of Simulation</a><a id="Second-Part-of-Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Second-Part-of-Simulation" title="Permalink"></a></h3><video width="auto" controls autoplay loop>
 <source src="../restart_sim/run2/restart_floes.mp4" type="video/mp4">
-</video><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../moving_bounds/">« Moving Boundaries</a><a class="docs-footer-nextpage" href="../../api/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Sunday 7 September 2025 20:25">Sunday 7 September 2025</span>. Using Julia version 1.11.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</video><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../moving_bounds/">« Moving Boundaries</a><a class="docs-footer-nextpage" href="../../api/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Sunday 14 September 2025 21:52">Sunday 14 September 2025</span>. Using Julia version 1.11.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
