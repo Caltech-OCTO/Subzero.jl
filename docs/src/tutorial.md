@@ -16,7 +16,7 @@ The very first step of running a Subzero simulation is to bring the package into
 using Subzero  # bring Subzero into scope
 using CairoMakie, GeoInterfaceMakie # bring plotting packages into scope
 import GeoInterface as GI
-using Random
+using Random, Logging
 ````
 
 ## Creating a Grid
@@ -241,7 +241,7 @@ Here, we will just provide constant values of 5m/s for the `u`-velocities, 0.0m/
 fields, see the `Ocean` example above.
 
 ````@example tutorial
-atmos = Atmos(; grid, u = 5.0, v = 0.0, temp = 0.0)
+atmos = Atmos(; grid, u = 5.0, v = 0.0, temp = -2.0)
 ````
 
 Again since all of the fields are constant, we won't plot them, but you can, using the `heatmap`
@@ -416,22 +416,29 @@ total number of timesteps to run for `nΔt`.
 sim = Simulation(;
     model = model,
     consts = consts,
-    Δt = 5, # timestep of 5 seconds
-    nΔt = 20000, # run for 10,000 timesteps
+    Δt = 10, # timestep of 5 seconds
+    nΔt = 30000, # run for 10,000 timesteps
     floe_settings = floe_settings,
     fracture_settings = fracture_settings,
     writers = writers,
 )
 ````
 
-## Running the Simulation
-You can now use the [`run!`](@ref) function to run the simulation. Subzero also has a custom logger, [`SubzeroLogger`](@ref), which logs
-all of the warnings that Subzero throws over the course of a simularion. It will only output each unique message `messages_per_tstep` times,
-which can be passed to the `run!` function. Here, for the same of the tutorial, I set this to `0`, but, normally, this should be the Default
-value of `1`.
+!!! note
+      Subzero also has a custom logger, [`SubzeroLogger`](@ref), which logs all of the info and warning messages that Subzero throws over
+      the course of a simularion into a log file. It will only output each unique message `messages_per_tstep` times, which can be passed
+      to the `run!` function. You can also create your own `SubzeroLogger`. However, here, for simplicity of the tutorial, I will turn off
+      all logging at or below `Info`.
 
 ````@example tutorial
-run!(sim; messages_per_tstep = 0)
+Logging.disable_logging(Logging.Info)
+````
+
+## Running the Simulation
+You can now use the [`run!`](@ref) function to run the simulation.
+
+````@example tutorial
+run!(sim)
 ````
 
 !!! note
@@ -447,7 +454,7 @@ and users may need to write their own restart function if they want more complex
 
 If your simulation has both a [`FloeOutputWriter`](@ref) and an [`InitialStateOutputWriter`](@ref),
 you can use the built in plotting function to make an MP4 file with each frame as a timestep saved
-by the `FloeOutputWriter`. This plotting function is quite simple and just meant to get your started.
+by the `FloeOutputWriter`. This plotting function is quite simple and just meant to get you started.
 You may need to add more complex plotting code to suit your needs.
 
 ````@example tutorial

@@ -21,6 +21,7 @@ heatmap and colorbar.
 - `Δt::Int`: $(Subzero.ΔT_DEF)
 - `output_fn::String`: $(Subzero.MP4_OUTPUT_FN)
 """
+
 function plot_sim(
     floe_fn,
     initial_state_fn,

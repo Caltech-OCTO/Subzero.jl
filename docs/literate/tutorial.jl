@@ -11,7 +11,7 @@
 using Subzero  # bring Subzero into scope
 using CairoMakie, GeoInterfaceMakie # bring plotting packages into scope
 import GeoInterface as GI
-using Random 
+using Random, Logging
 
 
 # ## Creating a Grid
@@ -207,7 +207,7 @@ fig
 # `v`-velocities and 0 C for the `temp`erature. If you are intersted in providing non-constant
 # fields, see the `Ocean` example above.
 
-atmos = Atmos(; grid, u = 5.0, v = 0.0, temp = 0.0)
+atmos = Atmos(; grid, u = 5.0, v = 0.0, temp = -2.0)
 
 # Again since all of the fields are constant, we won't plot them, but you can, using the `heatmap`
 # function as shown above. 
@@ -327,7 +327,6 @@ fracture_settings = FractureSettings(
 dir = "tutorial"
 init_fn, checkpoint_fn, floe_fn = "tutorial_init_state.jld2", "tutorial_checkpoint.jld2", "tutorial_floes.jld2"
 
-
 # We first make the [`InitialStateOutputWriter`](@ref):
 initwriter = InitialStateOutputWriter(; dir = dir, filename = init_fn, overwrite = true)
 
@@ -353,20 +352,24 @@ writers = OutputWriters(initwriter, checkpointer, floewriter)
 sim = Simulation(;
     model = model,
     consts = consts,
-    Δt = 5, # timestep of 5 seconds
-    nΔt = 20000, # run for 10,000 timesteps
+    Δt = 10, # timestep of 5 seconds
+    nΔt = 30000, # run for 10,000 timesteps
     floe_settings = floe_settings,
     fracture_settings = fracture_settings,
     writers = writers,
 )
 
-# ## Running the Simulation
-# You can now use the [`run!`](@ref) function to run the simulation. Subzero also has a custom logger, [`SubzeroLogger`](@ref), which logs
-# all of the warnings that Subzero throws over the course of a simularion. It will only output each unique message `messages_per_tstep` times,
-# which can be passed to the `run!` function. Here, for the same of the tutorial, I set this to `0`, but, normally, this should be the Default
-# value of `1`.
+# !!! note
+#       Subzero also has a custom logger, [`SubzeroLogger`](@ref), which logs all of the info and warning messages that Subzero throws over
+#       the course of a simularion into a log file. It will only output each unique message `messages_per_tstep` times, which can be passed
+#       to the `run!` function. You can also create your own `SubzeroLogger`. However, here, for simplicity of the tutorial, I will turn off
+#       all logging at or below `Info`.
+Logging.disable_logging(Logging.Info)
 
-run!(sim; messages_per_tstep = 0)
+# ## Running the Simulation
+# You can now use the [`run!`](@ref) function to run the simulation.
+
+run!(sim)
 
 # !!! note
 #       If you wish to couple to Oceananigans, you will need to run each model timestep by timestep
@@ -381,7 +384,7 @@ run!(sim; messages_per_tstep = 0)
 
 # If your simulation has both a [`FloeOutputWriter`](@ref) and an [`InitialStateOutputWriter`](@ref),
 # you can use the built in plotting function to make an MP4 file with each frame as a timestep saved
-# by the `FloeOutputWriter`. This plotting function is quite simple and just meant to get your started.
+# by the `FloeOutputWriter`. This plotting function is quite simple and just meant to get you started.
 # You may need to add more complex plotting code to suit your needs.
 
 plot_sim(joinpath(dir, floe_fn), joinpath(dir, init_fn), sim.Δt, joinpath(dir, "tutorial.mp4"))

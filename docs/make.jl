@@ -46,7 +46,7 @@ format = Documenter.HTML(;
     repolink = "https://github.com/Caltech-OCTO/Subzero.jl",
     canonical = "https://Caltech-OCTO.github.io/SubzeroDocumentation/stable",
     mathengine = MathJax3(),
-    size_threshold = 5*10^7,  # 500 KiB
+    size_threshold = 5*10^6,  # 500 KiB
 )
 
 # Metadata from doc tests

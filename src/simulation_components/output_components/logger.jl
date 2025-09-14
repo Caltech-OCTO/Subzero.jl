@@ -29,9 +29,14 @@ triggering the same log event.
 - `filename::String`: if simulation isn't provided, a filename (+ path) must be provided to save log file
 - `messages_per_tstep::Int`: maximum number of times a given message should be written per timestep
 """
-function SubzeroLogger(; sim = nothing, filename::String = "", messages_per_tstep = 1)
-    if !isnothing(sim)
-       filename = "./log/$(sim.name).log"
+function SubzeroLogger(; sim = nothing, min_log_level = nothing, messages_per_tstep = 1)
+    filename = if !isnothing(sim)
+        "./log/$(sim.name).log"
+    else
+        "./log/sim.log"
+    end
+    if isnothing(min_log_level)
+        min_log_level = Logging.Info
     end
     # Create folder and file
     logfolder = dirname(filename)
@@ -40,15 +45,15 @@ function SubzeroLogger(; sim = nothing, filename::String = "", messages_per_tste
     # Create logger
     return SubzeroLogger(
         open(filename, "w+"),
-        Logging.Info,
+        min_log_level,
         Dict("tstep" => 0),
         messages_per_tstep,  # number of messages per timestep (per message)
     )
 end
 
 # Required logging functions
-shouldlog(logger::SubzeroLogger, level, _module, group, id) = true
-min_enabled_level(logger::SubzeroLogger) = Logging.Info
+shouldlog(logger::SubzeroLogger, level, _module, group, id) = logger.min_level ≤ level
+min_enabled_level(logger::SubzeroLogger) = logger.min_level
 catch_exceptions(logger::SubzeroLogger) = false
 
 # Returns string with log event name given log event level
