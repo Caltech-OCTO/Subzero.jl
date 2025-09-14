@@ -40,11 +40,11 @@ name at the filepath, that file will be overwritten.
 
 ## _Keyword arguments_
 - $DIR_DEF (Default = ".")
-- $FILENAME_DEF (Default = ".")
-- $OVERWRITE_DEF (Default = "initial_state.jld2")
+- $FILENAME_DEF (Default = "initial_state.jld2")
+- $OVERWRITE_DEF
 - $JLD2_KW_DEF
 
-Here is how to construct an InitialStateOutputWriter:
+Here is how to construct an `InitialStateOutputWriter`:
 
     InitialStateOutputWriter(; kwargs...)
 """
@@ -60,19 +60,18 @@ function InitialStateOutputWriter(
 end
 
 """
-    InitialStateOuputWriter <: AbstractOutputWriter
+    InitialStateOutputWriter <: AbstractOutputWriter
 
-InitialStateOuputWriter can also be created using existing InitialStateOuputWriters, creating a InitialStateOuputWriters
-from an existing writer, copying all fields unless the new field values are explicity provided through keyword arguments.
+`InitialStateOutputWriter` can also be created using an existing `InitialStateOutputWriter`,
+copying all fields unless the new field values are explicity provided through keyword arguments.
 
 ## _Positional arguments_
-- `writer::InitialStateOutputWriter`: OPTIONAL argument - if present, the `dir`, `filename`, and `overwrite` of the provided
-writer will be used for the new writer, rather than the above argument
+- `writer::InitialStateOutputWriter`: existing `InitialStateOutputWriter`
 
 ## _Keyword arguments_
 - $DIR_DEF (Default = ".")
-- $FILENAME_DEF (Default = ".")
-- $OVERWRITE_DEF (Default = "initial_state.jld2")
+- $FILENAME_DEF (Default = "initial_state.jld2")
+- $OVERWRITE_DEF
 - kwargs...
 
 
@@ -116,11 +115,11 @@ overwriten. Else it will thrown an error.
 
 ## _Keyword arguments_
 - $DIR_DEF (Default = ".")
-- $FILENAME_DEF (Default = ".")
-- $OVERWRITE_DEF (Default = "initial_state.jld2")
+- $FILENAME_DEF (Default = "checkpoint.jld2")
+- $OVERWRITE_DEF
 - $JLD2_KW_DEF
 
-Here is how to construct an CheckpointOutputWriter:
+Here is how to construct an `CheckpointOutputWriter`:
 
     CheckpointOutputWriter(Δtout; kwargs...)
 """
@@ -144,7 +143,7 @@ end
 """
     CheckpointOutputWriter <: AbstractOutputWriter
 
-Creates a CheckpointOutputWriter from an existing writer, copying all fields unless new field
+A `CheckpointOutputWriter` can also be created from an existing `CheckpointOutputWriter`, copying all fields unless new field
 values are explicity provided either as the optional argument Δtout or through keyword
 arguments.
 
@@ -155,11 +154,11 @@ arguments.
 
 ## _Keyword arguments_
 - $DIR_DEF (Default = ".")
-- $FILENAME_DEF (Default = ".")
-- $OVERWRITE_DEF (Default = "initial_state.jld2")
+- $FILENAME_DEF (Default = "checkpoint.jld2")
+- $OVERWRITE_DEF
 - kwargs...
 
-Here is how to construct a new CheckpointOutputWriter using an existing CheckpointOutputWriter:
+Here is how to construct a new `CheckpointOutputWriter` using an existing `CheckpointOutputWriter`:
 
     CheckpointOutputWriter(existing_checkpointer, Δtout; kwargs...)
 """
@@ -211,18 +210,16 @@ will thrown an error.
 ## _Keyword arguments_
 - `outputs::Vector{Symbol}`: list of Floe field names (as symbols) to output (Default outputs all `Floe` fields)
 - $DIR_DEF (Default = ".")
-- $FILENAME_DEF (Default = ".")
-- $OVERWRITE_DEF (Default = "initial_state.jld2")
+- $FILENAME_DEF (Default = "floes.jld2")
+- $OVERWRITE_DEF
 - $JLD2_KW_DEF
-- `writer::FloeOutputWriter`: OPTIONAL argument - if present, the `dir`, `filename`, and `overwrite` of the provided
-writer will be used for the new writer, rather than the above argument
 
 !!! note
     If you have Periodic walls, and thus ghost floes in your simulation, these will also be saved by the `FloeOutputWriter`.
     If you want to exclude these floes from your analysis or when otherwise using the `FloeOutputWriter` output, you can do
     so by only including floes with a `ghost_id = 0` when post-processing. 
 
-Here is how to construct an FloeOutputWriter:
+Here is how to construct an `FloeOutputWriter`:
 
     FloeOutputWriter(Δtout; kwargs...)
 """
@@ -241,8 +238,7 @@ end
 """
     FloeOutputWriter <: AbstractOutputWriter
 
-FloeOutputWriter can also be created using existing FloeOutputWriter, creating a FloeOutputWriter
-from an existing writer, copying all fields unless the new field values are explicity provided through keyword arguments.
+A `FloeOutputWriter` can also be created using an existing `FloeOutputWriter`, copying all fields unless the new field values are explicity provided through keyword arguments.
 
 ## _Positional arguments_
 - `writer::InitialStateOutputWriter`: OPTIONAL argument - if present, the `dir`, `filename`, and `overwrite` of the provided 
@@ -252,11 +248,11 @@ from an existing writer, copying all fields unless the new field values are expl
 ## _Keyword arguments_
 - `outputs::Vector{Symbol}`: list of Floe field names (as symbols) to output
 - $DIR_DEF (Default = ".")
-- $FILENAME_DEF (Default = ".")
-- $OVERWRITE_DEF (Default = "initial_state.jld2")
+- $FILENAME_DEF (Default = "floes.jld2")
+- $OVERWRITE_DEF
 - kwargs...
 
-Here is how to construct a new FloeOutputWriter using an existing FloeOutputWriter:
+Here is how to construct a new `FloeOutputWriter` using an existing `FloeOutputWriter`:
 
     FloeOutputWriter(existing_floewriter, Δtout; kwargs...)
 """
@@ -321,7 +317,7 @@ fields. Output on this scale will be saved to the file defined by filepath every
 Δtout timesteps. Data will be collected in the data field during calculation for
 easier writing to the NetCDF file. Only outputs within the outputs list will be
 saved. There is a limited number of floe outputs that can be calculated by the
-GridOutputWriter.
+`GridOutputWriter`.
 
 ## _Fields_
 - `outputs::Vector{Symbol}`: list of field names (as symbols) to output - call `get_known_grid_outputs()` to see options
@@ -341,11 +337,11 @@ GridOutputWriter.
 ## _Keyword arguments_
 - `outputs::Vector{Symbol}`: list of field names (as symbols) to output - call `get_known_grid_outputs()` to see options
 - $DIR_DEF (Default = ".")
-- $FILENAME_DEF (Default = ".")
-- $OVERWRITE_DEF (Default = "initial_state.jld2")
+- $FILENAME_DEF (Default = "gridded_data.nc")
+- $OVERWRITE_DEF
 - `average::Bool`: if true, average gridded data over timesteps between outputs, else just calculate at output timestep
 
-Here is how to construct an GridOutputWriter:
+Here is how to construct an `GridOutputWriter`:
 
     GridOutputWriter(Δtout, grid, dims; kwargs...)
 """
@@ -394,8 +390,7 @@ GridOutputWriter(args...; kwargs...) =
 """
     GridOutputWriter <: AbstractOutputWriter
 
-GridOutputWriter can also be created using existing GridOutputWriter, creating a GridOutputWriter
-from an existing writer, copying all fields unless the new field values are explicity provided through keyword arguments.
+`GridOutputWriter` can also be created using existing `GridOutputWriter`, copying all fields unless the new field values are explicity provided through keyword arguments.
 
 ## _Positional arguments_
 - `writer::InitialStateOutputWriter`: OPTIONAL argument - if present, the `dir`, `filename`, and `overwrite` of the provided 
@@ -407,15 +402,15 @@ from an existing writer, copying all fields unless the new field values are expl
 - `dims::Tuple{Int, Int}`: output new grid dimensions for these calculations (rows -> ny, cols -> nx)
 - `outputs::Vector{Symbol}`: list of field names (as symbols) to output - call `get_known_grid_outputs()` to see options
 - $DIR_DEF (Default = ".")
-- $FILENAME_DEF (Default = ".")
-- $OVERWRITE_DEF (Default = "initial_state.jld2")
+- $FILENAME_DEF (Default = "gridded_data.nc")
+- $OVERWRITE_DEF
 - `average::Bool`: if true, average gridded data over timesteps between outputs, else just calculate at output timestep
 
 !!! note
     The argument/field `average` currently doesn't do anything! Only instantaneous values can be saved. The argument was added
     so that this would be an easy change in the future. 
 
-Here is how to construct a new GridOutputWriter using an existing GridOutputWriter:
+Here is how to construct a new `GridOutputWriter` using an existing `GridOutputWriter`:
 
     GridOutputWriter(existing_gridwriter, Δtout; kwargs...)
 """
@@ -492,6 +487,20 @@ function OutputWriters(args...)
         StructVector(gridwriters),
         StructVector(checkpointwriters)
     )
+end
+
+# Pretty printing for OutputWriters showing key dimensions
+function Base.show(io::IO, writers::OutputWriters)
+    overall_summary = "OutputWriters"
+    init_writer_summary = "$(length(writers.initialwriters)) InitialStateOuputWriter(s)"
+    checkpoint_writer_summary = "$(length(writers.checkpointwriters)) CheckpointOutputWriter(s)"
+    floe_writer_summary = "$(length(writers.floewriters)) FloeOutputWriter(s)"
+    grid_writer_summary = "$(length(writers.gridwriters)) GridOutputWriter(s)"
+    print(io, overall_summary, "\n",
+        "  ⊢", init_writer_summary, "\n",
+        "  ⊢", checkpoint_writer_summary, "\n",
+        "  ⊢", floe_writer_summary, "\n",
+        "  ∟", grid_writer_summary)
 end
 
 #----------------------- Write Data -----------------------#
@@ -574,7 +583,7 @@ end
 """
     write_floe_data!(sim, tstep)
 
-Writes desired FloeOutputWriter data to JLD2 file. Writes desired fields writer.outputs
+Writes desired `FloeOutputWriter` data to JLD2 file. Writes desired fields writer.outputs
 to JLD2 file with name writer.fn for current timestep, which will be the group in the JLD2 file. 
 
 ## _Positional arguments_
@@ -768,7 +777,7 @@ end
 """
     calc_eulerian_data!(floes, topography, writer, istep)
 
-Calculate floe data averaged on grid defined by GridOutputWriter for current
+Calculate floe data averaged on grid defined by `GridOutputWriter` for current
 timestep (istep). Saved in writer.data field 
 
 ## _Positional arguments_

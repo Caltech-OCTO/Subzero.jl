@@ -172,7 +172,7 @@ function shear_flow_velocities(Nx, Ny, min_u, max_u)
     return u_vals
 end
 
-u_vals = shear_flow_velocities(grid.Nx + 1, grid.Ny + 1, 0.0, 0.25)
+u_vals = shear_flow_velocities(grid.Nx + 1, grid.Ny + 1, 0.0, 0.35)
 ocean = Ocean(; u = u_vals, v = 0.0, temp = -1.0, grid)
 
 # We can now plot our ocean velocity values on an axis below our `grid` and `domain` setup.
@@ -327,18 +327,25 @@ fracture_settings = FractureSettings(
 dir = "tutorial"
 init_fn, checkpoint_fn, floe_fn = "tutorial_init_state.jld2", "tutorial_checkpoint.jld2", "tutorial_floes.jld2"
 
+
+# We first make the [`InitialStateOutputWriter`](@ref):
 initwriter = InitialStateOutputWriter(; dir = dir, filename = init_fn, overwrite = true)
+
+# We then make the [`CheckpointOutputWriter`](@ref):
 checkpointer = CheckpointOutputWriter(1000; dir = dir, filename = checkpoint_fn, overwrite = true)
-floewriter = FloeOutputWriter(50; dir = ".", filename = floe_fn, overwrite = true)
 
-writers = OutputWriters(; initwriter, checkpointer, floewriter)
+# Finally, we make a [`FloeOutputWriter`](@ref):
+floewriter = FloeOutputWriter(50; dir = dir, filename = floe_fn, overwrite = true)
 
-# ## Simulation
+# We can then combine these into an `OutputWriters` object:
+writers = OutputWriters(initwriter, checkpointer, floewriter)
+
+# ## Create a Simulation
 
 # At this point, you are ready to make a `Simulation`. A `Simulation` has quite a few fields, all of which are talked about above in more detail.
 # Since there are so many fields, they are keyword defined, so you must provide a keyword when creating the struct. The only necessary arguments
 # are the `model` (to specify the simulation physical setup) and `floe_settings` (to ensure they match the argument used when creatting the `floes`).
-# See the [`Simulation`](@ref) documetnation for a full list of keyword arguments and their default values.
+# See the [`Simulation`](@ref) documentation for a full list of keyword arguments and their default values.
 
 # In this tutorial, we create a simulation using all of the structs we created above. We will also need to set the simulation timestep `Δt` and the
 # total number of timesteps to run for `nΔt`.
@@ -347,15 +354,19 @@ sim = Simulation(;
     model = model,
     consts = consts,
     Δt = 5, # timestep of 5 seconds
-    nΔt = 2000, # run for 2000 timesteps
+    nΔt = 20000, # run for 10,000 timesteps
+    floe_settings = floe_settings,
     fracture_settings = fracture_settings,
     writers = writers,
 )
 
 # ## Running the Simulation
-# You can now use the [`run!`](@ref) function to run the simulation:
+# You can now use the [`run!`](@ref) function to run the simulation. Subzero also has a custom logger, [`SubzeroLogger`](@ref), which logs
+# all of the warnings that Subzero throws over the course of a simularion. It will only output each unique message `messages_per_tstep` times,
+# which can be passed to the `run!` function. Here, for the same of the tutorial, I set this to `0`, but, normally, this should be the Default
+# value of `1`.
 
-run!(sim)
+run!(sim; messages_per_tstep = 0)
 
 # !!! note
 #       If you wish to couple to Oceananigans, you will need to run each model timestep by timestep
@@ -373,7 +384,7 @@ run!(sim)
 # by the `FloeOutputWriter`. This plotting function is quite simple and just meant to get your started.
 # You may need to add more complex plotting code to suit your needs.
 
-plot_sim(joinpath(dir, floe_fn), joinpath(dir, init_fn), Δt, joinpath(dir, "tutorial.mp4"))
+plot_sim(joinpath(dir, floe_fn), joinpath(dir, init_fn), sim.Δt, joinpath(dir, "tutorial.mp4"))
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>

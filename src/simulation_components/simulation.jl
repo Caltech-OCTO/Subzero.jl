@@ -217,7 +217,7 @@ function timestep_sim!(sim, tstep, start_tstep = 0)
 end
 
 # Required actions to setup simulation. Right now, this only entails setting up the simulation's logger.
-function _startup_sim(sim, logger, messages_per_tstep = 1)
+function _startup_sim(sim, logger)
     global_logger(logger)
     # Start sim notice
     sim.verbose && println(sim.name * " is running!")
@@ -260,7 +260,7 @@ function run!(sim; logger = nothing, messages_per_tstep = 1, start_tstep = 0)
     if isnothing(logger)
         logger = SubzeroLogger(; sim, messages_per_tstep)
     end
-    _startup_sim(sim, logger, messages_per_tstep)
+    _startup_sim(sim, logger)
     tstep = start_tstep
     while tstep <= (start_tstep + sim.nΔt)
         # Timestep the simulation forward
@@ -329,4 +329,21 @@ function restart!(initial_state_fn, checkpointer_fn, new_nΔt, new_output_writer
     )
     run!(new_simulation; start_tstep = start_tstep)
     return
+end
+
+# Pretty printing for Simulation showing key dimensions
+function Base.show(io::IO, sim::Simulation)
+    overall_summary = "Simulation"
+    timestep_summary = "Timestep: $(sim.Δt) seconds"
+    runtime_summary = "Runtime: $(sim.nΔt) timesteps"
+    print(io, overall_summary, "\n",
+        "  ⊢", timestep_summary, "\n",
+        "  ⊢", runtime_summary, "\n",
+        "  ⊢RNG: ", sim.rng, "\n",
+        "  ⊢verbose: ", sim.verbose, "\n",
+        "  ⊢model\n",
+        "  ⊢consts\n",
+        "  ⊢floe_settings\n",
+        "  ⊢collision_settings\n",
+        "  ∟ ...")
 end
