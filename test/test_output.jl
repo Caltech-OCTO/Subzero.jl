@@ -11,12 +11,15 @@ function test_basic_outputwriters()
     )
     floe_coords = [[[7.5e4, 7.5e4], [7.5e4, 9.5e4], [9.5e4, 9.5e4], 
                     [9.5e4, 7.5e4], [7.5e4, 7.5e4]]]
+    floe_settings = FloeSettings()
+    floe_generator = CoordinateListFieldGenerator(; coords = [floe_coords], hmean = 1, Δh = 0)
+    floes = initialize_floe_field(; generator = floe_generator, domain, floe_settings)
     model = Model(;
         grid,
         ocean,
         atmos,
         domain,
-        floes = StructArray([Floe(floe_coords, 0.5)]),
+        floes,
     )
 
     dir = "output/sim"
@@ -54,8 +57,11 @@ function test_basic_outputwriters()
     simulation = Simulation(
         model = model,
         consts = Constants(),
+        Δt = 1,
         nΔt = 500,
-        writers = writers)
+        writers = writers,
+        floe_settings = floe_settings,
+        )
 
     run!(simulation)
 

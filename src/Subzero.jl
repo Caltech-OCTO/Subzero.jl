@@ -7,35 +7,6 @@ module Subzero
     read(path, String)
 end Subzero
 
-export
-    Constants,
-    Simulation,
-    timestep_sim!,
-    run!,
-    AbstractOutputWriter,
-    CheckpointOutputWriter,
-    GridOutputWriter, 
-    FloeOutputWriter,
-    InitialStateOutputWriter,
-    GridOutput,
-    FloeOutput,
-    add_ghosts!,
-    NoFracture,
-    HiblerYieldCurve,
-    MohrsCone,
-    CollisionSettings,
-    FractureSettings,
-    CouplingSettings,
-    SimplificationSettings,
-    RidgeRaftSettings,
-    WeldSettings,
-    FloeSettings,
-    PolyVec,
-    OutputWriters,
-    check_energy_momentum_conservation_julia,
-    MonteCarloPointsGenerator,
-    SubGridPointsGenerator
-
 import Base.@kwdef # this is being exported as of version 1.9
 import Base.show
 import GeometryOps as GO
@@ -88,8 +59,10 @@ point that is the centroid of either a floe or topography"
 const RMAX_DEF = "`rmax::FT`: Float length representing the maximum radius of a floe or topography \
 from the centroid to any given vertex"
 
+const SIM_DEF = "`sim::Simulation`: simulation to be run"
+
+
 # Types
-include("simulation_components/stress_calculators.jl")
 # Model
 include("simulation_components/grids.jl")
 include("simulation_components/domain_components/abstract_domains.jl")
@@ -100,16 +73,22 @@ include("simulation_components/floe_components/floe_status.jl")
 include("simulation_components/floe_components/floe_interaction.jl")
 include("simulation_components/floe_components/floe.jl")
 include("simulation_components/floe_components/floe_field.jl")
+include("simulation_components/floe_components/stress_calculators.jl")
+include("simulation_components/floe_components/subfloe_points_generators.jl")
+include("simulation_components/floe_components/floe_settings.jl")
 include("floe_utils.jl")
 include("simulation_components/oceans.jl")
 include("simulation_components/atmos.jl")
 include("simulation_components/model.jl")
+# Outputs
+include("simulation_components/output_components/logger.jl")
 # Physical Processes
+include("simulation_components/process_settings/process_settings.jl")
+include("simulation_components/process_settings/fracture_settings.jl")
 include("physical_processes/fractures.jl")
 include("physical_processes/update_floe.jl")
 include("physical_processes/coupling.jl")
 include("physical_processes/collisions.jl")
-include("physical_processes/process_settings.jl")
 include("physical_processes/simplification.jl")
 include("physical_processes/ridge_raft.jl")
 include("physical_processes/welding.jl")
@@ -117,8 +96,8 @@ include("physical_processes/welding.jl")
 include("plotting.jl")
 include("tools/conservation_em.jl")
 include("tools/compare_files.jl")
-include("logger.jl")
 # Simulation
-include("output.jl")
+include("simulation_components/output_components/output.jl")
+include("simulation_components/constants.jl")
 include("simulation_components/simulation.jl")
 end

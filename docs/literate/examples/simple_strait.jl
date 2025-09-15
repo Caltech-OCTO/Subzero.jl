@@ -53,7 +53,7 @@ atmos = Atmos(; grid, u = 0.0, v = 0.0, temp = 0.0)
 
 # ## Floe Creation
 floe_settings = FloeSettings(
-    subfloe_point_generator = SubGridPointsGenerator(grid, 2),
+    subfloe_point_generator = SubGridPointsGenerator(; grid, npoint_per_cell = 2),
     stress_calculator = DecayAreaScaledCalculator(),
 )
 floe_generator = VoronoiTesselationFieldGenerator(; nfloes = 75, concentrations = [0.7], hmean, Δh)
@@ -64,11 +64,11 @@ model = Model(; grid, ocean, atmos, domain, floes = floe_arr)
 
 # ## Constants Creation
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
-consts = Constants(E = modulus)
+consts = Constants(; E = modulus)
 
 # ## Settings Creation
 # ### Fracture Settings
-fracture_settings = FractureSettings(
+fracture_settings = FractureSettings(;
         fractures_on = true,
         criteria = HiblerYieldCurve(floe_arr),
         Δt = 75,
@@ -76,7 +76,7 @@ fracture_settings = FractureSettings(
         deform_on = false,
 )
 # ### Ridge Raft Settings
-ridgeraft_settings = RidgeRaftSettings(
+ridgeraft_settings = RidgeRaftSettings(;
     ridge_raft_on = true,
     Δt = 150
 )

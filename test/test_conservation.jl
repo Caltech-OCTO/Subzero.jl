@@ -2,6 +2,7 @@ function conservation_simulation(
     grid,
     domain,
     floes,
+    floe_settings,
     smoothing = false,
     plot = false,
 )
@@ -32,18 +33,19 @@ function conservation_simulation(
         smooth_vertices_on = smoothing,
     )
 
-    simulation = Simulation(
+    simulation = Simulation(;
         model = model,
         consts = consts,
         Δt = 1,
         nΔt = 5000,
         verbose = false,
+        floe_settings = floe_settings,
         coupling_settings = coupling_settings,
         simp_settings = simplification_settings,
         writers = writers,
     )
     run!(simulation)
-    em_lists = check_energy_momentum_conservation_julia(
+    em_lists = Subzero.check_energy_momentum_conservation_julia(
         joinpath(dir, "floes.jld2"),
         dir,
         plot
@@ -107,6 +109,7 @@ end
         grid,
         open_domain,
         head_on_floes,
+        floe_settings,
     )) .< 1)
 
     # Two blocks crashing offset - rotation
@@ -129,6 +132,7 @@ end
         grid,
         open_domain,
         offset_floes,
+        floe_settings,
     )) .< 1)
 
     # Two rectangular boxes with a triangle inbetween causing rotation
@@ -152,6 +156,7 @@ end
         grid,
         open_domain,
         rotating_floes,
+        floe_settings,
     )) .< 1)
 
     # Three complex (many-sided, non-convex) floes hitting
@@ -168,6 +173,7 @@ end
         0.25,
         0.0;
         rng = rng,
+        floe_settings = floe_settings
     )
     close(file)
     complex_floes.u[1] = 0.1
@@ -178,7 +184,9 @@ end
         conservation_simulation(
             grid,
             open_domain,
-            complex_floes,)
+            complex_floes,
+            floe_settings,
+        )
     ) .< 2.1)
 
     # One non-convex block hits the wall and topography -> only check conservation of energy
@@ -193,6 +201,7 @@ end
         0.25,
         0.0;
         rng = rng,
+        floe_settings = floe_settings
     )
     close(file)
     floe_arr.u[1] = -0.09
@@ -201,5 +210,6 @@ end
         grid,
         open_domain_w_topography,
         floe_arr,
+        floe_settings,
     )[1]) < 1
 end

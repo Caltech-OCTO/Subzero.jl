@@ -34,6 +34,7 @@
             domain,
             1.0,
             0.0;
+            floe_settings = FloeSettings(),
         )
         if !isnothing(Δx)
             for i in eachindex(Δx)
@@ -44,7 +45,7 @@
             end
         end
         assign_random_velocities!(floes)
-        add_ghosts!(floes, domain)
+        Subzero.add_ghosts!(floes, domain)
         Subzero.timestep_collisions!(  # Add interactions
             floes,
             length(floes),

@@ -36,6 +36,7 @@
     ns_periodic_domain = Domain(; north = p_n_bound, south = p_s_bound, east = o_e_bound, west = o_w_bound)
     double_periodic_domain = Domain(; north = p_n_bound, south = p_s_bound, east = p_e_bound, west = p_w_bound)
 
+    floe_settings = FloeSettings()
     @testset "Floe-Floe Interactions" begin
         hmean = 0.25
         max_overlap = 0.55
@@ -202,13 +203,13 @@
         coord_list = [coords1, coords2, coords3, coords4]
 
         # Make sure nothing is added with non-periodic domain
-        floe_arr = initialize_floe_field(FT, coord_list, open_domain, hmean, Δh; supress_warnings)
-        add_ghosts!(floe_arr, open_domain)
+        floe_arr = initialize_floe_field(FT, coord_list, open_domain, hmean, Δh; supress_warnings, floe_settings)
+        Subzero.add_ghosts!(floe_arr, open_domain)
         @test floe_arr.coords == coord_list
 
         # Add ghost floes in east-west direction
-        floe_arr = initialize_floe_field(FT, coord_list, ew_periodic_domain, hmean, Δh; supress_warnings)
-        add_ghosts!(floe_arr, ew_periodic_domain)
+        floe_arr = initialize_floe_field(FT, coord_list, ew_periodic_domain, hmean, Δh; supress_warnings, floe_settings)
+        Subzero.add_ghosts!(floe_arr, ew_periodic_domain)
         @test -1e5 < floe_arr[1].centroid[1] < 1e5
         @test -1e5 < floe_arr[2].centroid[2] < 1e5
         @test floe_arr.coords[1] == Subzero.translate(coords1, -2e5, 0.0)
@@ -222,8 +223,8 @@
         @test floe_arr.ghosts[3:6] == [[], [], [], []]
 
         # Add ghost floes in the north-south direction
-        floe_arr = initialize_floe_field(FT, coord_list, ns_periodic_domain, hmean, Δh; supress_warnings)
-        add_ghosts!(floe_arr, ns_periodic_domain)
+        floe_arr = initialize_floe_field(FT, coord_list, ns_periodic_domain, hmean, Δh; supress_warnings, floe_settings)
+        Subzero.add_ghosts!(floe_arr, ns_periodic_domain)
         @test -1e5 < floe_arr[1].centroid[2] < 1e5
         @test -1e5 < floe_arr[3].centroid[2] < 1e5
         @test floe_arr.coords[1] == Subzero.translate(coords1, 0.0, -2e5)
@@ -238,8 +239,8 @@
         @test floe_arr.ghosts[[2; 4:6]] == [[], [], [], []]
 
         # Add ghosts in both east-west and north-south directions
-        floe_arr = initialize_floe_field(FT, coord_list, double_periodic_domain, hmean, Δh; supress_warnings)
-        add_ghosts!(floe_arr, double_periodic_domain)
+        floe_arr = initialize_floe_field(FT, coord_list, double_periodic_domain, hmean, Δh; supress_warnings, floe_settings)
+        Subzero.add_ghosts!(floe_arr, double_periodic_domain)
         @test -1e5 < floe_arr.centroid[1][1] < 1e5
         @test -1e5 < floe_arr.centroid[1][2] < 1e5
         @test floe_arr.coords[1] == Subzero.translate(coords1, -2e5, -2e5)
@@ -285,12 +286,12 @@
         south_bound_rect_coords = [[[-9.8e4, -1.1e5], [-9.8e4, -9.5e4], [9.8e4, -9.5e4], [9.8e4, -1.1e5], [-9.8e4, -1.1e5]]]
 
         # Parent-parent collison (parents are touching) 
-        floe_arr = initialize_floe_field(FT, [lshape_coords, oval_coords], double_periodic_domain, hmean, Δh; supress_warnings)
+        floe_arr = initialize_floe_field(FT, [lshape_coords, oval_coords], double_periodic_domain, hmean, Δh; supress_warnings, floe_settings)
         Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, consts, Δt, collision_settings, spinlock)
         xforce_vals, yforce_vals = abs(floe_arr[1].collision_force[1]), abs(floe_arr[1].collision_force[2])
         f1_torque, f2_torque = floe_arr[1].collision_trq, floe_arr[2].collision_trq
 
-        add_ghosts!(floe_arr, double_periodic_domain)
+        Subzero.add_ghosts!(floe_arr, double_periodic_domain)
         Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, consts, Δt, collision_settings, spinlock)
         # 1 and 2 are the "parent" floes - floe 1 and floe 2 interact
         @test xforce_vals == abs(floe_arr[1].collision_force[1]) == abs(floe_arr[2].collision_force[1])
@@ -305,15 +306,15 @@
         # Ghost-Ghost collision (parents aren't touching, only ghosts touch)
         tall_rect_coords = [splitdims(vcat([5*Lx/8 5*Lx/8 3*Lx/4 3*Lx/4].+1000, [3*Ly/4 5*Ly/4 5*Ly/4 3*Ly/4]))]
         long_rect_coords = [splitdims(vcat(-[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000], -[7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8]))]
-        floe_arr = initialize_floe_field(FT, [tall_rect_coords, long_rect_coords], double_periodic_domain, hmean, Δh; supress_warnings)
-        trans_arr = initialize_floe_field(FT, [shifted_down_tall_rect_coords, shifted_right_long_rect_coords], double_periodic_domain, hmean, Δh; supress_warnings)
+        floe_arr = initialize_floe_field(FT, [tall_rect_coords, long_rect_coords], double_periodic_domain, hmean, Δh; supress_warnings, floe_settings)
+        trans_arr = initialize_floe_field(FT, [shifted_down_tall_rect_coords, shifted_right_long_rect_coords], double_periodic_domain, hmean, Δh; supress_warnings, floe_settings)
 
         Subzero.timestep_collisions!(trans_arr, 2, double_periodic_domain, consts, Δt, collision_settings, spinlock)
         xforce_vals = abs(trans_arr[1].collision_force[1])
         yforce_vals = abs(trans_arr[1].collision_force[2])
         f1_torque = trans_arr[1].collision_trq
         f2_torque = trans_arr[2].collision_trq
-        add_ghosts!(floe_arr, double_periodic_domain)
+        Subzero.add_ghosts!(floe_arr, double_periodic_domain)
         Subzero.timestep_collisions!( floe_arr, 2, double_periodic_domain, consts, Δt, collision_settings, spinlock)
         # floes 1 and 2 are the parents - floe 4 is floe 1's ghost and floe 3 is floe 2's ghost - floe 3 and 4 collide 
         @test repeat([xforce_vals], 2) == abs.(first.(floe_arr.collision_force[1:2]))
@@ -325,14 +326,14 @@
         @test floe_arr[2].interactions[:, [1:5; 7]] == floe_arr[3].interactions[:, [1:5; 7]]
 
         # Parent-Ghost Collision
-        floe_arr = initialize_floe_field(FT, [tall_rect_coords, shifted_up_long_rect_coords], double_periodic_domain, hmean, Δh; supress_warnings)
-        trans_arr = initialize_floe_field(FT, [shifted_left_tall_rect_coords, shifted_up_long_rect_coords], double_periodic_domain, hmean, Δh; supress_warnings)
+        floe_arr = initialize_floe_field(FT, [tall_rect_coords, shifted_up_long_rect_coords], double_periodic_domain, hmean, Δh; supress_warnings, floe_settings)
+        trans_arr = initialize_floe_field(FT, [shifted_left_tall_rect_coords, shifted_up_long_rect_coords], double_periodic_domain, hmean, Δh; supress_warnings, floe_settings)
         Subzero.timestep_collisions!(trans_arr, 2, double_periodic_domain, consts, Δt, collision_settings, spinlock)
         xforce_vals = abs(trans_arr[1].collision_force[1])
         yforce_vals = abs(trans_arr[1].collision_force[2])
         f1_torque = trans_arr[1].collision_trq
         f2_torque = trans_arr[2].collision_trq
-        add_ghosts!(floe_arr, double_periodic_domain)
+        Subzero.add_ghosts!(floe_arr, double_periodic_domain)
         Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, consts, Δt, collision_settings, spinlock)
         # Floe 1's ghost if floe 4 and floe 2's ghost is floe 3 and floe 3 and floe 1 interact
         @test repeat([xforce_vals], 2) == abs.(first.(floe_arr.collision_force[1:2]))
@@ -343,8 +344,8 @@
         @test isempty(floe_arr[4].interactions)
 
         # Parent and ghosts hitting the same floe
-        floe_arr =  initialize_floe_field(FT, [small_corner_rect_coords, large_tri_coords], double_periodic_domain, hmean, Δh; supress_warnings)
-        add_ghosts!(floe_arr, double_periodic_domain)
+        floe_arr =  initialize_floe_field(FT, [small_corner_rect_coords, large_tri_coords], double_periodic_domain, hmean, Δh; supress_warnings, floe_settings)
+        Subzero.add_ghosts!(floe_arr, double_periodic_domain)
         @test length(floe_arr) == 5
         Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, consts, Δt, collision_settings, spinlock)
         @test size(floe_arr[1].interactions)[1] == 3
@@ -352,8 +353,8 @@
         @test floe_arr[1].interactions[1, Subzero.xforce] != floe_arr[1].interactions[2, Subzero.xforce] && floe_arr[1].interactions[1, Subzero.xforce] != floe_arr[1].interactions[3,Subzero.xforce]
         @test floe_arr[1].interactions[1, Subzero.yforce] != floe_arr[1].interactions[2, Subzero.yforce] && floe_arr[1].interactions[1, Subzero.yforce] != floe_arr[1].interactions[3, Subzero.yforce]
 
-        floe_arr =  initialize_floe_field(FT, [small_corner_rect_coords, south_bound_rect_coords], double_periodic_domain, hmean, Δh; supress_warnings)
-        add_ghosts!(floe_arr, double_periodic_domain)
+        floe_arr =  initialize_floe_field(FT, [small_corner_rect_coords, south_bound_rect_coords], double_periodic_domain, hmean, Δh; supress_warnings, floe_settings)
+        Subzero.add_ghosts!(floe_arr, double_periodic_domain)
         @test length(floe_arr) == 6
         Subzero.timestep_collisions!(floe_arr, 2, double_periodic_domain, consts, Δt, collision_settings, spinlock)
         @test size(floe_arr[1].interactions)[1] == 2

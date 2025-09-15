@@ -48,7 +48,7 @@ atmos = Atmos(FT; grid, u = 0.0, v = 0.0, temp = 0.0)
 
 # ## Create Floes
 floe_generator = VoronoiTesselationFieldGenerator(; nfloes, concentrations = [concentration], hmean, Δh = 0)
-floe_settings = FloeSettings(subfloe_point_generator = SubGridPointsGenerator(grid, 2))
+floe_settings = FloeSettings(; subfloe_point_generator = SubGridPointsGenerator(; grid, npoint_per_cell = 2))
 floe_arr = initialize_floe_field(FT; generator = floe_generator,  domain, rng = Xoshiro(1), floe_settings)
 
 # ## Create Model
@@ -68,8 +68,8 @@ writers = OutputWriters(initwriter, floewriter, checkpointer)
 
 # ## Create Simulation and Constants 
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
-consts = Constants(E = modulus, f = 0, turnθ = 0)
-simulation = Simulation(
+consts = Constants(; E = modulus, f = 0, turnθ = 0)
+simulation = Simulation(;
     model = model,
     consts = consts,
     Δt = Δt,
@@ -77,6 +77,7 @@ simulation = Simulation(
     verbose = true,
     writers = writers,
     rng = Xoshiro(1),
+    floe_settings,
 )
 
 # ## Run the first part of the simulation

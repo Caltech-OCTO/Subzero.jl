@@ -40,8 +40,9 @@ wboundary = PeriodicBoundary(West; grid)
 domain = Domain(; north = nboundary, south = sboundary, east = eboundary, west = wboundary)
 
 # ## Floe creation
+floe_settings = FloeSettings()
 floe_generator = VoronoiTesselationFieldGenerator(; nfloes, concentrations, hmean, Δh)
-floe_arr = initialize_floe_field(; generator = floe_generator, domain, rng = Xoshiro(1))
+floe_arr = initialize_floe_field(; generator = floe_generator, domain, floe_settings, rng = Xoshiro(1))
 
 # You can also set the inital floe velocities manually like this:
 floe_arr.u .= 0
@@ -59,14 +60,14 @@ writers = OutputWriters(initwriter, floewriter)
 
 # ## Simulation settings 
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
-consts = Constants(E = modulus, Cd_io = 0.0, f = 0.0, turnθ = 0.0)
+consts = Constants(; E = modulus, Cd_io = 0.0, f = 0.0, turnθ = 0.0)
 
-ridgeraft_settings = RidgeRaftSettings(
+ridgeraft_settings = RidgeRaftSettings(;
     ridge_raft_on = true,
     Δt = 150,
     domain_gain_probability = 0.5
 )
-weld_settings = WeldSettings(
+weld_settings = WeldSettings(;
     weld_on = true,
     Δts = [150, 300, 600],  # weld at these specific timesteps
     Nxs = [2, 1, 1],  # split the domain into nx by ny sections and weld within each section
@@ -74,7 +75,7 @@ weld_settings = WeldSettings(
 )
 
 # ## Create Simulation
-simulation = Simulation(
+simulation = Simulation(;
     model = model,
     consts = consts,
     Δt = Δt,
@@ -83,6 +84,7 @@ simulation = Simulation(
     writers = writers,
     rng = Xoshiro(1),
     ridgeraft_settings = ridgeraft_settings,
+    floe_settings = floe_settings,
 )
 
 # ## Running the Simulation

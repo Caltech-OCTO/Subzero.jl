@@ -51,6 +51,8 @@ stationary_rect_floe = StructArray([Floe{Float64}(
     ]],
     height,
 )])
+
+floe_settings = FloeSettings()
 zonal_3rect_floes = initialize_floe_field(
     FT,
     [  # List of 3 floe coordinates
@@ -79,6 +81,7 @@ zonal_3rect_floes = initialize_floe_field(
     collision_domain_topo,
     height,
     Δh;
+    floe_settings,
 )
 zonal_3rect_floes.u .= [3.0, -3.0, 0.0]
 
@@ -117,6 +120,7 @@ simulation1 = Simulation(
     nΔt = nΔt,
     collision_settings = collisions_off_settings,
     writers = writers1,
+    floe_settings = floe_settings,
 )
 push!(sim_arr, simulation1)
 """
@@ -152,6 +156,7 @@ simulation2 = Simulation(
     nΔt = nΔt,
     collision_settings = collisions_off_settings,
     writers = writers2,
+    floe_settings = floe_settings,
 )
 push!(sim_arr, simulation2)
 
@@ -189,6 +194,7 @@ simulation3 = Simulation(
     nΔt = nΔt,
     writers = writers3,
     coupling_settings = CouplingSettings(coupling_on = false),
+    floe_settings = floe_settings,
 )
 push!(sim_arr, simulation3)
 
@@ -257,6 +263,7 @@ simulation4 = Simulation(
     nΔt = nΔt,
     writers = writers4,
     coupling_settings = CouplingSettings(coupling_on = false),
+    floe_settings = floe_settings,
 )
 push!(sim_arr, simulation4)
 
@@ -276,6 +283,7 @@ funky_floe_arr = initialize_floe_field(
     collision_domain_topo,
     hmean,
     Δh;
+    floe_settings,
 )
 close(file)
 funky_floe_arr.u .= (-1)^rand(0:1) * (0.1 * rand(length(funky_floe_arr)))
@@ -306,6 +314,7 @@ simulation5 = Simulation(
     nΔt = nΔt,
     writers = writers5,
     coupling_settings = CouplingSettings(coupling_on = false),
+    floe_settings = floe_settings,
 )
 push!(sim_arr, simulation5)
 

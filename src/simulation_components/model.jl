@@ -118,7 +118,9 @@ julia> ocean = Ocean(Float64; u = 0.5, v = 0.25, temp = 0.0, grid);
 
 julia> atmos = Atmos(Float64; u = 0.0, v = 0.1, temp = 0.0, grid);
 
-julia> floes = initialize_floe_field(Float64, 3, [0.5], domain, 0.25, 0; rng = Xoshiro(1));
+julia> floe_settings = FloeSettings(Float64);
+
+julia> floes = initialize_floe_field(Float64, 3, [0.5], domain, 0.25, 0; floe_settings, rng = Xoshiro(1));
 
 julia> Model(; grid, domain, ocean, atmos, floes)
 Model{Float64, ...}

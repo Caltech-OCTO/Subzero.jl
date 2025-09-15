@@ -52,7 +52,7 @@ ocean = Ocean(; u = uvels, v = 0, temp = 0, grid)
 atmos = Atmos(; u = 0.0, v = 0.0, temp = -1.0, grid)
 
 # ## Floe Creation
-floe_settings = FloeSettings(subfloe_point_generator = SubGridPointsGenerator(grid, 2))
+floe_settings = FloeSettings(subfloe_point_generator = SubGridPointsGenerator(; grid, npoint_per_cell = 2))
 floe_generator = VoronoiTesselationFieldGenerator(; nfloes = 50, concentrations = [0.75], hmean, Δh)
 floe_arr = initialize_floe_field(FT; generator = floe_generator, domain, rng = Xoshiro(1), floe_settings)
 
@@ -61,7 +61,7 @@ model = Model(; grid, ocean, atmos, domain, floes = floe_arr)
 
 # ## Constants Creation
 modulus = 1.5e3*(mean(sqrt.(floe_arr.area)) + minimum(sqrt.(floe_arr.area)))
-consts = Constants(E = modulus)
+consts = Constants(; E = modulus)
 
 # ## Output Creation
 dir = "shear_flow"
@@ -71,8 +71,7 @@ floewriter = FloeOutputWriter(50, dir = dir, filename = floe_fn, overwrite = tru
 writers = OutputWriters(initwriter, floewriter)
 
 # ## Simulation Creation
-simulation = Simulation(; model, consts, writers, Δt, nΔt, floe_settings,
-    verbose = true, rng = Xoshiro(1))
+simulation = Simulation(; model, consts, writers, Δt, nΔt, floe_settings, verbose = true, rng = Xoshiro(1))
 
 # ## Running the Simulation
 run!(simulation)

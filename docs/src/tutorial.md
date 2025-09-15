@@ -16,7 +16,7 @@ The very first step of running a Subzero simulation is to bring the package into
 using Subzero  # bring Subzero into scope
 using CairoMakie, GeoInterfaceMakie # bring plotting packages into scope
 import GeoInterface as GI
-using Random
+using Random, Logging
 ````
 
 ## Creating a Grid
@@ -201,7 +201,7 @@ function shear_flow_velocities(Nx, Ny, min_u, max_u)
     return u_vals
 end
 
-u_vals = shear_flow_velocities(grid.Nx + 1, grid.Ny + 1, 0.0, 0.25)
+u_vals = shear_flow_velocities(grid.Nx + 1, grid.Ny + 1, 0.0, 0.35)
 ocean = Ocean(; u = u_vals, v = 0.0, temp = -1.0, grid)
 ````
 
@@ -241,7 +241,7 @@ Here, we will just provide constant values of 5m/s for the `u`-velocities, 0.0m/
 fields, see the `Ocean` example above.
 
 ````@example tutorial
-atmos = Atmos(; grid, u = 5.0, v = 0.0, temp = 0.0)
+atmos = Atmos(; grid, u = 5.0, v = 0.0, temp = -2.0)
 ````
 
 Again since all of the fields are constant, we won't plot them, but you can, using the `heatmap`
@@ -282,10 +282,10 @@ generator = VoronoiTesselationFieldGenerator(; nfloes, concentrations, hmean, Δ
 Here we will just create a `FloeSettings` struct with just a few of the keyword options.
 
 ````@example tutorial
-floe_settings = FloeSettings(
+floe_settings = FloeSettings(;
   min_floe_area = 1e5,
   max_floe_height = 5,
-  subfloe_point_generator = SubGridPointsGenerator(grid, 2),
+  subfloe_point_generator = SubGridPointsGenerator(; grid, npoint_per_cell = 2),
 )
 ````
 
@@ -325,10 +325,153 @@ A model can be made as follows:
 model = Model(; grid, domain, ocean, atmos, floes)
 ````
 
+## Constants
+
+We can then set a group of [`Constants`](@ref), which are a set of important physical parameters, like the ocean coriolis frequency and
+the air density. All constants have a default value, so you only need to change the ones that specifically affect your simulation. All
+constants and default values are listed in the [`Constants`](@ref) documentation.
+
+Here, I will just use the default values:
+
+````@example tutorial
+consts = Constants()
+````
+
+## Settings
+
+In addition to the [`FloeSettings`](@ref) discussed above, there are also settings for all of the other physical processes that can happen
+during a Subzero run. Here, I will just use all default settings except for the `FractureSettings`, but each of the following settings have documentation
+detailing how to turn features on/off and tune their behavior.
+
+The list of existing settings is:
+- [`FloeSettings`](@ref)
+- [`CouplingSettings`](@ref)
+- [`CollisionSettings`](@ref)
+- [`FractureSettings`](@ref)
+- [`SimplificationSettings`](@ref)
+- [`RidgeRaftSettings`](@ref)
+- [`WeldSettings`](@ref)
+
+````@example tutorial
+fracture_settings = FractureSettings(
+        fractures_on = true,
+        criteria = HiblerYieldCurve(floes),
+        Δt = 75,
+        npieces = 3,
+        deform_on = false,
+)
+````
+
+## Output Writers
+
+You also need to create a set of output writers to record the data from your simulation. You can add four types of output writers, and as many of each
+type as you would like. The four types are as follows: [`InitialStateOutputWriter`](@ref), [`CheckpointOutputWriter`](@ref),[ `FloeOutputWriter`](@ref), and
+[`GridOutputWriter`](@ref). When any of these objects are created, the file that they will write to is also created automatically. You can read more about each
+of these types of output writers within the API guide. You must then combine all of your output writers into an [`OutputWriters`](@ref) struct. You can simply
+pass each output writer created as an argument to the `OutputWriters` constructor.
+
+Here, we will create an [`InitialStateOutputWriter`](@ref), a [`CheckpointOutputWriter`](@ref) (that outputs every 1000 timesteos), and a
+[ `FloeOutputWriter`](@ref) (that outputs every 50 timesteps) and then combine them into a [`OutputWriter`](@ref).
+
+````@example tutorial
+dir = "tutorial"
+init_fn, checkpoint_fn, floe_fn = "tutorial_init_state.jld2", "tutorial_checkpoint.jld2", "tutorial_floes.jld2"
+````
+
+We first make the [`InitialStateOutputWriter`](@ref):
+
+````@example tutorial
+initwriter = InitialStateOutputWriter(; dir = dir, filename = init_fn, overwrite = true)
+````
+
+We then make the [`CheckpointOutputWriter`](@ref):
+
+````@example tutorial
+checkpointer = CheckpointOutputWriter(1000; dir = dir, filename = checkpoint_fn, overwrite = true)
+````
+
+Finally, we make a [`FloeOutputWriter`](@ref):
+
+````@example tutorial
+floewriter = FloeOutputWriter(50; dir = dir, filename = floe_fn, overwrite = true)
+````
+
+We can then combine these into an `OutputWriters` object:
+
+````@example tutorial
+writers = OutputWriters(initwriter, checkpointer, floewriter)
+````
+
+## Create a Simulation
+
+At this point, you are ready to make a `Simulation`. A `Simulation` has quite a few fields, all of which are talked about above in more detail.
+Since there are so many fields, they are keyword defined, so you must provide a keyword when creating the struct. The only necessary arguments
+are the `model` (to specify the simulation physical setup) and `floe_settings` (to ensure they match the argument used when creatting the `floes`).
+See the [`Simulation`](@ref) documentation for a full list of keyword arguments and their default values.
+
+In this tutorial, we create a simulation using all of the structs we created above. We will also need to set the simulation timestep `Δt` and the
+total number of timesteps to run for `nΔt`.
+
+````@example tutorial
+sim = Simulation(;
+    model = model,
+    consts = consts,
+    Δt = 10, # timestep of 5 seconds
+    nΔt = 30000, # run for 10,000 timesteps
+    floe_settings = floe_settings,
+    fracture_settings = fracture_settings,
+    writers = writers,
+)
+````
+
 !!! note
-      The documentation, and to some extent the source code, is being cleaned up. This means that right now, some of the documentation is here,
-      and some is on the [documentation.md](https://github.com/Caltech-OCTO/Subzero.jl/blob/main/documentation.md) section of the GitHub. Once
-      you have reached this part of the tutorial, please switch back over there.
+      Subzero also has a custom logger, [`SubzeroLogger`](@ref), which logs all of the info and warning messages that Subzero throws over
+      the course of a simularion into a log file. It will only output each unique message `messages_per_tstep` times, which can be passed
+      to the `run!` function. You can also create your own `SubzeroLogger`. However, here, for simplicity of the tutorial, I will turn off
+      all logging at or below `Info`.
+
+````@example tutorial
+Logging.disable_logging(Logging.Info)
+````
+
+## Running the Simulation
+You can now use the [`run!`](@ref) function to run the simulation.
+
+````@example tutorial
+run!(sim)
+````
+
+!!! note
+      If you wish to couple to Oceananigans, you will need to run each model timestep by timestep
+      and pass the needed fields back and forth. You can run a single timestep of the simulation
+      using the [`timestep_sim!`](@ref) function.
+
+If you run your simulation in multiple parts and need to re-start your simulation from files,
+the [`restart!`](@ref) function will be a good place to start. However, note that it is quite simple
+and users may need to write their own restart function if they want more complex behavior.
+
+## Plotting the Simulation
+
+If your simulation has both a [`FloeOutputWriter`](@ref) and an [`InitialStateOutputWriter`](@ref),
+you can use the built in plotting function to make an MP4 file with each frame as a timestep saved
+by the `FloeOutputWriter`. This plotting function is quite simple and just meant to get you started.
+You may need to add more complex plotting code to suit your needs.
+
+````@example tutorial
+plot_sim(joinpath(dir, floe_fn), joinpath(dir, init_fn), sim.Δt, joinpath(dir, "tutorial.mp4"))
+````
+
+```@raw html
+<video width="auto" controls autoplay loop>
+<source src="../tutorial/tutorial.mp4" type="video/mp4">
+</video>
+```
+
+## Reproducibility
+
+The simulations are currently completly reproducible when run single-threaded. The simulation takes a `rng` argument, and if it is provided with a seeded random number generator,
+then two simulations with the same set of starting floes will produce the exact same results. Note that the same set of floes can be reproduced by providing a seeded random number
+generator to the floe creation functions. Simulation reproducability has not been achieved for multi-threaded runs.
 
 ---
 

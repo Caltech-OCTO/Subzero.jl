@@ -94,12 +94,12 @@
         @test yield_curve isa HiblerYieldCurve
         @test yield_curve.pstar == 2.25e5 && yield_curve.c == 20
         floes.height .= 0.5
-        Subzero.update_criteria!(yield_curve, floes)
+        Subzero._update_criteria!(yield_curve, floes)
         @test !GO.equals(old_poly, yield_curve.poly)
         # Test update criteria for Mohr's cone
         cone_curve = MohrsCone()
         old_poly = cone_curve.poly
-        Subzero.update_criteria!(cone_curve, floes)
+        Subzero._update_criteria!(cone_curve, floes)
         @test GO.equals(old_poly, cone_curve.poly)
     end
     @testset "Fractures Floes" begin

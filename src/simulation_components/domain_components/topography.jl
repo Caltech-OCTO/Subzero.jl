@@ -1,6 +1,8 @@
 export TopographyElement  # Topographic element within domain
 export initialize_topography_field  # Function to create topography field for user
 
+const TOPO_FIELD = "`topography::StructArray{TopographyElement}`: simulation's list of topography elements"
+
 # Concrete subtype of AbstractDomainElement - see documentation below
 struct TopographyElement{FT}<:AbstractDomainElement{FT}
     poly::Polys{FT}
