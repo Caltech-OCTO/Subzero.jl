@@ -1,6 +1,12 @@
 # # Basic plotting functions (and stub functions) for Subzero simulations
 export plot_sim, prettytime
 
+# constants used for documentation
+const FLOE_FN_DEF = "floe outputwriter output file path and name"
+const INITIAL_STATE_FN_DEF = "initial state outputwriter output file path and name"
+const ΔT_DEF = "length of timestep in integer seconds"
+const MP4_OUTPUT_FN = "output video file path and name (should end with .mp4)"
+
 #= 
 ## What plotting functionality is availible for Subzero simulations?
 
@@ -22,7 +28,6 @@ into the extension.
 =#
 
 # Stub functions that depend on CairoMakie implemented in ext/SubzeroMakieExt.jl
-
 """
     plot_sim(floe_fn, initial_state_fn, Δt, output_fn; max_side_pixels = 800)
 
@@ -35,30 +40,21 @@ This code does not have an underlying ocean, but there are comments on how to ad
 heatmap and colorbar within the source code.
 
 ## Arguments:
-- `floe_fn::String`: $(Subzero.FLOE_FN_DEF)
-- `initial_state_fn::String`: $(Subzero.INITIAL_STATE_FN_DEF)
-- `Δt::Int`: $(Subzero.ΔT_DEF)
-- `output_fn::String`: $(Subzero.MP4_OUTPUT_FN)
+- `floe_fn::String`: $FLOE_FN_DEF
+- `initial_state_fn::String`: $INITIAL_STATE_FN_DEF
+- `Δt::Int`: $ΔT_DEF
+- `output_fn::String`: $MP4_OUTPUT_FN
 """
 function plot_sim end
 
-# Constants used in plotting code
-# TODO: Some of these will be moved earlier in the code for use in the output writer files
-
-const FLOE_FN_DEF = "floe outputwriter output file path and name"
-const INITIAL_STATE_FN_DEF = "initial state outputwriter output file path and name"
-const ΔT_DEF = "length of timestep in integer seconds"
-const MP4_OUTPUT_FN = "output video file path and name (should end with .mp4)"
-
 # Utility functions that don't depend on CairoMakie
-
 """
     prettytime(t)
 
 Turn time in seconds into units of minutes, hours, days, or years as appropriate
-## Aguments:
+## _Positional Arguments_:
 - `t::Real`: number of seconds
-## Returns:
+## Outputs:
 - `::String`: number of seconds converted to a string value in minutes, hours, days, or years with units
 ## Note:
     This code was modified from the this [source code](https://github.com/JuliaCI/BenchmarkTools.jl/blob/master/src/trials.jl).

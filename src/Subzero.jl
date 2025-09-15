@@ -93,7 +93,7 @@ include("physical_processes/simplification.jl")
 include("physical_processes/ridge_raft.jl")
 include("physical_processes/welding.jl")
 # Tools
-include("plotting.jl")
+include("tools/plotting.jl")
 include("tools/conservation_em.jl")
 include("tools/compare_files.jl")
 # Simulation

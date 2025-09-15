@@ -99,11 +99,6 @@ run!
 restart!
 ```
 
-## Plotting
-```@docs
-plot_sim
-```
-
 # Developer-Used Methods
 
 ## Simulation Methods
