@@ -384,7 +384,7 @@ run!(sim)
 
 # If your simulation has both a [`FloeOutputWriter`](@ref) and an [`InitialStateOutputWriter`](@ref),
 # you can use the built in plotting function to make an MP4 file with each frame as a timestep saved
-# by the `FloeOutputWriter`. This plotting function is quite simple and just meant to get you started.
+# by the `FloeOutputWriter`. This plotting function `plot_sim` is quite simple and just meant to get you started.
 # You may need to add more complex plotting code to suit your needs.
 
 plot_sim(joinpath(dir, floe_fn), joinpath(dir, init_fn), sim.Δt, joinpath(dir, "tutorial.mp4"))
