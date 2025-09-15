@@ -23,6 +23,23 @@ into the extension.
 
 # Stub functions that depend on CairoMakie implemented in ext/SubzeroMakieExt.jl
 
+"""
+    plot_sim(floe_fn, initial_state_fn, Δt, output_fn; max_side_pixels = 800)
+
+Basic plotting of a simulation using the simulation's floe and initial state files. This
+function is meant for basic plotting during testing and as an example of how to create
+a video using Makie. The user can (and should!) write their own plotting code to their own
+specifications and needs.
+
+This code does not have an underlying ocean, but there are comments on how to add an ocean
+heatmap and colorbar within the source code.
+
+## Arguments:
+- `floe_fn::String`: $(Subzero.FLOE_FN_DEF)
+- `initial_state_fn::String`: $(Subzero.INITIAL_STATE_FN_DEF)
+- `Δt::Int`: $(Subzero.ΔT_DEF)
+- `output_fn::String`: $(Subzero.MP4_OUTPUT_FN)
+"""
 function plot_sim end
 
 # Constants used in plotting code
