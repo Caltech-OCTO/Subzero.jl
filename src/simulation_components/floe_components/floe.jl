@@ -6,7 +6,6 @@ export Floe
     # Physical Properties -------------------------------------------------
     poly::Polys{FT}         # polygon that represents the floe's shape
     centroid::Vector{FT}    # center of mass of floe (might not be in floe!)
-    coords::PolyVec{FT}     # floe coordinates
     height::FT              # floe height (m)
     area::FT                # floe area (m^2)
     mass::FT                # floe mass (kg)
@@ -138,7 +137,6 @@ coords = [
 | -------------- | ---------------------------------- | ------------- |
 | poly           | polygon that represent's a floe's shape | Polys{Float64 or Float32}
 | centroid       | floe's centroid                    | Float64 or Float32|
-| coords         | floe's coordinates                 | PolyVec of Float64 or Float32 |
 | height         | floe's height in [m]                 | Float64 or Float32|
 | area           | floe's area in [m^2]                 | Float64 or Float32|
 | mass           | floe's mass in [kg]                  | Float64 or Float32|
@@ -217,7 +215,6 @@ The fifth catagory is **timesteping values**. These are values from the previous
 function Floe{FT}(shape, height; floe_settings = FloeSettings(), rng = Xoshiro(), kwargs...) where FT
     poly = _get_floe_poly(FT, shape)
     # Floe physical properties
-    coords = find_poly_coords(poly)
     centroid = collect(GO.centroid(poly))
     area = GO.area(poly)
     mass = area * height * floe_settings.ρi
@@ -228,7 +225,7 @@ function Floe{FT}(shape, height; floe_settings = FloeSettings(), rng = Xoshiro()
     status = Status()
     x_subfloe_points, y_subfloe_points, status = generate_subfloe_points(floe_settings.subfloe_point_generator, poly, centroid, area, status, rng)
     # Generate status
-    return Floe{FT}(; poly, height, coords, centroid, area, mass, rmax, moment, angles, status, x_subfloe_points, y_subfloe_points, kwargs...)
+    return Floe{FT}(; poly, height, centroid, area, mass, rmax, moment, angles, status, x_subfloe_points, y_subfloe_points, kwargs...)
 end
 
 # if no type is provided, it will default to Float64 - not a argument as this should not be user facing!

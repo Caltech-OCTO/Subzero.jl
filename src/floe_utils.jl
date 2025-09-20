@@ -127,7 +127,6 @@ function deepcopy_floe(floe::LazyRow{Floe{FT}}) where {FT}
     f = Floe{FT}(
         poly = poly,
         centroid = copy(floe.centroid),
-        coords = find_poly_coords(poly),
         height = floe.height,
         area = floe.area,
         mass = floe.mass,
@@ -223,19 +222,6 @@ function rotate_radians!(coords::PolyVec, α)
         end
     end
     return
-end
-
-"""
-    hashole(coords::PolyVec{FT})
-
-Determine if polygon coordinates have one or more holes
-Inputs:
-    coords <PolyVec{Float}>
-Outputs:
-    <Bool>
-"""
-function hashole(coords::PolyVec{FT}) where FT<:AbstractFloat
-    return length(coords) > 1
 end
 
 """

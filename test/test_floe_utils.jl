@@ -33,9 +33,7 @@
     )
     @test_throws AssertionError Subzero.valid_polyvec!([[Float64[]]])
 
-    # Test predicate hashole for coords, polygons and multipolygons
-    @test !Subzero.hashole([ext])
-    @test Subzero.hashole([ext, hole1])
+    # Test predicate hashole for polygons and multipolygons
     @test !Subzero.hashole(poly_nohole)
     @test Subzero.hashole(poly_hole1)
     @test Subzero.hashole(poly_hole2)

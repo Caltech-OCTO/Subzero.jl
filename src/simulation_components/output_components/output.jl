@@ -189,8 +189,8 @@ Floe subtype of AbstractOutputWriter that holds information for outputting floe
 information from model throughout simulation. Output will be saved to the file
 defined by `filename` every `Δtout` timesteps. Only outputs within the outputs list will
 be saved. The `outputs` field takes in a list of symbols corresponding to floe fields.
-For example, if you want the floe output writer to output the floes centroid and coordinates
-then `outputs = [:centroid, :coords]`. If you want all floe fields then you can simply omit
+For example, if you want the floe output writer to output the floes centroid and polygons
+then `outputs = [:centroid, :poly]`. If you want all floe fields then you can simply omit
 the outputs field all together and all floe fields will be output.
 
 File will be saved as a JLD2 file to filepath. If the given file
@@ -928,7 +928,6 @@ function getattrs(output::Symbol)
         output == :floes ? ("StructArray", "Model's array of floe structs at given simulation timesteps") :
         # Floe fields
         output == :centroid ? ("location", "Coordinates of centorid as [x y]") :
-        output == :coords ? ("location", "Floe coordinates - either x or y") :
         output == :height ? ("m", "Floe height (uniform over floe)") :
         output == :area ? ("m^2", "Floe area") :
         output == :mass ? ("kg", "Floe mass") :
