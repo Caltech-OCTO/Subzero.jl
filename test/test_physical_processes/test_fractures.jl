@@ -181,18 +181,17 @@
         
         # Test deform_floe!
         floe1_copy = deepcopy(floes[1])
-        colliding_coords = no_frac_floe.coords
         deforming_forces = frac_deform_floe.interactions[xforce:yforce]
-        init_overlap = sum(GO.area, Subzero.intersect_polys(Subzero.make_polygon(floe1_copy.coords), Subzero.make_polygon(colliding_coords)); init = 0.0)
+        init_overlap = sum(GO.area, Subzero.intersect_polys(floe1_copy.poly, no_frac_floe.poly); init = 0.0)
         Subzero.deform_floe!(
             floe1_copy,
-            Subzero.make_polygon(colliding_coords),
+            no_frac_floe.poly,
             deforming_forces,
             FloeSettings(),
             10,
             Xoshiro(1),
         )
-        post_deform_overlap = sum(GO.area, Subzero.intersect_polys(Subzero.make_polygon(floe1_copy.coords), Subzero.make_polygon(colliding_coords)); init = 0.0)
+        post_deform_overlap = sum(GO.area, Subzero.intersect_polys(floe1_copy.poly, no_frac_floe.poly); init = 0.0)
         @test init_overlap > post_deform_overlap
         
         @test all(isapprox.( 
@@ -216,8 +215,8 @@
             10,
         ) 
         # Test that the pieces all fit within original floe
-        og_floe_poly = Subzero.make_polygon(floes.coords[1])
-        new_floes_polys = Subzero.make_multipolygon(new_floes.coords)
+        og_floe_poly = floes.poly[1]
+        new_floes_polys = Subzero.make_multipolygon(new_floes.poly)
         @test isapprox(
             sum(GO.area, Subzero.intersect_polys(new_floes_polys, og_floe_poly); init = 0.0),
             GO.area(og_floe_poly),

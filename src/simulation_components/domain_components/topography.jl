@@ -70,7 +70,7 @@ function TopographyElement(::Type{FT} = Float64; poly::Polys) where FT
     poly = GO.ClosedRing()(poly)
     rmholes!(poly)
     centroid = collect(GO.centroid(poly, FT)) # TODO: Remove collect once type is changed
-    rmax = calc_max_radius(poly, centroid, FT)
+    rmax = _calc_max_radius(poly, centroid, FT)
     return TopographyElement{FT}(poly, centroid, rmax)
 end
 

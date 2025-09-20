@@ -352,13 +352,8 @@ function _initialize_floe_field!(
                 open_area = sum(GO.area, open_cell; init = 0.0)
                 # Generate coords with voronoi tesselation that fill the whole open space
                 ncells = ceil(Int, generator.nfloes * ((open_area) / total_covered_water_area))
-                floe_coords = _generate_voronoi_coords(
-                    ncells,
-                    [collen, rowlen],
-                    trans_vec,
-                    open_coords,
-                    rng,
-                    ncells,
+                floe_coords = _generate_voronoi_coords(FT, ncells, [collen, rowlen], trans_vec,
+                    open_cell_mpoly, rng, ncells,
                 )
                 # determine which polygons to keep to meet concentration c
                 if !isempty(floe_coords)
@@ -474,17 +469,17 @@ Outputs:
         user will be warned. 
 =#
 function _generate_voronoi_coords(  # TODO: maybe move to floe utils since it is used in mutliple places!
+    ::Type{FT},
     desired_points::Int,
     scale_fac,
     trans_vec,
-    domain_coords::Vector{<:PolyVec{<:FT}},
+    domain_poly,
     rng,
     min_to_warn::Int;
     max_tries::Int = 10,
 ) where {FT <: AbstractFloat}
     xpoints = Vector{Float64}()
     ypoints = Vector{Float64}()
-    domain_poly = make_multipolygon(GO.tuples(domain_coords))
     area_frac = GO.area(domain_poly) / reduce(*, scale_fac)
     # Increase the number of points based on availible percent of bounding box
     npoints = ceil(Int, desired_points / area_frac)

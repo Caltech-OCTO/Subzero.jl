@@ -135,11 +135,11 @@ function split_floe(
     # Generate voronoi tesselation in floe's bounding box
     scale_fac = fill(2floe.rmax, 2)
     trans_vec = [floe.centroid[1] - floe.rmax, floe.centroid[2] - floe.rmax]
-    pieces = _generate_voronoi_coords(
+    pieces = _generate_voronoi_coords(FT,
         fracture_settings.npieces,
         scale_fac,
         trans_vec,
-        [floe.coords],
+        floe.poly,
         rng,
         1,  # Warn if only 1 point is identified as the floe won't be split
     )

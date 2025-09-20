@@ -33,11 +33,6 @@ function replace_floe!(
     # Floe shape
     floe.poly = new_poly
     floe.centroid = collect(GO.centroid(new_poly))
-    # TODO: can't replace until we remove coords from floe entirely
-    floe.coords = find_poly_coords(new_poly)::PolyVec{FT}
-    if floe.coords[1][1] != floe.coords[1][end]
-        push!(floe.coords, floe.coords[1][1])
-    end
     floe.area = GO.area(new_poly)
     floe.height = new_mass/(floe.area * floe_settings.ρi)
     floe.mass = new_mass
@@ -50,7 +45,7 @@ function replace_floe!(
     )
     floe.angles = GO.angles(floe.poly, FT)
     floe.α = FT(0)
-    floe.rmax = calc_max_radius(floe.poly, floe.centroid, FT)
+    floe.rmax = _calc_max_radius(floe.poly, floe.centroid, FT)
     # Floe monte carlo points
     x_subfloe_points, y_subfloe_points, status = generate_subfloe_points(
         floe_settings.subfloe_point_generator,

@@ -222,7 +222,7 @@ function Floe{FT}(shape, height; floe_settings = FloeSettings(), rng = Xoshiro()
     area = GO.area(poly)
     mass = area * height * floe_settings.ρi
     moment = _calc_moment_inertia(FT, poly, centroid, height; ρi = floe_settings.ρi)
-    rmax = calc_max_radius(poly, centroid, FT)
+    rmax = _calc_max_radius(poly, centroid, FT)
     angles = GO.angles(poly, FT)
     # Generate Monte Carlo points
     status = Status()

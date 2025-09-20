@@ -36,7 +36,7 @@
                 strains[i],
                 atol = 1e-3
             ))
-            @test f.coords == floe_dict["coords"][i]
+            @test f.poly == Subzero.make_polygon(floe_dict["coords"][i])
         end
     end
     @testset "Replace floe" begin
@@ -65,7 +65,7 @@
             Xoshiro(1)
         )
         @test all(f1.centroid .== GO.centroid(tri_poly))
-        @test f1.coords == Subzero.find_poly_coords(tri_poly)
+        @test GO.equals(f1.poly, tri_poly)
         @test f1.area == GO.area(tri_poly)
         @test f1.mass == mass1
         @test f1.height * f1.area * 920.0 == f1.mass

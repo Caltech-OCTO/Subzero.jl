@@ -67,8 +67,8 @@
             2,
             Xoshiro(1),
         )
-        @test f1.coords == coords1
-        @test f2.coords == coords2
+        @test GO.equals(f1.poly, Subzero.make_polygon(coords1))
+        @test GO.equals(f2.poly, Subzero.make_polygon(coords2))
 
         # Test two floes intersecting -> will fuse into floe1 since same size
         Subzero.translate!(coords2, -13.0, 0.0)
@@ -300,7 +300,7 @@
 
         floe_set1 = floe_arr[3:end]
         total_mass = sum(floe_set1.mass)
-        nvertices = [length(c[1]) for c in floe_set1.coords]
+        nvertices = [GI.npoint(p) for p in floe_set1.poly]
         x_momentum_init, y_momentum_init = Subzero.calc_linear_momentum(
             floe_set1.u,
             floe_set1.v,
@@ -350,9 +350,9 @@
         for i in eachindex(floe_set1)
             # smooth floes if they have more than maximum number of vertices
             if nvertices[i] > 50
-                @test length(floe_set1.coords[i][1]) < nvertices[i]
+                @test GI.npoint(floe_set1.poly[i]) < nvertices[i]
             else
-                @test length(floe_set1.coords[i][1]) == nvertices[i]
+                @test GI.npoint(floe_set1.poly[i]) == nvertices[i]
             end
             @test floe_set1.status[i].tag == Subzero.active
         end
@@ -423,7 +423,7 @@
         )
         og_f1_area = floe_set2.area[1]
         total_mass = sum(floe_set2.mass)
-        nvertices = [length(c[1]) for c in floe_set2.coords]
+        nvertices = [GI.npoint(p) for p in floe_set2.poly]
         Subzero.smooth_floes!(
             floe_set2,
             open_domain_with_topo.topography,
@@ -435,15 +435,15 @@
         )
         for i in eachindex(floe_set2)
             # smooth floes if they have more than maximum number of vertices
-            @test length(floe_set2.coords[i][1]) < nvertices[i]
+            @test GI.npoint(floe_set2.poly[i]) < nvertices[i]
             @test floe_set2.status[i].tag == Subzero.fuse
         end
         # Test mass is conserved
         @test total_mass == sum(floe_set2.mass)
         # Test first floe was cut by topography and only larger piece was kept
-        @test sum(GO.area, Subzero.intersect_polys(Subzero.make_polygon(floe_set2.coords[1]), open_domain_with_topo.topography.poly[1]); init = 0.0) == 0
+        @test sum(GO.area, Subzero.intersect_polys(floe_set2.poly[1], open_domain_with_topo.topography.poly[1]); init = 0.0) == 0
         
-        @test GO.area(Subzero.make_polygon(floe_set2.coords[1])) > 2og_f1_area/3
+        @test GO.area(floe_set2.poly[1]) > 2og_f1_area/3
         # Test that both floes are tagged for fusion
         @test floe_set2.status[1].fuse_idx == [2]
         @test floe_set2.status[2].fuse_idx == [1]
