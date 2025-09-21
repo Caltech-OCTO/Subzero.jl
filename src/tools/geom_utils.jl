@@ -1,13 +1,11 @@
 export make_polygon
 
-"""
-    valid_ringvec(coords::RingVec{FT})
-
+#=
 Takes a RingVec object and make sure that the last element has the same first
 element as last element and that other than these two elements there are no
 duplicate, adjacent vertices. Also asserts that the ring as at least three
 elements or else it cannot be made into a valid ring as it is a line segment. 
-"""
+=#
 function valid_ringvec!(ring)
     deleteat!(ring, findall(i->ring[i]==ring[i+1], collect(1:length(ring)-1)))
     if ring[1] != ring[end]
@@ -17,14 +15,12 @@ function valid_ringvec!(ring)
     return ring
 end
 
-"""
-    valid_polyvec(coords::PolyVec{FT})
-
+#=
 Takes a PolyVec object and make sure that the last element of each "ring"
 (vector of vector of floats) has the same first element as last element and has
 not duplicate adjacent elements. Also asserts that each "ring" as at least three
 distinct elements or else it is not a valid ring, but rather a line segment. 
-"""
+=#
 function valid_polyvec!(coords)
     for ring in coords
         valid_ringvec!(ring)
@@ -32,27 +28,22 @@ function valid_polyvec!(coords)
     return coords
 end
 
-"""
-    intersect_polys(p1, p2)
+# wrappers for calling GeometryOps (GO) functions within the code!!!
 
-Intersect two geometries and return a list of polygons resulting.
-Inputs:
-    p1  <AbstractGeometry>
-    p2  <AbstractGeometry>
-Output:
-    Vector of Polygons
-"""
+# find the intersection of two polygons and return as a list of polygons
 intersect_polys(p1, p2, ::Type{FT} = Float64; kwargs...) where FT = GO.intersection(p1, p2, FT; target = GI.PolygonTrait(), fix_multipoly = nothing)
+# find the difference of two polygons and return as a list of polygons
 diff_polys(p1, p2, ::Type{FT} = Float64; kwargs...) where FT = GO.difference(p1, p2, FT; target = GI.PolygonTrait(), fix_multipoly = nothing) 
+# find the union of two polygons and return as a list of polygons
 union_polys(p1, p2, ::Type{FT} = Float64; kwargs...) where FT = GO.union(p1, p2, FT; target = GI.PolygonTrait(), fix_multipoly = nothing)
+# simplify an existing polygon to have less vertices
 simplify_poly(p, tol) = GO.simplify(p; tol = tol)
-
+# translate polygon coordinates by Δx, Δy
 function _translate_poly(::Type{FT}, p, Δx, Δy) where FT
     t = CoordinateTransformations.Translation(Δx, Δy)
-    # TODO: can remove the tuples call after GO SVPoint PR
     return GO.tuples(GO.transform(t, p), FT)
 end
-
+# translate polygon coordinates by Δx, Δy and rotate polygon coordiantes by Δα
 function _move_poly(::Type{FT}, poly, Δx, Δy, Δα, cx = zero(FT), cy = zero(FT)) where FT
     rot = CoordinateTransformations.LinearMap(Rotations.Angle2d(Δα))
     cent_rot = CoordinateTransformations.recenter(rot, (cx, cy))
@@ -61,9 +52,12 @@ function _move_poly(::Type{FT}, poly, Δx, Δy, Δα, cx = zero(FT), cy = zero(F
     return GO.tuples(GO.transform(trans ∘ cent_rot, poly), FT)::Polys{FT}
 end
 
+# create polygon from a PolyVec, tuple coordiantes, or a linear ring
 make_polygon(coords::PolyVec) = GI.Polygon(GO.tuples(coords))
 make_polygon(tuple_coords) = GI.Polygon(tuple_coords)
 make_polygon(ring::GI.LinearRing) = GI.Polygon([ring])
+# create a multipolygon from a vector of PolyVecs, tuple coordiantes, a vector of polygons, or a
+# vector of StaticQuadrilaterals (used for bounding boxes)
 make_multipolygon(coords::Vector{<:PolyVec}) = GI.MultiPolygon(GO.tuples(coords))
 make_multipolygon(tuple_coords) = GI.MultiPolygon(tuple_coords)
 make_multipolygon(polys::Vector{<:GI.Polygon}) = GI.MultiPolygon(polys)
@@ -74,26 +68,19 @@ function make_multipolygon(polys::Vector{<:StaticQuadrilateral{FT}}) where FT
     end
     return make_multipolygon(new_polys)
 end
-
+# create a bounding box polygon (a rectangle!) that is used to create domain boundaries
 function _make_bounding_box_polygon(::Type{FT}, xmin, xmax, ymin, ymax) where FT
     points = ((xmin, ymin),  (xmin, ymax), (xmax, ymax), (xmax, ymin), (xmin, ymin))
     ring = GI.LinearRing(SA.SVector{5, Tuple{FT, FT}}(points))
     return  GI.Polygon(SA.SVector(ring))
 end
 
-"""
-    hashole(poly::Polys)
 
-Determine if polygon has one or more holes
-Inputs:
-    poly <Polygon> polygon
-Outputs:
-    <Bool> true if there is a hole in the polygons, else false
-"""
+# Determine if polygon has one or more holes
 function hashole(poly::Polys)
     return GI.nhole(poly) > 0
 end 
-
+# Remove any existing holes from polygon
 function rmholes!(poly::Polys)
     deleteat!(poly.geom, 2:GI.nring(poly))
     return
@@ -114,22 +101,16 @@ function _calc_max_radius(poly, cent, ::Type{T}) where T
     return sqrt(max_rad_sqrd)
 end
 
-"""
-    which_vertices_match_points(ipoints, coords, atol)
 
-Find which vertices in coords match given points
-Inputs:
-    points <Vector{Tuple{Float, Float} or Vector{Vector{Float}}}> points to
-                match to vertices within polygon
-    region  <Polygon> polygon 
-    atol    <Float> distance vertex can be away from target point before being
-                classified as different points
-Output:
-    Vector{Int} indices of points in polygon that match the intersection points
-Note: 
-    If last coordinate is a repeat of first coordinate, last coordinate index is
-    NOT recorded.
-"""
+#=
+Find which vertices in in a polygon match the user-provided points.
+Provided points can be a vector of tuples or a vector of vectors.
+Provide sorted indices which tell which of the polyon region's vertices
+are within atol of any of the provided points.
+
+Note: If last coordinate is a repeat of first coordinate, last coordinate
+    index is NOT recorded.
+=#
 function which_vertices_match_points(points, region::Polys{FT}, atol = 1) where FT
     idxs = Vector{Int}()
     npoints = length(points)
@@ -176,15 +157,8 @@ Outputs:
         the domain_coords. If less polygons than min_to_warn are generated, the
         user will be warned. 
 =#
-function _generate_voronoi_coords(  # TODO: maybe move to floe utils since it is used in mutliple places!
-    ::Type{FT},
-    desired_points::Int,
-    scale_fac,
-    trans_vec,
-    domain_poly,
-    rng,
-    min_to_warn::Int;
-    max_tries::Int = 10,
+function _generate_voronoi_coords(::Type{FT}, desired_points::Int, scale_fac, trans_vec,
+    domain_poly, rng, min_to_warn::Int; max_tries::Int = 10,
 ) where {FT <: AbstractFloat}
     xpoints = Vector{Float64}()
     ypoints = Vector{Float64}()
