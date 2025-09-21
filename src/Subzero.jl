@@ -18,6 +18,7 @@ using CoordinateTransformations, Dates, Extents,
     Printf, Random, Rotations, SplitApplyCombine, Statistics, StructArrays,
     VoronoiCells
 
+export PolyVec, RingVec, Polys, MultiPolys
 """
 Coordinates are vector of vector of vector of points of the form:
 [[[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]], 
@@ -69,14 +70,15 @@ include("simulation_components/domain_components/abstract_domains.jl")
 include("simulation_components/domain_components/boundaries.jl")
 include("simulation_components/domain_components/topography.jl")
 include("simulation_components/domain_components/domains.jl")
+include("tools/geom_utils.jl")
 include("simulation_components/floe_components/floe_status.jl")
 include("simulation_components/floe_components/floe_interaction.jl")
 include("simulation_components/floe_components/floe.jl")
+include("simulation_components/floe_components/floe_utils.jl")
 include("simulation_components/floe_components/floe_field.jl")
 include("simulation_components/floe_components/stress_calculators.jl")
 include("simulation_components/floe_components/subfloe_points_generators.jl")
 include("simulation_components/floe_components/floe_settings.jl")
-include("floe_utils.jl")
 include("simulation_components/oceans.jl")
 include("simulation_components/atmos.jl")
 include("simulation_components/model.jl")

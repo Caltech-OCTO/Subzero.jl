@@ -54,9 +54,6 @@ export Floe
     p_dαdt::FT = 0.0        # previous timestep angular-velocity
 end
 
-# Syntactic sugar for use in code
-const FloeType{FT} = Union{LazyRow{Floe{FT}}, Floe{FT}} where FT
-
 """
     Floe{FT}
 
@@ -213,7 +210,7 @@ The fifth catagory is **timesteping values**. These are values from the previous
 | p_dξdt                | previous timestep time angular acceleration in [rad/s^2] | Float64 or Float32|
 """
 function Floe{FT}(shape, height; floe_settings = FloeSettings(), rng = Xoshiro(), kwargs...) where FT
-    poly = _get_floe_poly(FT, shape)
+    poly = _correct_floe_poly(FT, shape)
     # Floe physical properties
     centroid = collect(GO.centroid(poly))
     area = GO.area(poly)
@@ -230,21 +227,6 @@ end
 
 # if no type is provided, it will default to Float64 - not a argument as this should not be user facing!
 Floe(args...; kwargs...) = Floe{Float64}(args...; kwargs...)
-
-# ensure the coordinates are valid and without any holes
-function _get_floe_poly(::Type{FT}, coords::PolyVec) where FT
-    valid_polyvec!(coords)
-    rmholes!(coords)
-    poly = make_polygon(coords)
-    return _get_floe_poly(FT, poly)
-end
-
-# ensure that polygon points are of the right type and polygon has no holes
-function _get_floe_poly(::Type{FT}, poly::Polys) where FT
-    poly = GO.tuples(poly, FT)
-    rmholes!(poly)
-    return poly
-end
 
 # Pretty printing for Floe showing key physical fields
 function Base.show(io::IO, floe::Floe{FT}; digits = 5) where FT

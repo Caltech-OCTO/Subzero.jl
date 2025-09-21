@@ -33,17 +33,6 @@ function valid_polyvec!(coords)
 end
 
 """
-    find_poly_coords(poly)
-
-Syntactic sugar for to find a polygon's coordinates
-Input:
-    poly    <Polygon>
-Output:
-    <PolyVec> representing the floe's coordinates xy plane
-"""
-find_poly_coords(poly) = GI.coordinates(poly)
-
-"""
     intersect_polys(p1, p2)
 
 Intersect two geometries and return a list of polygons resulting.
@@ -54,7 +43,6 @@ Output:
     Vector of Polygons
 """
 intersect_polys(p1, p2, ::Type{FT} = Float64; kwargs...) where FT = GO.intersection(p1, p2, FT; target = GI.PolygonTrait(), fix_multipoly = nothing)
-
 diff_polys(p1, p2, ::Type{FT} = Float64; kwargs...) where FT = GO.difference(p1, p2, FT; target = GI.PolygonTrait(), fix_multipoly = nothing) 
 union_polys(p1, p2, ::Type{FT} = Float64; kwargs...) where FT = GO.union(p1, p2, FT; target = GI.PolygonTrait(), fix_multipoly = nothing)
 simplify_poly(p, tol) = GO.simplify(p; tol = tol)
@@ -65,29 +53,12 @@ function _translate_poly(::Type{FT}, p, Δx, Δy) where FT
     return GO.tuples(GO.transform(t, p), FT)
 end
 
-function _translate_floe!(::Type{FT}, floe, Δx, Δy) where FT
-    floe.centroid[1] += Δx
-    floe.centroid[2] += Δy
-    floe.poly = _translate_poly(FT, floe.poly, Δx, Δy)
-    return
-end
-
 function _move_poly(::Type{FT}, poly, Δx, Δy, Δα, cx = zero(FT), cy = zero(FT)) where FT
     rot = CoordinateTransformations.LinearMap(Rotations.Angle2d(Δα))
     cent_rot = CoordinateTransformations.recenter(rot, (cx, cy))
     trans = CoordinateTransformations.Translation(Δx, Δy)
     # TODO: can remove the tuples call after GO SVPoint PR
     return GO.tuples(GO.transform(trans ∘ cent_rot, poly), FT)::Polys{FT}
-end
-
-function _move_floe!(::Type{FT}, floe, Δx, Δy, Δα) where FT
-    cx, cy = floe.centroid
-    # Move centroid
-    floe.centroid[1] += Δx
-    floe.centroid[2] += Δy
-    # Move Polygon
-    floe.poly = _move_poly(FT, floe.poly, Δx, Δy, Δα, cx, cy)::Polys{FT}
-    return 
 end
 
 make_polygon(coords::PolyVec) = GI.Polygon(GO.tuples(coords))
@@ -104,124 +75,10 @@ function make_multipolygon(polys::Vector{<:StaticQuadrilateral{FT}}) where FT
     return make_multipolygon(new_polys)
 end
 
-get_floe(floes::StructArray, i::Int) = LazyRow(floes, i)
-
 function _make_bounding_box_polygon(::Type{FT}, xmin, xmax, ymin, ymax) where FT
     points = ((xmin, ymin),  (xmin, ymax), (xmax, ymax), (xmax, ymin), (xmin, ymin))
     ring = GI.LinearRing(SA.SVector{5, Tuple{FT, FT}}(points))
     return  GI.Polygon(SA.SVector(ring))
-end
-
-"""
-    deepcopy_floe(floe::LazyRow{Floe{FT}})
-
-Deepcopy of a floe by creating a new floe and copying all fields.
-Inputs:
-    floe    <Floe>
-Outputs:
-    New floe with floes that are equal in value. Any vector fields are copies so
-    they share values, but not referance.
-"""
-function deepcopy_floe(floe::LazyRow{Floe{FT}}) where {FT}
-    poly = GO.tuples(floe.poly, FT)
-    f = Floe{FT}(
-        poly = poly,
-        centroid = copy(floe.centroid),
-        height = floe.height,
-        area = floe.area,
-        mass = floe.mass,
-        rmax = floe.rmax,
-        moment = floe.moment,
-        angles = copy(floe.angles),
-        x_subfloe_points = copy(floe.x_subfloe_points),
-        y_subfloe_points = copy(floe.y_subfloe_points),
-        α = floe.α,
-        u = floe.u,
-        v = floe.v,
-        ξ = floe.ξ,
-        status = Status(floe.status.tag, copy(floe.status.fuse_idx)),
-        id = floe.id,
-        ghost_id = floe.ghost_id,
-        parent_ids = copy(floe.parent_ids),
-        ghosts = copy(floe.ghosts),
-        fxOA= floe.fxOA,
-        fyOA = floe.fyOA,
-        trqOA = floe.trqOA,
-        hflx_factor = floe.hflx_factor,
-        overarea = floe.overarea,
-        collision_force = copy(floe.collision_force),
-        collision_trq = floe.collision_trq,
-        stress_accum = copy(floe.stress_accum),
-        stress_instant = copy(floe.stress_instant),
-        strain = copy(floe.strain),
-        p_dxdt = floe.p_dxdt,
-        p_dydt = floe.p_dydt,
-        p_dudt = floe.p_dudt,
-        p_dvdt = floe.p_dvdt,
-        p_dξdt = floe.p_dξdt,
-        p_dαdt = floe.p_dαdt,
-    )
-    return f
-end
-
-"""
-    translate(coords, Δx, Δy)
-
-Make a copy of given coordinates and translate by given deltas. 
-Inputs:
-    coords PolyVec{Float}
-    vec <Vector{Real}>
-Output:
-    Updates given coords
-"""
-function translate(coords::PolyVec{FT}, Δx, Δy) where {FT<:AbstractFloat}
-    new_coords = [[Vector{Float64}(undef, 2) for _ in eachindex(coords[1])]]
-    for i in eachindex(coords[1])
-        new_coords[1][i][1] = coords[1][i][1] + Δx
-        new_coords[1][i][2] = coords[1][i][2] + Δy 
-    end
-    return new_coords
-end
-
-"""
-    translate!(coords, Δx, Δy)
-
-Translate each of the given coodinates by given deltas in place
-Inputs:
-    coords PolyVec{Float}
-    vec <Vector{Real}>
-Output:
-    Updates given coords
-"""
-function translate!(coords::PolyVec{FT}, Δx, Δy) where {FT<:AbstractFloat}
-    for i in eachindex(coords)
-        for j in eachindex(coords[i])
-            coords[i][j][1] += Δx
-            coords[i][j][2] += Δy
-        end
-    end
-    return
-end
-
-"""
-    rotate_radians!(coords::PolyVec, α)
-
-Rotate a polygon's coordinates by α radians around the origin.
-Inputs:
-    coords  <PolyVec{AbstractFloat}> polygon coordinates
-    α       <Real> radians to rotate the coordinates
-Outputs:
-    Updates coordinates in place
-"""
-function rotate_radians!(coords::PolyVec, α)
-    for i in eachindex(coords)
-        for j in eachindex(coords[i])
-            x, y = coords[i][j]
-            coords[i][j][1] = cos(α)*x - sin(α)*y
-            coords[i][j][2] = sin(α)*x + cos(α)*y
-        end
-    end
-    return
 end
 
 """
@@ -237,55 +94,9 @@ function hashole(poly::Polys)
     return GI.nhole(poly) > 0
 end 
 
-
-function rmholes!(coords::PolyVec{FT}) where {FT<:AbstractFloat}
-    if length(coords) > 1
-        deleteat!(coords, 2:length(coords))
-    end
-end
-
 function rmholes!(poly::Polys)
     deleteat!(poly.geom, 2:GI.nring(poly))
     return
-end
-
-#=
-    _calc_moment_inertia(::Type{T} poly, cent, h; ρi = 920.0)
-
-Calculate the mass moment of intertia from a polygon given the polygon, its centroid,
-height, and the density of ice in the simulation. Answer will be of given type T.
-
-Note: Assumes that first and last point within the coordinates are the same and will not
-produce correct answer otherwise.
-
-Based on paper: Marin, Joaquin."Computing columns, footings and gates through
-moments of area." Computers & Structures 18.2 (1984): 343-349.
-=#
-function _calc_moment_inertia(
-    ::Type{T},
-    poly,
-    cent,
-    height;
-    ρi = 920.0,
-) where T
-    xc, yc = GO._tuple_point(cent, T)
-    Ixx, Iyy = zero(T), zero(T)
-    x1, y1 = zero(T), zero(T)
-    for (i, p2) in enumerate(GI.getpoint(GI.getexterior(poly)))
-        (x2, y2) = GO._tuple_point(p2, T)
-        x2, y2 = x2 - xc, y2 - yc
-        if i == 1
-            x1, y1 = x2, y2 
-            continue
-        end
-        wi = (x1 - xc) * (y2 - yc) - (x2 - xc) * (y1 - yc)
-        Ixx += wi * (y1^2 + y1 * y2 + y2^2)
-        Iyy += wi * (x1^2 + x1 * x2 + x2^2)
-        x1, y1 = x2, y2 
-    end
-    Ixx *= 1/12
-    Iyy *= 1/12
-    return abs(Ixx + Iyy) * T(height) * T(ρi) 
 end
 
 # Find the length of the maximum radius of a given polygon
@@ -340,4 +151,90 @@ function which_vertices_match_points(points, region::Polys{FT}, atol = 1) where 
         end
     end
     return sort!(idxs)
+end
+
+#=
+Generate voronoi coords within a bounding box defined by its lower left corner
+and its height and width. Attempt to generate `npieces` cells within the box.
+Inputs:
+    desired_points  <Int> desired number of voronoi cells
+    scale_fac       <Vector{AbstractFloat}> width and height of bounding box -
+                        formatted as [w, h] 
+    trans_vec       <Vector{AbstractFloat}> lower left corner of bounding box -
+                        formatted as [x, y] 
+    domain_coords   <Vector{PolyVec{AbstractFloat}}> multipolygon that will
+                        eventually be filled with/intersected with the voronoi
+                        cells - such as topography
+    rng             <RNG> random number generator to generate voronoi cells
+    min_to_warn     <Int> minimum number of points to warn if not generated to
+                        seed voronoi
+    max_tries       <Int> number of tires to generate desired number of points
+                        within domain_coords to seed voronoi cell creation
+Outputs:
+    coords  <Vector{PolyVec{Float}}> vector of polygon coordinates generated by
+        voronoi tesselation. These polygons all fall within the space defined by
+        the domain_coords. If less polygons than min_to_warn are generated, the
+        user will be warned. 
+=#
+function _generate_voronoi_coords(  # TODO: maybe move to floe utils since it is used in mutliple places!
+    ::Type{FT},
+    desired_points::Int,
+    scale_fac,
+    trans_vec,
+    domain_poly,
+    rng,
+    min_to_warn::Int;
+    max_tries::Int = 10,
+) where {FT <: AbstractFloat}
+    xpoints = Vector{Float64}()
+    ypoints = Vector{Float64}()
+    area_frac = GO.area(domain_poly) / reduce(*, scale_fac)
+    # Increase the number of points based on availible percent of bounding box
+    npoints = ceil(Int, desired_points / area_frac)
+    current_points = 0
+    tries = 0
+    while current_points < desired_points && tries <= max_tries
+        x = rand(rng, npoints)
+        y = rand(rng, npoints)
+        # Check which of the scaled and translated points are within the domain coords
+        in_idx = [GO.coveredby(
+            (scale_fac[1] * x[i] .+ trans_vec[1], scale_fac[2] * y[i] .+ trans_vec[2]),
+            domain_poly
+        ) for i in eachindex(x)]
+        current_points += sum(in_idx)
+        tries += 1
+        append!(xpoints, x[in_idx])
+        append!(ypoints, y[in_idx])
+    end
+    # If we generated too many cells, remove extra
+    if current_points > desired_points
+        xpoints = xpoints[1:desired_points]
+        ypoints = ypoints[1:desired_points]
+        current_points = desired_points
+    end
+    # Warn if we didn't generate enough cells
+    if current_points < min_to_warn
+        @warn "Only $current_points floes were able to be generated in \
+            $max_tries tries during voronoi tesselation."
+    end
+    # Make voronoi cells into floes
+    if current_points > 1
+        tess_cells = voronoicells(
+            xpoints,
+            ypoints,
+            Rectangle(GB.Point2((0.0, 0.0)), GB.Point2((1.0, 1.0))),
+            rng = rng
+        ).Cells
+        # Scale and translate voronoi coordinates
+        tcoords = Vector{PolyVec{FT}}(undef, length(tess_cells))
+        for i in eachindex(tess_cells)
+            tcoords[i] = [valid_ringvec!([
+                Vector(c) .* scale_fac .+ trans_vec
+                for c in tess_cells[i]
+            ])]
+        end
+        return tcoords
+    else
+        return Vector{PolyVec{FT}}()
+    end
 end
