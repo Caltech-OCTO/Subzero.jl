@@ -43,8 +43,8 @@
         # Floe coordinates
         tri_coord = [[[0.0, 0.0], [1e4, 3e4], [2e4, 0], [0.0, 0.0]]]
         corner_rect_coord = [[[0.0, 2.5e4], [0.0, 2.9e4], [2e4, 2.9e4], [2e4, 2.5e4], [0.0, 2.5e4]]]
-        small_shift_corner_rect_coord = Subzero.translate(corner_rect_coord, 0.5e4, 0.0)
-        big_shift_corner_rect_coord = Subzero.translate(corner_rect_coord, 1.9999999e4, 0.0)
+        small_shift_corner_rect_coord = translate_coords(corner_rect_coord, 0.5e4, 0.0)
+        big_shift_corner_rect_coord = translate_coords(corner_rect_coord, 1.9999999e4, 0.0)
         middle_rect_coord = [[ [1.8e4, 2.7e4], [1.8e4, 2.8e4], [2.1e4, 2.8e4], [2.1e4, 2.7e4], [1.8e4, 2.7e4]]]
         cshape_coord = [[[0.5e4, 2.7e4], [0.5e4, 3.5e4], [1.5e4, 3.5e4], [1.5e4, 2.7e4], [1.25e4, 2.7e4], [1.25e4, 3e4], [1e4, 3e4], [1e4, 2.7e4], [0.5e4, 2.7e4]]]
 
@@ -280,13 +280,13 @@
         # Long rectangle in bottom left corner of domain (ghost hits tall rectangle)
         long_rect_coords = [splitdims(vcat(-[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000], -[7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8]))]
         # Shifted tall rectangle to ghost position in bottom right corner
-        shifted_down_tall_rect_coords = Subzero.translate(tall_rect_coords, 0.0, -2Ly)
+        shifted_down_tall_rect_coords = translate_coords(tall_rect_coords, 0.0, -2Ly)
         # Shifted tall rectangle to ghost postion in top left corner
-        shifted_left_tall_rect_coords = Subzero.translate(tall_rect_coords, -2Lx, 0.0)
+        shifted_left_tall_rect_coords = translate_coords(tall_rect_coords, -2Lx, 0.0)
         # Shifted long rectangle to ghost postion in bottom right corner
-        shifted_right_long_rect_coords = Subzero.translate(long_rect_coords, 2Lx, 0.0)
+        shifted_right_long_rect_coords = translate_coords(long_rect_coords, 2Lx, 0.0)
         # Shifted long rectangle to ghost postion in top left corner
-        shifted_up_long_rect_coords = Subzero.translate(long_rect_coords, 0.0, 1.615Ly)
+        shifted_up_long_rect_coords = translate_coords(long_rect_coords, 0.0, 1.615Ly)
         # Small rectangle in the corner that has 3 ghosts in all other corners
         small_corner_rect_coords = [[[-1.1e5, -1.1e5], [-1.1e5, -9.5e4], [-9.5e4, -9.5e4], [-9.5e4, -1.1e5], [-1.1e5, -1.1e5]]]
         # triangle in the middle of the domain with no ghosts - touches 3/4 corners

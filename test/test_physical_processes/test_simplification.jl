@@ -24,22 +24,22 @@
         floe = Floe(coords, height)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 12] == mass
-        floe = Floe(Subzero.translate(coords, 2.5e3, 2.5e3), height)
+        floe = Floe(translate_coords(coords, 2.5e3, 2.5e3), height)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 12] == 2mass
         # Add floe over periodic bound -> mass added to cell wrapped around grid
-        floe = Floe(Subzero.translate(coords, 9e4, 0.0), height)
+        floe = Floe(translate_coords(coords, 9e4, 0.0), height)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 1] == mass
-        floe = Floe(Subzero.translate(coords, -1.2e5, 0.0), height)
+        floe = Floe(translate_coords(coords, -1.2e5, 0.0), height)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 20] == mass
         total_mass = sum(dissolved)
         # Add floe over non-periodic bound -> mass not added since out of bounds
-        floe = Floe(Subzero.translate(coords, 0.0, 6e4), height)
+        floe = Floe(translate_coords(coords, 0.0, 6e4), height)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test total_mass == sum(dissolved)  # nothing was added
-        floe = Floe(Subzero.translate(coords, 0.0, -7e4), height)
+        floe = Floe(translate_coords(coords, 0.0, -7e4), height)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test total_mass == sum(dissolved)  # nothing was added
     end
@@ -56,7 +56,7 @@
 
         # Test two floes not intersecting -> will not fuse
         coords2 = deepcopy(coords1)
-        Subzero.translate!(coords2, 20.0, 0.0)
+       translate_coords!(coords2, 20.0, 0.0)
         f1 = Floe(coords1, 0.5)
         f2 = Floe(coords2, 0.5)
         Subzero.fuse_two_floes!(
@@ -71,7 +71,7 @@
         @test GO.equals(f2.poly, Subzero.make_polygon(coords2))
 
         # Test two floes intersecting -> will fuse into floe1 since same size
-        Subzero.translate!(coords2, -13.0, 0.0)
+        translate_coords!(coords2, -13.0, 0.0)
         f2 = Floe(coords2, 0.75)
         f1.id = 1
         f2.id = 2
@@ -286,7 +286,7 @@
         # Create complex floes
         file = jldopen("inputs/floe_shapes.jld2", "r")
         floe_coords = file["floe_vertices"][1:20]
-        Subzero.translate!(floe_coords[2], 0.0, -1e3)
+        translate_coords!(floe_coords[2], 0.0, -1e3)
         floe_arr = initialize_floe_field(
             FT,
             floe_coords,

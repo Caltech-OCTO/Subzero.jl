@@ -213,7 +213,7 @@
     first_cell = [[[-8e4, -8e4], [-8e4, 0], [0, 0], [0, -8e4], [-8e4, -8e4]]]
     for j in 1:2
         for i in 1:2
-            cell = Subzero.make_polygon(Subzero.translate(first_cell, 8e4*(j-1), 8e4*(i-1)))
+            cell = Subzero.make_polygon(translate_coords(first_cell, 8e4*(j-1), 8e4*(i-1)))
             cell_without_topos = Subzero.diff_polys(cell, topo_polys)
             open_cell_area = sum(GO.area, cell_without_topos; init = 0.0)
             c = concentrations[i, j]

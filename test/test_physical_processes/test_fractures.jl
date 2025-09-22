@@ -17,7 +17,7 @@
             (-1.25e5, -1.25e5),
             atol = 1e-3
         ))
-        hibler_verts = Subzero.find_poly_coords(hibler_poly)
+        hibler_verts = find_poly_coords(hibler_poly)
         x_verts, y_verts = first.(hibler_verts[1]), last.(hibler_verts[1])
         @test all(isapprox.(
             extrema(x_verts),
@@ -30,7 +30,7 @@
             atol = 1e-3
         ))
         hibler_poly = Subzero._calculate_hibler(FT, 0.25, 2.25e5, 20.0)
-        hibler_verts = Subzero.find_poly_coords(hibler_poly)
+        hibler_verts = find_poly_coords(hibler_poly)
         @test isapprox(GO.area(hibler_poly), 2483380916.630, atol = -1e3)
         @test all(isapprox.(
             GO.centroid(hibler_poly),
@@ -53,7 +53,7 @@
         @test typeof(Subzero.MohrsCone(Float64)) <: MohrsCone{Float64}
 
         # Float64 Mohr's Cone with q, σc, σ11
-        mohrs_verts_64 = Subzero.find_poly_coords(Subzero._calculate_mohrs(FT, 5.2, 2.5e5, -3.375e4))
+        mohrs_verts_64 = find_poly_coords(Subzero._calculate_mohrs(FT, 5.2, 2.5e5, -3.375e4))
         @test all(isapprox.(
             mohrs_verts_64[1],
             [
@@ -65,7 +65,7 @@
             atol = 1e-3
         ))
         # Float32 Mohr's Cone with q, σc, σ11
-        mohrs_verts_32 = Subzero.find_poly_coords(Subzero._calculate_mohrs(FT, 5.2, 2.5e5, 1.5e5))
+        mohrs_verts_32 = find_poly_coords(Subzero._calculate_mohrs(FT, 5.2, 2.5e5, 1.5e5))
         @test all(isapprox.(
             mohrs_verts_32[1],
             [

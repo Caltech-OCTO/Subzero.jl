@@ -39,26 +39,9 @@
     @test Subzero.hashole(poly_hole2)
 
     # Test removing holes from polygons
-    copy_holes = [ext, hole1]
-    poly_copy_holes = Subzero.make_polygon(copy_holes)
-    Subzero.rmholes!(copy_holes)
-    @test copy_holes == [ext]
+    poly_copy_holes = Subzero.make_polygon([ext, hole1])
     Subzero.rmholes!(poly_copy_holes)
     @test GI.nhole(poly_copy_holes) == 0
-
-    # Test translating coordinates and polygons
-    @test Subzero.translate([ext], 0.0, 0.0) == [ext]
-    trans_ext = Subzero.translate([ext], 1.0, 2.0)
-    @test trans_ext == [[[1.0, 3.0],  [1.0, 2.0],  [2.0, 2.0],
-                        [2.0, 3.0], [1.0, 3.0]]]
-    copy_ext = [deepcopy(ext)]
-    Subzero.translate!(copy_ext, 1.0, 2.0)
-    @test copy_ext == trans_ext
-    test_trans = [[[-2.0, 2.0], [-2.0, 1.0], [-1.0, 1.0], [-1.0, 2.0]]]
-    @test Subzero.translate(test_trans, 1.5, -1.5) ==
-        [[[-0.5, 0.5], [-0.5, -0.5], [0.5, -0.5], [0.5, 0.5]]]
-    Subzero.translate!(test_trans, 1.5, -1.5)
-    @test test_trans == [[[-0.5, 0.5], [-0.5, -0.5], [0.5, -0.5], [0.5, 0.5]]]
 
     # Test moment of intertia calculations - compared to values output my MATLAB
     poly_moment = Subzero._calc_moment_inertia(Float64, Subzero.make_polygon([ext]), [0.5, 0.5], 0.25)
@@ -67,25 +50,4 @@
     tri_poly = Subzero.make_polygon([[[0, 1], [0, 0], [1, 0], [0, 1]]] .* 6.67)
     tri_moment = Subzero._calc_moment_inertia(Float64, tri_poly, GO.centroid(tri_poly), 0.5)
     @test isapprox(tri_moment, 50581.145, atol = 0.001)
-
-    # ------------------ Test rotating coordinates ------------------
-    og_coords = [
-        [[-1.0, -1.0], [-1, 1], [1, 1], [1, -1], [-1, -1]],
-        [[-1.0, -1.0], [-1, 1], [1, 1], [1, -1], [-1, -1]],
-    ]
-    copy_coords = deepcopy(og_coords)
-    Subzero.rotate_radians!(copy_coords, π/4)
-    same = true
-    answer = [[[0, -√2], [-√2, 0], [0, √2], [√2, 0], [0, -√2]],
-        [[0, -√2], [-√2, 0], [0, √2], [√2, 0], [0, -√2]]]
-    for i in eachindex(copy_coords)
-        same = same && all(isapprox.(copy_coords[i], answer[i]))
-    end
-    @test same
-    Subzero.rotate_radians!(copy_coords, 7π/4)
-    same = true
-    for i in eachindex(copy_coords)
-        same = same & all(isapprox.(copy_coords[i], og_coords[i]))
-    end
-    @test same
 end

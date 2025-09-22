@@ -188,7 +188,7 @@
             atol = 1e-8,
         )
         # Test two floes combining
-        Subzero.translate!(triangle_coords, 10.0, 0.0)
+        translate_coords!(triangle_coords, 10.0, 0.0)
         sqr_floe = Floe(
             square_coords,
             0.5;

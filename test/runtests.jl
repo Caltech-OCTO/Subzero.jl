@@ -5,6 +5,7 @@ import GeometryOps.GeoInterface as GI
 using Test
 
 @testset "Subzero.jl" begin
+    include("utils.jl")
     include("test_simulation_components/grids.jl")
     include("test_simulation_components/domain_components/boundaries.jl")
     include("test_simulation_components/domain_components/domains.jl")
