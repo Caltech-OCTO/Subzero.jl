@@ -6,7 +6,6 @@ export Floe
     # Physical Properties -------------------------------------------------
     poly::Polys{FT}         # polygon that represents the floe's shape
     centroid::Vector{FT}    # center of mass of floe (might not be in floe!)
-    coords::PolyVec{FT}     # floe coordinates
     height::FT              # floe height (m)
     area::FT                # floe area (m^2)
     mass::FT                # floe mass (kg)
@@ -55,9 +54,6 @@ export Floe
     p_dαdt::FT = 0.0        # previous timestep angular-velocity
 end
 
-# Syntactic sugar for use in code
-const FloeType{FT} = Union{LazyRow{Floe{FT}}, Floe{FT}} where FT
-
 """
     Floe{FT}
 
@@ -104,7 +100,7 @@ Floe{Float64}
 ```
 - Creating a `Floe` with a polygon:
 ```jldoctest floe
-julia> poly = make_polygon(coords);
+julia> poly = make_polygon(coords, Float64);
 
 julia> Floe{Float32}(poly, height; u = 1.0, ξ = 0.02)
 Floe{Float32}
@@ -138,7 +134,6 @@ coords = [
 | -------------- | ---------------------------------- | ------------- |
 | poly           | polygon that represent's a floe's shape | Polys{Float64 or Float32}
 | centroid       | floe's centroid                    | Float64 or Float32|
-| coords         | floe's coordinates                 | PolyVec of Float64 or Float32 |
 | height         | floe's height in [m]                 | Float64 or Float32|
 | area           | floe's area in [m^2]                 | Float64 or Float32|
 | mass           | floe's mass in [kg]                  | Float64 or Float32|
@@ -215,39 +210,23 @@ The fifth catagory is **timesteping values**. These are values from the previous
 | p_dξdt                | previous timestep time angular acceleration in [rad/s^2] | Float64 or Float32|
 """
 function Floe{FT}(shape, height; floe_settings = FloeSettings(), rng = Xoshiro(), kwargs...) where FT
-    poly = _get_floe_poly(FT, shape)
+    poly = _correct_floe_poly(FT, shape)
     # Floe physical properties
-    coords = find_poly_coords(poly)
-    centroid = collect(GO.centroid(poly))
-    area = GO.area(poly)
+    centroid = collect(centroid_poly(poly, FT))
+    area = area_poly(poly, FT)
     mass = area * height * floe_settings.ρi
     moment = _calc_moment_inertia(FT, poly, centroid, height; ρi = floe_settings.ρi)
-    rmax = calc_max_radius(poly, centroid, FT)
-    angles = GO.angles(poly, FT)
+    rmax = _calc_max_radius(poly, centroid, FT)
+    angles = angles_poly(poly, FT)
     # Generate Monte Carlo points
     status = Status()
     x_subfloe_points, y_subfloe_points, status = generate_subfloe_points(floe_settings.subfloe_point_generator, poly, centroid, area, status, rng)
     # Generate status
-    return Floe{FT}(; poly, height, coords, centroid, area, mass, rmax, moment, angles, status, x_subfloe_points, y_subfloe_points, kwargs...)
+    return Floe{FT}(; poly, height, centroid, area, mass, rmax, moment, angles, status, x_subfloe_points, y_subfloe_points, kwargs...)
 end
 
 # if no type is provided, it will default to Float64 - not a argument as this should not be user facing!
 Floe(args...; kwargs...) = Floe{Float64}(args...; kwargs...)
-
-# ensure the coordinates are valid and without any holes
-function _get_floe_poly(::Type{FT}, coords::PolyVec) where FT
-    valid_polyvec!(coords)
-    rmholes!(coords)
-    poly = make_polygon(coords)
-    return _get_floe_poly(FT, poly)
-end
-
-# ensure that polygon points are of the right type and polygon has no holes
-function _get_floe_poly(::Type{FT}, poly::Polys) where FT
-    poly = GO.tuples(poly, FT)
-    rmholes!(poly)
-    return poly
-end
 
 # Pretty printing for Floe showing key physical fields
 function Base.show(io::IO, floe::Floe{FT}; digits = 5) where FT

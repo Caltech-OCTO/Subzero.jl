@@ -1325,7 +1325,7 @@ function calc_two_way_coupling!(
                     floe_locations.Δy[i],
                 )::Polys{FT}
                 floe_area_in_cell = sum(
-                    GO.area.(intersect_polys(cell_poly, floe_poly), FT)
+                    area_poly.(intersect_polys(cell_poly, floe_poly), FT)
                 )
                 if floe_area_in_cell > 0
                     # Add forces and area to ocean fields

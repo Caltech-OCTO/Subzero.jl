@@ -8,7 +8,7 @@
         close(file)
         poly1 = Subzero.make_polygon(Subzero.valid_polyvec!(floe_coords[1]))
         centroid1 = GO.centroid(poly1)
-        origin_coords = Subzero.translate(
+        origin_coords = translate_coords(
             floe_coords[1],
             -centroid1[1],
             -centroid1[2],

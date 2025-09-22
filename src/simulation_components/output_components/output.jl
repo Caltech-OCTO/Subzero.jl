@@ -189,8 +189,8 @@ Floe subtype of AbstractOutputWriter that holds information for outputting floe
 information from model throughout simulation. Output will be saved to the file
 defined by `filename` every `Δtout` timesteps. Only outputs within the outputs list will
 be saved. The `outputs` field takes in a list of symbols corresponding to floe fields.
-For example, if you want the floe output writer to output the floes centroid and coordinates
-then `outputs = [:centroid, :coords]`. If you want all floe fields then you can simply omit
+For example, if you want the floe output writer to output the floes centroid and polygons
+then `outputs = [:centroid, :poly]`. If you want all floe fields then you can simply omit
 the outputs field all together and all floe fields will be output.
 
 File will be saved as a JLD2 file to filepath. If the given file
@@ -811,7 +811,7 @@ function calc_eulerian_data!(floes::FLT, topography, writer) where {FT <: Abstra
         pint[pint .< 0] .= 1
         potential_interactions[:,:,i] = pint
     end
-    
+    FT_area_poly(p) = area_poly(p, FT)
     # Loop over each grid square
     for j in 1:dims[2]
         for i in 1:dims[1]
@@ -837,7 +837,7 @@ function calc_eulerian_data!(floes::FLT, topography, writer) where {FT <: Abstra
                 pic_area = zeros(length(floeidx))
                 for (i, idx) in enumerate(floeidx)
                     floe_poly = floes.poly[idx]
-                    pic_area[i] = mapreduce(x -> sum(GO.area, Subzero.intersect_polys(floe_poly, x, FT); init = 0.0), +, cell_poly_list; init = 0.0)
+                    pic_area[i] = mapreduce(x -> sum(FT_area_poly, Subzero.intersect_polys(floe_poly, x, FT); init = 0.0), +, cell_poly_list; init = 0.0)
                 end
                 
                 floeidx = floeidx[pic_area .> 0]
@@ -864,7 +864,7 @@ function calc_eulerian_data!(floes::FLT, topography, writer) where {FT <: Abstra
                         elseif outputs[k] == :dvdt_grid
                             sum(floes.p_dvdt[floeidx] .* ma_ratios)
                         elseif outputs[k] == :si_frac_grid
-                            area_tot/sum(GO.area, cell_poly_list; init = 0.0)
+                            area_tot/sum(FT_area_poly, cell_poly_list; init = 0.0)
                         elseif outputs[k] == :overarea_grid
                             sum(floes.overarea[floeidx])/length(floeidx)
                         elseif outputs[k] == :mass_grid
@@ -928,7 +928,6 @@ function getattrs(output::Symbol)
         output == :floes ? ("StructArray", "Model's array of floe structs at given simulation timesteps") :
         # Floe fields
         output == :centroid ? ("location", "Coordinates of centorid as [x y]") :
-        output == :coords ? ("location", "Floe coordinates - either x or y") :
         output == :height ? ("m", "Floe height (uniform over floe)") :
         output == :area ? ("m^2", "Floe area") :
         output == :mass ? ("kg", "Floe mass") :

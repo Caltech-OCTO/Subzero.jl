@@ -22,7 +22,7 @@ function determine_fractures(
     # Determine if floe stresses are in or out of criteria allowable regions
     _update_criteria!(criteria, floes)
     # If stresses are outside of criteria regions, we will fracture the floe
-    frac_idx = [!GO.coveredby(find_σpoint(get_floe(floes, i), floe_settings), criteria.poly) for i in eachindex(floes)]
+    frac_idx = [!coveredby_poly(find_σpoint(get_floe(floes, i), floe_settings), criteria.poly) for i in eachindex(floes)]
     frac_idx[floes.area .< floe_settings.min_floe_area] .= false
     return range(1, length(floes))[frac_idx]
 end
@@ -65,19 +65,20 @@ function deform_floe!(
 ) where FT
     poly = floe.poly
     overlap_regions = intersect_polys(poly, deformer_poly, FT)
-    max_overlap_area, max_overlap_idx = findmax(GO.area, overlap_regions)
+    FT_area_poly(p) = area_poly(p, FT)
+    max_overlap_area, max_overlap_idx = findmax(FT_area_poly, overlap_regions)
     overlap_region = overlap_regions[max_overlap_idx]
     # If floe and the deformer floe have an overlap area
     if max_overlap_area > 0
         # Determine displacement of deformer floe
-        region_cent = GO.centroid(overlap_region)
-        dist = GO.signed_distance(region_cent,overlap_region, FT)
+        region_cent = centroid_poly(overlap_region, FT)
+        dist = dist_to_poly(region_cent,overlap_region, FT)
         force_fracs = deforming_forces ./ 2norm(deforming_forces)
         Δx, Δy = abs.(dist)[1] .* force_fracs
         # Temporarily move deformer floe to find new shape of floe
         deformer_poly = _translate_poly(FT, deformer_poly, Δx, Δy)
         new_floes = diff_polys(poly, deformer_poly, FT)
-        new_floe_area, new_floe_idx = findmax(GO.area, new_floes)
+        new_floe_area, new_floe_idx = findmax(FT_area_poly, new_floes)
         new_floe_poly = new_floes[new_floe_idx]
         # If didn't change floe area by more than 90%
         if new_floe_area > 0 && new_floe_area/floe.area > 0.9
@@ -135,20 +136,20 @@ function split_floe(
     # Generate voronoi tesselation in floe's bounding box
     scale_fac = fill(2floe.rmax, 2)
     trans_vec = [floe.centroid[1] - floe.rmax, floe.centroid[2] - floe.rmax]
-    pieces = _generate_voronoi_coords(
+    pieces = _generate_voronoi_coords(FT,
         fracture_settings.npieces,
         scale_fac,
         trans_vec,
-        [floe.coords],
+        floe.poly,
         rng,
         1,  # Warn if only 1 point is identified as the floe won't be split
     )
     if !isempty(pieces)
         # Intersect voronoi tesselation pieces with floe
         rmholes!(floe.poly)
-        pieces_polys = mapreduce(p -> intersect_polys(make_polygon(p), floe.poly, FT), append!, pieces; init = Vector{Polys{FT}}())
+        pieces_polys = mapreduce(p -> intersect_polys(make_polygon(p, FT), floe.poly, FT), append!, pieces; init = Vector{Polys{FT}}())
         # Conserve mass within pieces
-        pieces_areas = [GO.area(p) for p in pieces_polys]
+        pieces_areas = [area_poly(p, FT) for p in pieces_polys]
         total_area = sum(pieces_areas)
         # Create floes out of each piece
         for i in eachindex(pieces_polys)

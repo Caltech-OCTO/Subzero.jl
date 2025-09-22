@@ -60,7 +60,7 @@
     floe_arr = StructArray{Floe{FT}}(undef, 0)
     n_new = Subzero._poly_to_floes!(FT, floe_arr, rect_poly, hmean, Δh, rmax_rect; floe_settings = fs_no_min_area)
     @test n_new == 1 && length(floe_arr) == 1
-    @test !Subzero.hashole(floe_arr.coords[1])
+    @test !Subzero.hashole(floe_arr.poly[1])
 
     # Test with polygon below minimum floe area
     n_new = Subzero._poly_to_floes!(FT, floe_arr, rect_poly, hmean, Δh, rmax_rect; floe_settings = fs_small_min_area)
@@ -69,7 +69,7 @@
     # Test with polygon with a hole that is split into 3 polyons
     n_new = Subzero._poly_to_floes!(FT, floe_arr, c_hole_poly, hmean, Δh, rmax_cpoly; floe_settings = fs_no_min_area)
     @test n_new == 3 && length(floe_arr) == 4
-    @test !any(Subzero.hashole.(floe_arr.coords))
+    @test !any(Subzero.hashole.(floe_arr.poly))
 
     # Test initialize_floe_field from coord list
     grid = RegRectilinearGrid(; x0 = -Lx, xf = Lx, y0 = -Ly, yf = Ly, Δx = Δgrid, Δy = Δgrid)
@@ -133,21 +133,23 @@
         rng = Xoshiro(0)
     )
     @test typeof(floe_arr) <: StructArray{<:Floe}
-    @test all([sum(GO.area, Subzero.intersect_polys(Subzero.make_polygon(c), topo_polys); init = 0.0) for c in floe_arr.coords] .< 1e-6)
+    @test all([sum(GO.area, Subzero.intersect_polys(p, topo_polys); init = 0.0) for p in floe_arr.poly] .< 1e-6)
     
     # Test _generate_voronoi_coords - general case
     domain_coords = [[[[1, 2], [1.5, 3.5], [1, 5], [2.5, 5], [2.5, 2], [1, 2]]]]
+    domain_poly = Subzero.make_multipolygon(domain_coords)
     bounding_box = [[[1, 2], [1, 5], [2.5, 5], [2.5, 2], [1, 2]]]
+    bounding_poly = Subzero.make_polygon(bounding_box)
     voronoi_coords = Subzero._generate_voronoi_coords(
+        FT,
         10,
         [1.5, 3],
         [1, 2],
-        domain_coords,
+        domain_poly,
         Xoshiro(1),
         10,
         max_tries = 20, # 20 tries makes it very likely to reach 10 polygons
     )
-    bounding_poly = Subzero.make_polygon(bounding_box)
     @test length(voronoi_coords) == 10
     for c in voronoi_coords
         fpoly = Subzero.make_polygon(c)
@@ -161,11 +163,11 @@
     # Test warning and no points generated
     warning_str = "Only 0 floes were able to be generated in 10 tries during \
         voronoi tesselation."
-    @test @test_logs (:warn, warning_str) Subzero._generate_voronoi_coords(
+    @test @test_logs (:warn, warning_str) Subzero._generate_voronoi_coords(FT,
         0, # Don't generate any points
         [1.5, 3],
         [1, 2],
-        domain_coords,
+        domain_poly,
         Xoshiro(1),
         10, # Higher min to warn so we can test warning
     ) == Vector{Vector{Vector{Float64}}}()
@@ -187,10 +189,10 @@
         atol = 1e-1
     )
     @test all(floe_arr.area .> 1e4)
-    for (i, c) in enumerate(floe_arr.coords)
-        Subzero.intersect_polys(Subzero.make_polygon(c), topo_polys)
+    for (i, p) in enumerate(floe_arr.poly)
+        Subzero.intersect_polys(p, topo_polys)
     end
-    @test all([sum(GO.area, Subzero.intersect_polys(Subzero.make_polygon(c), topo_polys); init = 0.0) for c in floe_arr.coords] .< 1e-6)
+    @test all([sum(GO.area, Subzero.intersect_polys(p, topo_polys); init = 0.0) for p in floe_arr.poly] .< 1e-6)
 
     nfloes = length(floe_arr)
     @test all(floe_arr.id .== range(1, nfloes))
@@ -207,11 +209,11 @@
         rng = rng
     )
     nfloes = length(floe_arr)
-    floe_polys = [Subzero.make_polygon(f) for f in floe_arr.coords]
+    floe_polys = floe_arr.poly
     first_cell = [[[-8e4, -8e4], [-8e4, 0], [0, 0], [0, -8e4], [-8e4, -8e4]]]
     for j in 1:2
         for i in 1:2
-            cell = Subzero.make_polygon(Subzero.translate(first_cell, 8e4*(j-1), 8e4*(i-1)))
+            cell = Subzero.make_polygon(translate_coords(first_cell, 8e4*(j-1), 8e4*(i-1)))
             cell_without_topos = Subzero.diff_polys(cell, topo_polys)
             open_cell_area = sum(GO.area, cell_without_topos; init = 0.0)
             c = concentrations[i, j]

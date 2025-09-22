@@ -17,7 +17,7 @@
             (-1.25e5, -1.25e5),
             atol = 1e-3
         ))
-        hibler_verts = Subzero.find_poly_coords(hibler_poly)
+        hibler_verts = find_poly_coords(hibler_poly)
         x_verts, y_verts = first.(hibler_verts[1]), last.(hibler_verts[1])
         @test all(isapprox.(
             extrema(x_verts),
@@ -30,7 +30,7 @@
             atol = 1e-3
         ))
         hibler_poly = Subzero._calculate_hibler(FT, 0.25, 2.25e5, 20.0)
-        hibler_verts = Subzero.find_poly_coords(hibler_poly)
+        hibler_verts = find_poly_coords(hibler_poly)
         @test isapprox(GO.area(hibler_poly), 2483380916.630, atol = -1e3)
         @test all(isapprox.(
             GO.centroid(hibler_poly),
@@ -53,7 +53,7 @@
         @test typeof(Subzero.MohrsCone(Float64)) <: MohrsCone{Float64}
 
         # Float64 Mohr's Cone with q, σc, σ11
-        mohrs_verts_64 = Subzero.find_poly_coords(Subzero._calculate_mohrs(FT, 5.2, 2.5e5, -3.375e4))
+        mohrs_verts_64 = find_poly_coords(Subzero._calculate_mohrs(FT, 5.2, 2.5e5, -3.375e4))
         @test all(isapprox.(
             mohrs_verts_64[1],
             [
@@ -65,7 +65,7 @@
             atol = 1e-3
         ))
         # Float32 Mohr's Cone with q, σc, σ11
-        mohrs_verts_32 = Subzero.find_poly_coords(Subzero._calculate_mohrs(FT, 5.2, 2.5e5, 1.5e5))
+        mohrs_verts_32 = find_poly_coords(Subzero._calculate_mohrs(FT, 5.2, 2.5e5, 1.5e5))
         @test all(isapprox.(
             mohrs_verts_32[1],
             [
@@ -181,18 +181,17 @@
         
         # Test deform_floe!
         floe1_copy = deepcopy(floes[1])
-        colliding_coords = no_frac_floe.coords
         deforming_forces = frac_deform_floe.interactions[xforce:yforce]
-        init_overlap = sum(GO.area, Subzero.intersect_polys(Subzero.make_polygon(floe1_copy.coords), Subzero.make_polygon(colliding_coords)); init = 0.0)
+        init_overlap = sum(GO.area, Subzero.intersect_polys(floe1_copy.poly, no_frac_floe.poly); init = 0.0)
         Subzero.deform_floe!(
             floe1_copy,
-            Subzero.make_polygon(colliding_coords),
+            no_frac_floe.poly,
             deforming_forces,
             FloeSettings(),
             10,
             Xoshiro(1),
         )
-        post_deform_overlap = sum(GO.area, Subzero.intersect_polys(Subzero.make_polygon(floe1_copy.coords), Subzero.make_polygon(colliding_coords)); init = 0.0)
+        post_deform_overlap = sum(GO.area, Subzero.intersect_polys(floe1_copy.poly, no_frac_floe.poly); init = 0.0)
         @test init_overlap > post_deform_overlap
         
         @test all(isapprox.( 
@@ -216,8 +215,8 @@
             10,
         ) 
         # Test that the pieces all fit within original floe
-        og_floe_poly = Subzero.make_polygon(floes.coords[1])
-        new_floes_polys = Subzero.make_multipolygon(new_floes.coords)
+        og_floe_poly = floes.poly[1]
+        new_floes_polys = Subzero.make_multipolygon(new_floes.poly)
         @test isapprox(
             sum(GO.area, Subzero.intersect_polys(new_floes_polys, og_floe_poly); init = 0.0),
             GO.area(og_floe_poly),

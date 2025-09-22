@@ -85,7 +85,7 @@ atmos = Atmos(; grid, u = 0.0, v = 0.0, temp = -1.0)
 # ## Floe Creation - bound floes within smaller part of the domain
 floe_settings = FloeSettings(; subfloe_point_generator = SubGridPointsGenerator(; grid, npoint_per_cell = 2))
 floe_generator = VoronoiTesselationFieldGenerator(; nfloes, concentrations, hmean, Δh)
-floe_bounds = Subzero.make_polygon([[[0.1Lx, 0.1Ly], [0.1Lx, 0.9Ly], [0.9Lx, 0.9Ly], [0.9Lx, 0.1Ly], [0.1Lx, 0.1Ly]]])
+floe_bounds = Subzero.make_polygon([[[0.1Lx, 0.1Ly], [0.1Lx, 0.9Ly], [0.9Lx, 0.9Ly], [0.9Lx, 0.1Ly], [0.1Lx, 0.1Ly]]], FT)
 floe_arr = initialize_floe_field(FT; generator = floe_generator, domain, floe_bounds, rng = Xoshiro(1), floe_settings)
 
 # ## Model Creation

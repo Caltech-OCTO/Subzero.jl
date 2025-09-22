@@ -69,8 +69,8 @@ function TopographyElement(::Type{FT} = Float64; poly::Polys) where FT
     # Clean up polygon and calculate centroid and maximum radius
     poly = GO.ClosedRing()(poly)
     rmholes!(poly)
-    centroid = collect(GO.centroid(poly, FT)) # TODO: Remove collect once type is changed
-    rmax = calc_max_radius(poly, centroid, FT)
+    centroid = collect(centroid_poly(poly, FT))
+    rmax = _calc_max_radius(poly, centroid, FT)
     return TopographyElement{FT}(poly, centroid, rmax)
 end
 
@@ -156,7 +156,7 @@ julia> initialize_topography_field(Float64)
 function initialize_topography_field(::Type{FT} = Float64; polys = nothing, coords = nothing) where FT
     # Make sure input given (if given) is turned into a list of polygons
     if isnothing(polys) && !isnothing(coords)
-        polys = [make_polygon(c) for c in coords]
+        polys = [make_polygon(c, FT) for c in coords]
     elseif isnothing(polys)  # & isnothing(coords)
         return StructArray{TopographyElement{FT}}(undef, 0)
     end

@@ -43,8 +43,8 @@
         # Floe coordinates
         tri_coord = [[[0.0, 0.0], [1e4, 3e4], [2e4, 0], [0.0, 0.0]]]
         corner_rect_coord = [[[0.0, 2.5e4], [0.0, 2.9e4], [2e4, 2.9e4], [2e4, 2.5e4], [0.0, 2.5e4]]]
-        small_shift_corner_rect_coord = Subzero.translate(corner_rect_coord, 0.5e4, 0.0)
-        big_shift_corner_rect_coord = Subzero.translate(corner_rect_coord, 1.9999999e4, 0.0)
+        small_shift_corner_rect_coord = translate_coords(corner_rect_coord, 0.5e4, 0.0)
+        big_shift_corner_rect_coord = translate_coords(corner_rect_coord, 1.9999999e4, 0.0)
         middle_rect_coord = [[ [1.8e4, 2.7e4], [1.8e4, 2.8e4], [2.1e4, 2.8e4], [2.1e4, 2.7e4], [1.8e4, 2.7e4]]]
         cshape_coord = [[[0.5e4, 2.7e4], [0.5e4, 3.5e4], [1.5e4, 3.5e4], [1.5e4, 2.7e4], [1.25e4, 2.7e4], [1.25e4, 3e4], [1e4, 3e4], [1e4, 2.7e4], [0.5e4, 2.7e4]]]
 
@@ -193,29 +193,36 @@
         ## Floe coordinates
         # corner floe - overlaps with north and east boundary
         coords1 = [[[9.9e4, 9.9e4], [9.9e4, 1.02e5], [1.02e5, 1.02e5], [1.02e5, 9.9e4], [9.9e4, 9.9e4]]]
+        poly1 = Subzero.make_polygon(coords1)
         # overlaps with western boundary
         coords2 = [[[-1.01e5, 7e4], [-1.01e5, 8e4], [-8e4, 8e4], [-8e4, 7e4], [-1.01e5, 7e4]]]
+        poly2 = Subzero.make_polygon(coords2)
         # overlaps with northern boundary
         coords3 = [[[-2e4, 9.5e4], [-2e4, 1.1e5], [-1e4, 1.1e5], [-1e4, 9.5e4], [-2e4, 9.5e4]]]
+        poly3 = Subzero.make_polygon(coords3)
         # doesn't overlap with any boundary
         coords4 = [[[0.0, 0.0], [0.0, 2e4], [2e4, 2e4], [2e4, 0.0], [0.0, 0.0]]]
+        poly4 = Subzero.make_polygon(coords4)
         # List of above coordinates
         coord_list = [coords1, coords2, coords3, coords4]
+        poly_list = [poly1, poly2, poly3, poly4]
 
         # Make sure nothing is added with non-periodic domain
         floe_arr = initialize_floe_field(FT, coord_list, open_domain, hmean, Δh; supress_warnings, floe_settings)
         Subzero.add_ghosts!(floe_arr, open_domain)
-        @test floe_arr.coords == coord_list
+        @test all([GO.equals(floe_arr.poly[i], poly_list[i]) for i in eachindex(poly_list)])
 
         # Add ghost floes in east-west direction
         floe_arr = initialize_floe_field(FT, coord_list, ew_periodic_domain, hmean, Δh; supress_warnings, floe_settings)
         Subzero.add_ghosts!(floe_arr, ew_periodic_domain)
         @test -1e5 < floe_arr[1].centroid[1] < 1e5
         @test -1e5 < floe_arr[2].centroid[2] < 1e5
-        @test floe_arr.coords[1] == Subzero.translate(coords1, -2e5, 0.0)
-        @test floe_arr.coords[2:4] == coord_list[2:4]
-        @test floe_arr.coords[5] == coords1
-        @test floe_arr.coords[6] == Subzero.translate(coords2, 2e5, 0.0)
+        @test GO.equals(floe_arr.poly[1], Subzero._translate_poly(FT, poly1, -2e5, 0.0))
+        @test GO.equals(floe_arr.poly[2], poly2)
+        @test GO.equals(floe_arr.poly[3], poly3)
+        @test GO.equals(floe_arr.poly[4], poly4)
+        @test GO.equals(floe_arr.poly[5], poly1)
+        @test GO.equals(floe_arr.poly[6], Subzero._translate_poly(FT, poly2, 2e5, 0.0))
         @test floe_arr.id == [1, 2, 3, 4, 1, 2]
         @test floe_arr.ghost_id == [0, 0, 0, 0, 1, 1]
         @test floe_arr.ghosts[1] == [5]
@@ -227,11 +234,12 @@
         Subzero.add_ghosts!(floe_arr, ns_periodic_domain)
         @test -1e5 < floe_arr[1].centroid[2] < 1e5
         @test -1e5 < floe_arr[3].centroid[2] < 1e5
-        @test floe_arr.coords[1] == Subzero.translate(coords1, 0.0, -2e5)
-        @test floe_arr.coords[3] == Subzero.translate(coords3, 0.0, -2e5)
-        @test floe_arr.coords[[2, 4]] == coord_list[[2, 4]]
-        @test floe_arr.coords[5] == coords1
-        @test floe_arr.coords[6] == coords3
+        @test GO.equals(floe_arr.poly[1], Subzero._translate_poly(FT, poly1, 0.0, -2e5))
+        @test GO.equals(floe_arr.poly[2], poly2)
+        @test GO.equals(floe_arr.poly[3], Subzero._translate_poly(FT, poly3, 0.0, -2e5))
+        @test GO.equals(floe_arr.poly[4], poly4)
+        @test GO.equals(floe_arr.poly[5], poly1)
+        @test GO.equals(floe_arr.poly[6], poly3)
         @test floe_arr.id == [1, 2, 3, 4, 1, 3]
         @test floe_arr.ghost_id == [0, 0, 0, 0, 1, 1]
         @test floe_arr.ghosts[1] == [5]
@@ -243,14 +251,15 @@
         Subzero.add_ghosts!(floe_arr, double_periodic_domain)
         @test -1e5 < floe_arr.centroid[1][1] < 1e5
         @test -1e5 < floe_arr.centroid[1][2] < 1e5
-        @test floe_arr.coords[1] == Subzero.translate(coords1, -2e5, -2e5)
-        @test floe_arr.coords[3] == Subzero.translate(coords3, 0.0, -2e5)
-        @test floe_arr.coords[[2, 4]] == coord_list[[2, 4]]
-        @test floe_arr.coords[5] == coords1
-        @test floe_arr.coords[6] == Subzero.translate(coords2, 2e5, 0.0)
-        @test floe_arr.coords[7] == Subzero.translate(coords1, 0.0, -2e5)
-        @test floe_arr.coords[8] == Subzero.translate(coords1, -2e5, 0.0)
-        @test floe_arr.coords[9] == coords3
+        @test GO.equals(floe_arr.poly[1], Subzero._translate_poly(FT, poly1, -2e5, -2e5))
+        @test GO.equals(floe_arr.poly[2], poly2)
+        @test GO.equals(floe_arr.poly[3], Subzero._translate_poly(FT, poly3, 0.0, -2e5))
+        @test GO.equals(floe_arr.poly[4], poly4)
+        @test GO.equals(floe_arr.poly[5], poly1)
+        @test GO.equals(floe_arr.poly[6], Subzero._translate_poly(FT, poly2, 2e5, 0.0))
+        @test GO.equals(floe_arr.poly[7], Subzero._translate_poly(FT, poly1, 0.0, -2e5))
+        @test GO.equals(floe_arr.poly[8], Subzero._translate_poly(FT, poly1, -2e5, 0.0))
+        @test GO.equals(floe_arr.poly[9], poly3)
         @test floe_arr.id == [1, 2, 3, 4, 1, 2, 1, 1, 3]
         @test floe_arr.ghost_id == [0, 0, 0, 0, 1, 1, 2, 3, 1]
         @test floe_arr.ghosts[1] == [5, 7, 8]
@@ -271,13 +280,13 @@
         # Long rectangle in bottom left corner of domain (ghost hits tall rectangle)
         long_rect_coords = [splitdims(vcat(-[5*Lx/4 5*Lx/4 3*Lx/4-1000 3*Lx/4-1000], -[7*Lx/8 3*Lx/4-1000 3*Lx/4-1000 7*Lx/8]))]
         # Shifted tall rectangle to ghost position in bottom right corner
-        shifted_down_tall_rect_coords = Subzero.translate(tall_rect_coords, 0.0, -2Ly)
+        shifted_down_tall_rect_coords = translate_coords(tall_rect_coords, 0.0, -2Ly)
         # Shifted tall rectangle to ghost postion in top left corner
-        shifted_left_tall_rect_coords = Subzero.translate(tall_rect_coords, -2Lx, 0.0)
+        shifted_left_tall_rect_coords = translate_coords(tall_rect_coords, -2Lx, 0.0)
         # Shifted long rectangle to ghost postion in bottom right corner
-        shifted_right_long_rect_coords = Subzero.translate(long_rect_coords, 2Lx, 0.0)
+        shifted_right_long_rect_coords = translate_coords(long_rect_coords, 2Lx, 0.0)
         # Shifted long rectangle to ghost postion in top left corner
-        shifted_up_long_rect_coords = Subzero.translate(long_rect_coords, 0.0, 1.615Ly)
+        shifted_up_long_rect_coords = translate_coords(long_rect_coords, 0.0, 1.615Ly)
         # Small rectangle in the corner that has 3 ghosts in all other corners
         small_corner_rect_coords = [[[-1.1e5, -1.1e5], [-1.1e5, -9.5e4], [-9.5e4, -9.5e4], [-9.5e4, -1.1e5], [-1.1e5, -1.1e5]]]
         # triangle in the middle of the domain with no ghosts - touches 3/4 corners

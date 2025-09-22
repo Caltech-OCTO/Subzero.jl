@@ -153,8 +153,8 @@ julia> hibler = HiblerYieldCurve(Float32; floes, c = 24)
 HiblerYieldCurve{Float32}
   ⊢ pstar: 225000.0
   ⊢ c: 24.0
-  ⊢ yield curve area: 2.4833810505e9
-  ⊢ yield curve centroid: (-28124.99995, -28125.00086)
+  ⊢ yield curve area: 2.4833815e9
+  ⊢ yield curve centroid: (-28124.994f0, -28124.998f0)
 ```
 """
 function HiblerYieldCurve(::Type{FT} = Float64; floes, pstar = 2.25e5, c = 20.0) where FT
@@ -184,8 +184,8 @@ function Base.show(io::IO, curve::HiblerYieldCurve{FT}; digits = 5) where {FT}
     overall_summary = "HiblerYieldCurve{$FT}"
     pstar_summary = "  ⊢ pstar: " * string(curve.pstar)
     c_summary = "  ⊢ c: " * string(curve.c)
-    area_summary = "  ⊢ yield curve area: " * string(round(GO.area(curve.poly); digits))
-    centroid_summary = "  ⊢ yield curve centroid: " * string(round.(GO.centroid(curve.poly); digits))
+    area_summary = "  ⊢ yield curve area: " * string(round(area_poly(curve.poly, FT); digits))
+    centroid_summary = "  ⊢ yield curve centroid: " * string(round.(centroid_poly(curve.poly, FT); digits))
     print(io, overall_summary, "\n", pstar_summary, "\n", c_summary, "\n", area_summary, "\n", centroid_summary)
 end
 
