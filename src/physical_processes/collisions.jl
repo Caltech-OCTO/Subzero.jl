@@ -752,21 +752,11 @@ function timestep_collisions!(
     return
 end
 
-"""
-    ghosts_on_bounds(element, ghosts, boundary, trans_vec)
-
+#=
 If the given element intersects with the boundary, add ghosts of the element and 
-any of its existing ghosts. 
-Inputs:
-    floes       <StructArray{Floe}> model's list of floes
-    elem_idx    <Int> floe of interest's index within the floe list
-    boundary    <PeriodicBoundary> boundary to translate element through
-    trans_vec   <Matrix{Float}> 1x2 matrix of form [x y] to translate element
-                    through the boundary
-Outputs:
-    Nothing. New ghosts created by the given element, or its current ghosts,
-    are added to the floe list
-"""
+any of its existing ghosts to the `floes` list. The ghost will be translated from
+the "parent" floe with `trans_vec`.
+=#
 function ghosts_on_bounds!(
     floes::FLT,
     elem_idx,
@@ -789,28 +779,13 @@ function ghosts_on_bounds!(
     return
 end
 
-"""
-    find_ghosts!(
-        floes,
-        elem_idx,
-        ebound::PeriodicBoundary,
-        wbound::PeriodicBoundary,
-    )
-
+#=
 Find ghosts of given element and its known ghosts through an eastern or western
 periodic boundary. If element's centroid isn't within the domain in the
-east/west direction, swap it with its ghost since the ghost's centroid must then
-be within the domain. 
-Inputs:
-    floes       <StructArray{Floe}> model's list of floes
-    elem_idx    <Int> floe of interest's index within the floe list
-    eboundary   <PeriodicBoundary{East, Float}> domain's eastern boundary
-    wboundary   <PeriodicBoundary{West, Float}> domain's western boundary
-Outputs:
-    None. Ghosts added to the floe list. Primary floe always has centroid within
-    the domain, else it is swapped with one of its ghost's which has a centroid
-    within the domain.
-"""
+north/south direction, swap it with its ghost since the ghost's centroid must
+then be within the domain. `elem_idx`is the floe of floe of interest's index within
+the floe list.
+=#
 function find_ghosts!(
     floes,
     elem_idx,
@@ -840,28 +815,13 @@ function find_ghosts!(
     return
 end
 
-"""
-    find_ghosts!(
-        floes,
-        elem_idx,
-        nbound::PeriodicBoundary{North, <:AbstractFloat},
-        sbound::PeriodicBoundary{South, <:AbstractFloat},
-    )
-
-Find ghosts of given element and its known ghosts through an northern or
+#=
+Find ghosts of given element and its known ghosts through a northern or
 southern periodic boundary. If element's centroid isn't within the domain in the
 north/south direction, swap it with its ghost since the ghost's centroid must
-then be within the domain. 
-Inputs:
-    floes       <StructArray{Floe}> model's list of floes
-    elem_idx    <Int> floe of interest's index within the floe list
-    nboundary        <PeriodicBoundary{North, Float}> domain's northern boundary
-    sboundary        <PeriodicBoundary{South, Float}> domain's southern boundary
-Outputs:
-    None. Ghosts added to the floe list. Primary floe always has centroid within
-    the domain, else it is swapped with one of its ghost's which has a centroid
-    within the domain.
-"""
+then be within the domain. `elem_idx`is the floe of floe of interest's index within
+the floe list.
+=#
 function find_ghosts!(
     floes,
     elem_idx,
@@ -891,23 +851,12 @@ function find_ghosts!(
     return
 end
 
-"""
-    add_floe_ghosts!(floes, max_boundary, min_boundary)
-
+#=
 Add ghosts of all of the given floes passing through the two given boundaries to
-the list of floes.
-Inputs:
-    floes           <StructArray{Floe{FT}}> list of floes to find ghosts for
-    max_boundary    <PeriodicBoundary> northern or eastern boundary of domain
-    min_boundary    <PeriodicBoundary> southern or western boundary of domain
-Outputs:
-    None. Ghosts of floes are added to floe list. 
-"""
-function add_floe_ghosts!(
-    floes::FLT,
-    max_boundary,
-    min_boundary,
-) where {FT <: AbstractFloat, FLT <: StructArray{<:Floe{FT}}}
+the list of floes. The `max_boundary` is the northern or eastern boundary of domain.
+The `min_boundary` is the southern or western boundary of domain.
+=#
+function add_floe_ghosts!(floes, max_boundary, min_boundary)
     nfloes = length(floes)
     # uses initial length of floes so we can append to list
     for i in eachindex(floes)
@@ -934,18 +883,8 @@ function add_floe_ghosts!(
     end
     return
 end
-"""
-    add_ghosts!(
-        elems,
-        domain,
-    )
 
-When there are no periodic boundaries, no ghosts should be added.
-Inputs:
-        None are used. 
-Outputs:
-        None. 
-"""
+# When there are no periodic boundaries, no ghosts should be added.
 function add_ghosts!(
     elems,
     ::Domain{
@@ -959,26 +898,7 @@ function add_ghosts!(
     return
 end
 
-"""
-    add_ghosts!(
-        elems,
-        domain,
-    )
-
-Add ghosts for elements that pass through the northern or southern boundaries.
-Inputs:
-        elems   <StructArray{Floe} or StructArray{TopographyElement}> list of
-                    elements to add ghosts to
-        domain  <Domain{
-                    Float,
-                    PeriodicBoundary,
-                    PeriodicBoundary,
-                    NonPeriodicBoundary,
-                    NonPeriodicBoundary,
-                }> domain with northern and southern periodic boundaries
-Outputs:
-        None. Ghosts are added to list of elements.
-"""
+# Add ghosts for elements that pass through the northern or southern periodic boundaries. 
 function add_ghosts!(
     elems,
     domain::Domain{
@@ -993,26 +913,8 @@ function add_ghosts!(
     return
 end
 
-"""
-    add_ghosts!(
-        elems,
-        domain,
-    )
 
-Add ghosts for elements that pass through the eastern or western boundaries. 
-Inputs:
-    elems   <StructArray{Floe} or StructArray{TopographyElement}> list of
-                elements to add ghosts to
-    domain  <Domain{
-                Float,
-                NonPeriodicBoundary,
-                NonPeriodicBoundary,
-                PeriodicBoundary,
-                PeriodicBoundary,
-            }> domain with eastern and western periodic boundaries 
-Outputs:
-    None. Ghosts are added to list of elements.
-"""
+# Add ghosts for elements that pass through the eastern or western periodic boundaries. 
 function add_ghosts!(
     elems,
     domain::Domain{
@@ -1028,24 +930,16 @@ function add_ghosts!(
 end
 
 """
-    add_ghosts!(
-        elems,
-        domain,
-    )
+    add_ghosts!(elems, domain)
 
-Add ghosts for elements that pass through any of the boundaries. 
-Inputs:
-    elems   <StructArray{Floe} or StructArray{TopographyElement}> list of
-                elements to add ghosts to
-    domain  <Domain{
-                AbstractFloat,
-                PeriodicBoundary,
-                PeriodicBoundary,
-                PeriodicBoundary,
-                PeriodicBoundary,
-            }> domain with all boundaries
-Outputs:
-        None. Ghosts are added to list of elements.
+Add ghosts for elements (floes of topography elements) that pass through any of the domain boundaries.
+Add ghost elements to list in-place. Note that ghosts will only be added when the elements pass through
+periodic boundaries.
+
+## _Positional arguments_
+- `elems::Union{StructArray{Floe}, StructArray{TopographyElement}`: list of elements (floes or topigraphy) to
+    add "ghost" elements to.
+- $DOMAIN_DEF
 """
 function add_ghosts!(
     elems,

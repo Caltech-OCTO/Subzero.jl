@@ -114,10 +114,23 @@ write_floe_data!
 write_grid_data!
 calc_eulerian_data!
 ```
-
 ## Developer-Used Types
 ```@docs
 CellFloes
 CellStresses
 TopographyField
+```
+
+## Collision Methods
+```@docs
+timestep_collisions!
+calc_elastic_forces
+calc_normal_force
+calc_friction_forces
+add_interactions!
+floe_floe_interaction!
+floe_domain_interaction!
+floe_domain_element_interaction!
+update_boundaries!
+add_ghosts!
 ```
