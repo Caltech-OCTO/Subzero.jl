@@ -712,7 +712,7 @@ function timestep_ridging_rafting!(
                 # floes/domain overlap (not ghost interaction copied to parent)
                 valid_interaction = false
                 if i < j && !broken[j] && floes.status[j].tag == active
-                    valid_interaction |= potential_interaction(
+                    valid_interaction |= _potential_interaction(
                         floes.centroid[i], floes.centroid[j],
                         floes.rmax[i], floes.rmax[j],
                     )
@@ -733,7 +733,7 @@ function timestep_ridging_rafting!(
                         abs(floes.centroid[i][1] - domain.west.val) <
                         floes.rmax[i]
                 elseif j < 0
-                    valid_interaction |= potential_interaction(
+                    valid_interaction |= _potential_interaction(
                         floes.centroid[i],
                         domain.topography.centroid[-(j + 4)],
                         floes.rmax[i],

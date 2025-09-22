@@ -800,7 +800,7 @@ function calc_eulerian_data!(floes::FLT, topography, writer) where {FT <: Abstra
     floe_rmax = floes.rmax
 
     # Identify floes that potentially overlap each grid square and create mask
-    potential_interactions = zeros(dims[1], dims[2], length(floes))
+    _potential_interactions = zeros(dims[1], dims[2], length(floes))
     for i in eachindex(floes)
         pint = sqrt.(
             (xgrid .- floe_centroids[i][1]).^2 .+
@@ -809,13 +809,13 @@ function calc_eulerian_data!(floes::FLT, topography, writer) where {FT <: Abstra
         pint = pint .- (floe_rmax[i] + cell_rmax)
         pint[pint .> 0] .= 0
         pint[pint .< 0] .= 1
-        potential_interactions[:,:,i] = pint
+        _potential_interactions[:,:,i] = pint
     end
     FT_area_poly(p) = area_poly(p, FT)
     # Loop over each grid square
     for j in 1:dims[2]
         for i in 1:dims[1]
-            pint = potential_interactions[i,j,:]
+            pint = _potential_interactions[i,j,:]
             # If there are any potential interactions
             if sum(pint) > 0
                 cell_poly_list = [_make_bounding_box_polygon(FT, writer.xg[j], writer.xg[j+1], writer.yg[i], writer.yg[i+1])]

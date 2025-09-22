@@ -126,7 +126,7 @@ function timestep_welding!(
                         floes.status[j].tag == active &&
                         floes.area[i] < weld_settings.max_weld_area &&
                         floes.area[j] < weld_settings.max_weld_area &&
-                        potential_interaction(  # floes must be interacting
+                        _potential_interaction(  # floes must be interacting
                             floes.centroid[i], floes.centroid[j],
                             floes.rmax[i], floes.rmax[j]
                         )

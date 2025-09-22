@@ -19,7 +19,7 @@ using CoordinateTransformations, Dates, Extents,
     VoronoiCells
 
 
-
+const SIM_DEF = "`sim::Simulation`: simulation to be run"
 const FT_DEF = "`FT::Type{<:AbstractFloat}`: Float type used to run the simulation, either \
 `Float64` (default) or `Float32`."
 const POLY_DEF = "`poly::Polys{FT}`: Polygon used to represent the shape of a floe or topography"
@@ -32,8 +32,6 @@ const CENTROID_DEF = "`centroid::Vector{FT}`: Two-element vector meant to repres
 point that is the centroid of either a floe or topography"
 const RMAX_DEF = "`rmax::FT`: Float length representing the maximum radius of a floe or topography \
 from the centroid to any given vertex"
-
-const SIM_DEF = "`sim::Simulation`: simulation to be run"
 
 
 # Types
@@ -57,9 +55,14 @@ include("simulation_components/atmos.jl")
 include("simulation_components/model.jl")
 # Outputs
 include("simulation_components/output_components/logger.jl")
-# Physical Processes
+# Process Settings
 include("simulation_components/process_settings/process_settings.jl")
 include("simulation_components/process_settings/fracture_settings.jl")
+# Simulation
+include("simulation_components/output_components/output.jl")
+include("simulation_components/constants.jl")
+include("simulation_components/simulation.jl")
+# Physical Processes
 include("physical_processes/fractures.jl")
 include("physical_processes/update_floe.jl")
 include("physical_processes/coupling.jl")
@@ -71,8 +74,4 @@ include("physical_processes/welding.jl")
 include("tools/plotting.jl")
 include("tools/conservation_em.jl")
 include("tools/compare_files.jl")
-# Simulation
-include("simulation_components/output_components/output.jl")
-include("simulation_components/constants.jl")
-include("simulation_components/simulation.jl")
 end

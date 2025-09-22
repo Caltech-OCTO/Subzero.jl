@@ -59,7 +59,7 @@
         @test isapprox(tri.interactions[1, overlap], 8000000, atol = 1e-2)
         @test tri.status.tag != Subzero.fuse && corner_rect.status.tag != Subzero.fuse
         @test isempty(tri.status.fuse_idx)
-        Subzero.calc_torque!(tri)
+        Subzero._calc_torque!(tri)
         @test isapprox(tri.interactions[1, torque], 1069710443203.99, atol = 1e-2)
 
         # Sideways C intersected with rectangle so there are two areas of overlap
@@ -77,7 +77,7 @@
         @test isapprox(cshape_floe.interactions[1, overlap], 10000000, atol = 1e-2)
         @test isapprox(cshape_floe.interactions[2, overlap], 5000000, atol = 1e-2)
         @test tri.status.tag != Subzero.fuse && corner_rect.status.tag != Subzero.fuse
-        Subzero.calc_torque!(cshape_floe)
+        Subzero._calc_torque!(cshape_floe)
         @test isapprox(cshape_floe.interactions[1, torque], -2439177121266.03, atol = 1e-2)
         @test isapprox(cshape_floe.interactions[2, torque], 1295472581868.05, atol = 1e-2)
 

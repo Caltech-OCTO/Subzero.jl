@@ -97,7 +97,7 @@ function smooth_floes!(
             )
             # Mark interactions for fusion
             for j in eachindex(floes)
-                if i != j && floes.status[j].tag != remove && potential_interaction(
+                if i != j && floes.status[j].tag != remove && _potential_interaction(
                     floes.centroid[i],
                     floes.centroid[j],
                     floes.rmax[i],
