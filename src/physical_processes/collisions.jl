@@ -61,7 +61,7 @@ function calc_normal_force(
         new_regions_list = intersect_polys(p1new, p2, FT)
         # See if the area of overlap has increased in corresponding region
         for new_region in new_regions_list
-            if GO.intersects(new_region, region) && GO.area(new_region)/area > 1
+            if check_intersects(new_region, region) && area_poly(new_region, FT)/area > 1
                 force_dir .*= -1 
             end
         end
@@ -88,7 +88,7 @@ function _many_intersect_normal_force!(::Type{T}, force_dir, region, poly, force
         end
         # Find the edge midpoint and calculate distance to first polygon
         xmid, ymid = 0.5 * (x2 + x1), 0.5 * (y2 + y1)
-        dist = abs(GO.signed_distance((xmid, ymid), poly, T))
+        dist = abs(dist_to_poly((xmid, ymid), poly, T))
         if dist < 1e-8  # Only consider region edge points on first polygon
             Δx, Δy = x2 - x1, y2 - y1
             mag = sqrt(Δx^2 + Δy^2)
@@ -96,7 +96,7 @@ function _many_intersect_normal_force!(::Type{T}, force_dir, region, poly, force
             overlap region), switch the force direction =#
             xt = xmid + (-Δy / 100mag)
             yt = ymid + (Δx / 100mag)
-            in_region = GO.coveredby((xt, yt), region) 
+            in_region = coveredby_poly((xt, yt), region) 
             f_sign = in_region ? 1 : -1
             # Calculate force from given edge and incorporate it into the total forces
             Fn = (f_sign * force_factor) .* (-Δy, Δx)
@@ -153,7 +153,7 @@ function calc_elastic_forces(
     region_areas,
     force_factor::FT,
 ) where {FT<:AbstractFloat}
-    ipoints = GO.intersection_points(p1, p2)
+    ipoints = get_intersection_points(p1, p2)
     ncontact = 0
     if !isempty(ipoints) && length(ipoints) >= 2
         # Find overlapping regions greater than minumum area
@@ -175,7 +175,7 @@ function calc_elastic_forces(
     Δl_lst = zeros(FT, ncontact)
     for k in 1:ncontact
         if region_areas[k] != 0
-            cx, cy = GO.centroid(regions[k])
+            cx, cy = centroid_poly(regions[k], FT)
             fpoint[k, 1] = cx
             fpoint[k, 2] = cy
             normal_force, Δl = calc_normal_force(p1, p2, regions[k], region_areas[k], ipoints, force_factor)
@@ -357,7 +357,7 @@ function floe_floe_interaction!(
     region_areas = Vector{FT}(undef, length(inter_regions))
     total_area = FT(0)
     for i in eachindex(inter_regions)
-        a = FT(GO.area(inter_regions[i]))
+        a = FT(area_poly(inter_regions[i], FT))
         region_areas[i] = a
         total_area += a
     end
@@ -433,7 +433,8 @@ function floe_domain_element_interaction!(
     max_overlap,
 ) where FT
     # Check if the floe and boundary actually overlap
-    inter_area = sum(GO.area, intersect_polys(floe.poly, boundary.poly, FT); init = 0.0)
+    FT_area_poly(p) = area_poly(p, FT)
+    inter_area = sum(FT_area_poly, intersect_polys(floe.poly, boundary.poly, FT); init = 0.0)
     if inter_area > 0
         floe.status.tag = remove
     end
@@ -512,7 +513,7 @@ function floe_domain_element_interaction!(
     region_areas = Vector{FT}(undef, length(inter_regions))
     max_area = FT(0)
     for i in eachindex(inter_regions)
-        a = GO.area(inter_regions[i], FT)
+        a = area_poly(inter_regions[i], FT)
         region_areas[i] = a
         if a > max_area
             max_area = a

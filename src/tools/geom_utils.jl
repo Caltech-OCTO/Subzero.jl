@@ -1,6 +1,37 @@
 export make_polygon
 
 #=
+Coordinates are vector of vector of vector of points of the form:
+[[[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]], 
+ [[w1, z1], [w2, z2], ..., [wn, zn], [w1, z1]], ...] where the xy coordinates
+ are the exterior border of the floe and the wz coordinates, or any other
+ following sets of coordinates, describe holes within the floe.
+ This form is for easy conversion to polygons.
+=#
+const PolyVec{T} = Vector{Vector{Vector{T}}} where T<:Real
+
+#=
+Coordinates are vector of vector of points of the form:
+[[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]] where the xy coordinates form a
+closed ring. PolyVec objects can be made out RingVec objects.
+This form is for each conversion to LinearRings, which can also be made into Polygons.
+=#
+const RingVec{T} = R where {
+    T<:Real,
+    V<:AbstractArray{T},
+    R <: AbstractArray{V},
+}
+
+# Define very specific type that GeometryOps returns so that it can be used to dispatch within Subzerp
+const Polys{T} = GI.Polygon{false, false, Vector{GI.LinearRing{false, false, Vector{Tuple{T, T}}, Nothing, Nothing}}, Nothing, Nothing} where T
+const MultiPolys{T} = GI.MultiPolygon{false, false, Vector{Polys{T}}, Nothing, Nothing} where T
+const StaticQuadrilateral{FT} =  GI.Polygon{false,false, SA.SVector{1, GI.LinearRing{false, false, SA.SVector{5, Tuple{FT, FT}}, Nothing, Nothing}},Nothing,Nothing} where FT
+
+# Convert polygons with points of type Float32/Float64 to type Float64/Float32
+Base.convert(::Type{Polys{Float32}}, p::Polys{<:Real}) = GO.tuples(p, Float32)
+Base.convert(::Type{Polys{Float64}}, p::Polys{<:Real}) = GO.tuples(p, Float64)
+
+#=
 Takes a RingVec object and make sure that the last element has the same first
 element as last element and that other than these two elements there are no
 duplicate, adjacent vertices. Also asserts that the ring as at least three
@@ -28,7 +59,9 @@ function valid_polyvec!(coords)
     return coords
 end
 
-# wrappers for calling GeometryOps (GO) functions within the code!!!
+# Wrappers for calling GeometryOps (GO) functions within the code!!! If you wanted to use a
+# different library or dispatch for a specific type of polygon (i.e. disks) then you would need
+# to re-write most of these (unless you don't want the specific functionality they offer, like fracturing)
 
 # find the intersection of two polygons and return as a list of polygons
 intersect_polys(p1, p2, ::Type{FT} = Float64; kwargs...) where FT = GO.intersection(p1, p2, FT; target = GI.PolygonTrait(), fix_multipoly = nothing)
@@ -38,10 +71,31 @@ diff_polys(p1, p2, ::Type{FT} = Float64; kwargs...) where FT = GO.difference(p1,
 union_polys(p1, p2, ::Type{FT} = Float64; kwargs...) where FT = GO.union(p1, p2, FT; target = GI.PolygonTrait(), fix_multipoly = nothing)
 # simplify an existing polygon to have less vertices
 simplify_poly(p, tol) = GO.simplify(p; tol = tol)
+# area of a polygon
+area_poly(p, ::Type{FT}) where FT = GO.area(p, FT)
+# centroid of a polygon
+centroid_poly(p, ::Type{FT}) where FT = GO.centroid(p, FT)
+# signed distance from a point to polygon
+dist_to_poly(point, poly, ::Type{FT}) where FT = GO.signed_distance(point, poly, FT)
+# boolean if point is covered by a polygon
+coveredby_poly(point, poly) = GO.coveredby(point, poly)
+# return point as a tuple with elements of type FT
+get_tuple_point(point, ::Type{FT}) where FT = GO._tuple_point(point, FT)
+# return polygon with points represented as tuples of type FT
+get_tuple_poly(poly, ::Type{FT}) where FT = GO.tuples(poly, FT)
+# get internal angles of polygon
+angles_poly(poly, ::Type{FT}) where FT = GO.angles(poly, FT)
+# check intersections between polys
+check_intersects(poly1, poly2) = GO.intersects(poly1, poly2)
+# get intersection points between polys
+get_intersection_points(poly1, poly2) = GO.intersection_points(poly1, poly2)
+# cut polygon by line through it and return polys of type FT
+cut_poly_by_line(poly, line, ::Type{FT}) where FT = GO.cut(poly, line, FT)
+
 # translate polygon coordinates by Δx, Δy
 function _translate_poly(::Type{FT}, p, Δx, Δy) where FT
     t = CoordinateTransformations.Translation(Δx, Δy)
-    return GO.tuples(GO.transform(t, p), FT)
+    return get_tuple_poly(GO.transform(t, p), FT)
 end
 # translate polygon coordinates by Δx, Δy and rotate polygon coordiantes by Δα
 function _move_poly(::Type{FT}, poly, Δx, Δy, Δα, cx = zero(FT), cy = zero(FT)) where FT
@@ -49,32 +103,32 @@ function _move_poly(::Type{FT}, poly, Δx, Δy, Δα, cx = zero(FT), cy = zero(F
     cent_rot = CoordinateTransformations.recenter(rot, (cx, cy))
     trans = CoordinateTransformations.Translation(Δx, Δy)
     # TODO: can remove the tuples call after GO SVPoint PR
-    return GO.tuples(GO.transform(trans ∘ cent_rot, poly), FT)::Polys{FT}
+    return get_tuple_poly(GO.transform(trans ∘ cent_rot, poly), FT)::Polys{FT}
 end
 
 # create polygon from a PolyVec, tuple coordiantes, or a linear ring
-make_polygon(coords::PolyVec) = GI.Polygon(GO.tuples(coords))
-make_polygon(tuple_coords) = GI.Polygon(tuple_coords)
-make_polygon(ring::GI.LinearRing) = GI.Polygon([ring])
+make_polygon(coords, ::Type{FT} = Float64) where FT = GI.Polygon(get_tuple_poly(coords, FT))
+# make_polygon(tuple_coords, ::Type{FT}) = GI.Polygon(get_tuple_poly(coords, FT))
+make_polygon(ring::GI.LinearRing, ::Type{FT} = Float64) where FT = GI.Polygon([get_tuple_poly(ring, FT)])
 # create a multipolygon from a vector of PolyVecs, tuple coordiantes, a vector of polygons, or a
 # vector of StaticQuadrilaterals (used for bounding boxes)
-make_multipolygon(coords::Vector{<:PolyVec}) = GI.MultiPolygon(GO.tuples(coords))
-make_multipolygon(tuple_coords) = GI.MultiPolygon(tuple_coords)
-make_multipolygon(polys::Vector{<:GI.Polygon}) = GI.MultiPolygon(polys)
+make_multipolygon(coords::Vector{<:PolyVec}, ::Type{FT} = Float64) where FT = GI.MultiPolygon(get_tuple_poly(coords, FT))
+# make_multipolygon(tuple_coords, ::) = GI.MultiPolygon(tuple_coords)
+make_multipolygon(polys::Vector{<:GI.Polygon}, ::Type{FT} = Float64) where FT = GI.MultiPolygon(get_tuple_poly.(polys, FT))
 function make_multipolygon(polys::Vector{<:StaticQuadrilateral{FT}}) where FT
     new_polys = Vector{Polys{FT}}(undef, length(polys))
     for (i, poly) in enumerate(polys)
-        new_polys[i] = make_polygon([[p for p in GI.getpoint(poly)]])
+        new_polys[i] = make_polygon([[p for p in GI.getpoint(poly)]], FT)
     end
-    return make_multipolygon(new_polys)
+    return GI.MultiPolygon(new_polys)
 end
+
 # create a bounding box polygon (a rectangle!) that is used to create domain boundaries
 function _make_bounding_box_polygon(::Type{FT}, xmin, xmax, ymin, ymax) where FT
     points = ((xmin, ymin),  (xmin, ymax), (xmax, ymax), (xmax, ymin), (xmin, ymin))
     ring = GI.LinearRing(SA.SVector{5, Tuple{FT, FT}}(points))
     return  GI.Polygon(SA.SVector(ring))
 end
-
 
 # Determine if polygon has one or more holes
 function hashole(poly::Polys)
@@ -89,9 +143,9 @@ end
 # Find the length of the maximum radius of a given polygon
 function _calc_max_radius(poly, cent, ::Type{T}) where T
     max_rad_sqrd = zero(T)
-    Δx, Δy = GO._tuple_point(cent, T)
+    Δx, Δy = get_tuple_point(cent, T)
     for pt in GI.getpoint(GI.getexterior(poly))
-        x, y = GO._tuple_point(pt, T)
+        x, y = get_tuple_point(pt, T)
         x, y = x - Δx, y - Δy
         rad_sqrd = x^2 + y^2
         if rad_sqrd > max_rad_sqrd
@@ -100,7 +154,6 @@ function _calc_max_radius(poly, cent, ::Type{T}) where T
     end
     return sqrt(max_rad_sqrd)
 end
-
 
 #=
 Find which vertices in in a polygon match the user-provided points.
@@ -162,7 +215,7 @@ function _generate_voronoi_coords(::Type{FT}, desired_points::Int, scale_fac, tr
 ) where {FT <: AbstractFloat}
     xpoints = Vector{Float64}()
     ypoints = Vector{Float64}()
-    area_frac = GO.area(domain_poly) / reduce(*, scale_fac)
+    area_frac = area_poly(domain_poly, FT) / reduce(*, scale_fac)
     # Increase the number of points based on availible percent of bounding box
     npoints = ceil(Int, desired_points / area_frac)
     current_points = 0
@@ -171,7 +224,7 @@ function _generate_voronoi_coords(::Type{FT}, desired_points::Int, scale_fac, tr
         x = rand(rng, npoints)
         y = rand(rng, npoints)
         # Check which of the scaled and translated points are within the domain coords
-        in_idx = [GO.coveredby(
+        in_idx = [coveredby_poly(
             (scale_fac[1] * x[i] .+ trans_vec[1], scale_fac[2] * y[i] .+ trans_vec[2]),
             domain_poly
         ) for i in eachindex(x)]

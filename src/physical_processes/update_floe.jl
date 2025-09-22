@@ -32,8 +32,8 @@ function replace_floe!(
 ) where {FT}
     # Floe shape
     floe.poly = new_poly
-    floe.centroid = collect(GO.centroid(new_poly))
-    floe.area = GO.area(new_poly)
+    floe.centroid = collect(centroid_poly(new_poly, FT))
+    floe.area = area_poly(new_poly, FT)
     floe.height = new_mass/(floe.area * floe_settings.ρi)
     floe.mass = new_mass
     floe.moment = _calc_moment_inertia(
@@ -43,7 +43,7 @@ function replace_floe!(
         floe.height;
         ρi = floe_settings.ρi,
     )
-    floe.angles = GO.angles(floe.poly, FT)
+    floe.angles = angles_poly(floe.poly, FT)
     floe.α = FT(0)
     floe.rmax = _calc_max_radius(floe.poly, floe.centroid, FT)
     # Floe monte carlo points
@@ -423,7 +423,7 @@ function calc_strain!(floe::FloeType{FT}) where {FT}
     trans_poly = _translate_poly(FT, floe.poly, -floe.centroid[1], -floe.centroid[2])::Polys{FT}
     local x1, y1
     for (i, p2) in enumerate(GI.getpoint(GI.getexterior(trans_poly)))
-        x2, y2 = GO._tuple_point(p2, FT)
+        x2, y2 = get_tuple_point(p2, FT)
         if i == 1
             x1, y1 = x2, y2
             continue

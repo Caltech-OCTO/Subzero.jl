@@ -140,7 +140,7 @@ CoordinateListFieldGenerator:
 ```
 """
 function CoordinateListFieldGenerator(::Type{FT} = Float64; coords, hmean, Δh) where FT
-    polys = [make_polygon(valid_polyvec!(c)) for c in coords]
+    polys = [make_polygon(valid_polyvec!(c), FT) for c in coords]
     return CoordinateListFieldGenerator{FT}(polys, hmean, Δh)
 end
 
@@ -318,6 +318,7 @@ function _initialize_floe_field!(
     nfloes_added = 0 
     domain_poly = _make_bounding_box_polygon(FT, domain.west.val, domain.east.val, domain.south.val, domain.north.val)
     (bounds_xmin, bounds_xmax), (bounds_ymin, bounds_ymax) = GI.extent(domain_poly)
+    FT_area_poly(p) = area_poly(p, FT)
     # Split domain into cells with given concentrations
     nrows, ncols = size(generator.concentrations)
     Lx = bounds_xmax - bounds_xmin
@@ -330,7 +331,7 @@ function _initialize_floe_field!(
         open_water = diff_polys(make_multipolygon(open_water), make_multipolygon(domain.topography.poly), FT)
     end
     open_water_mp = make_multipolygon(open_water)
-    open_water_area = GO.area(open_water_mp, FT)
+    open_water_area = area_poly(open_water_mp, FT)
     total_covered_water_area = (sum(generator.concentrations) / (nrows * ncols)) * open_water_area
     # Loop over cells
     for j in range(1, ncols)
@@ -346,7 +347,7 @@ function _initialize_floe_field!(
                 cell_init = _make_bounding_box_polygon(FT, xmin, xmin + collen, ymin, ymin + rowlen)
                 open_cell = intersect_polys(cell_init, open_water_mp, FT)
                 open_cell_mpoly = make_multipolygon(open_cell)
-                open_area = sum(GO.area, open_cell; init = 0.0)
+                open_area = sum(FT_area_poly, open_cell; init = 0.0)
                 # Generate coords with voronoi tesselation that fill the whole open space
                 ncells = ceil(Int, generator.nfloes * ((open_area) / total_covered_water_area))
                 floe_coords = _generate_voronoi_coords(FT, ncells, [collen, rowlen], trans_vec,
@@ -354,7 +355,7 @@ function _initialize_floe_field!(
                 )
                 # determine which polygons to keep to meet concentration c
                 if !isempty(floe_coords)
-                    floe_poly_list = [make_polygon(coords) for coords in floe_coords]
+                    floe_poly_list = [make_polygon(coords, FT) for coords in floe_coords]
                     nfloes = length(floe_poly_list)
                     floe_idx = shuffle(rng, range(1, nfloes))
                     floes_area = FT(0.0)

@@ -62,6 +62,7 @@ function smooth_floes!(
     Δt,
     rng,
 ) where {FT <: AbstractFloat}
+    FT_area_poly(p) = area_poly(p, FT)
     for i in eachindex(floes)
         if GI.npoint(GI.getexterior(floes.poly[i])) > simp_settings.max_vertices
             poly_list = [simplify_poly(floes.poly[i], simp_settings.tol)]
@@ -72,7 +73,7 @@ function smooth_floes!(
                 if length(poly_list) == 1
                     poly_list[1]
                 else
-                    areas = [GO.area(p) for p in poly_list]
+                    areas = [area_poly(p, FT) for p in poly_list]
                     _, max_idx = findmax(areas)
                     poly_list[max_idx]
                 end
@@ -107,8 +108,8 @@ function smooth_floes!(
                         push!(floes.status[i].fuse_idx, j)
                     else
                         jpoly = floes.poly[j]
-                        intersect_area = sum(GO.area, intersect_polys(simp_poly, jpoly, FT); init = 0.0)
-                        if intersect_area/GO.area(jpoly) > collision_settings.floe_floe_max_overlap
+                        intersect_area = sum(FT_area_poly, intersect_polys(simp_poly, jpoly, FT); init = 0.0)
+                        if intersect_area/area_poly(jpoly, FT) > collision_settings.floe_floe_max_overlap
                             floes.status[i].tag = fuse
                             push!(floes.status[i].fuse_idx, j)
                         end

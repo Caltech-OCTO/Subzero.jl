@@ -18,34 +18,7 @@ using CoordinateTransformations, Dates, Extents,
     Printf, Random, Rotations, SplitApplyCombine, Statistics, StructArrays,
     VoronoiCells
 
-export PolyVec, RingVec, Polys, MultiPolys
-"""
-Coordinates are vector of vector of vector of points of the form:
-[[[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]], 
- [[w1, z1], [w2, z2], ..., [wn, zn], [w1, z1]], ...] where the xy coordinates
- are the exterior border of the floe and the wz coordinates, or any other
- following sets of coordinates, describe holes within the floe.
- This form is for easy conversion to polygons.
-"""
-const PolyVec{T} = Vector{Vector{Vector{T}}} where T<:Real
 
-"""
-Coordinates are vector of vector of points of the form:
-[[x1, y1], [x2, y2], ..., [xn, yn], [x1, y1]] where the xy coordinates form a
-closed ring. PolyVec objects can be made out RingVec objects.
-This form is for each conversion to LinearRings, which can also be made into Polygons.
-"""
-const RingVec{T} = R where {
-    T<:Real,
-    V<:AbstractArray{T},
-    R <: AbstractArray{V},
-}
-
-const Polys{T} = GI.Polygon{false, false, Vector{GI.LinearRing{false, false, Vector{Tuple{T, T}}, Nothing, Nothing}}, Nothing, Nothing} where T
-const MultiPolys{T} = GI.MultiPolygon{false, false, Vector{Polys{T}}, Nothing, Nothing} where T
-
-Base.convert(::Type{Polys{Float32}}, p::Polys{<:Real}) = GO.tuples(p, Float32)
-Base.convert(::Type{Polys{Float64}}, p::Polys{<:Real}) = GO.tuples(p, Float64)
 
 const FT_DEF = "`FT::Type{<:AbstractFloat}`: Float type used to run the simulation, either \
 `Float64` (default) or `Float32`."
@@ -64,13 +37,13 @@ const SIM_DEF = "`sim::Simulation`: simulation to be run"
 
 
 # Types
+include("tools/geom_utils.jl")
 # Model
 include("simulation_components/grids.jl")
 include("simulation_components/domain_components/abstract_domains.jl")
 include("simulation_components/domain_components/boundaries.jl")
 include("simulation_components/domain_components/topography.jl")
 include("simulation_components/domain_components/domains.jl")
-include("tools/geom_utils.jl")
 include("simulation_components/floe_components/floe_status.jl")
 include("simulation_components/floe_components/floe_interaction.jl")
 include("simulation_components/floe_components/floe.jl")

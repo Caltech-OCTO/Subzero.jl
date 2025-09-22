@@ -130,7 +130,6 @@ function show_boundary_poly_val_strings(boundary::AbstractBoundary; digits)
 end
 
 # Constants used in documentation for sub-type fields and keywords
-const StaticQuadrilateral{FT} =  GI.Polygon{false,false, SA.SVector{1, GI.LinearRing{false, false, SA.SVector{5, Tuple{FT, FT}}, Nothing, Nothing}},Nothing,Nothing} where FT
 
 const D_DEF = "`D::Type{<:AbstractDirection}`: subtype of AbstractDirection used to represent \\
 if a boundary is the North, South, East, or West boundary of a simulation"

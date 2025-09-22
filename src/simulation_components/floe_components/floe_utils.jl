@@ -15,7 +15,7 @@ Returns the total number of floes created.
 function _poly_to_floes!(::Type{FT}, floes, poly, hmean, Δh, rmax;
     floe_settings, rng = Xoshiro(), kwargs...
 ) where {FT <: AbstractFloat}
-    a = GO.area(poly)
+    a = area_poly(poly, FT)
     # only make polygon into floe if it is big enough
     if a >= floe_settings.min_floe_area && a > 0
         # if it doesn't have a hole, add right to list
@@ -36,8 +36,8 @@ function _poly_to_floes!(::Type{FT}, floes, poly, hmean, Δh, rmax;
             return 1 # one floe added
         else
             # split floe around first hole
-            cx, cy = GO.centroid(GI.gethole(poly, 1), FT)
-            new_regions = GO.cut(poly, GI.Line([(cx - rmax, cy), (cx + rmax, cy)]), FT)
+            cx, cy = centroid_poly(GI.gethole(poly, 1), FT)
+            new_regions = cut_poly_by_line(poly, GI.Line([(cx - rmax, cy), (cx + rmax, cy)]), FT)
             n = 0
             for r in new_regions # recrusively call function around two new pieces
                 n += _poly_to_floes!(FT, floes, r, hmean, Δh, rmax;
@@ -75,7 +75,7 @@ New floe with fields that are equal in value. Any vector fields are copies so
 they share values, but not memory location.
 =#
 function deepcopy_floe(floe::LazyRow{Floe{FT}}) where {FT}
-    poly = GO.tuples(floe.poly, FT)
+    poly = get_tuple_poly(floe.poly, FT)
     f = Floe{FT}(
         poly = poly,
         centroid = copy(floe.centroid),
@@ -133,11 +133,11 @@ function _calc_moment_inertia(
     height;
     ρi = 920.0,
 ) where T
-    xc, yc = GO._tuple_point(cent, T)
+    xc, yc = get_tuple_point(cent, T)
     Ixx, Iyy = zero(T), zero(T)
     x1, y1 = zero(T), zero(T)
     for (i, p2) in enumerate(GI.getpoint(GI.getexterior(poly)))
-        (x2, y2) = GO._tuple_point(p2, T)
+        (x2, y2) = get_tuple_point(p2, T)
         x2, y2 = x2 - xc, y2 - yc
         if i == 1
             x1, y1 = x2, y2 
@@ -156,13 +156,13 @@ end
 # ensure provided floe coordinates (of type PolyVec) are valid and without any holes
 function _correct_floe_poly(::Type{FT}, coords::PolyVec) where FT
     valid_polyvec!(coords)
-    poly = make_polygon(coords)
+    poly = make_polygon(coords, FT)
     return _correct_floe_poly(FT, poly)
 end
 
 # ensure provided polygon points are of the right type and that the polygon has no holes
 function _correct_floe_poly(::Type{FT}, poly::Polys) where FT
-    poly = GO.tuples(poly, FT)
+    poly = get_tuple_poly(poly, FT)
     rmholes!(poly)
     return poly
 end

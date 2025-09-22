@@ -102,6 +102,7 @@ function timestep_welding!(
     # Seperate floes into groups based on centroid location in grid
     Nx, Ny = weld_settings.Nxs[weld_idx], weld_settings.Nys[weld_idx]
     floe_bins, floes_per_bin = bin_floe_centroids(floes, grid, domain, Nx, Ny)
+    FT_area_poly(p) = area_poly(p, FT)
     for k in eachindex(floe_bins)  # should be able to multithread
         bin = floe_bins[k]
         nfloes = floes_per_bin[k]
@@ -131,7 +132,7 @@ function timestep_welding!(
                         )
                     )
                         # Find intersection area
-                        inter_area = FT(sum(GO.area, intersect_polys(floes.poly[i], floes.poly[j], FT); init = 0.0))
+                        inter_area = sum(FT_area_poly, intersect_polys(floes.poly[i], floes.poly[j], FT); init = 0.0)
                         # Probability two floes will weld
                         weld_prob = weld_settings.welding_coeff *
                             (inter_area / floes.area[i])

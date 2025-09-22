@@ -100,7 +100,7 @@ Floe{Float64}
 ```
 - Creating a `Floe` with a polygon:
 ```jldoctest floe
-julia> poly = make_polygon(coords);
+julia> poly = make_polygon(coords, Float64);
 
 julia> Floe{Float32}(poly, height; u = 1.0, ξ = 0.02)
 Floe{Float32}
@@ -212,12 +212,12 @@ The fifth catagory is **timesteping values**. These are values from the previous
 function Floe{FT}(shape, height; floe_settings = FloeSettings(), rng = Xoshiro(), kwargs...) where FT
     poly = _correct_floe_poly(FT, shape)
     # Floe physical properties
-    centroid = collect(GO.centroid(poly))
-    area = GO.area(poly)
+    centroid = collect(centroid_poly(poly, FT))
+    area = area_poly(poly, FT)
     mass = area * height * floe_settings.ρi
     moment = _calc_moment_inertia(FT, poly, centroid, height; ρi = floe_settings.ρi)
     rmax = _calc_max_radius(poly, centroid, FT)
-    angles = GO.angles(poly, FT)
+    angles = angles_poly(poly, FT)
     # Generate Monte Carlo points
     status = Status()
     x_subfloe_points, y_subfloe_points, status = generate_subfloe_points(floe_settings.subfloe_point_generator, poly, centroid, area, status, rng)

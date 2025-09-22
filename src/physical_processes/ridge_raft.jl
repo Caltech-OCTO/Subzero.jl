@@ -94,7 +94,7 @@ function remove_floe_overlap!(
     nregions = 0
     for (i, region) in enumerate(regions)
         regions[i] = simplify_poly(region, simp_settings.tol)
-        total_area += GO.area(region)
+        total_area += area_poly(region, FT)
         nregions += 1
     end
     floe_num = 0  # How many new floes have been created from the regions
@@ -112,7 +112,7 @@ function remove_floe_overlap!(
         parent_centroid = floes.centroid[shrink_parent_idx]
         # Update existing floes/ghosts regions
         for region in regions
-            region_area = GO.area(region)
+            region_area = area_poly(region, FT)
             (xmin, xmax), (ymin, ymax) = GI.extent(region)
             Δx, Δy = xmax - xmin, ymax - ymin
             # Region is big enought to be a floe and has okay aspect ratio

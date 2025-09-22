@@ -184,8 +184,8 @@ function Base.show(io::IO, curve::HiblerYieldCurve{FT}; digits = 5) where {FT}
     overall_summary = "HiblerYieldCurve{$FT}"
     pstar_summary = "  ⊢ pstar: " * string(curve.pstar)
     c_summary = "  ⊢ c: " * string(curve.c)
-    area_summary = "  ⊢ yield curve area: " * string(round(GO.area(curve.poly); digits))
-    centroid_summary = "  ⊢ yield curve centroid: " * string(round.(GO.centroid(curve.poly); digits))
+    area_summary = "  ⊢ yield curve area: " * string(round(area_poly(curve.poly, FT); digits))
+    centroid_summary = "  ⊢ yield curve centroid: " * string(round.(centroid_poly(curve.poly, FT); digits))
     print(io, overall_summary, "\n", pstar_summary, "\n", c_summary, "\n", area_summary, "\n", centroid_summary)
 end
 
