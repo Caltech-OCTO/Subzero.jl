@@ -1,6 +1,6 @@
 export Simulation, timestep_sim!, run!, restart!
 
-const ΔT_DEF = "length of timestep in integer seconds"
+const ΔT_DEF = "`Δt::Int`:length of timestep in integer seconds"
 
 """
     Simulation{FT, MT, CT, PT, ST, RT, OT}

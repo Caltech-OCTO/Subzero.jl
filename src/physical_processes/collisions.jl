@@ -178,7 +178,7 @@ domain element.
 - `ifloe::Floe`: first floe in collsion
 - `jfloe::Union{Floe, DomainElement}`: either second floe or topography element/boundary element
 - `fpoints::Array{Float, N, 2}`: x,y-coordinates of the point the force is applied on floe overlap region
-- `normal::Array{Float, N, 2}: x,y normal force applied on fpoint on floe overlap region
+- `normal::Array{Float, N, 2}`: x,y normal force applied on fpoint on floe overlap region
 - `Δl::Vector`: mean length of distance between intersection points
 - $CONSTS_DEF
 - $ΔT_DEF
@@ -237,7 +237,7 @@ it had with other floe's/domain elements.
 
 The interactions field has the following form for each interaction:
 
-[Inf, xforce, yforce, xfpoints, yfpoints, overlaps]
+    `[Inf, xforce, yforce, xfpoints, yfpoints, overlaps]`
 
 where the xforce and yforce are the forces, xfpoints and yfpoints are the location of the force
 and overlaps is the overlap between the floe and boundary. The overlaps field is also added to

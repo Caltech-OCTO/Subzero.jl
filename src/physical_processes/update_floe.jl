@@ -14,7 +14,7 @@ Inputs:
     new_mass    <AbstractFloat> mass of floe
     floe_settings   <FloeSettings> simulation's settings for making floes
     rng         <RNG> random number generator
-    
+
 Ouputs:
     Updates a given floe's physical properties given new shape and total mass.
 =#
@@ -345,7 +345,7 @@ floe properties.
 
 ## _Positional arguments_
 - `floe::Floe`: single floe
-- #FLOE_SETTINGS_DEF
+- $FLOE_SETTINGS_DEF
 
 ##  _Returns_
 - Nothing. Updates floe.stress_accum and floe.stress_instant in-place.

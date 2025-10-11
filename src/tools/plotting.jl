@@ -41,7 +41,7 @@ heatmap and colorbar within the source code.
 ## Arguments:
 - `floe_fn::String`: $FLOE_FN_DEF
 - `initial_state_fn::String`: $INITIAL_STATE_FN_DEF
-- `Δt::Int`: $ΔT_DEF
+- $ΔT_DEF
 - `output_fn::String`: $MP4_OUTPUT_FN
 """
 function plot_sim end

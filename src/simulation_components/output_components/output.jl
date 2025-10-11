@@ -784,7 +784,6 @@ timestep (istep). Saved in writer.data field
 - $FLOES_DEF
 - $TOPO_FIELD
 - `writer::GridWriter`: grid output writer
-- `istep::Int`: current simulation timestep
 """
 function calc_eulerian_data!(floes::FLT, topography, writer) where {FT <: AbstractFloat, FLT <: StructArray{<:Floe{FT}}}
     # Calculate/collect needed values

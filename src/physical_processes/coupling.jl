@@ -1,6 +1,12 @@
 # Functions needed for coupling between floes, ocean, and atmosphere
 
 #=
+Find the index of given point's cartesian value (in either the x or y direction)
+within the simulation grid. 
+=#
+grid_cell_index(p, Δg, g0) = floor(Int, (p - g0)/Δg) + 1
+
+#=
 Find index of the grid cell of the given RegRectilinearGrid that the given
 x-coordinate and y-coordinate falls within.
 Method depends on grid being a regular rectilinear grid.

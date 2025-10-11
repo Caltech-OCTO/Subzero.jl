@@ -187,7 +187,7 @@ resulting from the ridging event.
 - `rng::RandomNumberGenerator`:: random number generator
 
 ##  _Returns_
-- Updates floe1 and floe2 in place and returns any new floes created by ridging
+- Updates `floe1` and `floe2` in place and returns any new floes created by ridging
 """
 function floe_floe_ridge!(
     floes::StructArray{<:Floe{FT}},
@@ -320,7 +320,7 @@ floes created by the ridging.
 - `rng::RandomNumberGenerator`:: random number generator
 
 ##  _Returns_
-- floe1 is updated with new shape. Return maximum floe id of floes created.
+- `floe1` is updated with new shape. Return maximum floe id of floes created.
 """
 function floe_domain_ridge!(
     floes::StructArray{<:Floe{FT}},
@@ -423,7 +423,7 @@ resulting from the rafting event.
 - `rng::RandomNumberGenerator`:: random number generator
 
 ##  _Returns_
-- Updates floe1 and floe2 in place and returns any new floes created by rafting
+- Updates `floe1` and `floe2` in place and returns any new floes created by rafting
 """
 function floe_floe_raft!(
     floes::StructArray{<:Floe{FT}},
@@ -533,10 +533,7 @@ floes created by the rafting. This is equivalent to ridging.
 - `rng::RandomNumberGenerator`:: random number generator
 
 ##  _Returns_
-- floe1 is updated with new shape. Return maximum floe id of floes created.
-
-##  _Returns_
-- floe1 is updated with new shape. Return maximum floe id of floes created.
+- `floe1` is updated with new shape. Return maximum floe id of floes created.
 """
 floe_domain_raft!(
     floes,
