@@ -153,11 +153,31 @@ deform_floe!
 determine_fractures
 ```
 
-## 
+## Ridging and Rafting Methods
 ```@docs
 timestep_ridging_rafting!
 floe_floe_raft!
 floe_domain_raft!
 floe_floe_ridge!
 floe_domain_ridge!
+```
+
+## Simplify Methods
+```@docs
+simplify_floes!
+smooth_floes!
+fuse_floes!
+remove_floes!
+```
+
+## Welding Methods
+```@docs
+timestep_welding!
+```
+
+## Floe Update Methods
+```@docs
+timestep_floe_properties!
+calc_stress!
+calc_strain!
 ```

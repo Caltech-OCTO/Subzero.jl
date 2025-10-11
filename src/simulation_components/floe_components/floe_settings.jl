@@ -1,5 +1,7 @@
 export FloeSettings
 
+const FLOE_SETTINGS_DEF = "`floe_settings::FloeSettings`: simulation's floe settings"
+
 # See below of documentation
 @kwdef struct FloeSettings{
     FT <: AbstractFloat,

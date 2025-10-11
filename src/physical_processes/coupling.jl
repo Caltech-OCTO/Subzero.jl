@@ -906,7 +906,7 @@ fields and sea ice fraction.
 - `atmos::Atoms`: model's atmosphere
 - `ocean::Ocean`: model's ocean
 - $DOMAIN_DEF
-- `floe_settings::FloeSettings`: simulation floe settings
+- $FLOE_SETTINGS_DEF
 - $CONSTS_DEF
 - $ΔT_DEF
 
@@ -985,11 +985,11 @@ Calculates the effects of the ocean and atmosphere on the ice and the effects of
 the ice and atmosphere on the ocean if the coupling is two-way.
 
 ## _Positional arguments_
-- `model::Model`: simulation's model
+- $MODEL_DEF
 - $ΔT_DEF
 - $CONSTS_DEF
 - `coupling_settings::CouplingSettings`:: simulation coupling settings
-- `floe_settings::FloeSettings`: simulation floe settings
+- $FLOE_SETTINGS_DEF
 
 ## _Returns_
 - None. Updates each floe's ocean/atmosphere forcings (fxOA, fyOA, torqueOA)

@@ -1,6 +1,6 @@
-"""
-    bin_floe_centroids(floes, grid, domain, Nx, Ny)
+# Functions needed for welding between floes
 
+#=
 Split floe locations into a grid of Nx by Ny by floe centroid location
 Inputs:
     floes       <StructArray{Floe}> simulation's list of floes
@@ -19,7 +19,7 @@ Outputs:
     nfloes      <Maxtrix{Int}> Nx by Ny matrix where each element is the total
                     number of indices within floe_bins[Nx, Ny] that are
                     non-zeros and represent a floe within the grid section.
-"""
+=#
 function bin_floe_centroids(floes, grid, domain, Nx, Ny)
     @assert Nx > 0 && Ny > 0 "Can't bin centroids without bins."
     # Find average number of floes per bin if floes were spread evenly
@@ -55,38 +55,25 @@ function bin_floe_centroids(floes, grid, domain, Nx, Ny)
 end
 
 """
-    timestep_welding!(
-        floes,
-        max_floe_id,
-        grid,
-        domain,
-        Nx,
-        Ny,
-        weld_settings::WeldSettings{FT},
-        floe_settings
-        Δt,
-        rng,
-    )
+    timestep_welding!(...)
 
 Weld floes within sections of the domain that meet overlap and size criteria
-together, ensuring resulting floe doesn't surpass maximum floe area. 
-Inputs:
-    floes               <StructArray{Floe}> simulation's list of floes
-    max_floe_id         <Int> maximum floe ID before this welding
-    grid                <RegRectilinearGrid> simulation's grid
-    domain              <Domain> simulation's domain
-    Nx                  <Int> number of grid cells in the x-direction to split
-                            domain into for welding groups
-    Ny                  <Int> number of grid cells in the y-direction to split
-                            domain into for welding groups
-    weld_settings       <WeldSettings> welding settings
-    floe_settings       <FloeSettings> sim's settings for making new floes
-    consts              <Consts> simulation's constants
-    Δt                  <Int> length of timestep in seconds
-    rng                 <RandomNumberGenerator> simulation's rng
-Outputs:
-    Returns nothing. Welds groups of floes together that meet requirments. Floes
-    that are fused into other floes are marked for removal.
+together, ensuring resulting floe doesn't surpass maximum floe area.
+Domain split into Nx by Ny cells only within which floes can weld with one another.
+Floes that are fused into other floes are marked for removal.
+
+## _Positional arguments_
+- $FLOES_DEF
+- `max_floe_id::Int`: maximum ID of any floe created so far in simulation
+- $GRID_DEF
+- $DOMAIN_DEF
+- `Nx::Int`: number of grid cells in the x-direction to split domain into for welding groups
+- `Ny::Int`: number of grid cells in the y-direction to split domain into for welding groups
+- `weld_settings::WeldSettings`: simulation's welding settings
+- $CONSTS_DEF
+- $ΔT_DEF
+- `rng::RandomNumberGenerator`:: random number generator
+
 """
 function timestep_welding!(
     floes,

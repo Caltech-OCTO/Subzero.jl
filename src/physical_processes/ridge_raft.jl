@@ -181,7 +181,7 @@ resulting from the ridging event.
 - `max_floe_id::Int`: maximum floe ID before this ridging/rafting
 - `broken::Vector{Bool}`: floe index is true if that floe has broken in a previous ridge/raft interaction
 - `ridgeraft_settings::RidgeRaftSettings`: simulation's settings for ridging and rafting
-- `floe_settings::FloeSettings`:: simulation's floe settings
+- $FLOE_SETTINGS_DEF
 - `simp_settings::SimplificationSettings`:: simulation's simplification settings
 - $ΔT_DEF
 - `rng::RandomNumberGenerator`:: random number generator
@@ -314,7 +314,7 @@ floes created by the ridging.
 - `max_floe_id::Int`: maximum floe ID before this ridging/rafting
 - `broken::Vector{Bool}`: floe index is true if that floe has broken in a previous ridge/raft interaction
 - `ridgeraft_settings::RidgeRaftSettings`: simulation's settings for ridging and rafting
-- `floe_settings::FloeSettings`:: simulation's floe settings
+- $FLOE_SETTINGS_DEF
 - `simp_settings::SimplificationSettings`:: simulation's simplification settings
 - $ΔT_DEF
 - `rng::RandomNumberGenerator`:: random number generator
@@ -417,7 +417,7 @@ resulting from the rafting event.
 - `max_floe_id::Int`: maximum floe ID before this ridging/rafting
 - `broken::Vector{Bool}`: floe index is true if that floe has broken in a previous ridge/raft interaction
 - `ridgeraft_settings::RidgeRaftSettings`: simulation's settings for ridging and rafting
-- `floe_settings::FloeSettings`:: simulation's floe settings
+- $FLOE_SETTINGS_DEF
 - `simp_settings::SimplificationSettings`:: simulation's simplification settings
 - $ΔT_DEF
 - `rng::RandomNumberGenerator`:: random number generator
@@ -527,7 +527,7 @@ floes created by the rafting. This is equivalent to ridging.
 - `max_floe_id::Int`: maximum floe ID before this ridging/rafting
 - `broken::Vector{Bool}`: floe index is true if that floe has broken in a previous ridge/raft interaction
 - `ridgeraft_settings::RidgeRaftSettings`: simulation's settings for ridging and rafting
-- `floe_settings::FloeSettings`:: simulation's floe settings
+- $FLOE_SETTINGS_DEF
 - `simp_settings::SimplificationSettings`:: simulation's simplification settings
 - $ΔT_DEF
 - `rng::RandomNumberGenerator`:: random number generator
@@ -576,8 +576,7 @@ buffer to be made into new floes.
 - $FLOES_DEF
 - `pieces_buffer::StructArray{Floe}`: list of new floe pieces caused by breakage of floes
 - `max_floe_id::Int`: maximum floe ID before this ridging/rafting
-- `ridgeraft_settings::RidgeRaftSettings`: simulation's settings for ridging and rafting
-- `floe_settings::FloeSettings`:: simulation's floe settings
+- $FLOE_SETTINGS_DEF
 - `simp_settings::SimplificationSettings`:: simulation's simplification settings
 - $ΔT_DEF
 - `rng::RandomNumberGenerator`:: random number generator

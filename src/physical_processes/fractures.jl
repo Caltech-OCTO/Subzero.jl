@@ -8,7 +8,7 @@ Determines which floes will fracture depending on the principal stress criteria.
 ## _Positional arguments_
 - $FLOES_DEF
 - `criteria::AbstractFractureCriteria`: floe fracture criteria
-- `floe_settings::FloeSettings`: floe settings - contains cloe properties and stress calculator.
+- $FLOE_SETTINGS_DEF
 
 ##  _Returns_
 - `Vector{Int}`: list of indices of floes to fracture 
@@ -45,9 +45,12 @@ due to the collision with the deforming floe.
 
 ## _Positional arguments_
 - $FLOE_DEF
-- `deformer_coords::Polys`: polygon of floe that is deforming floe argument
+- `deformer_poly::Polys`: polygon of floe that is deforming floe argument
 - `deforming_forces:: Vector{Float}`: 1x2 matrix of forces between floe and
-    the deforming floe from floe's interactions - of the form: [xforce yforce] 
+    the deforming floe from floe's interactions - of the form: [xforce yforce]
+- $FLOE_SETTINGS_DEF
+- $ΔT_DEF
+- `rng::RandomNumberGenerator`:: random number generator
 """
 function deform_floe!(
     floe,
@@ -109,7 +112,7 @@ User will recieve a warning if floe isn't split.
 - $FLOE_DEF
 - `rng::RandomNumberGenerator`:: random number generator
 - `fracture_settings::FractureSettings`: simulation's fracture settings
-- `floe_settings::FloeSettings`: simulation's settings to make floes
+- $FLOE_SETTINGS_DEF
 - $ΔT_DEF
  
 ##  _Returns_
@@ -188,7 +191,7 @@ The new highest floe ID after adding the new floes to the array is returned.
 - `max_floe_id::Int`: maximum ID of any floe created so far in simulation
 - `rng::RandomNumberGenerator`:: random number generator
 - `fracture_settings::FractureSettings`: simulation's fracture settings
-- `floe_settings::FloeSettings`: simulation's settings to make floes
+- $FLOE_SETTINGS_DEF
 - $ΔT_DEF
 
 ##  _Returns_
