@@ -134,3 +134,21 @@ floe_domain_element_interaction!
 update_boundaries!
 add_ghosts!
 ```
+
+## Coupling Methods
+```@docs
+timestep_coupling!
+calc_one_way_coupling!
+calc_two_way_coupling!
+calc_atmosphere_forcing
+calc_ocean_forcing!
+floe_to_grid_info!
+```
+
+## Fracture Methods
+```@docs
+fracture_floes!
+split_floe
+deform_floe!
+determine_fractures
+```
