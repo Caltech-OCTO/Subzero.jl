@@ -152,3 +152,12 @@ split_floe
 deform_floe!
 determine_fractures
 ```
+
+## 
+```@docs
+timestep_ridging_rafting!
+floe_floe_raft!
+floe_domain_raft!
+floe_floe_ridge!
+floe_domain_ridge!
+```
