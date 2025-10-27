@@ -11,12 +11,10 @@ import Base.@kwdef # this is being exported as of version 1.9
 import Base.show
 import GeometryOps as GO
 import GeometryOps.GeoInterface as GI
-import GeometryBasics as GB
 import StaticArrays as SA
-using CoordinateTransformations, Dates, Extents,
+using CoordinateTransformations, Dates, Extents, 
     Interpolations, JLD2, LinearAlgebra, Logging, Measures, NCDatasets,
-    Printf, Random, Rotations, SplitApplyCombine, Statistics, StructArrays,
-    VoronoiCells
+    Printf, Random, Rotations, SplitApplyCombine, Statistics, StructArrays
 
 
 

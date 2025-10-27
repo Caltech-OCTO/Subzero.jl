@@ -206,7 +206,7 @@
             Xoshiro(3),
             FractureSettings(
                 fractures_on = true,
-                npieces = 2,
+                npieces = 3,
                 criteria = HiblerYieldCurve(floes),
                 Δt = 75,
                 deform_on = true,

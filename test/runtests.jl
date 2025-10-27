@@ -1,5 +1,5 @@
 using JLD2, Logging, NCDatasets, Random, SplitApplyCombine,
-    Statistics, StructArrays, Subzero, VoronoiCells
+    Statistics, StructArrays, Subzero
 import GeometryOps as GO
 import GeometryOps.GeoInterface as GI
 using Test
