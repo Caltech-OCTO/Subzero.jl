@@ -140,19 +140,18 @@
     domain_poly = Subzero.make_multipolygon(domain_coords)
     bounding_box = [[[1, 2], [1, 5], [2.5, 5], [2.5, 2], [1, 2]]]
     bounding_poly = Subzero.make_polygon(bounding_box)
-    voronoi_coords = Subzero._generate_voronoi_coords(
+    voronoi_polys = Subzero._generate_voronoi_coords(
         FT,
         10,
-        [1.5, 3],
-        [1, 2],
+        1.5, 3, # Δx, Δy
+        1, 2, # xmin, ymin
         domain_poly,
         Xoshiro(1),
         10,
         max_tries = 20, # 20 tries makes it very likely to reach 10 polygons
     )
-    @test length(voronoi_coords) == 10
-    for c in voronoi_coords
-        fpoly = Subzero.make_polygon(c)
+    @test length(voronoi_polys) == 10
+    for fpoly in voronoi_polys
         @test isapprox(
             sum(GO.area, Subzero.intersect_polys(fpoly, bounding_poly); init = 0.0),
             GO.area(fpoly),
@@ -165,8 +164,8 @@
         voronoi tesselation."
     @test @test_logs (:warn, warning_str) Subzero._generate_voronoi_coords(FT,
         0, # Don't generate any points
-        [1.5, 3],
-        [1, 2],
+        1.5, 3, # Δx, Δy
+        1, 2, # xmin, ymin
         domain_poly,
         Xoshiro(1),
         10, # Higher min to warn so we can test warning
