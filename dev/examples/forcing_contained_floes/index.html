@@ -58,7 +58,7 @@ Colorbar(fig[1, end+1], u_hm)
 v_hm = heatmap!(ax2, xs, ys, ocean.v)
 Colorbar(fig[2, end+1], v_hm)
 resize_to_layout!(fig)
-fig</code></pre><img src="a3232899.png" alt="Example block output"/><h2 id="Atmosphere-Creation"><a class="docs-heading-anchor" href="#Atmosphere-Creation">Atmosphere Creation</a><a id="Atmosphere-Creation-1"></a><a class="docs-heading-anchor-permalink" href="#Atmosphere-Creation" title="Permalink"></a></h2><pre><code class="language-julia hljs">atmos = Atmos(; grid, u = 0.0, v = 0.0, temp = -1.0)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Atmos{Float64}
+fig</code></pre><img src="4a244384.png" alt="Example block output"/><h2 id="Atmosphere-Creation"><a class="docs-heading-anchor" href="#Atmosphere-Creation">Atmosphere Creation</a><a id="Atmosphere-Creation-1"></a><a class="docs-heading-anchor-permalink" href="#Atmosphere-Creation" title="Permalink"></a></h2><pre><code class="language-julia hljs">atmos = Atmos(; grid, u = 0.0, v = 0.0, temp = -1.0)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Atmos{Float64}
   ⊢Vector fields of dimension (51, 51)
   ⊢Tracer fields of dimension (51, 51)
   ⊢Average u-velocity of: 0.0 m/s
@@ -66,120 +66,120 @@ fig</code></pre><img src="a3232899.png" alt="Example block output"/><h2 id="Atmo
   ∟Average temperature of: -1.0 C</code></pre><h2 id="Floe-Creation-bound-floes-within-smaller-part-of-the-domain"><a class="docs-heading-anchor" href="#Floe-Creation-bound-floes-within-smaller-part-of-the-domain">Floe Creation - bound floes within smaller part of the domain</a><a id="Floe-Creation-bound-floes-within-smaller-part-of-the-domain-1"></a><a class="docs-heading-anchor-permalink" href="#Floe-Creation-bound-floes-within-smaller-part-of-the-domain" title="Permalink"></a></h2><pre><code class="language-julia hljs">floe_settings = FloeSettings(; subfloe_point_generator = SubGridPointsGenerator(; grid, npoint_per_cell = 2))
 floe_generator = VoronoiTesselationFieldGenerator(; nfloes, concentrations, hmean, Δh)
 floe_bounds = Subzero.make_polygon([[[0.1Lx, 0.1Ly], [0.1Lx, 0.9Ly], [0.9Lx, 0.9Ly], [0.9Lx, 0.1Ly], [0.1Lx, 0.1Ly]]], FT)
-floe_arr = initialize_floe_field(FT; generator = floe_generator, domain, floe_bounds, rng = Xoshiro(1), floe_settings)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">320-element StructArray(::Vector{GeoInterface.Wrappers.Polygon{false, false, Vector{GeoInterface.Wrappers.LinearRing{false, false, Vector{Tuple{Float64, Float64}}, Nothing, Nothing}}, Nothing, Nothing}}, ::Vector{Vector{Float64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Vector{Float64}}, ::Vector{Vector{Float64}}, ::Vector{Vector{Float64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Subzero.Status}, ::Vector{Int64}, ::Vector{Int64}, ::Vector{Vector{Int64}}, ::Vector{Vector{Int64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Matrix{Float64}}, ::Vector{Float64}, ::Vector{Matrix{Float64}}, ::Vector{Int64}, ::Vector{Matrix{Float64}}, ::Vector{Matrix{Float64}}, ::Vector{Matrix{Float64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}) with eltype Floe{Float64}:
+floe_arr = initialize_floe_field(FT; generator = floe_generator, domain, floe_bounds, rng = Xoshiro(1), floe_settings)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">294-element StructArray(::Vector{GeoInterface.Wrappers.Polygon{false, false, Vector{GeoInterface.Wrappers.LinearRing{false, false, Vector{Tuple{Float64, Float64}}, Nothing, Nothing}}, Nothing, Nothing}}, ::Vector{Vector{Float64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Vector{Float64}}, ::Vector{Vector{Float64}}, ::Vector{Vector{Float64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Subzero.Status}, ::Vector{Int64}, ::Vector{Int64}, ::Vector{Vector{Int64}}, ::Vector{Vector{Int64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Matrix{Float64}}, ::Vector{Float64}, ::Vector{Matrix{Float64}}, ::Vector{Int64}, ::Vector{Matrix{Float64}}, ::Vector{Matrix{Float64}}, ::Vector{Matrix{Float64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}) with eltype Floe{Float64}:
  Floe{Float64}
-  ⊢Centroid of (57343.94252, 56153.45354) m
+  ⊢Centroid of (13842.98688, 71019.09819) m
   ⊢Height of 0.25 m
-  ⊢Area of 8.20740008326e6 m^2
+  ⊢Area of 2.156682411164e7 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  Floe{Float64}
-  ⊢Centroid of (52282.64229, 78921.63708) m
+  ⊢Centroid of (52200.71628, 67602.95957) m
   ⊢Height of 0.25 m
-  ⊢Area of 4.0771340159e6 m^2
+  ⊢Area of 5.11777549072e6 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  Floe{Float64}
-  ⊢Centroid of (56566.74808, 78374.7878) m
+  ⊢Centroid of (83669.49748, 18691.02722) m
   ⊢Height of 0.25 m
-  ⊢Area of 6.71268591182e6 m^2
+  ⊢Area of 8.19038366833e6 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  Floe{Float64}
-  ⊢Centroid of (76061.22462, 52722.59485) m
+  ⊢Centroid of (74551.46252, 16880.04516) m
   ⊢Height of 0.25 m
-  ⊢Area of 7.95333047605e6 m^2
+  ⊢Area of 1.082535379638e7 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  Floe{Float64}
-  ⊢Centroid of (85098.08631, 11560.67681) m
+  ⊢Centroid of (11552.52769, 81289.38063) m
   ⊢Height of 0.25 m
-  ⊢Area of 1.08882152107e7 m^2
+  ⊢Area of 9.54934868985e6 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  Floe{Float64}
-  ⊢Centroid of (73037.57458, 67935.344) m
+  ⊢Centroid of (12674.91603, 33380.88818) m
   ⊢Height of 0.25 m
-  ⊢Area of 4.88912094424e6 m^2
+  ⊢Area of 6.43860143976e6 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  Floe{Float64}
-  ⊢Centroid of (71815.16532, 81016.68049) m
+  ⊢Centroid of (86532.77316, 23992.9632) m
   ⊢Height of 0.25 m
-  ⊢Area of 1.42788143112e7 m^2
+  ⊢Area of 8.6764316607e6 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  Floe{Float64}
-  ⊢Centroid of (52182.3424, 69284.88788) m
+  ⊢Centroid of (72394.48782, 22829.55913) m
   ⊢Height of 0.25 m
-  ⊢Area of 5.70493841252e6 m^2
+  ⊢Area of 1.375034690343e7 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  Floe{Float64}
-  ⊢Centroid of (43325.68348, 67845.786) m
+  ⊢Centroid of (78445.41575, 44597.28941) m
   ⊢Height of 0.25 m
-  ⊢Area of 4.14183799699e6 m^2
+  ⊢Area of 4.34441851645e6 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  Floe{Float64}
-  ⊢Centroid of (26933.15605, 14593.5524) m
+  ⊢Centroid of (56664.54832, 29299.95912) m
   ⊢Height of 0.25 m
-  ⊢Area of 8.0584996622e6 m^2
+  ⊢Area of 8.1887763387e6 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  ⋮
  Floe{Float64}
-  ⊢Centroid of (83492.78126, 74177.95234) m
+  ⊢Centroid of (64050.27204, 67052.56367) m
   ⊢Height of 0.25 m
-  ⊢Area of 2.23634838744e6 m^2
+  ⊢Area of 5.76793158969e6 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  Floe{Float64}
-  ⊢Centroid of (35457.61596, 13999.67761) m
+  ⊢Centroid of (26993.94415, 45089.70742) m
   ⊢Height of 0.25 m
-  ⊢Area of 1.269795808142e7 m^2
+  ⊢Area of 1.137159815786e7 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  Floe{Float64}
-  ⊢Centroid of (36930.80809, 29634.47731) m
+  ⊢Centroid of (30907.47239, 15665.72174) m
   ⊢Height of 0.25 m
-  ⊢Area of 8.58452100931e6 m^2
+  ⊢Area of 5.98927115941e6 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  Floe{Float64}
-  ⊢Centroid of (59076.23254, 33396.96246) m
+  ⊢Centroid of (71196.74377, 11895.86386) m
   ⊢Height of 0.25 m
-  ⊢Area of 4.33932101366e6 m^2
+  ⊢Area of 1.593997189539e7 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  Floe{Float64}
-  ⊢Centroid of (82598.05552, 88681.94983) m
+  ⊢Centroid of (20380.92499, 32358.76809) m
   ⊢Height of 0.25 m
-  ⊢Area of 1.134239269472e7 m^2
+  ⊢Area of 3.78401616684e6 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  Floe{Float64}
-  ⊢Centroid of (28289.87515, 17044.77358) m
+  ⊢Centroid of (81305.67348, 33533.90312) m
   ⊢Height of 0.25 m
-  ⊢Area of 1.130137376727e7 m^2
+  ⊢Area of 1.71646691667e6 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  Floe{Float64}
-  ⊢Centroid of (29165.30001, 40237.9128) m
+  ⊢Centroid of (74336.41554, 31668.38416) m
   ⊢Height of 0.25 m
-  ⊢Area of 7.94405959064e6 m^2
+  ⊢Area of 4.96630630276e6 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  Floe{Float64}
-  ⊢Centroid of (25204.28209, 18098.60202) m
+  ⊢Centroid of (11048.99718, 16775.39832) m
   ⊢Height of 0.25 m
-  ⊢Area of 9.51716491854e6 m^2
+  ⊢Area of 6.90241471206e6 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 
  Floe{Float64}
-  ⊢Centroid of (31761.18771, 80197.95193) m
+  ⊢Centroid of (86259.63138, 53791.47286) m
   ⊢Height of 0.25 m
-  ⊢Area of 1.675365799582e7 m^2
+  ⊢Area of 1.042864257899e7 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 </code></pre><h2 id="Model-Creation"><a class="docs-heading-anchor" href="#Model-Creation">Model Creation</a><a id="Model-Creation-1"></a><a class="docs-heading-anchor-permalink" href="#Model-Creation" title="Permalink"></a></h2><pre><code class="language-julia hljs">model = Model(; grid, ocean, atmos, domain, floes = floe_arr)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Model{Float64, ...}
  ⊢RegRectilinearGrid{Float64}
@@ -204,8 +204,8 @@ floe_arr = initialize_floe_field(FT; generator = floe_generator, domain, floe_bo
   ⊢Average v-velocity of: 0.0 m/s
   ∟Average temperature of: -1.0 C
  ∟Floe List:
-  ⊢Number of floes: 320
-  ⊢Total floe area: 2.56031838868727e9
+  ⊢Number of floes: 294
+  ⊢Total floe area: 2.56831534309134e9
   ∟Average floe height: 0.25</code></pre><h2 id="Output-Writer-Creation"><a class="docs-heading-anchor" href="#Output-Writer-Creation">Output Writer Creation</a><a id="Output-Writer-Creation-1"></a><a class="docs-heading-anchor-permalink" href="#Output-Writer-Creation" title="Permalink"></a></h2><pre><code class="language-julia hljs">dir = &quot;forcing_contained_floes&quot;
 init_fn, floe_fn = &quot;contained_floes_init_state.jld2&quot;, &quot;contained_floes.jld2&quot;
 initwriter = InitialStateOutputWriter(filename = init_fn, dir = dir, overwrite = true)
@@ -236,4 +236,4 @@ simulation = Simulation(;
   ⊢collision_settings
   ∟ ...</code></pre><h2 id="Running-the-Simulation"><a class="docs-heading-anchor" href="#Running-the-Simulation">Running the Simulation</a><a id="Running-the-Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Running-the-Simulation" title="Permalink"></a></h2><pre><code class="language- hljs">run!(simulation)</code></pre><h2 id="Plotting-the-Simulation"><a class="docs-heading-anchor" href="#Plotting-the-Simulation">Plotting the Simulation</a><a id="Plotting-the-Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting-the-Simulation" title="Permalink"></a></h2><pre><code class="language-julia hljs">plot_sim(joinpath(dir, floe_fn), joinpath(dir, init_fn), Δt, joinpath(dir, &quot;contained_floes.mp4&quot;))</code></pre><video width="auto" controls autoplay loop>
 <source src="../forcing_contained_floes/contained_floes.mp4" type="video/mp4">
-</video><div class="admonition is-info" id="Note-42c1b281654dcca1"><header class="admonition-header">Note<a class="admonition-anchor" href="#Note-42c1b281654dcca1" title="Permalink"></a></header><div class="admonition-body"><p>Note that this is just using the built-in basic plotting. However, it is easy to write   your own plotting code. See the source code for a basic outline.</p></div></div><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../simple_strait/">« Simple Strait Simulation</a><a class="docs-footer-nextpage" href="../moving_bounds/">Moving Boundaries »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Monday 22 September 2025 13:57">Monday 22 September 2025</span>. Using Julia version 1.11.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</video><div class="admonition is-info" id="Note-42c1b281654dcca1"><header class="admonition-header">Note<a class="admonition-anchor" href="#Note-42c1b281654dcca1" title="Permalink"></a></header><div class="admonition-body"><p>Note that this is just using the built-in basic plotting. However, it is easy to write   your own plotting code. See the source code for a basic outline.</p></div></div><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../simple_strait/">« Simple Strait Simulation</a><a class="docs-footer-nextpage" href="../moving_bounds/">Moving Boundaries »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.15.0 on <span class="colophon-date" title="Sunday 9 November 2025 19:43">Sunday 9 November 2025</span>. Using Julia version 1.12.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
