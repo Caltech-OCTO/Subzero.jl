@@ -342,7 +342,6 @@ function _initialize_floe_field!(
                 # Grid cell bounds
                 xmin = bounds_xmin + collen * (j - 1)
                 ymin = bounds_ymin + rowlen * (i - 1)
-                trans_vec = [xmin, ymin]
                 # Open water in cell -> could make this into a helper function perhapes...
                 cell_init = _make_bounding_box_polygon(FT, xmin, xmin + collen, ymin, ymin + rowlen)
                 open_cell = intersect_polys(cell_init, open_water_mp, FT)
@@ -350,19 +349,18 @@ function _initialize_floe_field!(
                 open_area = sum(FT_area_poly, open_cell; init = 0.0)
                 # Generate coords with voronoi tesselation that fill the whole open space
                 ncells = ceil(Int, generator.nfloes * ((open_area) / total_covered_water_area))
-                floe_coords = _generate_voronoi_coords(FT, ncells, [collen, rowlen], trans_vec,
+                floe_poly_list = _generate_voronoi_coords(FT, ncells, collen, rowlen, xmin, ymin,
                     open_cell_mpoly, rng, ncells,
                 )
                 # determine which polygons to keep to meet concentration c
-                if !isempty(floe_coords)
-                    floe_poly_list = [make_polygon(coords, FT) for coords in floe_coords]
+                if !isempty(floe_poly_list)
                     nfloes = length(floe_poly_list)
                     floe_idx = shuffle(rng, range(1, nfloes))
                     floes_area = FT(0.0)
                     # keep adding polygons as floes until concentration is met
                     while !isempty(floe_idx) && floes_area/open_area <= c
                         idx = pop!(floe_idx)
-                        poly_pieces_list = intersect_polys(floe_poly_list[idx], open_cell_mpoly)
+                        poly_pieces_list = intersect_polys(floe_poly_list[idx], open_cell_mpoly, FT)
                         for piece in poly_pieces_list
                             n_new_floes = _poly_to_floes!(
                                 FT,

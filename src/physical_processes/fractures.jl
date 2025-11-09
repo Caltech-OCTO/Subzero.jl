@@ -127,20 +127,20 @@ function split_floe(
 ) where {FT}
     new_floes = StructArray{Floe{FT}}(undef, 0)
     # Generate voronoi tesselation in floe's bounding box
-    scale_fac = fill(2floe.rmax, 2)
-    trans_vec = [floe.centroid[1] - floe.rmax, floe.centroid[2] - floe.rmax]
-    pieces = _generate_voronoi_coords(FT,
+    xmin, ymin = floe.centroid[1] - floe.rmax, floe.centroid[2] - floe.rmax
+    Δx, Δy = 2floe.rmax, 2floe.rmax
+    pieces_polys = _generate_voronoi_coords(FT,
         fracture_settings.npieces,
-        scale_fac,
-        trans_vec,
+        Δx, Δy,
+        xmin, ymin,
         floe.poly,
         rng,
         1,  # Warn if only 1 point is identified as the floe won't be split
     )
-    if !isempty(pieces)
+    if !isempty(pieces_polys)
         # Intersect voronoi tesselation pieces with floe
         rmholes!(floe.poly)
-        pieces_polys = mapreduce(p -> intersect_polys(make_polygon(p, FT), floe.poly, FT), append!, pieces; init = Vector{Polys{FT}}())
+        pieces_polys = mapreduce(p -> intersect_polys(p, floe.poly, FT), append!, pieces_polys; init = Vector{Polys{FT}}())
         # Conserve mass within pieces
         pieces_areas = [area_poly(p, FT) for p in pieces_polys]
         total_area = sum(pieces_areas)
