@@ -1,40 +1,24 @@
-"""
-Functions needed for collisions between floes, boundaries, and topography
-"""
+# Functions needed for collisions between floes, boundaries, and topography
 
 """
-    calc_normal_force(
-        c1,
-        c2,
-        region,
-        area,
-        ipoints,
-        force_factor,
-    )
+    calc_normal_force(...)
 
 Calculate normal force for collision between polygons p1 and p2 given an overlapping region,
 the area of that region, their intersection points in the region, and a force factor. 
-Inputs:
-    p1           <Polys> first polygon
-    p2           <Polys> second polygon
-    region       <PolyVec{Float64}> coordiantes for one region of intersection
-                    between the polygons
-    area         <Float> area of region
-    ipoints      <Vector{Tuple{Float, Float} or Vector{Vector{Float}}}> Points
-                    of intersection between polygon 1 and 2
-    force_factor <Float> Spring constant equivalent for collisions
-Outputs:
-        <Float> normal force of collision
-        Δl <Float> mean length of distance between intersection points
+
+## _Positional arguments_
+- `p1::Polys`: first polygon
+- `p2::Polys`: second polygon
+- `region::Polys`: polygon for one region of intersection between p1 and p2
+- `area::Float`: area of region
+- `ipoints::Vector{Tuple{Float, Float}`: Points of intersection between p1 and p2
+- `force_factor::Float`: Spring constant equivalent for collisions
+
+##  _Returns_
+- `Float`: normal force of collision
+- `Float`: mean length of distance between intersection points
 """
-function calc_normal_force(
-    p1,
-    p2,
-    region,
-    area,
-    ipoints,
-    force_factor::FT,
-) where {FT<:AbstractFloat}
+function calc_normal_force(p1, p2, region, area, ipoints, force_factor::FT) where {FT<:AbstractFloat}
     force_dir = zeros(FT, 2)
     # Identify which region coordinates are the intersection points (ipoints)
     p = which_vertices_match_points(ipoints, region)
@@ -119,40 +103,25 @@ function _many_intersect_normal_force!(::Type{T}, force_dir, region, poly, force
 end
 
 """
-    calc_elastic_forces(
-        p1,
-        p2,
-        regions,
-        region_areas,
-        force_factor,
-        consts,
-    )
+    calc_elastic_forces(...)
 
 Calculate normal forces, the point the force is applied, and the overlap area of
 regions created from floe collisions 
-Inputs:
-    p1              <Polygon> first floe's polygon in collision
-    p2              <Polygon> second floe's polygon in collision
-    regions         <Vector{Polygon}> polygon regions of overlap during
-                        collision
-    region_areas    <Vector{Float}> area of each polygon in regions
-    force_factor    <Float> Spring constant equivalent for collisions
-Outputs:
-    force   <Array{Float, n, 2}> normal forces on each of the n regions greater
-                than a minimum area
-    fpoint  <Array{Float, n, 2}> point force is applied on each of the n regions
-                greater than a minimum area
-    overlap <Array{Float, n, 2}> area of each of the n regions greater than a
-                minimum area
-    Δl      <Float> mean length of distance between intersection points
+
+## _Positional arguments_
+- `p1::Polys`: first polygon
+- `p2::Polys`: second polygon
+- `regions::Vector{Polys}`: list of polygons for regions of intersection between p1 and p2
+- `region_areas::Vector{Float}`: areas of regions
+- `force_factor::Float`: Spring constant equivalent for collisions
+
+##  _Returns_
+- `force::Array{Float, n, 2}`: normal forces on each of the n regions greater than a minimum area
+- `fpoint::Array{Float, n, 2}`: point force is applied on each of the n regions greater than a minimum area
+- `overlap::Array{Float, n, 1}`: area of each of the n regions greater than a minimum area
+- `Δl::Float`: mean length of distance between intersection points
 """
-function calc_elastic_forces(
-    p1,
-    p2,
-    regions,
-    region_areas,
-    force_factor::FT,
-) where {FT<:AbstractFloat}
+function calc_elastic_forces(p1, p2, regions, region_areas, force_factor::FT) where {FT<:AbstractFloat}
     ipoints = get_intersection_points(p1, p2)
     ncontact = 0
     if !isempty(ipoints) && length(ipoints) >= 2
@@ -187,22 +156,8 @@ function calc_elastic_forces(
     return force, fpoint, overlap, Δl_lst
 end
 
-"""
-    _get_velocity(
-        floe,
-        x,
-        y,
-    )
-
-Get velocity of a point, assumed to be on given floe.
-Inputs:
-    floe <Union{LazyRow{Floe}, Floe}> floe
-    x    <AbstractFloat> x-coordinate of point to find velocity at
-    y    <AbstractFloat> y-coordinate of point to find velocity at
-Outputs:
-    u   <AbstractFloat> u velocity at point (x, y) assuming it is on given floe
-    v   <AbstractFloat> v velocity at point (x, y) assuming it is on given floe
-"""
+# Get velocity of a point, assumed to be on given floe. Includes the rotational velocity
+# broken down into x- and y-directions.
 function _get_velocity(
     floe::FloeType{FT},
     x::FT,
@@ -214,31 +169,23 @@ function _get_velocity(
 end
 
 """
-    calc_friction_forces(
-        ifloe,
-        jfloe,
-        fpoints,
-        normal::Matrix{FT},
-        Δl,
-        consts,
-        Δt,
-    )
+    calc_friction_forces(...)
+
 Calculate frictional force for collision between two floes or a floe and a
 domain element.
-Input:
-    ifloe   <Floe> first floe in collsion
-    jfloe   <Union{Floe, DomainElement}> either second floe or topography
-                element/boundary element
-    fpoints <Array{Float, N, 2}> x,y-coordinates of the point the force is
-                applied on floe overlap region
-    normal  <Array{Float, N, 2}> x,y normal force applied on fpoint on floe
-                overlap region
-    Δl      <Vector> mean length of distance between intersection points
-    consts  <Constants> model constants needed for calculations
-    Δt      <AbstractFloat> simulation's timestep
-Outputs:
-    force   <Array{Float, N, 2}> frictional/tangential force of the collision in
-                x and y (each row) for each collision (each column)
+
+## _Positional arguments_
+- `ifloe::Floe`: first floe in collsion
+- `jfloe::Union{Floe, DomainElement}`: either second floe or topography element/boundary element
+- `fpoints::Array{Float, N, 2}`: x,y-coordinates of the point the force is applied on floe overlap region
+- `normal::Array{Float, N, 2}`: x,y normal force applied on fpoint on floe overlap region
+- `Δl::Vector`: mean length of distance between intersection points
+- $CONSTS_DEF
+- $ΔT_DEF
+
+##  _Returns_
+- `force::Array{Float, N, 2}`: frictional/tangential force of the collision in 
+    x and y (each row) for each collision (each column)
 """
 function calc_friction_forces(
     ifloe,
@@ -282,6 +229,28 @@ function calc_friction_forces(
     return force
 end
 
+"""
+    add_interactions!(...)
+
+Add interactions in-place to Floe's `interactions` field based on the number of interactions (`np`)
+it had with other floe's/domain elements.
+
+The interactions field has the following form for each interaction:
+
+    `[Inf, xforce, yforce, xfpoints, yfpoints, overlaps]`
+
+where the xforce and yforce are the forces, xfpoints and yfpoints are the location of the force
+and overlaps is the overlap between the floe and boundary. The overlaps field is also added to
+the floe's overarea field that describes the total overlapping area at any timestep. 
+
+## _Positional arguments_
+- `np::Int`: number of points to add to the interactions field
+- `ifloe::Floe`: floe to add interactions to
+- `idx::Int`: 
+- `forces::Array{Float, n, 2}`: x and y-forces for each interaction
+- `points::Array{Float, n, 2}`: x and y-location of interaction point
+- `overs::Array{Float, n, 1}`:overlapping area between floes for each interaction
+"""
 function add_interactions!(np, ifloe, idx::FT, forces, points, overs) where FT
     inter_spots = size(ifloe.interactions, 1) - ifloe.num_inters
     @views for i in 1:np
@@ -309,40 +278,20 @@ function add_interactions!(np, ifloe, idx::FT, forces, points, overs) where FT
 end
 
 """
-    floe_floe_interaction!(
-        ifloe,
-        i,
-        jfloe,
-        j,
-        nfloes,
-        consts,
-        Δt,
-    )
+    floe_floe_interaction!(...)
 
 If the two floes interact, update floe i's interactions accordingly. Floe j is
 not update here so that the function can be parallelized.
-Inputs:
-    ifloe       <Floe> first floe in potential interaction
-    i           <Int> index of ifloe in model's list of floes 
-    jfloe       <Floe> second floe in potential interaction
-    j           <Int> index of jfloe in model's list of floes 
-    nfloes      <Int> number of non-ghost floes in the simulation this timestep
-    consts      <Constants> model constants needed for calculations
-    Δt          <Int> Simulation's current timestep
-    max_overlap <Float> Percent two floes can overlap before marking them
-                        for fusion
-Outputs:
-    None. Updates floes interactions fields. If floes overlap by more than
-    the max_overlap fraction, they will be marked for fusion.
-Note:
-    If ifloe interacts with jfloe, only ifloe's interactions field is updated
-    with the details of each region of overlap. The interactions field will have
-    the following form for each region of overlap with the boundary:
-    [Inf, xforce, yforce, xfpoints, yfpoints, overlaps] where the xforce and
-    yforce are the forces, xfpoints and yfpoints are the location of the force
-    and overlaps is the overlap between the floe and boundary. The overlaps
-    field is also added to the floe's overarea field that describes the total
-    overlapping area at any timestep. 
+
+## _Positional arguments_
+- `ifloe::Floe`: first floe in potential interaction
+- `i::Int`: index of ifloe in model's list of floes 
+- `jfloe::Floe`: second floe in potential interaction
+- `j::Int`: index of jfloe in model's list of floes 
+- `nfloes::Int`: number of non-ghost floes in the simulation this timestep
+- $CONSTS_DEF
+- $ΔT_DEF
+- `max_overlap::Float`: Percent two floes can overlap before marking them for fusion
 """
 function floe_floe_interaction!(
     ifloe,
@@ -408,21 +357,17 @@ function floe_floe_interaction!(
 end
 
 """
-    floe_domain_element_interaction!(floe, boundary, _, _,)
+    floe_domain_element_interaction!(floe, boundary::OpenBoundary, ...)
 
-If given floe insersects with an open boundary, the floe is set to be removed
+Dispatch off of `OpenBoundary`.
+
+If given floe insersects with `OpenBoundary`, the floe is set to be removed
 from the simulation.
-Inputs:
-    floe            <Floe> floe interacting with boundary
-    boundary        <OpenBoundary> coordinates of boundary
-    _               <Constants> model constants needed in other methods of this
-                        function - not needed here
-    _               <Int> current simulation timestep - not needed here
-    -               <Float> maximum overlap between floe and domain elements -
-                        not needed here
-Output:
-    None. If floe is interacting with the boundary, floe's status is set to
-    remove. Else, nothing is changed. 
+
+## _Positional arguments_
+- `floe::Floe`: floe interacting with boundary
+- `boundary::OpenBoundary`: coordinates of boundary
+- others inputs are NOT used in this dispatch
 """
 function floe_domain_element_interaction!(
     floe::FloeType{FT},
@@ -442,20 +387,15 @@ function floe_domain_element_interaction!(
 end
 
 """
-    floe_domain_element_interaction!(
-        floe,
-        ::PeriodicBoundary,
-        element_idx,
-        consts,
-        Δt,
-    )
+    floe_domain_element_interaction!(floe, boundary::PeriodicBoundary, ...)
+
+Dispatch off of `PeriodicBoundary`.
 
 If a given floe intersects with a periodic boundary, nothing happens at this
 point. Periodic floes pass through boundaries using ghost floes.
-Inputs:
-        None are used. 
-Output:
-        None. This function does not do anyting. 
+
+## _Positional arguments_
+- inputs are NOT used in this dispatch
 """
 function floe_domain_element_interaction!(
     floe,
@@ -469,33 +409,21 @@ function floe_domain_element_interaction!(
 end
 
 """
-    floe_domain_element_interaction!(
-        floe,
-        element,
-        element_idx,
-        consts,
-        Δt,
-    )
+    floe_domain_element_interaction!(floe, element::Union{CollisionBoundary, MovingBoundary, TopographyElement}, ...)
 
-If floe intersects with given element (either collision boundary or
-topography element), floe interactions field and overarea field are updated.
-Inputs:
-    floe            <Floe> floe interacting with element
-    element         <Union{CollisionBoundary, TopographyElement}> coordinates of
-                        element
-    consts          <Constants> model constants needed for calculations
-    Δt              <Int> current simulation timestep
-    max_overlap     <Float> Percent a floe can overlap with a collision wall
-                            or topography before being killed/removed
-Outputs:
-    None. If floe interacts, the floe's interactions field is updated with the
-    details of each region of overlap. The interactions field will have the
-    following form for each region of overlap with the element:
-    [Inf, xforce, yforce, xfpoints, yfpoints, overlaps] where the xforce and
-    yforce are the forces, xfpoints and yfpoints are the location of the force
-    and overlaps is the overlap between the floe and element. The overlaps field
-    is also added to the floe's overarea field that describes the total
-    overlapping area at any timestep.
+Dispatch off of `CollisionBoundary`, `MovingBoundary`, or `TopographyElement`.
+
+If floe intersects with given element (either collision boundary, moving boundary, or
+topography element), floe interactions field is updated with details of the collision. 
+
+## _Positional arguments_
+- `floe::Floe`: floe interacting with element
+- `element::Union{CollisionBoundary, MovingBoundary, TopographyElement}`: element floe is colliding with
+- `elem_idx::Int`: negative integer value notating which type of element the floe is colliding with
+    (-1 to -4 for NSEW walls and lower numbers for each topographic element)
+- `consts::Constants`: model constants needed for calculations
+- $ΔT_DEF
+- `max_overlap::Float`: Percent a floe can overlap with an element before being killed/removed
 """
 function floe_domain_element_interaction!(
     floe,
@@ -560,8 +488,7 @@ end
 """
     update_boundaries!(domain)
     
-Update each boundary in the domain. For now, this simply means moving
-compression boundaries by their velocities. 
+Update each boundary in the domain. For now, this simply means updating the position of any `MovingBoundary` elements.
 """
 function update_boundaries!(domain, Δt)
     _update_boundary!(domain.north, Δt)
@@ -572,25 +499,17 @@ function update_boundaries!(domain, Δt)
 end
 
 """
-    floe_domain_interaction!(
-        floe,
-        domain::DT,
-        consts,
-        max_overlap,
-    )
+    floe_domain_interaction!(floe, domain::Domain, ...)
 
 If the floe interacts with the domain, update the floe accordingly. Dispatches
-on different boundary types within the domain.
-Inputs:
-    floe        <Floe> floe interacting with boundary
-    domain      <Domain> model domain
-    consts      <Constants> model constants needed for calculations
-    Δt          <Int> current simulation timestep
-    max_overlap <Float> Percent a floe can overlap with a collision wall
-                        or topography before being killed/removed
-Outputs:
-    None. Floe is updated according to which boundaries it interacts with and
-    the types of those boundaries. 
+on different boundary types and topography elements within the domain.
+
+## _Positional arguments_
+- `floe::Floe`: floe interacting with element
+- $DOMAIN_DEF
+- $CONSTS_DEF
+- $ΔT_DEF
+- `max_overlap::Float`: Percent a floe can overlap with an element before being killed/removed
 """
 function floe_domain_interaction!(
     floe,
@@ -610,7 +529,7 @@ function floe_domain_interaction!(
         floe_domain_element_interaction!(
             floe,
             nbound,
-            -1,
+            -1,  # north wall index
             consts,
             Δt,
             max_overlap,
@@ -620,7 +539,7 @@ function floe_domain_interaction!(
         floe_domain_element_interaction!(
             floe,
             sbound,
-            -2,
+            -2,  # south wall index
             consts,
             Δt,
             max_overlap,
@@ -630,7 +549,7 @@ function floe_domain_interaction!(
         floe_domain_element_interaction!(
             floe,
             ebound,
-            -3,
+            -3,  # east wall index
             consts,
             Δt,
             max_overlap,
@@ -640,7 +559,7 @@ function floe_domain_interaction!(
         floe_domain_element_interaction!(
             floe,
             wbound,
-            -4,
+            -4,  # west wall index
             consts,
             Δt,
             max_overlap,
@@ -652,7 +571,7 @@ function floe_domain_interaction!(
             floe_domain_element_interaction!(
                 floe,
                 topo_element,
-                -(4 + i),
+                -(4 + i),  # topograph elements indices
                 consts,
                 Δt,
                 max_overlap,
@@ -662,16 +581,8 @@ function floe_domain_interaction!(
     return
 end
 
-"""
-    calc_torque!(floe)
-
-Calculate a floe's torque based on the interactions.
-Inputs:
-        floe  <Floe> floe in model
-Outputs:
-        None. Floe's interactions field is updated with calculated torque.
-"""
-function calc_torque!(
+#Calculate a floe's torque based on the interactions.
+function _calc_torque!(
     floe::Union{LazyRow{<:Floe{FT}}, Floe{FT}},
 ) where {FT<:AbstractFloat}
     inters = floe.interactions
@@ -686,51 +597,28 @@ function calc_torque!(
     return
 end
 
-"""
-    potential_interaction(
-        centroid1,
-        centroid2,
-        rmax1,
-        rmax2,
-    )
+
+#=
 Determine if two floes could potentially interact using the two centroid and two
 radii to form a bounding circle.
-Inputs:
-    centroid1   <Vector> first floe's centroid [x, y]
-    centroid2   <Vector> second floe's centroid [x, y]
-    rmax1       <Float> first floe's maximum radius
-    rmax2       <Float> second floe's maximum radius
-Outputs:
-    <Bool> true if floes could potentially interact, false otherwise
-"""
-potential_interaction(
-    centroid1,
-    centroid2,
-    rmax1,
-    rmax2,
-) = ((centroid1[1] - centroid2[1])^2 + (centroid1[2] - centroid2[2])^2) < (rmax1 + rmax2)^2
+=#
+_potential_interaction(centroid1, centroid2, rmax1, rmax2) =
+    ((centroid1[1] - centroid2[1])^2 + (centroid1[2] - centroid2[2])^2) < (rmax1 + rmax2)^2
 
 """
-    timestep_collisions!(
-        floes,
-        n_init_floes,
-        domain,
-        consts,
-        Δt,
-        collision_settings,
-        spinlock,
-    )
+    timestep_collisions!(...)
 
-Resolves collisions between pairs of floes and calculates the forces and torques
+Resolves collisions between pairs of floes and domain elements and calculates the forces and torques
 caused by those collisions.
-Inputs:
-    floes               <StructArray{Floe}> model's list of floes
-    n_init_floes        <Int> number of floes without ghost floes
-    domain              <Domain> model's domain
-    consts              <Constants> simulation constants
-    Δt                  <Int> length of simulation timestep in seconds
-    collision_settings  <CollisionSettings> simulation collision settings
-    spinlock            <Thread.SpinLock>
+
+## _Positional arguments_
+- $FLOES_DEF
+- `n_init_floes:Int`: number of floes without ghost floes
+- $DOMAIN_DEF
+- $CONSTS_DEF
+- $ΔT_DEF
+- `collision_settings::CollisionSettings`: simulation's collision settings
+- `spinlock::Thread.SpinLock`: lock's multi-threading to prevent parallel errors
 """
 function timestep_collisions!(
     floes::StructArray{<:Floe{FT}},
@@ -756,7 +644,7 @@ function timestep_collisions!(
                     (floes.id[j], floes.id[i]), (floes.ghost_id[j], floes.ghost_id[i])
                 end
             # If checking two distinct floes (i.e. not a parent ghost pair) and they are in close proximity continue
-            if (id_pair[1] != id_pair[2]) && potential_interaction(
+            if (id_pair[1] != id_pair[2]) && _potential_interaction(
                 floes.centroid[i],
                 floes.centroid[j],
                 floes.rmax[i],
@@ -850,7 +738,7 @@ function timestep_collisions!(
             end
         end
         # calculate interactions torque and total forces / torque
-        calc_torque!(get_floe(floes, i))
+        _calc_torque!(get_floe(floes, i))
         floes.collision_force[i][1] += sum(
             @view floes.interactions[i][1:floes.num_inters[i], xforce]
         )
@@ -864,21 +752,11 @@ function timestep_collisions!(
     return
 end
 
-"""
-    ghosts_on_bounds(element, ghosts, boundary, trans_vec)
-
+#=
 If the given element intersects with the boundary, add ghosts of the element and 
-any of its existing ghosts. 
-Inputs:
-    floes       <StructArray{Floe}> model's list of floes
-    elem_idx    <Int> floe of interest's index within the floe list
-    boundary    <PeriodicBoundary> boundary to translate element through
-    trans_vec   <Matrix{Float}> 1x2 matrix of form [x y] to translate element
-                    through the boundary
-Outputs:
-    Nothing. New ghosts created by the given element, or its current ghosts,
-    are added to the floe list
-"""
+any of its existing ghosts to the `floes` list. The ghost will be translated from
+the "parent" floe with `trans_vec`.
+=#
 function ghosts_on_bounds!(
     floes::FLT,
     elem_idx,
@@ -901,28 +779,13 @@ function ghosts_on_bounds!(
     return
 end
 
-"""
-    find_ghosts!(
-        floes,
-        elem_idx,
-        ebound::PeriodicBoundary,
-        wbound::PeriodicBoundary,
-    )
-
+#=
 Find ghosts of given element and its known ghosts through an eastern or western
 periodic boundary. If element's centroid isn't within the domain in the
-east/west direction, swap it with its ghost since the ghost's centroid must then
-be within the domain. 
-Inputs:
-    floes       <StructArray{Floe}> model's list of floes
-    elem_idx    <Int> floe of interest's index within the floe list
-    eboundary   <PeriodicBoundary{East, Float}> domain's eastern boundary
-    wboundary   <PeriodicBoundary{West, Float}> domain's western boundary
-Outputs:
-    None. Ghosts added to the floe list. Primary floe always has centroid within
-    the domain, else it is swapped with one of its ghost's which has a centroid
-    within the domain.
-"""
+north/south direction, swap it with its ghost since the ghost's centroid must
+then be within the domain. `elem_idx`is the floe of floe of interest's index within
+the floe list.
+=#
 function find_ghosts!(
     floes,
     elem_idx,
@@ -952,28 +815,13 @@ function find_ghosts!(
     return
 end
 
-"""
-    find_ghosts!(
-        floes,
-        elem_idx,
-        nbound::PeriodicBoundary{North, <:AbstractFloat},
-        sbound::PeriodicBoundary{South, <:AbstractFloat},
-    )
-
-Find ghosts of given element and its known ghosts through an northern or
+#=
+Find ghosts of given element and its known ghosts through a northern or
 southern periodic boundary. If element's centroid isn't within the domain in the
 north/south direction, swap it with its ghost since the ghost's centroid must
-then be within the domain. 
-Inputs:
-    floes       <StructArray{Floe}> model's list of floes
-    elem_idx    <Int> floe of interest's index within the floe list
-    nboundary        <PeriodicBoundary{North, Float}> domain's northern boundary
-    sboundary        <PeriodicBoundary{South, Float}> domain's southern boundary
-Outputs:
-    None. Ghosts added to the floe list. Primary floe always has centroid within
-    the domain, else it is swapped with one of its ghost's which has a centroid
-    within the domain.
-"""
+then be within the domain. `elem_idx`is the floe of floe of interest's index within
+the floe list.
+=#
 function find_ghosts!(
     floes,
     elem_idx,
@@ -1003,23 +851,12 @@ function find_ghosts!(
     return
 end
 
-"""
-    add_floe_ghosts!(floes, max_boundary, min_boundary)
-
+#=
 Add ghosts of all of the given floes passing through the two given boundaries to
-the list of floes.
-Inputs:
-    floes           <StructArray{Floe{FT}}> list of floes to find ghosts for
-    max_boundary    <PeriodicBoundary> northern or eastern boundary of domain
-    min_boundary    <PeriodicBoundary> southern or western boundary of domain
-Outputs:
-    None. Ghosts of floes are added to floe list. 
-"""
-function add_floe_ghosts!(
-    floes::FLT,
-    max_boundary,
-    min_boundary,
-) where {FT <: AbstractFloat, FLT <: StructArray{<:Floe{FT}}}
+the list of floes. The `max_boundary` is the northern or eastern boundary of domain.
+The `min_boundary` is the southern or western boundary of domain.
+=#
+function add_floe_ghosts!(floes, max_boundary, min_boundary)
     nfloes = length(floes)
     # uses initial length of floes so we can append to list
     for i in eachindex(floes)
@@ -1046,18 +883,8 @@ function add_floe_ghosts!(
     end
     return
 end
-"""
-    add_ghosts!(
-        elems,
-        domain,
-    )
 
-When there are no periodic boundaries, no ghosts should be added.
-Inputs:
-        None are used. 
-Outputs:
-        None. 
-"""
+# When there are no periodic boundaries, no ghosts should be added.
 function add_ghosts!(
     elems,
     ::Domain{
@@ -1071,26 +898,7 @@ function add_ghosts!(
     return
 end
 
-"""
-    add_ghosts!(
-        elems,
-        domain,
-    )
-
-Add ghosts for elements that pass through the northern or southern boundaries.
-Inputs:
-        elems   <StructArray{Floe} or StructArray{TopographyElement}> list of
-                    elements to add ghosts to
-        domain  <Domain{
-                    Float,
-                    PeriodicBoundary,
-                    PeriodicBoundary,
-                    NonPeriodicBoundary,
-                    NonPeriodicBoundary,
-                }> domain with northern and southern periodic boundaries
-Outputs:
-        None. Ghosts are added to list of elements.
-"""
+# Add ghosts for elements that pass through the northern or southern periodic boundaries. 
 function add_ghosts!(
     elems,
     domain::Domain{
@@ -1105,26 +913,8 @@ function add_ghosts!(
     return
 end
 
-"""
-    add_ghosts!(
-        elems,
-        domain,
-    )
 
-Add ghosts for elements that pass through the eastern or western boundaries. 
-Inputs:
-    elems   <StructArray{Floe} or StructArray{TopographyElement}> list of
-                elements to add ghosts to
-    domain  <Domain{
-                Float,
-                NonPeriodicBoundary,
-                NonPeriodicBoundary,
-                PeriodicBoundary,
-                PeriodicBoundary,
-            }> domain with eastern and western periodic boundaries 
-Outputs:
-    None. Ghosts are added to list of elements.
-"""
+# Add ghosts for elements that pass through the eastern or western periodic boundaries. 
 function add_ghosts!(
     elems,
     domain::Domain{
@@ -1140,24 +930,16 @@ function add_ghosts!(
 end
 
 """
-    add_ghosts!(
-        elems,
-        domain,
-    )
+    add_ghosts!(elems, domain)
 
-Add ghosts for elements that pass through any of the boundaries. 
-Inputs:
-    elems   <StructArray{Floe} or StructArray{TopographyElement}> list of
-                elements to add ghosts to
-    domain  <Domain{
-                AbstractFloat,
-                PeriodicBoundary,
-                PeriodicBoundary,
-                PeriodicBoundary,
-                PeriodicBoundary,
-            }> domain with all boundaries
-Outputs:
-        None. Ghosts are added to list of elements.
+Add ghosts for elements (floes of topography elements) that pass through any of the domain boundaries.
+Add ghost elements to list in-place. Note that ghosts will only be added when the elements pass through
+periodic boundaries.
+
+## _Positional arguments_
+- `elems::Union{StructArray{Floe}, StructArray{TopographyElement}`: list of elements (floes or topigraphy) to
+    add "ghost" elements to.
+- $DOMAIN_DEF
 """
 function add_ghosts!(
     elems,

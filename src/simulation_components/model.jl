@@ -1,6 +1,8 @@
 # Model definition (combines grid, domain, ocean, atmosphere, and floes)
 export Model
 
+const MODEL_DEF = "`model::Model`: simulation's model"
+
 #= The model domain must fit within the model grid. Further warn users if the
 domain is smaller than the grid as excess calculations will be carried out.
 Ideally, grid and domain cover the same area. =#

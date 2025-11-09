@@ -4,7 +4,6 @@ export plot_sim, prettytime
 # constants used for documentation
 const FLOE_FN_DEF = "floe outputwriter output file path and name"
 const INITIAL_STATE_FN_DEF = "initial state outputwriter output file path and name"
-const ΔT_DEF = "length of timestep in integer seconds"
 const MP4_OUTPUT_FN = "output video file path and name (should end with .mp4)"
 
 #= 
@@ -42,7 +41,7 @@ heatmap and colorbar within the source code.
 ## Arguments:
 - `floe_fn::String`: $FLOE_FN_DEF
 - `initial_state_fn::String`: $INITIAL_STATE_FN_DEF
-- `Δt::Int`: $ΔT_DEF
+- $ΔT_DEF
 - `output_fn::String`: $MP4_OUTPUT_FN
 """
 function plot_sim end

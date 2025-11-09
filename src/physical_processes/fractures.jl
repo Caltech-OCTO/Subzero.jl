@@ -1,18 +1,17 @@
+# Functions needed for fracturing floes
+
 """
-    determine_fractures(
-        floes,
-        criteria,
-        min_floe_area,
-    )
+    determine_fractures(...)
 
 Determines which floes will fracture depending on the principal stress criteria.
-Inputs:
-    floes           <StructArray{Floe}> model's list of floes
-    criteria        <AbstractFractureCriteria> fracture criteria
-    floe_settings   <FloeSettings> Floe settings. Contains Floe properties and stress 
-                    calculator.
-Outputs:
-    <Vector{Int}> list of indices of floes to fracture 
+
+## _Positional arguments_
+- $FLOES_DEF
+- `criteria::AbstractFractureCriteria`: floe fracture criteria
+- $FLOE_SETTINGS_DEF
+
+##  _Returns_
+- `Vector{Int}`: list of indices of floes to fracture 
 """
 function determine_fractures(
     floes,
@@ -36,24 +35,22 @@ function find_σpoint(floe::FloeType, floe_settings)
 end
 
 """
-    deform_floe!(
-        floe,
-        deformer_poly,
-        deforming_forces,
-    )
+    deform_floe!(...)
 
 Deform a floe around the area of its collision with largest area overlap within
 the last timestep.
-Inputs:
-        floe                <Floe> floe to deform
-        deformer_coords     <PolyVec> coords of floe that is deforming floe
-                                argument
-        deforming_forces    <Vector{AbstractFloat}> 1x2 matrix of forces between
-                                floe and the deforming floe from floe's
-                                interactions - of the form: [xforce yforce] 
-Outputs:
-        None. The input floe's centroid, coordinates, and area are updated to
-        reflect a deformation due to the collision with the deforming floe. 
+
+The input floe's centroid, coordinates, and area are updated to reflect a deformation
+due to the collision with the deforming floe.
+
+## _Positional arguments_
+- $FLOE_DEF
+- `deformer_poly::Polys`: polygon of floe that is deforming floe argument
+- `deforming_forces:: Vector{Float}`: 1x2 matrix of forces between floe and
+    the deforming floe from floe's interactions - of the form: [xforce yforce]
+- $FLOE_SETTINGS_DEF
+- $ΔT_DEF
+- `rng::RandomNumberGenerator`:: random number generator
 """
 function deform_floe!(
     floe,
@@ -106,24 +103,20 @@ function deform_floe!(
 end
 
 """
-    split_floe(
-        floe,
-        rng,
-        fracture_settings,
-        floe_settings,
-        Δt,
-    )
+    split_floe(...)
+
 Splits a given floe into pieces using voronoi tesselation.
 User will recieve a warning if floe isn't split.
-Inputs:
-    floe              <Floe> floe in simulation
-    rng               <RNG> random number generator used for voronoi tesselation
-    fracture_settings <FractureSettings> simulation's fracture settings
-    floe_settings     <FloeSettings> simulation's settings for making floes
-    Δt                <Int> length of simulation timesteps in seconds
-Outputs:
-    new_floes   <StructArray{Floes}> list of pieces floe is split into, each of
-                    which is a new floe
+
+## _Positional arguments_
+- $FLOE_DEF
+- `rng::RandomNumberGenerator`:: random number generator
+- `fracture_settings::FractureSettings`: simulation's fracture settings
+- $FLOE_SETTINGS_DEF
+- $ΔT_DEF
+ 
+##  _Returns_
+- `new_floes::StructArray{Floes}`: list of pieces floe is split into, each of which is a new floe
 """
 function split_floe(
     floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
@@ -187,25 +180,22 @@ function split_floe(
 end
 
 """
-    fracture_floes!(
-        floes,
-        max_floe_id,
-        rng,
-        fracture_settings,
-        floe_settings,
-        Δt,
-    )
+    fracture_floes!(...)
+
 Fractures floes that meet the criteria defined in the fracture settings.
-Inputs:
-    floes       <StructArray{Floe}> model's list of floes
-    max_floe_id <Int> maximum ID of any floe created so far in simulation
-    rng         <RNG> random number generator
-    fracture_settings   <FractureSettings> sim's fracture settings
-    floe_settings       <FloeSettings> sim's settings to make floes
-    Δtout               <Int> length of simulation timestep in seconds
-Outputs:
-    max_floe_id <Int> new highest floe ID after adding new floes to floe array.
-    Floe pieces added to floe array and original fractured floes removed.
+Floe pieces added to floe array and original fractured floes are removed.
+The new highest floe ID after adding the new floes to the array is returned.
+
+## _Positional arguments_
+- $FLOES_DEF
+- `max_floe_id::Int`: maximum ID of any floe created so far in simulation
+- `rng::RandomNumberGenerator`:: random number generator
+- `fracture_settings::FractureSettings`: simulation's fracture settings
+- $FLOE_SETTINGS_DEF
+- $ΔT_DEF
+
+##  _Returns_
+- `max_floe_id::Int`: new highest floe ID after adding new floes to floe array.
 """
 function fracture_floes!(
     floes::StructArray{<:Floe{FT}},

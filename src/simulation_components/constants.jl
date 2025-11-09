@@ -1,5 +1,7 @@
 export Constants
 
+const CONSTS_DEF = "`consts::Constants`: simulation's constants"
+
 # See documentation below
 @kwdef struct Constants{FT<:AbstractFloat}
     ρo::FT = 1027.0             # Ocean density

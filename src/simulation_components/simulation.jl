@@ -1,5 +1,7 @@
 export Simulation, timestep_sim!, run!, restart!
 
+const ΔT_DEF = "`Δt::Int`:length of timestep in integer seconds"
+
 """
     Simulation{FT, MT, CT, PT, ST, RT, OT}
 
@@ -9,7 +11,7 @@ Only keyword arguments are used!
 
 ## _Fields_ / _Keyword Arguments_
 ### _General_
-- `model::MT`: Model to simulate
+- $MODEL_DEF
 - `consts::Constants{FT}`: Constants used in Simulation (default = Constants())
 - `rng::RT`: Random number generator (default = Xoshiro())
 - `verbose::Bool`: String output printed during run (Default = false)

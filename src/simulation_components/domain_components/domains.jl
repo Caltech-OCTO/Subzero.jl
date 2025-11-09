@@ -1,6 +1,7 @@
 # Domain definition (combines 4 boundaries and topography)
 export Domain
 
+const DOMAIN_DEF = "`domain::Domain`: simulation's domain"
 # See documentation below
 struct Domain{FT, NB, SB, EB, WB, TT}
     north::NB

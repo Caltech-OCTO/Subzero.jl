@@ -1,6 +1,8 @@
 # Floe definition
 export Floe
 
+const FLOE_DEF = "`floe::Floe`: singular floe within the simulation"
+
 # See documentation below
 @kwdef mutable struct Floe{FT<:AbstractFloat}
     # Physical Properties -------------------------------------------------
