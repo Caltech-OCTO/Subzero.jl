@@ -356,7 +356,7 @@ The list of existing settings is:
 fracture_settings = FractureSettings(
         fractures_on = true,
         criteria = HiblerYieldCurve(floes),
-        Δt = 75,
+        Δt = 500,
         npieces = 3,
         deform_on = false,
 )
@@ -417,7 +417,7 @@ sim = Simulation(;
     model = model,
     consts = consts,
     Δt = 10, # timestep of 5 seconds
-    nΔt = 30000, # run for 10,000 timesteps
+    nΔt = 20000, # run for 20,000 timesteps
     floe_settings = floe_settings,
     fracture_settings = fracture_settings,
     writers = writers,
