@@ -219,7 +219,11 @@ function timestep_sim!(sim, tstep, start_tstep = 0)
 end
 
 # Required actions to setup simulation. Right now, this only entails setting up the simulation's logger.
-function _startup_sim(sim, logger)
+function startup_sim(sim, logger = nothing)
+    # Set up logger if needed
+    if isnothing(logger)
+        logger = SubzeroLogger(; sim, messages_per_tstep)
+    end
     global_logger(logger)
     # Start sim notice
     sim.verbose && println(sim.name * " is running!")
@@ -227,7 +231,7 @@ function _startup_sim(sim, logger)
 end
 
 # Required actions to tear down simulation. Right now, this just involves flushing the simulation's logger and closing the stream.
-function _teardown_sim(sim)
+function teardown_sim(sim)
     # Finish logging
     logger = current_logger()
     if hasfield(typeof(logger), :stream)
@@ -258,18 +262,14 @@ Simulation calculations will be done with Floats of type FT (Float64 of Float32)
 - None. The simulation will be run and outputs will be saved in the output folder. 
 """
 function run!(sim; logger = nothing, messages_per_tstep = 1, start_tstep = 0)
-    # Set up logger if needed
-    if isnothing(logger)
-        logger = SubzeroLogger(; sim, messages_per_tstep)
-    end
-    _startup_sim(sim, logger)
+    startup_sim(sim, logger)
     tstep = start_tstep
     while tstep <= (start_tstep + sim.nΔt)
         # Timestep the simulation forward
         timestep_sim!(sim, tstep, start_tstep)
         tstep+=1
     end
-    _teardown_sim(sim)
+    teardown_sim(sim)
     return
 end
 
