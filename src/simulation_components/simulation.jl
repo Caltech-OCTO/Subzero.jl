@@ -219,7 +219,7 @@ function timestep_sim!(sim, tstep, start_tstep = 0)
 end
 
 # Required actions to setup simulation. Right now, this only entails setting up the simulation's logger.
-function startup_sim(sim, logger = nothing)
+function startup_sim(sim, logger = nothing; messages_per_tstep = 1)
     # Set up logger if needed
     if isnothing(logger)
         logger = SubzeroLogger(; sim, messages_per_tstep)
@@ -262,7 +262,7 @@ Simulation calculations will be done with Floats of type FT (Float64 of Float32)
 - None. The simulation will be run and outputs will be saved in the output folder. 
 """
 function run!(sim; logger = nothing, messages_per_tstep = 1, start_tstep = 0)
-    startup_sim(sim, logger)
+    startup_sim(sim, logger; messages_per_tstep)
     tstep = start_tstep
     while tstep <= (start_tstep + sim.nΔt)
         # Timestep the simulation forward
