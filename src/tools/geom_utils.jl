@@ -248,6 +248,9 @@ function _generate_voronoi_coords(::Type{FT}, desired_points::Int, Δx, Δy, xmi
         clip_vertices = (1, 2, 3, 4, 1)
         clip_polygon = (clip_points, clip_vertices)
         GO.voronoi(tuple.(xpoints, ypoints), FT; clip_polygon)
+        println("Voronoi")
+        println(length(xpoints))
+        println(length(ypoints))
     else
         Polys{FT}[]
     end
