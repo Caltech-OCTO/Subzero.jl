@@ -2,7 +2,7 @@ WARN  failed to run `@example` block in docs/src/examples/simple_strait.md:141-1
 ```@example simple_strait
 run!(simulation)
 ```
- [2025/11/09 19:42:53.709] --> /home/runner/.julia/packages/Documenter/HdXI4/src/utilities/utilities.jl:49
+ [2025/11/28 23:11:55.933] --> /home/runner/.julia/packages/Documenter/xvqbW/src/utilities/utilities.jl:49
 WARN  failed to run `@example` block in docs/src/tutorial.md:104-111
 ```@example tutorial
 poly!(   # plot each of the boundaries with a 50% transparent color so we can see the overlap
@@ -12,4 +12,4 @@ poly!(   # plot each of the boundaries with a 50% transparent color so we can se
 ax1.title = "Grid and Boundary Setup"
 fig  # display the figure
 ```
- [2025/11/09 19:42:57.864] --> /home/runner/.julia/packages/Documenter/HdXI4/src/utilities/utilities.jl:49
+ [2025/11/28 23:12:00.386] --> /home/runner/.julia/packages/Documenter/xvqbW/src/utilities/utilities.jl:49
