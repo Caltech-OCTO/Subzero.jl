@@ -33,7 +33,7 @@ Subzero is a [registered Julia package](https://julialang.org/packages/). So to 
     julia> Pkg.add("Subzero")
     ```
 
-This installs the latest version that's _compatible with your current environment_.
+    This installs the latest version that's _compatible with your current environment_.
 
 3. You are ready to use Subzero! Get started with:
 
