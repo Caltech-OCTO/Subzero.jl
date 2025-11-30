@@ -23,15 +23,15 @@ To learn how to build and run simulations, [check out our documentation and tuto
 
 Subzero is a [registered Julia package](https://julialang.org/packages/). So to install it,
 
-1. [Download Julia](https://julialang.org/downloads/) (version 1.9 or later). We recommend using [`JuliaUp`](https://github.com/JuliaLang/juliaup) so it is easy to change versions in the future.
+1. [Download Julia](https://julialang.org/downloads/) (version 1.10 or later). We recommend using [`JuliaUp`](https://github.com/JuliaLang/juliaup) so it is easy to change versions in the future.
 
 2. Launch Julia and type
 
-```julia
-julia> using Pkg
+    ```julia
+    julia> using Pkg
 
-julia> Pkg.add("Subzero")
-```
+    julia> Pkg.add("Subzero")
+    ```
 
 This installs the latest version that's _compatible with your current environment_.
 
