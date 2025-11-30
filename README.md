@@ -21,31 +21,21 @@ To learn how to build and run simulations, [check out our documentation and tuto
 
 ## _Installation_
 
-Subzero is not yet a [registered Julia package](https://julialang.org/packages/). So to install it,
+Subzero is a [registered Julia package](https://julialang.org/packages/). So to install it,
 
 1. [Download Julia](https://julialang.org/downloads/) (version 1.9 or later). We recommend using [`JuliaUp`](https://github.com/JuliaLang/juliaup) so it is easy to change versions in the future.
 
-2. As `Subzero.jl` is not yet registered as an official package, you will need to install it from GitHub. To do this, you will need a SSH key on your computer and stored in GitHub. GitHub provides documentation for the needed steps: 
-    - [Checking for existing SSH keys](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/checking-for-existing-ssh-keys)
-    - [Generating a new key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent)
-    - [Adding a new key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
-    - [Testing your connection](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/testing-your-ssh-connection).
+2. Launch Julia and type
 
-3. Once you have established your SSH connection from within terminal, you now need to update your Julia `startup.jl` file. This is within the `.julia/config` folder. If you don't have a `.config` folder, please make one using `mkdir config` run on terminal within your `.julia` folder. If you don't have a `startup.jl` file you can make this using `touch startup.jl` within the `config` folder. Then, using a text editor (such as vim), add the following line to your `startup.jl` file:
+```julia
+julia> using Pkg
 
-    `ENV["JULIA_PKG_USE_CLI_GIT"]=true`
+julia> Pkg.add("Subzero")
+```
 
-    We need this as Julia's SSH library can't read the types of SSH keys that GitHub now requires. This will have Julia use your local command line interface (CLI) version of Git. This only works with Julia 1.7 and higher. 
+This installs the latest version that's _compatible with your current environment_.
 
-4. Launch Julia and enter into the package manager mode by typing `]` in the terminal.
-   
-5. Run the following
-
-    ```julia
-    pkg> add "git@github.com:Caltech-OCTO/Subzero.jl.git"
-    ```
-
-    This will add the package to your package manager. After that you return to the REPL mode by hitting the backspace and you are ready to use Subzero! 
+3. You are ready to use Subzero! Get started with:
 
     ```julia
     julia> using Subzero
