@@ -66,7 +66,7 @@ fig</code></pre><img src="4a244384.png" alt="Example block output"/><h2 id="Atmo
   ∟Average temperature of: -1.0 C</code></pre><h2 id="Floe-Creation-bound-floes-within-smaller-part-of-the-domain"><a class="docs-heading-anchor" href="#Floe-Creation-bound-floes-within-smaller-part-of-the-domain">Floe Creation - bound floes within smaller part of the domain</a><a id="Floe-Creation-bound-floes-within-smaller-part-of-the-domain-1"></a><a class="docs-heading-anchor-permalink" href="#Floe-Creation-bound-floes-within-smaller-part-of-the-domain" title="Permalink"></a></h2><pre><code class="language-julia hljs">floe_settings = FloeSettings(; subfloe_point_generator = SubGridPointsGenerator(; grid, npoint_per_cell = 2))
 floe_generator = VoronoiTesselationFieldGenerator(; nfloes, concentrations, hmean, Δh)
 floe_bounds = Subzero.make_polygon([[[0.1Lx, 0.1Ly], [0.1Lx, 0.9Ly], [0.9Lx, 0.9Ly], [0.9Lx, 0.1Ly], [0.1Lx, 0.1Ly]]], FT)
-floe_arr = initialize_floe_field(FT; generator = floe_generator, domain, floe_bounds, rng = Xoshiro(1), floe_settings)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">292-element StructArray(::Vector{GeoInterface.Wrappers.Polygon{false, false, Vector{GeoInterface.Wrappers.LinearRing{false, false, Vector{Tuple{Float64, Float64}}, Nothing, Nothing}}, Nothing, Nothing}}, ::Vector{Vector{Float64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Vector{Float64}}, ::Vector{Vector{Float64}}, ::Vector{Vector{Float64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Subzero.Status}, ::Vector{Int64}, ::Vector{Int64}, ::Vector{Vector{Int64}}, ::Vector{Vector{Int64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Matrix{Float64}}, ::Vector{Float64}, ::Vector{Matrix{Float64}}, ::Vector{Int64}, ::Vector{Matrix{Float64}}, ::Vector{Matrix{Float64}}, ::Vector{Matrix{Float64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}) with eltype Floe{Float64}:
+floe_arr = initialize_floe_field(FT; generator = floe_generator, domain, floe_bounds, rng = Xoshiro(1), floe_settings)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">295-element StructArray(::Vector{GeoInterface.Wrappers.Polygon{false, false, Vector{GeoInterface.Wrappers.LinearRing{false, false, Vector{Tuple{Float64, Float64}}, Nothing, Nothing}}, Nothing, Nothing}}, ::Vector{Vector{Float64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Vector{Float64}}, ::Vector{Vector{Float64}}, ::Vector{Vector{Float64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Subzero.Status}, ::Vector{Int64}, ::Vector{Int64}, ::Vector{Vector{Int64}}, ::Vector{Vector{Int64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Matrix{Float64}}, ::Vector{Float64}, ::Vector{Matrix{Float64}}, ::Vector{Int64}, ::Vector{Matrix{Float64}}, ::Vector{Matrix{Float64}}, ::Vector{Matrix{Float64}}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}, ::Vector{Float64}) with eltype Floe{Float64}:
  Floe{Float64}
   ⊢Centroid of (13842.98688, 71019.09819) m
   ⊢Height of 0.25 m
@@ -129,24 +129,6 @@ floe_arr = initialize_floe_field(FT; generator = floe_generator, domain, floe_bo
 
  ⋮
  Floe{Float64}
-  ⊢Centroid of (26506.03105, 58372.69842) m
-  ⊢Height of 0.25 m
-  ⊢Area of 9.17716198871e6 m^2
-  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
-
- Floe{Float64}
-  ⊢Centroid of (19549.43557, 68918.06599) m
-  ⊢Height of 0.25 m
-  ⊢Area of 9.58870081307e6 m^2
-  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
-
- Floe{Float64}
-  ⊢Centroid of (32844.50308, 83945.74838) m
-  ⊢Height of 0.25 m
-  ⊢Area of 8.54584046412e6 m^2
-  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
-
- Floe{Float64}
   ⊢Centroid of (64050.27204, 67052.56367) m
   ⊢Height of 0.25 m
   ⊢Area of 5.76793158969e6 m^2
@@ -181,6 +163,24 @@ floe_arr = initialize_floe_field(FT; generator = floe_generator, domain, floe_bo
   ⊢Height of 0.25 m
   ⊢Area of 9.73365405951e6 m^2
   ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (81917.09377, 29818.99196) m
+  ⊢Height of 0.25 m
+  ⊢Area of 1.197118131888e7 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (11048.99718, 16775.39832) m
+  ⊢Height of 0.25 m
+  ⊢Area of 6.90241471206e6 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
+
+ Floe{Float64}
+  ⊢Centroid of (86259.63138, 53791.47286) m
+  ⊢Height of 0.25 m
+  ⊢Area of 1.042864257899e7 m^2
+  ∟Velocity of (u, v, ξ) of (0.0, 0.0, 0.0) in (m/s, m/s, rad/s)
 </code></pre><h2 id="Model-Creation"><a class="docs-heading-anchor" href="#Model-Creation">Model Creation</a><a id="Model-Creation-1"></a><a class="docs-heading-anchor-permalink" href="#Model-Creation" title="Permalink"></a></h2><pre><code class="language-julia hljs">model = Model(; grid, ocean, atmos, domain, floes = floe_arr)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Model{Float64, ...}
  ⊢RegRectilinearGrid{Float64}
   ⊢x extent (0.0 to 100000.0) with 50 grid cells of size 2000.0 m
@@ -204,8 +204,8 @@ floe_arr = initialize_floe_field(FT; generator = floe_generator, domain, floe_bo
   ⊢Average v-velocity of: 0.0 m/s
   ∟Average temperature of: -1.0 C
  ∟Floe List:
-  ⊢Number of floes: 292
-  ⊢Total floe area: 2.56266132899915e9
+  ⊢Number of floes: 295
+  ⊢Total floe area: 2.56879040331113e9
   ∟Average floe height: 0.25</code></pre><h2 id="Output-Writer-Creation"><a class="docs-heading-anchor" href="#Output-Writer-Creation">Output Writer Creation</a><a id="Output-Writer-Creation-1"></a><a class="docs-heading-anchor-permalink" href="#Output-Writer-Creation" title="Permalink"></a></h2><pre><code class="language-julia hljs">dir = &quot;forcing_contained_floes&quot;
 init_fn, floe_fn = &quot;contained_floes_init_state.jld2&quot;, &quot;contained_floes.jld2&quot;
 initwriter = InitialStateOutputWriter(filename = init_fn, dir = dir, overwrite = true)
@@ -236,4 +236,4 @@ simulation = Simulation(;
   ⊢collision_settings
   ∟ ...</code></pre><h2 id="Running-the-Simulation"><a class="docs-heading-anchor" href="#Running-the-Simulation">Running the Simulation</a><a id="Running-the-Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Running-the-Simulation" title="Permalink"></a></h2><pre><code class="language- hljs">run!(simulation)</code></pre><h2 id="Plotting-the-Simulation"><a class="docs-heading-anchor" href="#Plotting-the-Simulation">Plotting the Simulation</a><a id="Plotting-the-Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting-the-Simulation" title="Permalink"></a></h2><pre><code class="language-julia hljs">plot_sim(joinpath(dir, floe_fn), joinpath(dir, init_fn), Δt, joinpath(dir, &quot;contained_floes.mp4&quot;))</code></pre><video width="auto" controls autoplay loop>
 <source src="../forcing_contained_floes/contained_floes.mp4" type="video/mp4">
-</video><div class="admonition is-info" id="Note-5df4e96f19185b44"><header class="admonition-header">Note<a class="admonition-anchor" href="#Note-5df4e96f19185b44" title="Permalink"></a></header><div class="admonition-body"><p>Note that this is just using the built-in basic plotting. However, it is easy to write   your own plotting code. See the source code for a basic outline.</p></div></div><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../simple_strait/">« Simple Strait Simulation</a><a class="docs-footer-nextpage" href="../moving_bounds/">Moving Boundaries »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Friday 28 November 2025 23:12">Friday 28 November 2025</span>. Using Julia version 1.12.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</video><div class="admonition is-info" id="Note-5df4e96f19185b44"><header class="admonition-header">Note<a class="admonition-anchor" href="#Note-5df4e96f19185b44" title="Permalink"></a></header><div class="admonition-body"><p>Note that this is just using the built-in basic plotting. However, it is easy to write   your own plotting code. See the source code for a basic outline.</p></div></div><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../simple_strait/">« Simple Strait Simulation</a><a class="docs-footer-nextpage" href="../moving_bounds/">Moving Boundaries »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Sunday 30 November 2025 22:14">Sunday 30 November 2025</span>. Using Julia version 1.12.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
