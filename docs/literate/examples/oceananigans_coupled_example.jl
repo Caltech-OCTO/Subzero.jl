@@ -1,4 +1,4 @@
-# # Ice-ocean Mechanically Coupled Simulation
+# # Ice-ocean Coupled Simulation with Oceananigans
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>
@@ -6,8 +6,8 @@
 # </video>
 # ```
 
-# This simulation provides an example of coupling Subzero.jl to the ocean large-eddy simulation 
-# model, [Oceananigans.jl](https://clima.github.io/OceananigansDocumentation/stable/). 
+# This simulation provides an example of mechanically coupling Subzero.jl to the ocean large-eddy  
+# simulation model, [Oceananigans.jl](https://clima.github.io/OceananigansDocumentation/stable/). 
 # The ocean model is set up to simulate the Eady instability problem in a doubly-periodic domain. 
 # As the ocean current fields evolve, they provide forcing to Subzero.jl. In turn, the 
 # ice-ocean stresses computed by Subzero.jl are passed back to Oceananigans as surface stress 
@@ -37,11 +37,9 @@ const Nz = Int(Lz/Δz)       # number of grid cells in z-direction
 
 # Coupling between the two models can be done at the ocean timestep (as done here), or at some 
 # multiple (an approximation that reduces computational cost at the expense of accuracy and stability).
-
-# !!! note
-#       Note that the sea ice model often needs a much faster timestep than the ocean model in order to resolve collisions
+# The sea ice model often needs a much faster timestep than the ocean model in order to resolve collisions.
 const simTime = 10days              # total simulation time
-const Δtᵢ = 5seconds                # timestep for ice
+const Δtᵢ = 5seconds                # timestep for sea ice
 const Δtₒ = 150seconds              # timestep for ocean
 const ΔtCpl = Δtₒ                   # timestep for ice-ocean coupling
 const nΔtᵢ = Int(simTime/Δtᵢ)       # number of ice timesteps in the simulation
@@ -58,14 +56,18 @@ const ρo = 1020.0                           # Ocean density
 const hmean = 1.0                           # mean floe height
 const Δh = 0.3                              # difference in floe heights - here all floes are the same height
 const youngs_modulus = 1e5                  # Young's modulus for sea ice (a parameter that controls collision strength)
-const z₀ᵢ = 6.0e-3                          # Ice roughness length (undeformed multiyear ice; e.g., [McPhee, 2002](https://doi.org/10.1029/2000JC000633))
+const z₀ᵢ = 6.0e-3                          # Ice roughness length (undeformed multiyear ice; e.g., McPhee, 2002; doi:10.1029/2000JC000633)
 const κ = 0.41                              # Von Karman constant                 
 const Cd_io = ( κ / log( (Δz/2)/z₀ᵢ) )^(2)  # Ice-ocean drag coefficient for the vertical grid resolution
 
 # ## Ocean Model Setup
-
 # The ocean model simulates of the Eady problem expanded around a background geostrophic shear with Ri= 1. 
 # This approximately follows Listing 6 from [Wagner et al., 2025](https://arxiv.org/abs/2502.14148/v2).
+#
+# The ocean model setup follows similar steps as Subzero, with grid creation, model creation, simulation creation, 
+# and output creation, along with steps for the background fields, and intial/boundary conditions. 
+# For more information, see the [Oceananigans.jl](https://clima.github.io/OceananigansDocumentation/stable/) 
+# documentation and examples.
 
 # ### Grid creation
 ocnGrid = RectilinearGrid( CPU(); size = (Nx, Ny, Nz),
@@ -103,6 +105,7 @@ ocnSimulation = Oceananigans.Simulation(ocnModel, Δt=Δtₒ, stop_time=simTime 
 
 # ### Output Creation
 dir = "coupled_ice_ocean"
+mkpath(dir)
 u,v,w = ocnModel.velocities
 ζ = Field( (∂x(v)-∂y(u)) )
 ocnSimulation.output_writers[:top] = JLD2Writer(  ocnModel, (; ζ); 
@@ -127,6 +130,10 @@ add_callback!(ocnSimulation, print_progress, TimeInterval(0.025*simTime))
 
 
 # ## Sea Ice Model Setup
+# The setup for Subzero is the unchanged from normal except that in some cases we have to specify 
+# the source for a function (to avoid conflicts with Oceananigans); for example, 
+# `iceSimulation = Subzero.Simulation(...)` instead of `simulation = Simulation(...)`.
+
 
 # ### Grid Creation
 iceGrid = grid = RegRectilinearGrid(; x0 = 0.0, xf = Lx, y0 = 0.0, yf = Ly, Δx = Δgrid, Δy = Δgrid)
@@ -176,10 +183,8 @@ iceSimulation = Subzero.Simulation(; model = iceModel, consts, writers,
 # We make use of the "Callback" functionality in Oceananigans to perform coupling between the two models.
 # At each coupling timestep, surface fluxes and ocean currents are passed between the two models. Then, Subzero.jl
 # is stepped forward in time for the number of ice-timesteps per coupling step.
-# This is a serial coupling approach, where the two models are run one after another.
-
-# ### Define coupling functions
-
+# This is a serial coupling approach, where the two models are run one after another for each time segment.
+#
 # Functions to update surface fluxes and ocean currents
 
 function updateSurfaceFluxes(sim) 
@@ -206,19 +211,21 @@ function runIceModel(sim)
     return nothing    
 end
 
-# ### Adding Callbacks to Oceananigans Simulation
+# Adding Callbacks to Oceananigans Simulation
 add_callback!(ocnSimulation, updateSurfaceFluxes, TimeInterval(ΔtCpl))
 add_callback!(ocnSimulation, updateOceanCurrents, TimeInterval(ΔtCpl))
 add_callback!(ocnSimulation, runIceModel, TimeInterval(ΔtCpl))
 
 
 # ## Running the Coupled Simulation
+# Because running Subzero occurs within an Oceananigans callback function, we run the full coupled model by calling
+# the `run!` just for Oceananigans
+
 Oceananigans.run!(ocnSimulation)
 
 # ## Loading and Visualizing Results
 # Instead of using the built-in `plot_sim` function, this example creates a custom visualization to 
 # show both Subzero and Oceananigans outputs together.
-# 
 
 # Load the results
 floePolys = jldopen( joinpath(dir,"coupled_ice_ocean_floes.jld2"), "r")["poly"]
@@ -232,13 +239,9 @@ ni  = Observable( length(times) )
 ζₛₙ = @lift ζₛ_timeseries[$ni]
 floesₙ = @lift floePolys[ floeKeys[$ni] ]
 floesζₙ = @lift 2.0.*floeξ[ floeKeys[$ni] ]
-title = @lift "t = " * Oceananigans.prettytime( times[$ni] )
+title = @lift @sprintf("t = %05.2f days", times[$ni]/day )
 
-# Set up the figure and plot
-# We create 2 panels, both showing the ocean surface vertical vorticity field, ζ. 
-# In the first panel (left), we show the sea ice floes, coloured by their vorticity (ζ=2ξ). 
-# In the second panel (right), we remove the ice floes, making it easier to see their imprints on the 
-# ocean vorticity.
+# Set up the figure and plot 2 panels showing ocean vorticity (both) and sea ice floes (left):
 fig = Figure( )
 ax = Axis( fig[1,1]; 
            limits = (0,Lx,0,Ly),
@@ -273,6 +276,11 @@ record(fig, joinpath(dir,"oceananigans_coupled_example.mp4"), frames, framerate=
 end
 @info "Complete!"
 
+
+# The results are shown in the animation below.  
+# This animation shows the ocean surface vertical vorticity field, ζ, in both panels. 
+# In the first panel (left), we overlay the ocean voriticy with the sea ice floes, each coloured by their own vorticity (ζ=2ξ). 
+# In the second panel (right), we remove the ice floes, making it easier to see their imprints on the ocean.
 
 # ```@raw html
 # <video width="auto" controls autoplay loop>
