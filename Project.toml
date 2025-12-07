@@ -1,7 +1,7 @@
 name = "Subzero"
 uuid = "21f28ab0-737f-4f26-8d5f-51b5b12fb6de"
-authors = ["Skylar Gering"]
 version = "0.1.0"
+authors = ["Skylar Gering"]
 
 [deps]
 CoordinateTransformations = "150eb455-5306-5404-9cee-2592286d6298"
@@ -30,7 +30,7 @@ GeoInterfaceMakie = "0edc0954-3250-4c18-859d-ec71c1660c08"
 SubzeroMakieExt = ["CairoMakie", "GeoInterfaceMakie"]
 
 [compat]
-CairoMakie = "0.12, 0.13"
+CairoMakie = "0.12, 0.13, 0.15"
 CoordinateTransformations = "0.6"
 Extents = "0.1"
 GeoInterfaceMakie = "0.1"
