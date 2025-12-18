@@ -1,28 +1,23 @@
-"""
+#=
 Functions to update floe's shape and fields. Function typically called from
 other physical processes, other than timestep_floe_properties!, which is called
 from the timestep_simulation! function.
-"""
+=#
 
-"""
-    replace_floe!(
-        floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
-        new_poly,
-        new_mass,
-        floe_settings,
-        rng,
-    )
+#=
 Updates existing floe shape and related physical properties based of the polygon
 defining the floe.
+
 Inputs:
     floe        <Union{Floe, LazyRow{Floe}}> floe to update
-    new_poly    <LG.Polygon> polygon representing new outline of floe
+    new_poly    <Polygon> polygon representing new outline of floe
     new_mass    <AbstractFloat> mass of floe
     floe_settings   <FloeSettings> simulation's settings for making floes
     rng         <RNG> random number generator
+
 Ouputs:
     Updates a given floe's physical properties given new shape and total mass.
-"""
+=#
 function replace_floe!(
     floe::Union{Floe{FT}, LazyRow{Floe{FT}}},
     new_poly,
@@ -31,35 +26,30 @@ function replace_floe!(
     rng,
 ) where {FT}
     # Floe shape
-    floe.centroid = find_poly_centroid(new_poly)
-    floe.coords = find_poly_coords(new_poly)::PolyVec{FT}
-    floe.coords = [orient_coords(floe.coords[1])]
-    if floe.coords[1][1] != floe.coords[1][end]
-        push!(floe.coords, floe.coords[1][1])
-    end
-    floe.area = LG.area(new_poly)
+    floe.poly = new_poly
+    floe.centroid = collect(centroid_poly(new_poly, FT))
+    floe.area = area_poly(new_poly, FT)
     floe.height = new_mass/(floe.area * floe_settings.ρi)
     floe.mass = new_mass
-    floe.moment = calc_moment_inertia(
-        floe.coords,
+    floe.moment = _calc_moment_inertia(
+        FT,
+        new_poly,
         floe.centroid,
         floe.height;
         ρi = floe_settings.ρi,
     )
-    floe.angles = calc_poly_angles(floe.coords)
+    floe.angles = angles_poly(floe.poly, FT)
     floe.α = FT(0)
-    translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
-    floe.rmax = sqrt(maximum([sum(c.^2) for c in floe.coords[1]]))
+    floe.rmax = _calc_max_radius(floe.poly, floe.centroid, FT)
     # Floe monte carlo points
     x_subfloe_points, y_subfloe_points, status = generate_subfloe_points(
         floe_settings.subfloe_point_generator,
-        floe.coords,
-        floe.rmax,
+        floe.poly,
+        floe.centroid,
         floe.area,
         floe.status,
         rng,
     )
-    translate!(floe.coords, floe.centroid[1], floe.centroid[2])
     floe.x_subfloe_points = x_subfloe_points
     floe.y_subfloe_points = y_subfloe_points
     # Floe status / identification
@@ -67,19 +57,11 @@ function replace_floe!(
     return
 end
 
-"""
-    conserve_momentum_change_floe_shape!(
-        mass_tmp,
-        moment_tmp,
-        x_tmp,
-        y_tmp,
-        Δt,
-        keep_floe,
-        combine_floe = nothing,
-    )
+#=
 Update current and previous velocity/acceleration fields to conserve momentum of
 a floe whose shape has been changed, given the previous mass, momentum, and
 centroid.
+
 Inputs:
     mass_tmp    <AbstractFloat> original mass of floe before shape change
     moment_tmp  <AbstractFloat> original moment of intertia of floe before shape
@@ -93,12 +75,14 @@ Inputs:
     combine_floe <Union{Floe, LazyRow{Floe}}> if keep_floe's shape has been
                     changed due to an interaction with another floe, combine_floe
                     is that floe - optional parameter
+
 Output:
     None. keep_floe's u, v, ξ, p_dxdt, p_dydt, p_dαdt, p_dudt, p_dvdt, and
     p_dξdt fields all updated to preserve momentum. 
+
 Note:
     Function does not depend on conservation of mass
-"""
+=#
 function conserve_momentum_change_floe_shape!(
     mass_tmp,
     moment_tmp,
@@ -169,19 +153,12 @@ function conserve_momentum_change_floe_shape!(
     return
 end
 
-"""
-    update_new_rotation_conserve!(
-        x, y,
-        floe1, floe2,
-        init_rot_momentum, init_p_rot_momentum,
-        diff_orbital, diff_p_orbital,
-        Δt,
-    )
-
+#=
 Update rotational velocities of two floes whose shapes may have changed to
 maintain conservation of momentum given the floes' intial roational momentums
 and the change in orbital momentum between their original shape and new shapes.
 Additionally, both floes will have the same velocity at a given (x,y) point.
+
 Inputs:
     x                   <Float> x-coordinate of point where floes share same
                             rotational velocity
@@ -198,10 +175,11 @@ Inputs:
     diff_p_orbital      <Float> change in floe 1's orbital velocity after shape
                             change
     Δt                  <Int> length of timestep in seconds
+
 Output:
     Nothing. Update both floes' rotational velocity, previous rotational
     velocity, and rotational acceleration to conserve angular momentum.
-"""
+=#
 function update_new_rotation_conserve!(
     x, y,
     floe1, floe2,
@@ -210,7 +188,6 @@ function update_new_rotation_conserve!(
     Δt,
 )
     # Find radius of each polygon to shared midpoint
-    #x, y = find_shared_edges_midpoint(floe1.coords, floe2.coords)
     rad1 = sqrt(
         (floe1.centroid[1] - x)^2 +
         (floe1.centroid[2] - y)^2
@@ -233,25 +210,23 @@ function update_new_rotation_conserve!(
     floe2.p_dξdt = (floe2.ξ - floe2.p_dαdt) / Δt
 end
 
-"""
-    conserve_momentum_fracture_floe!(
-        init_floe,
-        new_floes,
-        Δt,
-    )
+#=
 Update new_floes's current and previous velocity/acceleration fields to conserve
 momentum when a floe has been fractured into several new floes, given the
 previous mass, momentum, and centroid. The assumption is made that each new floe
-has the same velocities/accelerations
+has the same velocities/accelerations.
+
 Inputs:
     init_floe   <Union{Floe, LazyRow{Floe}}> original floe
     new_floes   <StructArray{Floe}> fractured pieces of original floe
     Δt          <Int> simulation's timestep in seconds
+
 Output:
     None. new_floes velocities and accelerations are updated for current and
     previous timestep to conserve momentum.
+
 Note: Depends on conservation of mass.
-"""
+=#
 function conserve_momentum_fracture_floe!(
     init_floe,
     new_floes::StructArray{<:Floe{FT}},
@@ -274,19 +249,7 @@ function conserve_momentum_fracture_floe!(
     end
 end
 
-"""
-    conserve_momentum_transfer_mass!(
-        floes,
-        idx1, idx2,
-        m1, m2,
-        I1, I2,
-        x1, x2,
-        y1, y2,
-        Δt,
-        pieces_list = nothing,
-        pieces_idx = 0,
-    )
-
+#=
 Conserve linear momentum when mass is transfered from one floe to another floe.
 Inputs:
     floes       <StructArray{Floes}> list of floes
@@ -302,7 +265,7 @@ Inputs:
 Outputs:
     Nothing. Update floes' velocities and accelerations to conserve linear
     momentum.
-"""
+=#
 function conserve_momentum_transfer_mass!(
     floes,
     idx1, idx2,
@@ -342,18 +305,14 @@ function conserve_momentum_transfer_mass!(
     return
 end
 
-"""
-    update_ghost_timestep_vals!(floes, idx, parent_idx)
-
+#=
 Update a parent floes and its ghosts to match velocities and accelerations at
 given index.
 Inputs:
     floes       <StructArray{Floe}> list of floes in the simulation
     idx         <Int> index of floe within floes list to copy to floe and ghosts
     parent_idx  <Int> index of parent floe to update, along with its ghosts
-Outputs:
-    Nothing. Update floe values. 
-"""
+=#
 function update_ghost_timestep_vals!(floes, idx, parent_idx)
     floes.u[parent_idx] = floes.u[idx]
     floes.v[parent_idx] = floes.v[idx]
@@ -383,108 +342,113 @@ end
 
 Calculates the stress on a floe for current collisions given interactions and
 floe properties.
-Inputs:
-    inters      <Matrix{AbstractFloat}> matrix of floe interactions
-    centroid    <Vector{AbstractFloat}> floe centroid as [x, y] coordinates
-    area        <AbstractFloat> floe area
-    height      <AbstractFloat> floe height
-Outputs:
-    Caculates stress on floe at current timestep from interactions
+
+## _Positional arguments_
+- `floe::Floe`: single floe
+- $FLOE_SETTINGS_DEF
+
+##  _Returns_
+- Nothing. Updates floe.stress_accum and floe.stress_instant in-place.
 """
-function calc_stress!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}) where {FT}
+function calc_stress!(floe::FloeType{FT}, floe_settings) where {FT}
     # Stress calcultions
     xi, yi = floe.centroid
     inters = floe.interactions
     # Calculates timestep stress
-    stress = fill(FT(0), 2, 2)
-    for i in 1:floe.num_inters
-        stress[1, 1] += (inters[i, xpoint] - xi) * inters[i, xforce]
-        stress[1, 2] += (inters[i, ypoint] - yi) * inters[i, xforce] +
-            (inters[i, xpoint] - xi) * inters[i, yforce]
-        stress[2, 2] += (inters[i, ypoint] - yi) * inters[i, yforce]
+    stress = zeros(FT, 2, 2)
+    if floe.num_inters > 0
+        for i in 1:floe.num_inters
+            stress[1, 1] += (inters[i, xpoint] - xi) * inters[i, xforce]
+            stress[1, 2] += (inters[i, ypoint] - yi) * inters[i, xforce] +
+                (inters[i, xpoint] - xi) * inters[i, yforce]
+            stress[2, 2] += (inters[i, ypoint] - yi) * inters[i, yforce]
+        end
+        stress[1, 2] *= FT(0.5)
+        stress[2, 1] = stress[1, 2]
+        stress .*= 1/(floe.area * floe.height)
     end
-    stress[1, 2] *= FT(0.5)
-    stress[2, 1] = stress[1, 2]
-    stress .*= 1/(floe.area * floe.height)
-    # Add timestep stress to stress history
-    push!(floe.stress_history, stress)
-    # Average stress history to find floe's average stress
-    floe.stress = mean(floe.stress_history)
+    # Updates accumulated stress
+    _update_stress_accum!(floe_settings.stress_calculator, stress, floe)
+    # Updates instantanious stress
+    floe.stress_instant .= stress
     return
 end
 
 """
-    calc_strain!(coords, centroid, u, v, ξ, area)
+    calc_strain!(...)
 
-Calculates the strain on a floe given the velocity at each vertex
-Inputs:
-    floe        <Floe{AbstractFloat}> a floe
-Outputs:
-    strain      <Matrix{AbstractFloat}> 2x2 matrix for floe strain 
+Calculates the strain on a floe given the velocity at each vertex.
+
+## _Positional arguments_
+- `floe::Floe`: single floe
+
+##  _Returns_
+- `strain::Matrix{AbstractFloat}`: 2x2 matrix for floe strain 
 """
-function calc_strain!(floe::Union{LazyRow{Floe{FT}}, Floe{FT}}) where {FT}
+function calc_strain!(floe::FloeType{FT}) where {FT}
+    fill!(floe.strain, zero(FT))
     # coordinates of floe centered at centroid
-    translate!(floe.coords, -floe.centroid[1], -floe.centroid[2])
-    fill!(floe.strain, FT(0))
-    for i in 1:(length(floe.coords[1]) - 1)
-        xdiff = floe.coords[1][i + 1][1] - floe.coords[1][i][1]
-        ydiff = floe.coords[1][i + 1][2] - floe.coords[1][i][2]
-        rad1 = sqrt(floe.coords[1][i][1]^2 + floe.coords[1][i][2]^2)
-        θ1 = atan(floe.coords[1][i][2], floe.coords[1][i][1])
-        rad2 = sqrt(floe.coords[1][i + 1][1]^2 + floe.coords[1][i + 1][2]^2)
-        θ2 = atan(floe.coords[1][i + 1][2], floe.coords[1][i + 1][1])
+    trans_poly = _translate_poly(FT, floe.poly, -floe.centroid[1], -floe.centroid[2])::Polys{FT}
+    local x1, y1
+    for (i, p2) in enumerate(GI.getpoint(GI.getexterior(trans_poly)))
+        x2, y2 = get_tuple_point(p2, FT)
+        if i == 1
+            x1, y1 = x2, y2
+            continue
+        end
+        xdiff, ydiff = x2 - x1, y2 - y1
+        rad1, rad2 = sqrt(x1^2 + y1^2), sqrt(x2^2 + y2^2)
+        θ1, θ2 = atan(y1, x1), atan(y2, x2)
         u1 = floe.u - floe.ξ * rad1 * sin(θ1)
         u2 = floe.u - floe.ξ * rad2 * sin(θ2)
         v1 = floe.u + floe.ξ * rad1 * cos(θ1)
         v2 = floe.u + floe.ξ * rad2 * cos(θ2)
-        udiff = u2 - u1
-        vdiff = v2 - v1
+        udiff, vdiff = u2 - u1, v2 - v1
         floe.strain[1, 1] += udiff * ydiff
         floe.strain[1, 2] += udiff * xdiff + vdiff * ydiff
         floe.strain[2, 2] += vdiff * xdiff
+        x1, y1 = x2, y2
     end
     floe.strain[1, 2] *= FT(0.5)
     floe.strain[2, 1] = floe.strain[1, 2]
     floe.strain ./= 2floe.area
-    translate!(floe.coords, floe.centroid[1], floe.centroid[2])
     return
 end
 
 """
-    timestep_floe(floe)
+    timestep_floe_properties!(...)
 
 Update floe position and velocities using second-order time stepping with
 tendencies calculated at previous timesteps. Height, mass, stress, and strain
 also updated based on previous timestep thermodynamics and interactions with
 other floes. 
-Input:
-        floe        <Floe>
-        Δt          <Int> simulation timestep in second
-        max_height  <AbstractFloat> maximum floe height
-Output:
-        None. Floe's fields are updated with values.
+
+## _Positional arguments_
+- $FLOES_DEF
+- `tstep::Int`: simulation timestep
+- $ΔT_DEF
+- $FLOE_SETTINGS_DEF
 """
 function timestep_floe_properties!(
-    floes,
+    floes::StructArray{<:Floe{FT}},
     tstep,
     Δt,
-    max_height,
-)
+    floe_settings,
+) where FT
     Threads.@threads for i in eachindex(floes)
         cforce = floes.collision_force[i]
         ctrq = floes.collision_trq[i]
         # Update stress
-        if floes.num_inters[i] > 0
-            calc_stress!(LazyRow(floes, i))
-        end
+        calc_stress!(get_floe(floes, i), floe_settings)
+
         # Ensure no extreem values due to model instability
-        if floes.height[i] > max_height
-            @warn "Reducing height to 10 m"
-            floes.height[i] = max_height
+        if floes.height[i] > floe_settings.max_floe_height
+            @info "Reducing height to $(floe_settings.max_floe_height) m" tstep = tstep
+            floes.height[i] = floe_settings.max_floe_height
         end
 
         while maximum(abs.(cforce)) > floes.mass[i]/(5Δt)
-            @warn "Decreasing collision forces by a factor of 10"
+            @info "Decreasing collision forces by a factor of 10" tstep = tstep
             cforce = cforce ./ 10
             ctrq = ctrq ./ 10
         end
@@ -504,18 +468,7 @@ function timestep_floe_properties!(
         Δα = 1.5Δt*floes.ξ[i] - 0.5Δt*floes.p_dαdt[i]
         floes.α[i] += Δα
 
-        translate!(
-            floes.coords[i],
-            -floes.centroid[i][1],
-            -floes.centroid[i][2],
-        )
-        rotate_radians!(floes.coords[i], Δα)
-        floes.centroid[i] .+= [Δx, Δy]
-        translate!(
-            floes.coords[i],
-            floes.centroid[i][1],
-            floes.centroid[i][2],
-        )
+        _move_floe!(FT, get_floe(floes, i), Δx, Δy, Δα)
         floes.p_dxdt[i] = floes.u[i]
         floes.p_dydt[i] = floes.v[i]
         floes.p_dαdt[i] = floes.ξ[i]
@@ -535,10 +488,10 @@ function timestep_floe_properties!(
             1
         end
         if frac != 1
-            @warn "Adjusting u and v velocities to prevent too high"
+            @info "Adjusting u and v velocities to prevent too high" tstep = tstep
+            dudt = frac*dudt
+            dvdt = frac*dvdt
         end
-        dudt = frac*dudt
-        dvdt = frac*dvdt
         floes.u[i] += 1.5Δt*dudt-0.5Δt*floes.p_dudt[i]
         floes.v[i] += 1.5Δt*dvdt-0.5Δt*floes.p_dvdt[i]
         floes.p_dudt[i] = dudt
@@ -547,15 +500,15 @@ function timestep_floe_properties!(
         dξdt = (floes.trqOA[i] + ctrq)/floes.moment[i]
         dξdt = frac*dξdt
         ξ = floes.ξ[i] + 1.5Δt*dξdt-0.5Δt*floes.p_dξdt[i]
-        if abs(ξ) > 1e-5
-            @warn "Shrinking ξ" tstep = tstep
-            ξ = sign(ξ) * 1e-5
+        if abs(ξ) > floe_settings.maximum_ξ
+            @info "Shrinking ξ" tstep = tstep
+            ξ = sign(ξ) * floe_settings.maximum_ξ
         end
         floes.ξ[i] = ξ
         floes.p_dξdt[i] = dξdt
 
         # Update strain
-        calc_strain!(LazyRow(floes, i))
+        calc_strain!(get_floe(floes, i))
     end
     return
 end

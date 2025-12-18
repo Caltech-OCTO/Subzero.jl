@@ -6,27 +6,28 @@
         file = jldopen("inputs/floe_shapes.jld2", "r")
         floe_coords = file["floe_vertices"][1:end]
         close(file)
-        poly1 = LG.Polygon(Subzero.valid_polyvec!(floe_coords[1]))
-        centroid1 = LG.GeoInterface.coordinates(LG.centroid(poly1))
-        origin_coords = Subzero.translate(
+        poly1 = Subzero.make_polygon(Subzero.valid_polyvec!(floe_coords[1]))
+        centroid1 = GO.centroid(poly1)
+        origin_coords = translate_coords(
             floe_coords[1],
             -centroid1[1],
             -centroid1[2],
         )
-        xo, yo = Subzero.separate_xy(origin_coords)
+        origin_poly = Subzero.make_polygon(origin_coords)
+        origin_centroid = GO.centroid(origin_poly)
+        xo, yo = first.(origin_coords[1]), last.(origin_coords[1])
         rmax = sqrt(maximum([sum(xo[i]^2 + yo[i]^2) for i in eachindex(xo)]))
-        area = LG.area(poly1)
+        area = GO.area(poly1)
         mc_x, mc_y, status = Subzero.generate_subfloe_points(
             MonteCarloPointsGenerator(),
-            origin_coords,
-            rmax,
+            origin_poly,
+            origin_centroid,
             area,
             Subzero.Status(),
             Xoshiro(1)
         )
         @test length(mc_x) == length(mc_y) && length(mc_x) > 0
-        in_on = inpoly2(hcat(mc_x, mc_y), hcat(xo, yo))
-        mc_in = in_on[:, 1] .|  in_on[:, 2]
+        mc_in = [GO.coveredby((mc_x[i], mc_y[i]), origin_poly) for i in eachindex(mc_x)]
         @test all(mc_in)
         xmin, xmax = extrema(xo)
         ymin, ymax = extrema(yo)
@@ -35,8 +36,8 @@
         # Test that random number generator is working
         mc_x2, mc_y2, status2 = Subzero.generate_subfloe_points(
             MonteCarloPointsGenerator(),
-            origin_coords,
-            rmax,
+            origin_poly,
+            origin_centroid,
             area,
             Subzero.Status(),
             Xoshiro(1)
@@ -46,9 +47,9 @@
         @test status2.tag == Subzero.active
     
         mc_x3, mc_y3, status3 = Subzero.generate_subfloe_points(
-            MonteCarloPointsGenerator{Float32}(),
-            origin_coords,
-            rmax,
+            MonteCarloPointsGenerator(Float32),
+            GO.tuples(origin_poly, Float32),
+            origin_centroid,
             area,
             Subzero.Status(),
             Xoshiro(1)
@@ -57,19 +58,20 @@
         @test eltype(mc_x3) == eltype(mc_y3) == Float32
 
         # test generating sub-grid points for grid with Δx = Δy = 10
-        point_generator = SubGridPointsGenerator{Float64}(10/sqrt(2))
+        point_generator = SubGridPointsGenerator(Float64; Δg = 10/sqrt(2))
         # Floe is smaller than grid cells --> centroid and vertices added
-        square = [[
+        square = Subzero.make_polygon([[
             [-2.5, -2.5],
             [-2.5, 2.5],
             [2.5, 2.5],
             [2.5, -2.5],
             [-2.5, -2.5],
-        ]]
-        xpoints, ypoints = Subzero.generate_subfloe_points(
+        ]])
+        square_centroid = GO.centroid(square)
+        xpoints, ypoints, _ = Subzero.generate_subfloe_points(
             point_generator,
             square,
-            0.0, # Not used
+            square_centroid,
             0.0, # Not used
             Subzero.Status(),
             Xoshiro(), # Not random
@@ -77,17 +79,18 @@
         @test xpoints == [-2.5, -2.5, 2.5, 2.5, 0.0]
         @test ypoints == [-2.5, 2.5, 2.5, -2.5, 0.0]
         # Floe is larger than grid cell
-        tall_rect = [[
+        tall_rect = Subzero.make_polygon([[
             [-2.0, -10.0],
             [-2.0, 10.0],
             [2.0, 10.0],
             [2.0, -10.0],
             [-2.0, -10.0],
-        ]]
-        xpoints, ypoints = Subzero.generate_subfloe_points(
+        ]])
+        tall_rect_centroid = GO.centroid(tall_rect)
+        xpoints, ypoints, _ = Subzero.generate_subfloe_points(
             point_generator,
             tall_rect,
-            0.0, # Not used
+            tall_rect_centroid,
             0.0, # Not used
             Subzero.Status(),
             Xoshiro(), # Not random
@@ -100,17 +103,18 @@
             ],
             atol = 1e-5))
 
-        wide_rect = [[
+        wide_rect = Subzero.make_polygon([[
             [-10.0, -2.0],
             [-10.0, 2.0],
             [10.0, 2.0],
             [10.0, -2.0],
             [-10.0, -2.0],
-        ]]
-        xpoints, ypoints = Subzero.generate_subfloe_points(
+        ]])
+        wide_rect_centroid = GO.centroid(wide_rect)
+        xpoints, ypoints, _ = Subzero.generate_subfloe_points(
             point_generator,
             wide_rect,
-            0.0, # Not used
+            wide_rect_centroid,
             0.0, # Not used
             Subzero.Status(),
             Xoshiro(), # Not random
@@ -123,21 +127,23 @@
             atol = 1e-5
         ))
         @test ypoints == [-2; repeat([2], 5); repeat([-2], 4); repeat([0], 3)] 
-        trapeziod = [[
+        trapeziod = Subzero.make_polygon([[
             [-8.0, -8.0],
             [-4.0, 8.0],
             [4.0, 8.0],
             [8.0, -8.0],
             [-8.0, -8.0],
-        ]]
-        xpoints, ypoints = Subzero.generate_subfloe_points(
+        ]])
+        trapeziod_centroid = GO.centroid(trapeziod)
+        xpoints, ypoints, _ = Subzero.generate_subfloe_points(
             point_generator,
             trapeziod,
-            0.0, # Not used
+            trapeziod_centroid,
             0.0, # Not used
             Subzero.Status(),
             Xoshiro(), # Not random
         )
+        ypoints .+= trapeziod_centroid[2]  # y-point of centroid is not centered on the origin
         @test all(isapprox.(
             xpoints,
             [-8, -7.14251, -6.0, -4.85749, -4.0, 0.0, 4.0, 4.85749, 6.0,
@@ -154,16 +160,10 @@
             ],
             atol = 1e-5
         ))
-
     end
 
     @testset "Coupling Helper Functions" begin
-        grid = Subzero.RegRectilinearGrid(
-            (-10, 10),
-            (-8, 8),
-            2,
-            4,
-        )
+        grid = Subzero.RegRectilinearGrid(; x0 = -10, xf = 10, y0 = -8, yf = 8, Δx = 2, Δy = 4)
         # Test find_cell_indices
         xpoints = [-10.5, -10, -10, -6.5, -6, -4, 10, 10.5, 12]
         ypoints = [0.0, 6.0, -8.0, 4.5, 0.0, 5.0, -8.0, 0.0, 0.0]
@@ -178,8 +178,8 @@
         end
 
         # Test filter_oob_points
-        open_bound = Subzero.OpenBoundary(East, grid)
-        periodic_bound = Subzero.PeriodicBoundary(East, grid)
+        open_bound = Subzero.OpenBoundary(East; grid)
+        periodic_bound = Subzero.PeriodicBoundary(East; grid)
         x = [-12, -10, -8, -6, 0, 4, 4, 10, 12, 12]
         y = [5, -6, 4, 10, -10, 8, -8, -6, 4, 10]
         open_open_answers = [false, true, true, false, false, true, true, true, false, false]
@@ -274,52 +274,18 @@
         ) == (0:10:80, 1:9)
 
         #Test cell_coords
-        cell = Subzero.center_cell_coords(
-            2,
-            3,
-            grid,
-            periodic_bound,
-            periodic_bound,
-        )
-        cell_poly = LG.Polygon(cell)
-        @test LG.area(cell_poly)::Float64 == 8
-        @test LG.GeoInterface.coordinates(cell_poly) == 
-            [[[-9, -2], [-9, 2], [-7, 2], [-7, -2], [-9, -2]]]
-        @test Subzero.center_cell_coords(
-            1,
-            1,
-            grid,
-            open_bound,
-            open_bound,
-        ) == [[[-10, -8], [-10, -6], [-9, -6], [-9, -8], [-10, -8]]]
-        @test Subzero.center_cell_coords(
-            11,
-            6,
-            grid,
-            periodic_bound,
-            periodic_bound,
-        ) == [[[9, 10], [9, 14], [11, 14], [11, 10], [9, 10]]]
-        @test Subzero.center_cell_coords(
-            11,
-            6,
-            grid,
-            open_bound,
-            open_bound,
-        ) == [[[9, 8], [9, 8], [10, 8], [10, 8], [9, 8]]]
-        @test Subzero.center_cell_coords(
-            11,
-            6,
-            grid,
-            open_bound,
-            periodic_bound,
-        ) == [[[9, 8], [9, 8], [11, 8], [11, 8], [9, 8]]]
-        @test Subzero.center_cell_coords(
-            11,
-            6,
-            grid,
-            periodic_bound,
-            open_bound,
-        ) == [[[9, 10], [9, 14], [10, 14], [10, 10], [9, 10]]]
+         @test GO.equals(Subzero.center_cell_poly(Float64, 2, 3, grid, periodic_bound, periodic_bound),
+            GI.Polygon([[[-9, -2], [-9, 2], [-7, 2], [-7, -2], [-9, -2]]]))
+        @test GO.equals(Subzero.center_cell_poly(Float64, 1, 1, grid, open_bound, open_bound),
+            GI.Polygon([[[-10, -8], [-10, -6], [-9, -6], [-9, -8], [-10, -8]]]))
+        @test GO.equals(Subzero.center_cell_poly(Float64, 11, 6, grid, periodic_bound, periodic_bound),
+            GI.Polygon([[[9, 10], [9, 14], [11, 14], [11, 10], [9, 10]]]))
+        @test GO.equals(Subzero.center_cell_poly(Float64, 11, 6, grid, open_bound, open_bound),
+            GI.Polygon([[[9, 8], [9, 8], [10, 8], [10, 8], [9, 8]]]))
+        @test GO.equals(Subzero.center_cell_poly(Float64, 11, 6, grid, open_bound, periodic_bound),
+            GI.Polygon([[[9, 8], [9, 8], [11, 8], [11, 8], [9, 8]]]))
+        @test GO.equals(Subzero.center_cell_poly(Float64, 11, 6, grid, periodic_bound, open_bound),
+            GI.Polygon([[[9, 10], [9, 14], [10, 14], [10, 10], [9, 10]]]))
 
         # Test aggregate_grid_stress!
         function test_floe_to_grid(
@@ -389,7 +355,7 @@
             deepcopy(grid),
             open_bound,
             open_bound,
-            Subzero.Ocean(grid, 0, 0, 0).scells,
+            Subzero.Ocean(; grid, u = 0, v = 0, temp = 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [CartesianIndex(7, 4), CartesianIndex(6, 3)],
             [0.0, 0.0],
@@ -408,7 +374,7 @@
             deepcopy(grid),
             periodic_bound,
             periodic_bound,
-            Subzero.Ocean(grid, 0, 0, 0).scells,
+            Subzero.Ocean(; grid, u = 0, v = 0, temp = 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [
                 CartesianIndex(7, 2),
@@ -432,7 +398,7 @@
             deepcopy(grid),
             periodic_bound,
             open_bound,
-            Subzero.Ocean(grid, 0, 0, 0).scells,
+            Subzero.Ocean(; grid, u = 0, v = 0, temp = 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [
                 CartesianIndex(10, 1),
@@ -457,7 +423,7 @@
             deepcopy(grid),
             open_bound,
             periodic_bound,
-            Subzero.Ocean(grid, 0, 0, 0).scells,
+            Subzero.Ocean(; grid, u = 0, v = 0, temp = 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [
                 CartesianIndex(1, 4),
@@ -480,7 +446,7 @@
             deepcopy(grid),
             periodic_bound,
             periodic_bound,
-            Subzero.Ocean(grid, 0, 0, 0).scells,
+            Subzero.Ocean(; grid, u = 0, v = 0, temp = 0).scells,
             CouplingSettings(two_way_coupling_on = true),
             [
                 CartesianIndex(1, 1),
@@ -498,19 +464,14 @@
     @testset "OA Forcings" begin
     #     # set up model and floe
         FT = Float64
-        grid = Subzero.RegRectilinearGrid(
-            (-1e5, 1e5),
-            (-1e5, 1e5),
-            1e4,
-            1e4,
-        )
-        zonal_ocean = Subzero.Ocean(grid, 1.0, 0.0, 0.0)
-        zero_atmos = Subzero.Atmos(grid, 0.0, 0.0, -20.0)
-        domain = Subzero.Domain(
-            CollisionBoundary(North, grid),
-            CollisionBoundary(South, grid),
-            CollisionBoundary(East, grid),
-            CollisionBoundary(West, grid),
+        grid = Subzero.RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = -1e5, yf = 1e5, Δx = 1e4, Δy = 1e4)
+        zonal_ocean = Subzero.Ocean(; grid, u = 1.0, v = 0.0, temp = 0.0)
+        zero_atmos = Subzero.Atmos(; grid, u = 0.0, v = 0.0, temp = -20.0)
+        domain = Subzero.Domain(;
+            north = CollisionBoundary(North; grid),
+            south = CollisionBoundary(South; grid),
+            east = CollisionBoundary(East; grid),
+            west = CollisionBoundary(West; grid),
         )
         floe = Subzero.Floe(
             [[
@@ -521,7 +482,6 @@
                 [-1.75e4, 5e4],
             ]],
             0.25,
-            0.0,
         )
         area = floe.area
     # Standard Monte Carlo points for below floe - used to compare with MATLAB
@@ -535,12 +495,12 @@
         floe_settings = FloeSettings()
 
     # stationary floe, uniform zonal ocean flow
-        model1 = Model(
+        model1 = Model(;
             grid,
-            zonal_ocean,
-            zero_atmos,
+            ocean = zonal_ocean,
+            atmos = zero_atmos,
             domain,
-            StructArray([deepcopy(floe)]),
+            floes = StructArray([deepcopy(floe)]),
         )
         Subzero.timestep_coupling!(
             model1,
@@ -554,13 +514,13 @@
         @test isapprox(model1.floes[1].trqOA/area, -523.9212, atol = 1e-3)
 
     # stationary floe, uniform meridional ocean flow
-        meridional_ocean = Subzero.Ocean(grid, 0.0, 1.0, 0.0)
-        model2 = Subzero.Model(
+        meridional_ocean = Subzero.Ocean(; grid, u = 0.0, v = 1.0, temp = 0.0)
+        model2 = Subzero.Model(;
             grid,
-            meridional_ocean,
-            zero_atmos,
+            ocean = meridional_ocean,
+            atmos = zero_atmos,
             domain,
-            StructArray([deepcopy(floe)]),
+            floes = StructArray([deepcopy(floe)]),
         )
         Subzero.timestep_coupling!(
             model2,
@@ -574,16 +534,16 @@
         @test isapprox(model2.floes[1].trqOA/area, 239.3141, atol = 1e-3)
 
     # moving floe, uniform 0 ocean flow
-        zero_ocean = Subzero.Ocean(grid, 0.0, 0.0, 0.0)
+        zero_ocean = Subzero.Ocean(; grid, u = 0.0, v = 0.0, temp = 0.0)
         floe3 = deepcopy(floe)
         floe3.u = 0.25
         floe3.v = 0.1
-        model3 = Subzero.Model(
+        model3 = Subzero.Model(;
             grid,
-            zero_ocean,
-            zero_atmos,
+            ocean = zero_ocean,
+            atmos = zero_atmos,
             domain,
-            StructArray([floe3]),
+            floes = StructArray([floe3]),
         )
         Subzero.timestep_coupling!(
             model3,
@@ -597,13 +557,13 @@
         @test isapprox(model3.floes[1].trqOA/area, 29.0465, atol = 1e-1)
         
         # stationary floe, diagonal atmos flow
-        diagonal_atmos = Subzero.Atmos(grid, -1, -0.5, 0.0)
-        model4 = Subzero.Model(
+        diagonal_atmos = Subzero.Atmos(; grid, u = -1, v = -0.5, temp = 0.0)
+        model4 = Subzero.Model(;
             grid,
-            zero_ocean,
-            diagonal_atmos,
+            ocean = zero_ocean,
+            atmos = diagonal_atmos,
             domain,
-            StructArray([deepcopy(floe)]),
+            floes = StructArray([deepcopy(floe)]),
         )
         Subzero.timestep_coupling!(
             model4,
@@ -626,17 +586,17 @@
         non_unif_uocn[2:end, :] = -1e-4*(psi_ocn[2:end, :] .- psi_ocn[1:end-1, :])
         non_unif_vocn = zeros(size(ygrid))
         non_unif_vocn[:, 2:end] = 1e-4*(psi_ocn[:, 2:end] .- psi_ocn[:, 1:end-1])
-        non_unif_ocean = Subzero.Ocean(
-            non_unif_uocn',
-            non_unif_vocn',
-            zeros(size(xgrid)),
+        non_unif_ocean = Subzero.Ocean(;
+            u = non_unif_uocn',
+            v = non_unif_vocn',
+            temp = zeros(size(xgrid)),
         )
-        model5 = Subzero.Model(
+        model5 = Subzero.Model(;
             grid,
-            non_unif_ocean,
-            zero_atmos,
+            ocean = non_unif_ocean,
+            atmos = zero_atmos,
             domain,
-            StructArray([deepcopy(floe)]),
+            floes = StructArray([deepcopy(floe)]),
         )
         Subzero.timestep_coupling!(
             model5,
@@ -651,20 +611,20 @@
 
 
         # moving floe, non-uniform ocean, non-uniform atmos
-        non_unif_atmos = Subzero.Atmos(
-            non_unif_uocn',
-            non_unif_vocn',
-            zeros(size(xgrid)),
+        non_unif_atmos = Subzero.Atmos(;
+            u = non_unif_uocn',
+            v = non_unif_vocn',
+            temp = zeros(size(xgrid)),
         )
         floe6 = deepcopy(floe)
         floe6.u = 0.5
         floe6.v = -0.5
-        model6 = Subzero.Model(
+        model6 = Subzero.Model(;
             grid,
-            non_unif_ocean,
-            non_unif_atmos,
+            ocean = non_unif_ocean,
+            atmos = non_unif_atmos,
             domain,
-            StructArray([floe6]),
+            floes = StructArray([floe6]),
         )
         Subzero.timestep_coupling!(
             model6,

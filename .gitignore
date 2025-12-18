@@ -1,7 +1,10 @@
+
+*.jld2
 *.jl.*.cov
 *.jl.cov
 *.jl.mem
 *.gz
+*.mp4
 /Manifest.toml
 /docs/build/
 /output/

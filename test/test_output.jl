@@ -1,27 +1,25 @@
 
 function test_basic_outputwriters()
-    grid = RegRectilinearGrid(
-        (-1e5, 1e5),
-        (-1e5, 1e5),
-        1e4,
-        1e4,
-    )
-    ocean = Ocean(grid, 0.0, 0.0, 0.0)
-    atmos = Atmos(grid, 0.0, 0.0, 0.0)
-    domain = Domain(
-        OpenBoundary(North, grid),
-        OpenBoundary(South, grid),
-        OpenBoundary(East, grid),
-        OpenBoundary(West, grid),
+    grid = RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = -1e5, yf = 1e5, Δx = 1e4, Δy = 1e4)
+    ocean = Ocean(; grid, u = 0.0, v = 0.0, temp = 0.0)
+    atmos = Atmos(; grid, u = 0.0, v = 0.0, temp = 0.0)
+    domain = Domain(;
+        north = OpenBoundary(North; grid),
+        south = OpenBoundary(South; grid),
+        east = OpenBoundary(East; grid),
+        west = OpenBoundary(West; grid),
     )
     floe_coords = [[[7.5e4, 7.5e4], [7.5e4, 9.5e4], [9.5e4, 9.5e4], 
                     [9.5e4, 7.5e4], [7.5e4, 7.5e4]]]
-    model = Model(
+    floe_settings = FloeSettings()
+    floe_generator = CoordinateListFieldGenerator(; coords = [floe_coords], hmean = 1, Δh = 0)
+    floes = initialize_floe_field(; generator = floe_generator, domain, floe_settings)
+    model = Model(;
         grid,
         ocean,
         atmos,
         domain,
-        StructArray([Floe(floe_coords, 0.5, 0.0)]),
+        floes,
     )
 
     dir = "output/sim"
@@ -40,7 +38,7 @@ function test_basic_outputwriters()
     )
     floewriter = FloeOutputWriter(
         50;
-        outputs = [:status, :coords, :area, :mass, :u, :v],
+        outputs = [:status, :poly, :area, :mass, :u, :v],
         dir = dir,
         filename = "floe.jld2",
         overwrite = true,
@@ -59,8 +57,11 @@ function test_basic_outputwriters()
     simulation = Simulation(
         model = model,
         consts = Constants(),
+        Δt = 1,
         nΔt = 500,
-        writers = writers)
+        writers = writers,
+        floe_settings = floe_settings,
+        )
 
     run!(simulation)
 
@@ -87,7 +88,7 @@ function test_basic_outputwriters()
     fn = joinpath(dir, "floe.jld2")
     file = jldopen(fn, "r")
     @test Set(keys(file)) ==
-        Set(["status", "coords", "area", "mass", "u", "v", "metadata"])
+        Set(["status", "poly", "area", "mass", "u", "v", "metadata"])
     @test length(keys(file["status"])) == 11
     close(file)
     rm(fn)

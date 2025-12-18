@@ -1,23 +1,6 @@
-"""
-Functions needed for ridging and rafting between floes and boundaries. 
-"""
+# Functions needed for ridging and rafting between floes and boundaries. 
 
-"""
-    add_floe_volume!(
-        floes,
-        idx,
-        vol,
-        floe_settings,
-    )
-Add volume to existing floe and update fields that depend on the volume.
-Inputs:
-    floes           <StructArray{Frloe}> list of floes
-    idx             <Int> index of floe to add volume to 
-    vol             <AbstractFloat> volume to add to floe
-    floe_settings   <FloeSettings> simulation's settings for making floes
-Outputs:
-    Nothing. Floe's fields are updated to reflect increase in volume.
-"""
+# Add volume to existing floe and update fields that depend on the volume.
 function add_floe_volume!(
     floes,
     idx,
@@ -41,24 +24,13 @@ function add_floe_volume!(
     return
 end
 
-"""
-    remove_floe_overlap!(
-        floes,
-        shrink_idx,
-        grow_floe_coords,
-        pieces_buffer,
-        max_floe_id,
-        broken,
-        ridgeraft_settings,
-        floe_settings,
-        rng,  
-    )
-
+#=
 Removes area/volume of overlap from floe that loses area during ridging/rafting
+
 Inputs:
     floes               <StructArray{Floe}> list of floes
     shrink_idx       <Int> index of floe that loses area
-    grow_floe_coords <PolyVec> coordinate of floe/domain that subsumes area
+    grow_floe_poly   <Polys> polygon of floe/domain that subsumes area
     pieces_buffer       <StructArray{Floe}> list of new floe pieces caused by
                             breakage of floes
     max_floe_id         <Int> maximum floe ID before this ridging/rafting
@@ -74,12 +46,12 @@ Outputs:
     max_floe_id     <Int> maximum floe id of floe created during overlap removal
     floe_num        <Int> total number of floes created from origianl floe ->
                         one if floe doesn't break, more otherwise
-"""
+=#
 function remove_floe_overlap!(
     floes::StructArray{<:Floe{FT}},
     shrink_idx,
     shrink_parent_idx,
-    grow_floe_coords,
+    grow_floe_poly,
     pieces_buffer,
     max_floe_id,
     broken,
@@ -88,13 +60,15 @@ function remove_floe_overlap!(
     simp_settings,
     rng,  
 ) where {FT <: AbstractFloat}
-    # Find new floe shape and regions
-    new_floe_poly = LG.difference(
-        LG.Polygon(floes.coords[shrink_idx]),
-        LG.Polygon(grow_floe_coords),
-    )
-    new_floe_poly = LG.simplify(new_floe_poly, simp_settings.tol)
-    total_area = LG.area(new_floe_poly)
+    # Find new floe shapes and regions
+    regions = diff_polys(floes.poly[shrink_idx], grow_floe_poly, FT)
+    total_area = zero(FT)
+    nregions = 0
+    for (i, region) in enumerate(regions)
+        regions[i] = simplify_poly(region, simp_settings.tol)
+        total_area += area_poly(region, FT)
+        nregions += 1
+    end
     floe_num = 0  # How many new floes have been created from the regions
     # Changes in area / volume
     transfer_area = floes.area[shrink_idx] - total_area
@@ -102,9 +76,6 @@ function remove_floe_overlap!(
     # If the transfer area is sufficent, create new floes
     if transfer_area > ridgeraft_settings.min_overlap_frac * floes.area[shrink_idx]
         transfer_vol = floes.area[shrink_idx] * floes.height[shrink_idx]
-        # Find regions
-        regions = get_polygons(new_floe_poly)
-        nregions = length(regions)
         # Reset shrinking index to parent floe and determine floe shift
         parent_Δx = floes.centroid[shrink_parent_idx][1] -
             floes.centroid[shrink_idx][1]
@@ -113,31 +84,24 @@ function remove_floe_overlap!(
         parent_centroid = floes.centroid[shrink_parent_idx]
         # Update existing floes/ghosts regions
         for region in regions
-            region_area = LG.area(region)
-            new_coords = find_poly_coords(region)::PolyVec{FT}
-            xmin, xmax, ymin, ymax = polyvec_extrema(new_coords)
-            Δx = xmax - xmin
-            Δy = ymax - ymin
+            region_area = area_poly(region, FT)
+            (xmin, xmax), (ymin, ymax) = GI.extent(region)
+            Δx, Δy = xmax - xmin, ymax - ymin
             # Region is big enought to be a floe and has okay aspect ratio
             if (
                 region_area > floe_settings.min_floe_area &&
                 (Δx > Δy ? Δy/Δx : Δx/Δy) > floe_settings.min_aspect_ratio
             )
                 floe_num += 1
-                translate!(  # shift region coords to parent floe location
-                    new_coords,
-                    parent_Δx,
-                    parent_Δy,
-                )
-                rmholes!(new_coords)  # remove holes in floe
-                new_poly = LG.Polygon(new_coords)  # parent floe new region poly
+                new_poly = _translate_poly(FT, region, parent_Δx, parent_Δy)::Polys{FT}
+                rmholes!(new_poly)  # remove holes in floe
                 new_vol = region_area * floes.height[shrink_idx]
                 transfer_vol -= new_vol
                 buffer_length = length(pieces_buffer)
                 # If this is the first region created, replace original floe
                 if floe_num == 1
                     replace_floe!(  # replace parent floe
-                        LazyRow(floes, shrink_parent_idx),
+                        get_floe(floes, shrink_parent_idx),
                         new_poly,
                         new_vol * floe_settings.ρi,
                         floe_settings,
@@ -151,16 +115,14 @@ function remove_floe_overlap!(
                             g_Δy = floes.centroid[gidx][2] - parent_centroid[2]
                             # replace ghost floe
                             replace_floe!(
-                                LazyRow(floes, gidx),
+                                get_floe(floes, gidx),
                                 new_poly,
                                 new_vol * floe_settings.ρi,
                                 floe_settings,
                                 rng,
                             )
                             # shift ghost floe
-                            translate!(floes.coords[gidx], g_Δx, g_Δy)
-                            floes.centroid[gidx][1] += g_Δx
-                            floes.centroid[gidx][1] += g_Δy
+                            _translate_floe!(FT, get_floe(floes, gidx), g_Δx, g_Δy)
                         end
                     else
                         # if floe breaks, mark floe and ghosts as broken
@@ -181,11 +143,11 @@ function remove_floe_overlap!(
                 else  # >1 region, so floe must break and add pieces to buffer
                     push!(
                         pieces_buffer,
-                        deepcopy_floe(LazyRow(floes, shrink_parent_idx))
+                        deepcopy_floe(get_floe(floes, shrink_parent_idx))
                     )
                     buffer_length += 1
                     replace_floe!(
-                        LazyRow(pieces_buffer, buffer_length),
+                        get_floe(pieces_buffer, buffer_length),
                         new_poly,
                         new_vol * floe_settings.ρi,
                         floe_settings,
@@ -207,38 +169,25 @@ function remove_floe_overlap!(
 end
 
 """
-    floe_floe_ridge!(
-        floes,
-        idx1,
-        idx2,
-        floe2,
-        overlap_area,
-        ridgeraft_settings,
-        simp_settings,
-        Δt,
-        rng
-    )
+    floe_floe_ridge!(...)
 Ridge two floes, updating both in-place and returning any new floes that
 resulting from the ridging event.
-Inputs:
-    floes               <StructArray{Floe}> floe list
-    idx1                <Int> index of first floe
-    idx2                <Int> index of second floe
-    pieces_buffer       <StructArray{Floe}> list of new floe pieces caused by
-                            breakage of floes
-    max_floe_id         <Int> maximum floe ID before this ridging/rafting
-    broken              <Vector{Bool}> floe index is true if that floe has
-                            broken in a previous ridge/raft interaction
-    ridgeraft_settings  <RidgeRaftSettings> simulation's settings for ridging
-                            and rafting
-    floe_settings       <FloeSettings> simulation's settings for making floes
-    simp_settings       <SimplificationSettings> simulation's simplification
-                            settings
-    Δt                  <Int> simulation timestep in seconds
-    rng                 <RandomNumberGenerator> simulation's random number
-                            generator
-Outputs:
-    Updates floe1 and floe2 and returns any new floes created by ridging
+
+## _Positional arguments_
+- $FLOES_DEF
+- `idx1::Int`: index of first floe
+- `idx2::Int`: index of second floe
+- `pieces_buffer::StructArray{Floe}`: list of new floe pieces caused by breakage of floes
+- `max_floe_id::Int`: maximum floe ID before this ridging/rafting
+- `broken::Vector{Bool}`: floe index is true if that floe has broken in a previous ridge/raft interaction
+- `ridgeraft_settings::RidgeRaftSettings`: simulation's settings for ridging and rafting
+- $FLOE_SETTINGS_DEF
+- `simp_settings::SimplificationSettings`:: simulation's simplification settings
+- $ΔT_DEF
+- `rng::RandomNumberGenerator`:: random number generator
+
+##  _Returns_
+- Updates `floe1` and `floe2` in place and returns any new floes created by ridging
 """
 function floe_floe_ridge!(
     floes::StructArray{<:Floe{FT}},
@@ -300,7 +249,7 @@ function floe_floe_ridge!(
             floes,
             lose_mass_idx,
             lose_parent_idx,
-            floes.coords[gain_mass_idx],
+            floes.poly[gain_mass_idx],
             pieces_buffer,
             max_floe_id,
             broken,
@@ -321,8 +270,8 @@ function floe_floe_ridge!(
             if nregions < 1
                 conserve_momentum_change_floe_shape!(
                     mg, Ig, xg, yg, Δt,
-                    LazyRow(floes, gain_mass_idx),
-                    LazyRow(floes, lose_mass_idx),
+                    get_floe(floes, gain_mass_idx),
+                    get_floe(floes, lose_mass_idx),
                 )
             elseif nregions == 1
                 conserve_momentum_transfer_mass!(floes,
@@ -352,40 +301,26 @@ function floe_floe_ridge!(
 end
 
 """
-    floe_domain_ridge!(
-        floes,
-        idx,
-        domain_element,
-        pieces_buffer,
-        max_floe_id,
-        broken,
-        ridgeraft_settings,
-        floe_settings,
-        simp_settings,
-        Δt,
-        rng,
-    )
+    floe_domain_ridge!(...)
 
 Ridge a floe against a boundary or a topography element and return any excess
 floes created by the ridging.
-Inputs:
-    floes               <StructArray{Floe}> floe list
-    idx1                <Int> index of first floe
-    domain_element      <AbstractDomainElement> boundary or topography element
-    pieces_buffer       <StructArray{Floe}> list of new floe pieces caused by
-                            breakage of floes
-    max_floe_id         <Int> maximum floe ID before this ridging/rafting
-    broken              <Vector{Bool}> floe index is true if that floe has
-                            broken in a previous ridge/raft interaction
-    ridgeraft_settings  <RidgeRaftSettings> simulation's settings for ridge/raft
-    floe_settings       <FloeSettings> simulation's settings for making floes
-    simp_settings       <SimplificationSettings> simulation's settings for
-                            simplification
-    Δt                  <Int> simulation timestep in seconds
-    rng                 <RandomNumberGenerator> simulation's random number
-                            generator
-Outputs:
-    floe1 is updated with new shape. Return maximum floe id of floes created
+
+## _Positional arguments_
+- $FLOES_DEF
+- `idx1::Int`: index of first floe
+- `domain_element::AbstractDomainElement`: boundary or topography element
+- `pieces_buffer::StructArray{Floe}`: list of new floe pieces caused by breakage of floes
+- `max_floe_id::Int`: maximum floe ID before this ridging/rafting
+- `broken::Vector{Bool}`: floe index is true if that floe has broken in a previous ridge/raft interaction
+- `ridgeraft_settings::RidgeRaftSettings`: simulation's settings for ridging and rafting
+- $FLOE_SETTINGS_DEF
+- `simp_settings::SimplificationSettings`:: simulation's simplification settings
+- $ΔT_DEF
+- `rng::RandomNumberGenerator`:: random number generator
+
+##  _Returns_
+- `floe1` is updated with new shape. Return maximum floe id of floes created.
 """
 function floe_domain_ridge!(
     floes::StructArray{<:Floe{FT}},
@@ -414,7 +349,7 @@ function floe_domain_ridge!(
         floes,
         idx,
         parent_idx,
-        domain_element.coords,
+        domain_element.poly,
         pieces_buffer,
         max_floe_id,
         broken,
@@ -458,7 +393,7 @@ function floe_domain_ridge!(
                 x_tmp,
                 y_tmp,
                 Δt,
-                LazyRow(floes, idx),
+                get_floe(floes, idx),
             )
         end
         if !broken[idx]
@@ -469,40 +404,26 @@ function floe_domain_ridge!(
 end
 
 """
-    floe_floe_raft!(
-        floes,
-        idx1,
-        idx2,
-        pieces_buffer,
-        max_floe_id,
-        broken,
-        ridgeraft_settings,
-        floe_settings,
-        simp_settings,
-        Δt,
-        rng,
-    )
+    floe_floe_raft!(...)
 
 Raft two floes, updating both in-place and returning any new floes that
 resulting from the rafting event.
-Inputs:
-    floes               <StructArray{Floe}> floe list
-    idx1                <Int> index of first floe
-    idx2                <Int> index of second floe
-    pieces_buffer       <StructArray{Floe}> list of new floe pieces caused by
-                            breakage of floes
-    max_floe_id         <Int> maximum floe ID before this ridging/rafting
-    broken              <Vector{Bool}> floe index is true if that floe has
-                            broken in a previous ridge/raft interaction
-    ridgeraft_settings  <RidgeRaftSettings> simulation's ridge/raft settings
-    floe_settings       <FloeSettings> simultion's settings for making floes
-    simp_settings       <SimplificationSettings> simulation's simplification
-                            settings
-    Δt                  <Int> simulation timestep in seconds
-    rng                 <RandomNumberGenerator> simulation's random number
-                            generator
-Outputs:
-    Updates floe1 and floe2 and returns any new floes created by rafting
+
+## _Positional arguments_
+- $FLOES_DEF
+- `idx1::Int`: index of first floe
+- `idx2::Int`: index of second floe
+- `pieces_buffer::StructArray{Floe}`: list of new floe pieces caused by breakage of floes
+- `max_floe_id::Int`: maximum floe ID before this ridging/rafting
+- `broken::Vector{Bool}`: floe index is true if that floe has broken in a previous ridge/raft interaction
+- `ridgeraft_settings::RidgeRaftSettings`: simulation's settings for ridging and rafting
+- $FLOE_SETTINGS_DEF
+- `simp_settings::SimplificationSettings`:: simulation's simplification settings
+- $ΔT_DEF
+- `rng::RandomNumberGenerator`:: random number generator
+
+##  _Returns_
+- Updates `floe1` and `floe2` in place and returns any new floes created by rafting
 """
 function floe_floe_raft!(
     floes::StructArray{<:Floe{FT}},
@@ -546,7 +467,7 @@ function floe_floe_raft!(
         floes,
         lose_mass_idx,
         lose_parent_idx,
-        floes.coords[gain_mass_idx],
+        floes.poly[gain_mass_idx],
         pieces_buffer,
         max_floe_id,
         broken,
@@ -567,8 +488,8 @@ function floe_floe_raft!(
         if nregions == 0
             conserve_momentum_change_floe_shape!(
                 mg, Ig, xg, yg, Δt,
-                LazyRow(floes, gain_mass_idx),
-                LazyRow(floes, lose_mass_idx),
+                get_floe(floes, gain_mass_idx),
+                get_floe(floes, lose_mass_idx),
             )
         elseif nregions == 1
             conserve_momentum_transfer_mass!(floes,
@@ -593,40 +514,26 @@ function floe_floe_raft!(
 end
 
 """
-    floe_domain_raft!(
-        floes,
-        idx1,
-        domain_element,
-        pieces_buffer,
-        max_floe_id,
-        broken,
-        ridgeraft_settings,
-        floe_settings,
-        simp_settings,
-        Δt
-        rng,
-    )
+    floe_domain_raft!(...)
 
 Raft a floe against a boundary or a topography element and return any excess
 floes created by the rafting. This is equivalent to ridging.
-Inputs:
-    floes               <StructArray{Floe}> floe list
-    idx1                <Int> index of first floe
-    domain_element      <AbstractDomainElement> boundary or topography element
-    pieces_buffer       <StructArray{Floe}> list of new floe pieces caused by
-                            breakage of floes
-    max_floe_id         <Int> maximum floe ID before this ridging/rafting
-    broken              <Vector{Bool}> floe index is true if that floe has
-                            broken in a previous ridge/raft interaction
-    ridgeraft_settings  <RidgeRaftSettings> ridge/raft settings
-    floe_settings       <FloeSettings> simulation's settings for making floes
-    simp_settings       <SimplificationSettings> simplification settings
-    Δt                  <Int> simulation timestep in seconds
-    rng                 <RandomNumberGenerator> simulation's random number
-                            generator
-Outputs:
-    floe1 is updated with new shape. If any new floes are created by rafting
-    they are returned, else nothing.
+
+## _Positional arguments_
+- $FLOES_DEF
+- `idx1::Int`: index of first floe
+- `domain_element::AbstractDomainElement`: boundary or topography element
+- `pieces_buffer::StructArray{Floe}`: list of new floe pieces caused by breakage of floes
+- `max_floe_id::Int`: maximum floe ID before this ridging/rafting
+- `broken::Vector{Bool}`: floe index is true if that floe has broken in a previous ridge/raft interaction
+- `ridgeraft_settings::RidgeRaftSettings`: simulation's settings for ridging and rafting
+- $FLOE_SETTINGS_DEF
+- `simp_settings::SimplificationSettings`:: simulation's simplification settings
+- $ΔT_DEF
+- `rng::RandomNumberGenerator`:: random number generator
+
+##  _Returns_
+- `floe1` is updated with new shape. Return maximum floe id of floes created.
 """
 floe_domain_raft!(
     floes,
@@ -655,33 +562,21 @@ floe_domain_raft!(
 )
 
 """
-    timestep_ridging_rafting!(
-        floes,
-        pieces_buffer,
-        domain,
-        max_floe_id,
-        ridgeraft_settings::RidgeRaftSettings{FT},
-        floe_settings
-        simp_settings,
-        Δt,
-        rng,
-    )
+    timestep_ridging_rafting!(...)
 
 Ridge and raft floes that meet probability and height criteria.
-Inputs:
-    floes               <StructArray{Floe}> simulation's list of floes
-    pieces_buffer       <StructArray{Floe}> list of new floe pieces caused by
-                            breakage of floes
-    domain              <Domain> simulation's domain
-    max_floe_id         <Int> maximum floe ID before this ridging/rafting
-    ridgeraft_settings  <RidgeRaftSettings> ridge/raft settings
-    floe_settings       <FloeSettings> simulation's settings for making floes
-    simp_settings       <SimplificationSettings> simplification settings
-    Δt                  <Int> length of timestep in seconds
-    rng                 <RandomNumberGenerator> simulation's rng
-Outputs:
-    Updates floes post ridging and rafting and adds any new pieces to the pieces
-    buffer to be made into new floes.
+
+Updates floes post ridging and rafting and adds any new pieces to the pieces
+buffer to be made into new floes.
+
+## _Positional arguments_
+- $FLOES_DEF
+- `pieces_buffer::StructArray{Floe}`: list of new floe pieces caused by breakage of floes
+- `max_floe_id::Int`: maximum floe ID before this ridging/rafting
+- $FLOE_SETTINGS_DEF
+- `simp_settings::SimplificationSettings`:: simulation's simplification settings
+- $ΔT_DEF
+- `rng::RandomNumberGenerator`:: random number generator
 """
 function timestep_ridging_rafting!(
     floes,
@@ -722,7 +617,7 @@ function timestep_ridging_rafting!(
                 # floes/domain overlap (not ghost interaction copied to parent)
                 valid_interaction = false
                 if i < j && !broken[j] && floes.status[j].tag == active
-                    valid_interaction |= potential_interaction(
+                    valid_interaction |= _potential_interaction(
                         floes.centroid[i], floes.centroid[j],
                         floes.rmax[i], floes.rmax[j],
                     )
@@ -743,7 +638,7 @@ function timestep_ridging_rafting!(
                         abs(floes.centroid[i][1] - domain.west.val) <
                         floes.rmax[i]
                 elseif j < 0
-                    valid_interaction |= potential_interaction(
+                    valid_interaction |= _potential_interaction(
                         floes.centroid[i],
                         domain.topography.centroid[-(j + 4)],
                         floes.rmax[i],

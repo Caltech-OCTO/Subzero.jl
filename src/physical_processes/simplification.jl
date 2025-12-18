@@ -1,10 +1,6 @@
-"""
-Functions to simplify and reduce individual floes and floe list. 
-"""
+# Functions to simplify and reduce individual floes and floe list. 
 
-"""
-    dissolve_floe(floe, grid, dissolved)
-
+#=
 Dissolve given floe into dissolved ocean matrix.
 Inputs:
     floe        <Union{Floe, LazyRow{Floe}}> single floe
@@ -14,7 +10,7 @@ Inputs:
 Outputs:
     None. Update dissolved matrix with given floe's mass and mark floe for
     removal.
-"""
+=#
 function dissolve_floe!(floe, grid::RegRectilinearGrid, domain, dissolved)
     xidx, yidx = find_grid_cell_index(
         floe.centroid[1],
@@ -32,26 +28,20 @@ function dissolve_floe!(floe, grid::RegRectilinearGrid, domain, dissolved)
 end
 
 """
-    smooth_floes!(
-        floes,
-        topography,
-        simp_settings,
-        collision_settings,
-        Δt,
-        rng,
-    )
+    smooth_floes!(...)
+
 Smooths floe coordinates for floes with more vertices than the maximum
 allowed number. Uses Ramer–Douglas–Peucker algorithm with a user-defined
 tolerance. If new shape causes overlap greater with another floe greater than
 the maximum percentage allowed, mark the two floes for fusion.
-Inputs:
-    floes               <StructArray{Floe}> model's floes
-    topography          <StructArray{TopographyElement}> domain's topography
-    simp_settings       <SimplificationSettings> simulation's simplification
-                            settings
-    collision_settings  <CollisionSettings> simulation's collision settings
-    Δt                  <Int> length of simulation timestep in seconds
-    rng                 <RNG> random number generator for new monte carlo points
+
+## _Positional arguments_
+- $FLOES_DEF
+- $TOPO_FIELD
+- `simp_settings::SimplificationSettings`: simulation's simplification settings
+- `collision_settings::CollisionSettings`: simulation's collision settings
+- $ΔT_DEF
+- `rng::RandomNumberGenerator`:: random number generator
 """
 function smooth_floes!(
     floes::StructArray{Floe{FT}},
@@ -62,26 +52,25 @@ function smooth_floes!(
     Δt,
     rng,
 ) where {FT <: AbstractFloat}
-    topo_coords = topography.coords
+    FT_area_poly(p) = area_poly(p, FT)
     for i in eachindex(floes)
-        if length(floes.coords[i][1]) > simp_settings.max_vertices
-            poly = LG.simplify(LG.Polygon(floes.coords[i]), simp_settings.tol)
-            if !isempty(topo_coords)
-                poly = LG.difference(poly, LG.MultiPolygon(topo_coords))
+        if GI.npoint(GI.getexterior(floes.poly[i])) > simp_settings.max_vertices
+            poly_list = [simplify_poly(floes.poly[i], simp_settings.tol)]
+            if !isempty(topography)
+                poly_list = diff_polys(make_multipolygon(poly_list), make_multipolygon(topography.poly), FT)
             end
-            poly_list = get_polygons(rmholes(poly))::Vector{LG.Polygon}
             simp_poly =
                 if length(poly_list) == 1
                     poly_list[1]
                 else
-                    areas = [LG.area(p) for p in poly_list]
+                    areas = [area_poly(p, FT) for p in poly_list]
                     _, max_idx = findmax(areas)
                     poly_list[max_idx]
                 end
             x_tmp, y_tmp = floes.centroid[i]
             moment_tmp = floes.moment[i]
             replace_floe!(
-                LazyRow(floes, i),
+                get_floe(floes, i),
                 simp_poly,
                 floes.mass[i],
                 floe_settings,
@@ -94,11 +83,11 @@ function smooth_floes!(
                 x_tmp,
                 y_tmp,
                 Δt,
-                LazyRow(floes, i),
+                get_floe(floes, i),
             )
             # Mark interactions for fusion
             for j in eachindex(floes)
-                if i != j && floes.status[j].tag != remove && potential_interaction(
+                if i != j && floes.status[j].tag != remove && _potential_interaction(
                     floes.centroid[i],
                     floes.centroid[j],
                     floes.rmax[i],
@@ -108,9 +97,9 @@ function smooth_floes!(
                         floes.status[i].tag = fuse
                         push!(floes.status[i].fuse_idx, j)
                     else
-                        jpoly = LG.Polygon(floes.coords[j])
-                        intersect_area = LG.area(LG.intersection(simp_poly, jpoly))
-                        if intersect_area/LG.area(jpoly) > collision_settings.floe_floe_max_overlap
+                        jpoly = floes.poly[j]
+                        intersect_area = sum(FT_area_poly, intersect_polys(simp_poly, jpoly, FT); init = 0.0)
+                        if intersect_area/area_poly(jpoly, FT) > collision_settings.floe_floe_max_overlap
                             floes.status[i].tag = fuse
                             push!(floes.status[i].fuse_idx, j)
                         end
@@ -122,15 +111,7 @@ function smooth_floes!(
     return
 end
 
-"""
-    fuse_two_floes!(
-        keep_floe,
-        remove_floe,
-        Δt,
-        floe_settings,
-        max_floe_id,
-        rng,
-    )
+#=
 Fuses two floes together if they intersect and replaces the larger of the two
 floes with their union. Mass and momentum are conserved.
 Inputs:
@@ -144,23 +125,24 @@ Outputs:
     replaces the larger of the two floes and the smaller floe is marked for
     removal.
     Note that the smaller floe's ID is NOT updated!
-"""
+=#
 function fuse_two_floes!(
-    keep_floe,
+    keep_floe::FloeType{FT},
     remove_floe,
     Δt,
     floe_settings,
     prefuse_max_floe_id,
     rng,
-)
+) where FT
     # Create new polygon if they fuse
-    rmholes!(keep_floe.coords)
-    rmholes!(remove_floe.coords)
-    poly1 = LG.Polygon(keep_floe.coords)::LG.Polygon
-    poly2 = LG.Polygon(remove_floe.coords)::LG.Polygon
-    new_poly_list = get_polygons(LG.union(poly1, poly2))::Vector{LG.Polygon}
+    rmholes!(keep_floe.poly)
+    rmholes!(remove_floe.poly)
+    poly1 = keep_floe.poly
+    poly2 = remove_floe.poly
+    new_poly_list = union_polys(poly1, poly2, FT)
     if length(new_poly_list) == 1  # if they fused, they will make one polygon
-        new_poly = rmholes(new_poly_list[1])
+        new_poly = new_poly_list[1]
+        rmholes!(new_poly)
         # mark smaller floe for removal
         remove_floe.status.tag = remove
         # record as value will change with replace
@@ -186,17 +168,13 @@ function fuse_two_floes!(
             remove_floe,
         )
         # Update stress history
-        keep_floe.stress .= (1/keep_floe.mass) * (
-            keep_floe.stress * mass_tmp .+
-            remove_floe.stress * remove_floe.mass
+        keep_floe.stress_accum .= (1/keep_floe.mass) * (
+            keep_floe.stress_accum * mass_tmp .+
+            remove_floe.stress_accum * remove_floe.mass
         )
-        keep_floe.stress_history.cb .= (1/keep_floe.mass) * (
-            keep_floe.stress_history.cb * mass_tmp .+
-            remove_floe.stress_history.cb * remove_floe.mass
-        )
-        keep_floe.stress_history.total = (1/keep_floe.mass) * (
-            keep_floe.stress_history.total * mass_tmp +
-            remove_floe.stress_history.total * remove_floe.mass)
+        keep_floe.stress_instant = (1/keep_floe.mass) * (
+            keep_floe.stress_instant * mass_tmp + 
+            remove_floe.stress_instant * remove_floe.mass)
         # Update IDs
         if 0 < keep_floe.id <= prefuse_max_floe_id
             push!(keep_floe.parent_ids, keep_floe.id)
@@ -209,24 +187,17 @@ function fuse_two_floes!(
 end
 
 """
-    fuse_floes!(
-        floes,
-        max_floe_id,
-        floe_settings,
-        Δt,
-        rng,
-    )
+    fuse_floes!(...)
 
-Fuse all floes marked for fusion.
-Inputs:
-    floes               <StructArray{Floe}> model's floes
-    max_floe_id         <Int> maximum floe ID created yet
-    floe_settings       <FloeSettings>  simulation's settings for making floes
-    Δt                  <Int> simulation timestep in seconds
-    rng                 <RNG> random number generator
-Outputs:
-    None. Fuses floes marked for fusion. Marks floes fused into another floe
-    for removal. 
+Fuse all floes marked for fusion by combining them into one floe and adjusting shapes/mass/etc as needed.
+"Fused" floe marked for removal.
+
+## _Positional arguments_
+- $FLOES_DEF
+- `max_floe_id::Int`: maximum floe id in simulation
+- $FLOE_SETTINGS_DEF
+- $ΔT_DEF
+- `rng::RandomNumberGenerator`:: random number generator
 """
 function fuse_floes!(
     floes,
@@ -244,8 +215,8 @@ function fuse_floes!(
                     keep_idx, remove_idx = floes.area[i] < floes.area[j] ?
                         (j, i) : (i, j)
                     fuse_two_floes!(
-                        LazyRow(floes, keep_idx),
-                        LazyRow(floes, remove_idx),
+                        get_floe(floes, keep_idx),
+                        get_floe(floes, remove_idx),
                         Δt,
                         floe_settings,
                         prefuse_max_floe_id,
@@ -261,25 +232,17 @@ function fuse_floes!(
 end
 
 """
-    remove_floes!(
-        floes,
-        grid,
-        domain,
-        dissolved,
-        floe_settings
-    )
+    remove_floes!(...)
 
 Remove floes marked for removal and dissolve floes smaller than minimum floe
 area if the dissolve setting is on.
-Inputs:
-    floes           <StructArray{Floe}> model's floes
-    grid            <AbstractGrid> model's grid
-    domain          <Domain> model's domain
-    dissolved       <Matrix{AbstractFloat}> ocean's dissolved field
-    floe_settings   <FloeSettings> simulation's settings for making floes
-Outputs:
-    None. Removes floes that do not continue to the next timestep and reset all
-    continuing floes status to active.
+
+## _Positional arguments_
+- $FLOES_DEF
+- $GRID_DEF
+- $DOMAIN_DEF
+- `dissolved::Matrix{AbstractFloat}`: ocean's dissolved field
+- $FLOE_SETTINGS_DEF
 """
 function remove_floes!(
     floes,
@@ -295,7 +258,7 @@ function remove_floes!(
         )
             # Dissolve small/thin floes and add mass to ocean
             dissolve_floe!(
-                LazyRow(floes, i),
+                get_floe(floes, i),
                 grid,
                 domain,
                 dissolved,
@@ -319,27 +282,20 @@ function remove_floes!(
 end
 
 """
-    simplify_floes!(
-        model,
-        simp_settings,
-        collision_settings,
-        floe_settings,
-        Δt,
-        rng,
-    )
+    simplify_floes!(...)
+
 Simplify the floe list be smoothing vertices, fusing floes, dissolving floes,
-and removing floes as needed. 
-Inputs:
-    model               <Model> model
-    max_floe_id         <Int> maximum floe id in simulation
-    simp_settings       <SimplificationSettings> simulation's simplification
-                            settings
-    collision_settings  <CollisionSettings> simulation's collision settings
-    floe_settings       <FloeSettings>  simulation's settings for making floes
-    Δt                  <Int> simulation timestep in seconds
-    rng                 <RNG> random number generator
-Outputs:
-    Updates floe list and removes floe that won't continue to the next timestep
+and removing floes as needed. Updates floe list and removes floe that won't
+continue to the next timestep.
+
+## _Positional arguments_
+- $MODEL_DEF
+- `max_floe_id::Int`: maximum floe id in simulation
+- `simp_settings::SimplificationSettings`: simulation's simplification settings
+- `collision_settings::CollisionSettings`: simulation's collision settings
+- $FLOE_SETTINGS_DEF
+- $ΔT_DEF
+- `rng::RandomNumberGenerator`:: random number generator
 """
 function simplify_floes!(
     model,

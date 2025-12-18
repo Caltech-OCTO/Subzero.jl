@@ -1,0 +1,8 @@
+build/
+src/examples
+node_modules/
+package.json
+package-lock.json
+Manifest.toml
+**/*.jld2
+contribute.md

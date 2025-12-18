@@ -2,12 +2,14 @@ function conservation_simulation(
     grid,
     domain,
     floes,
+    floe_settings,
     smoothing = false,
     plot = false,
 )
-    ocean = Ocean(grid, 0.0, 0.0, 0.0)
-    atmos = Atmos(grid, 0.0, 0.0, 0.0)
-    model = Model(grid, ocean, atmos, domain, floes)
+    Δt = 10
+    ocean = Ocean(; grid, u = 0.0, v = 0.0, temp = 0.0)
+    atmos = Atmos(; grid, u = 0.0, v = 0.0, temp = 0.0)
+    model = Model(; grid, ocean, atmos, domain, floes)
     dir = "output/conservation"
     initwriter = InitialStateOutputWriter(
         dir = dir,
@@ -31,18 +33,19 @@ function conservation_simulation(
         smooth_vertices_on = smoothing,
     )
 
-    simulation = Simulation(
+    simulation = Simulation(;
         model = model,
         consts = consts,
         Δt = 1,
         nΔt = 5000,
         verbose = false,
+        floe_settings = floe_settings,
         coupling_settings = coupling_settings,
         simp_settings = simplification_settings,
         writers = writers,
     )
     run!(simulation)
-    em_lists = check_energy_momentum_conservation_julia(
+    em_lists = Subzero.check_energy_momentum_conservation_julia(
         joinpath(dir, "floes.jld2"),
         dir,
         plot
@@ -56,34 +59,28 @@ end
 
 
 @testset "Conservation of Energy and Momentum" begin
+    Δt = 10
     FT = Float64
-    grid = RegRectilinearGrid(
-        (-2e4, 1e5),
-        (0, 1e5),
-        1e4,
-        1e4,
+    grid = RegRectilinearGrid(; x0 = -2e4, xf = 1e5, y0 = 0.0, yf = 1e5, Δx = 1e4, Δy = 1e4)
+    collision_domain = Domain(; 
+        north = CollisionBoundary(North; grid),
+        south = CollisionBoundary(South; grid),
+        east = CollisionBoundary(East; grid),
+        west = CollisionBoundary(West; grid),
     )
-    collision_domain = Domain(
-        CollisionBoundary(North, grid),
-        CollisionBoundary(South, grid),
-        CollisionBoundary(East, grid),
-        CollisionBoundary(West, grid),
+    open_domain = Domain(;
+        north = OpenBoundary(North; grid),
+        south = OpenBoundary(South; grid),
+        east = OpenBoundary(East; grid),
+        west = OpenBoundary(West; grid),
     )
-    open_domain = Domain(
-        OpenBoundary(North, grid),
-        OpenBoundary(South, grid),
-        OpenBoundary(East, grid),
-        OpenBoundary(West, grid),
-    )
-    topo = TopographyElement(
-        [[[-1e4, 0.0], [-2e4, 1e4], [-1e4, 1e4], [-1e4, 0.0]]],
-    )
-    open_domain_w_topography = Domain(
-        OpenBoundary(North, grid),
-        OpenBoundary(South, grid),
-        OpenBoundary(East, grid),
-        OpenBoundary(West, grid),
-        StructVector([topo])
+    topography = initialize_topography_field(; coords = [[[[-1e4, 0.0], [-2e4, 1e4], [-1e4, 1e4], [-1e4, 0.0]]]])
+    open_domain_w_topography = Domain(;
+        north = OpenBoundary(North; grid),
+        south = OpenBoundary(South; grid),
+        east = OpenBoundary(East; grid),
+        west = OpenBoundary(West; grid),
+        topography
     )
     rng = Xoshiro(1)
     floe1 = [[[2e4, 2e4], [2e4, 5e4], [5e4, 5e4], [5e4, 2e4], [2e4, 2e4]]]
@@ -92,13 +89,13 @@ end
 
     # Two blocks crashing head on - no rotation
     rng = Xoshiro(1)
-    floe_settings = FloeSettings(nhistory = 100)
+    floe_settings = FloeSettings()
     head_on_floes = initialize_floe_field(
         FT,
         [floe1, floe2],
         open_domain, # Just affects shape, type doesn't matter
         0.25,
-        0.0,
+        0.0;
         rng = rng,
         floe_settings = floe_settings,
     )
@@ -112,16 +109,17 @@ end
         grid,
         open_domain,
         head_on_floes,
+        floe_settings,
     )) .< 1)
 
     # Two blocks crashing offset - rotation
     rng = Xoshiro(1)
     offset_floes = initialize_floe_field(
         FT,
-        [floe1, Subzero.translate(floe2, 0.0, 1e4)],
+        [floe1, translate_coords(floe2, 0.0, 1e4)],
         open_domain, # Just affects shape, type doesn't matter
         0.25,
-        0.0,
+        0.0;
         rng = rng,
         floe_settings = floe_settings,
     )
@@ -134,6 +132,7 @@ end
         grid,
         open_domain,
         offset_floes,
+        floe_settings,
     )) .< 1)
 
     # Two rectangular boxes with a triangle inbetween causing rotation
@@ -143,7 +142,7 @@ end
         [floe1, floe2, floe3],
         open_domain, # Just affects shape, type doesn't matter
         0.25,
-        0.0,
+        0.0;
         rng = rng,
         floe_settings = floe_settings,
     )
@@ -157,6 +156,7 @@ end
         grid,
         open_domain,
         rotating_floes,
+        floe_settings,
     )) .< 1)
 
     # Three complex (many-sided, non-convex) floes hitting
@@ -165,14 +165,15 @@ end
     complex_floes = initialize_floe_field(
         FT,
         [
-            Subzero.translate(file["floe_vertices"][3], 0.0, 2e4),
+            translate_coords(file["floe_vertices"][3], 0.0, 2e4),
             file["floe_vertices"][4],
             file["floe_vertices"][5],
         ],
         open_domain,
         0.25,
-        0.0,
+        0.0;
         rng = rng,
+        floe_settings = floe_settings
     )
     close(file)
     complex_floes.u[1] = 0.1
@@ -183,21 +184,24 @@ end
         conservation_simulation(
             grid,
             open_domain,
-            complex_floes,)
+            complex_floes,
+            floe_settings,
+        )
     ) .< 2.1)
 
     # One non-convex block hits the wall and topography -> only check conservation of energy
     rng = Xoshiro(1)
     file = jldopen("inputs/floe_shapes.jld2", "r")
     floe_on_wall_topo = file["floe_vertices"][1]
-    floe_on_wall_topo = Subzero.translate(floe_on_wall_topo, -1.75e4, -0.9e4)
+    floe_on_wall_topo = translate_coords(floe_on_wall_topo, -1.75e4, -0.9e4)
     floe_arr = initialize_floe_field(
         FT,
         [floe_on_wall_topo],
         open_domain_w_topography,
         0.25,
-        0.0,
+        0.0;
         rng = rng,
+        floe_settings = floe_settings
     )
     close(file)
     floe_arr.u[1] = -0.09
@@ -206,5 +210,6 @@ end
         grid,
         open_domain_w_topography,
         floe_arr,
+        floe_settings,
     )[1]) < 1
 end

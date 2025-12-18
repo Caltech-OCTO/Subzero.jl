@@ -1,17 +1,13 @@
 @testset "Simplification" begin
     FT = Float64
+    Δt = 10
     @testset "Dissolve Floes" begin
-        grid = RegRectilinearGrid(
-            (-1e5, 1e5),
-            (0.0, 1e5),
-            1e4,
-            1e4,
-        )
-        domain = Subzero.Domain(
-            CollisionBoundary(North, grid),
-            CollisionBoundary(South, grid),
-            PeriodicBoundary(East, grid),
-            PeriodicBoundary(West, grid),
+        grid = RegRectilinearGrid(; x0 = -1e5, xf = 1e5, y0 = 0.0, yf = 1e5, Δx = 1e4, Δy = 1e4)
+        domain = Subzero.Domain(;
+            north = CollisionBoundary(North; grid),
+            south = CollisionBoundary(South; grid),
+            east = PeriodicBoundary(East; grid),
+            west = PeriodicBoundary(West; grid),
         )
         height = 0.25
         ρi = 920.0
@@ -25,30 +21,31 @@
         mass = 9e8 * height * ρi
         dissolved = zeros(Float64, 10, 20)  # 20x20 ocean grid
         # Add 2 floes in the middle of the grid -> masses added to cell
-        floe = Floe(coords, height, 0.0,)
+        floe = Floe(coords, height)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 12] == mass
-        floe = Floe(Subzero.translate(coords, 2.5e3, 2.5e3), height, 0.0)
+        floe = Floe(translate_coords(coords, 2.5e3, 2.5e3), height)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 12] == 2mass
         # Add floe over periodic bound -> mass added to cell wrapped around grid
-        floe = Floe(Subzero.translate(coords, 9e4, 0.0), height, 0.0)
+        floe = Floe(translate_coords(coords, 9e4, 0.0), height)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 1] == mass
-        floe = Floe(Subzero.translate(coords, -1.2e5, 0.0), height, 0.0)
+        floe = Floe(translate_coords(coords, -1.2e5, 0.0), height)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test dissolved[7, 20] == mass
         total_mass = sum(dissolved)
         # Add floe over non-periodic bound -> mass not added since out of bounds
-        floe = Floe(Subzero.translate(coords, 0.0, 6e4), height, 0.0)
+        floe = Floe(translate_coords(coords, 0.0, 6e4), height)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test total_mass == sum(dissolved)  # nothing was added
-        floe = Floe(Subzero.translate(coords, 0.0, -7e4), height, 0.0)
+        floe = Floe(translate_coords(coords, 0.0, -7e4), height)
         Subzero.dissolve_floe!(floe, grid, domain, dissolved)
         @test total_mass == sum(dissolved)  # nothing was added
     end
 
     @testset "Fuse Floes" begin
+        Δt = 10
         coords1 = [[
             [0.0, 0.0],
             [0.0, 10.0],
@@ -59,9 +56,9 @@
 
         # Test two floes not intersecting -> will not fuse
         coords2 = deepcopy(coords1)
-        Subzero.translate!(coords2, 20.0, 0.0)
-        f1 = Floe(coords1, 0.5, 0.0)
-        f2 = Floe(coords2, 0.5, 0.0)
+       translate_coords!(coords2, 20.0, 0.0)
+        f1 = Floe(coords1, 0.5)
+        f2 = Floe(coords2, 0.5)
         Subzero.fuse_two_floes!(
             f1,
             f2,
@@ -70,12 +67,12 @@
             2,
             Xoshiro(1),
         )
-        @test f1.coords == coords1
-        @test f2.coords == coords2
+        @test GO.equals(f1.poly, Subzero.make_polygon(coords1))
+        @test GO.equals(f2.poly, Subzero.make_polygon(coords2))
 
         # Test two floes intersecting -> will fuse into floe1 since same size
-        Subzero.Subzero.translate!(coords2, -13.0, 0.0)
-        f2 = Floe(coords2, 0.75, 0.0)
+        translate_coords!(coords2, -13.0, 0.0)
+        f2 = Floe(coords2, 0.75)
         f1.id = 1
         f2.id = 2
         mass_tot = f1.mass + f2.mass
@@ -94,7 +91,7 @@
         f2.p_dudt = 0.02
         f2.p_dvdt = -0.005
         f2.p_dξdt = 0.05
-        stress1_init = f1.stress
+        stress1_init = f1.stress_accum
         x_momentum_init, y_momentum_init = Subzero.calc_linear_momentum(
             [f1.u, f2.u],
             [f1.v, f2.v],
@@ -180,11 +177,11 @@
             p_spin_momentum_after + p_angular_momentum_after,
             atol = 1e-10,
         )
-        @test mean(f1.stress_history.cb) == f1.stress_history.total/1000 == f1.stress
-        @test f1.stress == (stress1_init * (f2.mass - mass_tot) .+ f2.stress * f2.mass) / mass_tot
+        
+        @test f1.stress_accum == (stress1_init * (f2.mass - mass_tot) .+ f2.stress_accum * f2.mass) / mass_tot
 
         # Test two floes intersecting -> will fuse into floe2 since bigger
-        f1 = Floe(coords1, 0.5, 0.0)
+        f1 = Floe(coords1, 0.5)
         f3 = Floe(
             [[
                 [0.0, 0.0],
@@ -193,8 +190,7 @@
                 [20.0, 0.0],
                 [0.0, 0.0],
             ]],
-            0.55,
-            0.0,
+            0.55
         )
         Subzero.fuse_two_floes!(
             f3,
@@ -208,17 +204,12 @@
         @test f3.status.tag == Subzero.active
 
         # Test overall fuse floe functionality with set of 4 floes
-        grid = RegRectilinearGrid(
-            (-2.5e4, 1e5),
-            (-2.5e4, 1e5),
-            1e4,
-            1e4,
-        )
-        open_domain_no_topo = Subzero.Domain(
-            OpenBoundary(North, grid),
-            OpenBoundary(South, grid),
-            OpenBoundary(East, grid),
-            OpenBoundary(West, grid),
+        grid = RegRectilinearGrid(; x0 = -2.5e4, xf = 1e5, y0 = -2.5e4, yf = 1e5, Δx = 1e4, Δy = 1e4)
+        open_domain_no_topo = Subzero.Domain(;
+            north = OpenBoundary(North; grid),
+            south = OpenBoundary(South; grid),
+            east = OpenBoundary(East; grid),
+            west = OpenBoundary(West; grid),
         )
         coords1 = [[  # large floe
             [0.0, 0.0],
@@ -285,22 +276,17 @@
         @test floe_arr.area[3] == floe3_area  # small floes fused into floe 1
     end
     @testset "Smooth Floes" begin
-        grid = RegRectilinearGrid(
-            (-2.5e4, 1e5),
-            (-2.5e4, 1e5),
-            1e4,
-            1e4,
-        )
-        open_domain_no_topo = Subzero.Domain(
-            OpenBoundary(North, grid),
-            OpenBoundary(South, grid),
-            OpenBoundary(East, grid),
-            OpenBoundary(West, grid),
+        grid = RegRectilinearGrid(; x0 = -2.5e4, xf = 1e5, y0 = -2.5e4, yf = 1e5, Δx = 1e4, Δy = 1e4)
+        open_domain_no_topo = Subzero.Domain(;
+            north = OpenBoundary(North; grid),
+            south = OpenBoundary(South; grid),
+            east = OpenBoundary(East; grid),
+            west = OpenBoundary(West; grid),
         )
         # Create complex floes
         file = jldopen("inputs/floe_shapes.jld2", "r")
         floe_coords = file["floe_vertices"][1:20]
-        Subzero.translate!(floe_coords[2], 0.0, -1e3)
+        translate_coords!(floe_coords[2], 0.0, -1e3)
         floe_arr = initialize_floe_field(
             FT,
             floe_coords,
@@ -314,7 +300,7 @@
 
         floe_set1 = floe_arr[3:end]
         total_mass = sum(floe_set1.mass)
-        nvertices = [length(c[1]) for c in floe_set1.coords]
+        nvertices = [GI.npoint(p) for p in floe_set1.poly]
         x_momentum_init, y_momentum_init = Subzero.calc_linear_momentum(
             floe_set1.u,
             floe_set1.v,
@@ -364,9 +350,9 @@
         for i in eachindex(floe_set1)
             # smooth floes if they have more than maximum number of vertices
             if nvertices[i] > 50
-                @test length(floe_set1.coords[i][1]) < nvertices[i]
+                @test GI.npoint(floe_set1.poly[i]) < nvertices[i]
             else
-                @test length(floe_set1.coords[i][1]) == nvertices[i]
+                @test GI.npoint(floe_set1.poly[i]) == nvertices[i]
             end
             @test floe_set1.status[i].tag == Subzero.active
         end
@@ -427,26 +413,17 @@
 
         # Two floes overlap, and one is cut into two pieces by topography
         floe_set2 = floe_arr[1:2]
-        open_domain_with_topo = Subzero.Domain(
-            OpenBoundary(North, grid),
-            OpenBoundary(South, grid),
-            OpenBoundary(East, grid),
-            OpenBoundary(West, grid),
-            StructVector(
-                [TopographyElement(
-                    [[
-                        [0.0, 1.05e4],
-                        [0.0, 1.15e4],
-                        [3e3, 1.15e4],
-                        [3e3, 1.05e4],
-                        [0.0, 1.05e4],
-                    ]],
-                )],
-            ),
+        open_domain_with_topo = Subzero.Domain(;
+            north = OpenBoundary(North; grid),
+            south = OpenBoundary(South; grid),
+            east = OpenBoundary(East; grid),
+            west = OpenBoundary(West; grid),
+            topography = initialize_topography_field(; coords = [[[
+                [0.0, 1.05e4], [0.0, 1.15e4], [3e3, 1.15e4], [3e3, 1.05e4], [0.0, 1.05e4]]]])
         )
         og_f1_area = floe_set2.area[1]
         total_mass = sum(floe_set2.mass)
-        nvertices = [length(c[1]) for c in floe_set2.coords]
+        nvertices = [GI.npoint(p) for p in floe_set2.poly]
         Subzero.smooth_floes!(
             floe_set2,
             open_domain_with_topo.topography,
@@ -458,33 +435,27 @@
         )
         for i in eachindex(floe_set2)
             # smooth floes if they have more than maximum number of vertices
-            @test length(floe_set2.coords[i][1]) < nvertices[i]
+            @test GI.npoint(floe_set2.poly[i]) < nvertices[i]
             @test floe_set2.status[i].tag == Subzero.fuse
         end
         # Test mass is conserved
         @test total_mass == sum(floe_set2.mass)
         # Test first floe was cut by topography and only larger piece was kept
-        @test LG.area(LG.intersection(
-                LG.Polygon(floe_set2.coords[1]),
-                LG.Polygon(open_domain_with_topo.topography.coords[1]),
-        )) == 0
-        @test LG.area(LG.Polygon(floe_set2.coords[1])) > 2og_f1_area/3
+        @test sum(GO.area, Subzero.intersect_polys(floe_set2.poly[1], open_domain_with_topo.topography.poly[1]); init = 0.0) == 0
+        
+        @test GO.area(floe_set2.poly[1]) > 2og_f1_area/3
         # Test that both floes are tagged for fusion
         @test floe_set2.status[1].fuse_idx == [2]
         @test floe_set2.status[2].fuse_idx == [1]
     end
     @testset "Remove Floes" begin
-        grid = RegRectilinearGrid(
-            (-2.5e4, 1e5),
-            (-2.5e4, 1e5),
-            1e4,
-            1e4,
-        )
-        open_domain_no_topo = Subzero.Domain(
-            OpenBoundary(North, grid),
-            OpenBoundary(South, grid),
-            OpenBoundary(East, grid),
-            OpenBoundary(West, grid),
+        grid = RegRectilinearGrid(; x0 = -2.5e4, xf = 1e5, y0 = -2.5e4, yf = 1e5, Δx = 1e4, Δy = 1e4)
+
+        open_domain_no_topo = Subzero.Domain(;
+            north = OpenBoundary(North; grid),
+            south = OpenBoundary(South; grid),
+            east = OpenBoundary(East; grid),
+            west = OpenBoundary(West; grid),
         )
         coords1 = [[  # large floe
             [0.0, 0.0],

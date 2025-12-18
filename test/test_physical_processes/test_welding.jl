@@ -1,28 +1,24 @@
 @testset "Bin floes" begin
-    grid = RegRectilinearGrid(
-        (0, 1e5),
-        (0, 1e5),
-        1e4,
-        1e4,
-    )
+    Δt = 10
+    grid = RegRectilinearGrid(; x0 = 0.0, xf = 1e5, y0 = 0.0, yf = 1e5, Δx = 1e4, Δy = 1e4)
 
-    open_domain = Subzero.Domain(
-        OpenBoundary(North, grid),
-        OpenBoundary(South, grid),
-        OpenBoundary(East, grid),
-        OpenBoundary(West, grid),
+    open_domain = Subzero.Domain(;
+        north = OpenBoundary(North; grid),
+        south = OpenBoundary(South; grid),
+        east = OpenBoundary(East; grid),
+        west = OpenBoundary(West; grid),
     )
-    periodic_domain = Subzero.Domain(
-        PeriodicBoundary(North, grid),
-        PeriodicBoundary(South, grid),
-        PeriodicBoundary(East, grid),
-        PeriodicBoundary(West, grid),
+    periodic_domain = Subzero.Domain(;
+        north = PeriodicBoundary(North; grid),
+        south = PeriodicBoundary(South; grid),
+        east = PeriodicBoundary(East; grid),
+        west = PeriodicBoundary(West; grid),
     )
-    half_open_periodic_domain = Subzero.Domain(
-        PeriodicBoundary(North, grid),
-        PeriodicBoundary(South, grid),
-        OpenBoundary(East, grid),
-        OpenBoundary(West, grid),
+    half_open_periodic_domain = Subzero.Domain(;
+        north = PeriodicBoundary(North; grid),
+        south = PeriodicBoundary(South; grid),
+        east = OpenBoundary(East; grid),
+        west = OpenBoundary(West; grid),
     )
 
     coords = [
@@ -35,13 +31,15 @@
         [[[4e4, -2e4], [4e4, 1e4], [6e4, 1e4], [6e4, -2e4], [4e4, -2e4]]] # Out
     ]
     logger = Logging.SimpleLogger(Logging.Error)
+    floe_settings = FloeSettings()
     floes = Logging.with_logger(logger) do  # suppress warning for floe outside domain
         initialize_floe_field(
             Float64,
             coords,
             periodic_domain,
             1.0,
-            0.0,
+            0.0;
+            floe_settings,
         )
     end
 
@@ -132,24 +130,21 @@
 end
 
 @testset "Weld floes" begin
-    grid = RegRectilinearGrid(
-        (0, 1e5),
-        (0, 1e5),
-        1e4,
-        1e4,
-    )
-    periodic_domain = Subzero.Domain(
-        OpenBoundary(North, grid),
-        OpenBoundary(South, grid),
-        OpenBoundary(East, grid),
-        OpenBoundary(West, grid),
+    Δt = 10
+    grid = RegRectilinearGrid(; x0 = 0.0, xf = 1e5, y0 = 0.0, yf = 1e5, Δx = 1e4, Δy = 1e4)
+
+    periodic_domain = Subzero.Domain(;
+        north = OpenBoundary(North; grid),
+        south = OpenBoundary(South; grid),
+        east = OpenBoundary(East; grid),
+        west = OpenBoundary(West; grid),
     )
     consts = Constants()
     floe_settings = FloeSettings()
     coupling_settings = CouplingSettings()
     coords = [
         [[[0.0, 0.0], [0.0, 5e4], [6e4, 5e4], [6e4, 0.0], [0.0, 0.0]]],
-        [[[4e4, 0.0], [4e4, 5e4], [1e5, 5e4], [1e5, 0.0], [0.0, 0.0]]],
+        [[[4e4, 0.0], [4e4, 5e4], [1e5, 5e4], [1e5, 0.0], [4e4, 0.0]]],
         [[[2e4, 4e4], [2e4, 8e4], [3e4, 8e4], [3e4, 4e4], [2e4, 4e4]]]
     ]
     floe_base = initialize_floe_field(
@@ -157,7 +152,8 @@ end
         coords,
         periodic_domain,
         1.0,
-        0.0,
+        0.0;
+        floe_settings,
     )
     a1, a2, a3 = floe_base.area
     h1, h2, h3 = floe_base.height
