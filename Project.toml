@@ -24,19 +24,24 @@ StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 
 [weakdeps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+GeoInterface = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
 GeoInterfaceMakie = "0edc0954-3250-4c18-859d-ec71c1660c08"
+MAT = "23992714-dd62-5051-b70f-ba57cb901cac"
 
 [extensions]
 SubzeroMakieExt = ["CairoMakie", "GeoInterfaceMakie"]
+SubzeroMatExt = ["MAT", "GeoInterface"]
 
 [compat]
 CairoMakie = "0.12, 0.13"
 CoordinateTransformations = "0.6"
 Extents = "0.1"
+GeoInterface = "1.6.0"
 GeoInterfaceMakie = "0.1"
 GeometryOps = "0.1.31 - 0.1"
 Interpolations = "0.14, 0.15, 0.16"
 JLD2 = "0.4, 0.5, 0.6"
+MAT = "0.11.4"
 Measures = "0.3"
 NCDatasets = "0.14"
 Rotations = "1"
