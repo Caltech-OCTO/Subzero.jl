@@ -68,3 +68,11 @@ An example coupled simulation is demonstrated in \autoref{fig:oceananigans_coupl
 \label{fig:oceananigans_coupled_example}](oceananigans_coupled_example.png)
 
 Finally, Subzero.jl is continuously tested against a suite of unit tests and integration tests that compare its behavior to the original MATLAB model, and confirm that the model conserves both energy and momentum.
+
+# Acknowledgements
+
+Our work is supported by the Office of Naval Research (ONR) grant
+N00014-19-1-2421. The authors thank the authors of Subzero, Georgy Manucharyan
+and Brandon Montemuro for their guidance and advice during the porting process.
+
+# References
