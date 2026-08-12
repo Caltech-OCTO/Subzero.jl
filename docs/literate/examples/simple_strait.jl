@@ -38,10 +38,10 @@ eboundary = CollisionBoundary(East; grid)
 wboundary = CollisionBoundary(West; grid)
 
 island1 = [[[6e4, 4e4], [6e4, 4.5e4], [6.5e4, 4.5e4], [6.5e4, 4e4], [6e4, 4e4]]]
-island2 = [[[4e4, 6e4], [4e4, 6.5e4], [4.5e4, 6.5e4], [4.5e4, 6e4], [4e4, 6e4]]]
+island2 = [[[2e4, 6e4], [4e4, 6.5e4], [4.5e4, 6.5e4], [4.5e4, 6e4], [2e4, 6e4]]]
 topo1 = [[[0, 0.0], [0, 1e5], [2e4, 1e5], [3e4, 5e4], [2e4, 0], [0.0, 0.0]]]
 topo2 = [[[8e4, 0], [7e4, 5e4], [8e4, 1e5], [1e5, 1e5], [1e5, 0], [8e4, 0]]]
-topo_arr = initialize_topography_field(FT; coords = [island1, topo1, topo2])
+topo_arr = initialize_topography_field(FT; coords = [island1, island2, topo1, topo2])
 
 domain = Domain(; north = nboundary, south = sboundary, east = eboundary, west = wboundary, topography = topo_arr)
 
@@ -78,7 +78,7 @@ fracture_settings = FractureSettings(;
 # ### Ridge Raft Settings
 ridgeraft_settings = RidgeRaftSettings(;
     ridge_raft_on = true,
-    Δt = 150
+    Δt = 10
 )
 
 # ## Output Creation

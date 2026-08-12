@@ -17,10 +17,10 @@ Right now, the subtypes serve as dispatch types for the following two methods.
 
 ## API
 The following methods must be implemented for all subtypes:
-- `__update_criteria!(criteria::AbstractFractureCriteria, floes::StructArray{<:Floe})`
+- `_update_criteria!(criteria::AbstractFractureCriteria, floes::StructArray{<:Floe})`
 - `_determine_fractures(criteria::AbstractFractureCriteria, floes::StructArray{<:Floe}, floe_settings::FloeSettings)`
 
-`__update_criteria!` is called in the `fracture_floes!` function and takes the fracture
+`_update_criteria!` is called in the `fracture_floes!` function and takes the fracture
 criteria and the current ice floe pack and updates the fracture criteria given the state
 of the ice floe pack if needed.
 
@@ -47,7 +47,7 @@ abstract type AbstractFractureCriteria end
 #= Default function to NOT update the fracture criteria before determining floe fractures as
 the simulation progresses. Any criteria that should not update as the simulation runs can
 simply skip implementing this function and fall back on this default. =#
-__update_criteria!(::AbstractFractureCriteria, _) = nothing
+_update_criteria!(::AbstractFractureCriteria, _) = nothing
 
 """
     NoFracture<:AbstractFractureCriteria
@@ -93,7 +93,8 @@ function _calculate_hibler(::Type{FT}, mean_height, pstar, c) where FT
     ring_coords[end] = ring_coords[1] # make sure first and last element are exactly the same
     # TODO: eventually make with SVectors! 
     poly = GI.Polygon([ring_coords])
-    return _move_poly(FT, poly, -p/2, -p/2,  π/4)
+    (cx, cy) = centroid_poly(poly, FT)
+    return _move_poly(FT, poly, -p/2, -p/2,  π/4, cx, cy)
 end
 
 """
