@@ -42,7 +42,7 @@ Discrete-element models (DEMs), where each piece of sea ice is represented as an
 
 The MATLAB-based SubZero model [@montemuro2025] allows for complex, and evolving, floe shapes but is computationally expensive. Moreover, due to the highly connected nature of sea ice floes and ocean processes [@horvat2018; @gupta2022; @gupta2024; @brenner2023c], there is a need for DEM simulations to be coupled to a dynamic ocean model to explore two-way feedbacks, which is a feature not readily available for most extant models. 
 
-We present Subzero.jl, a native Julia [@bezanson2017] version of the MATLAB discrete-element model SubZero [@montemuro2025, @Manucharyan2022] that addresses both of these two problems. 
+We present Subzero.jl, a native Julia [@bezanson2017] version of the MATLAB discrete-element model SubZero [@montemuro2025, @manucharyan2022] that addresses both of these two problems. 
 
 # Functionality
 
@@ -54,7 +54,7 @@ This new Julia implementation provides a more extensible, user-friendly interfac
 
 ## Ice-Ocean Coupling
 
-The code now also includes a framework that enables two-way coupled simulations with the Julia ocean model Oceananigans.jl [@ramadhan2020; @wagner2025]. In this configuration, sea-ice floes in Subzero.jl are forced by gridded ocean velocity fields supplied by Oceananigans.jl and interpolated onto a mesh carried by each floe. In turn, floe-resolved ice-ocean stresses computed by Subzero.jl are interpolated onto the ocean grid and returned to the ocean model as a spatially heterogeneous and temporally evolving surface boundary condition. The exchange of fields is implemented using a callback functionality in Oceananigans.jl, allowing serial coupling at user-defined frequencies. This coupled DEM-LES system resolves the mechanical interaction between evolving ocean fields and individual sea ice floes, enabling investigation of floe-scale modulation of upper-ocean dynamics [@Brenner2025]. An example coupled simulation is demonstrated in  \autoref{fig:oceananigans_coupled_example}.
+The code now also includes a framework that enables two-way coupled simulations with the Julia ocean model Oceananigans.jl [@ramadhan2020; @wagner2025]. In this configuration, sea-ice floes in Subzero.jl are forced by gridded ocean velocity fields supplied by Oceananigans.jl and interpolated onto a mesh carried by each floe. In turn, floe-resolved ice-ocean stresses computed by Subzero.jl are interpolated onto the ocean grid and returned to the ocean model as a spatially heterogeneous and temporally evolving surface boundary condition. The exchange of fields is implemented using a callback functionality in Oceananigans.jl, allowing serial coupling at user-defined frequencies. This coupled DEM-LES system resolves the mechanical interaction between evolving ocean fields and individual sea ice floes, enabling investigation of floe-scale modulation of upper-ocean dynamics [@brenner2025]. An example coupled simulation is demonstrated in  \autoref{fig:oceananigans_coupled_example}.
 
 
 \begin{figure}
@@ -65,7 +65,7 @@ The code now also includes a framework that enables two-way coupled simulations 
 
 ## Performance improvements
 Beyond this new functionality, Subzero.jl provides significant performance improvements relative to the original MATLAB implementation of the model.
-We used the `shear_flow` example from the Subzero.jl repository ([link](https://caltech-octo.github.io/Subzero.jl/dev/examples/shear_flow/)) as a basis for testing speed enhancements.
+We used the \texttt{shear\_flow} example from the Subzero.jl repository ([link](https://caltech-octo.github.io/Subzero.jl/dev/examples/shear_flow/)) as a basis for testing speed enhancements.
 The simulation includes 50 floes at 75% sea ice concentration, forced by sheared ocean currents in a doubly-periodic domain; we also created a version with 1000 floes, and then implemented both versions in the MATLAB SubZero codebase.
 We tested the models on the California Institute of Technology's "Resnick" High Performance Computing system, on a single compute node using 1-16 CPU cores, with each configuration repeated five times.
 Results in \autoref{fig:speed_comparison} show comparisons of both end-to-end runtime (including initialization and I/O) and simulation time (time spent advancing the model state).  
@@ -73,7 +73,7 @@ Results in \autoref{fig:speed_comparison} show comparisons of both end-to-end ru
 
 \begin{figure}
   \includegraphics[width=\linewidth]{speed_comparison.png}
-  \caption{Runtime of `shear_flow` simulation in Julia Subzero.jl (blue) and MATLAB SubZero (red) for comparison. Left: 50 floe simulation. Right: 1000 floe simulation. Solid lines show end-to-end time while dashed lines show strictly simulation time.}
+  \caption{Runtime of \texttt{shear\_flow} simulation in Julia Subzero.jl (blue) and MATLAB SubZero (red) for comparison. Left: 50 floe simulation. Right: 1000 floe simulation. Solid lines show end-to-end time while dashed lines show strictly simulation time.}
   \label{fig:speed_comparison}
 \end{figure}
 
