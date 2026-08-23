@@ -24,7 +24,7 @@ affiliations:
    index: 1
  - name: Massachusetts Institute of Technology, USA
    index: 2
- - name: Delft Institute of Technology, NL
+ - name: Delft University of Technology, NL
    index: 3
 date: 1 January 2026
 bibliography: paper.bib
@@ -46,25 +46,26 @@ We present Subzero.jl, a native Julia [@bezanson2017] version of the MATLAB disc
 
 # Functionality
 
-Subzero.jl, represents sea ice floes as polygonal elements that move in response to forcing from the atmosphere and the ocean [@manucharyan2022b]. Over time, a given floe may change its horizontal shape and vertical thickness, even fracturing into multiple pieces, as a result of interactions with other floes and topographical elements.  SubZero.jl improves upon the MATLAB version in three major ways: (i) a modular interface that limits the need for users to modify source code, (ii) the ability to couple to a performant native-Julia ocean model, and (iii) enhancement in computational speed.
+Subzero.jl, represents sea ice floes as polygonal elements that move in response to forcing from the atmosphere and the ocean [@manucharyan2022b]. Over time, a given floe may change its horizontal shape and vertical thickness, even fracturing into multiple pieces, as a result of interactions with other floes and topographical elements.  Subzero.jl improves upon the MATLAB version in three major ways: (i) a modular interface that reduces the need for users to modify source code, (ii) the ability to couple to a performant native-Julia ocean model, and (iii) enhancement in computational speed.
 
 ## Modular interface
 
-This new Julia implementation allows a more extendable, user-friendly interface relative to the previous MATLAB version. SubZero.jl is designed using various object `types' that are embedded in a tree-structure. The topmost parent is the `Simulation' object, which contains the `Floes', `Domain', `Atmospheric forcing', `Ocean forcing', `Physical settings' and `Output writer' structs. Using dedicated run scripts, the user may modify parameters from these objects and easily turn on/off physical processes such as fracturing, ridging, and welding. Moreover, the use of Julia's multiple dispatch allows flexibility to add more functionality without changing the overlaying model structure. This flexibility is highlighted in the tutorial and examples provided with the documentation. Additionally, Subzero.jl includes a suite of unit and integration tests that verify consistency with the original MATLAB model and ensure conservation of energy and momentum. These changes allow for more dynamic and flexible usage and development than in the MATLAB version. 
+This new Julia implementation provides a more extensible, user-friendly interface relative while preserving the scientific behavior of the previous MATLAB model. In the previous MATLAB workflow, simulation-specific settings were managed at the repository level, requiring copying and adapting directories to create new experiments. However, Subzero.jl is organized around composable object types (`structs`) in a hierarchical structure, with a top-level `Simulation` object containing `Floes`, `Domain`, `Atmospheric forcing`, `Ocean forcing`, `Physical settings` and `Output writer` components. Using dedicated run scripts, the user may modify parameters from these objects to easily turn on/off physical processes such as fracturing, ridging, and welding. Moreover, the use of Julia's multiple dispatch allows flexibility to add more functionality without changing the underlying model structure. This flexibility is highlighted in the tutorial and examples provided with the documentation. Additionally, Subzero.jl includes a suite of unit and integration tests that verify consistency with the original MATLAB model and ensure conservation of energy and momentum. These changes allow for more dynamic and flexible usage and development than in the MATLAB version, while ensuring parity with the original code.
+
 ## Ice-Ocean Coupling
 
-The new code now includes a framework that enables two-way coupled simulations with Julia ocean model Oceananigans.jl [@ramadhan2020; @wagner2025]. In this configuration, sea-ice floes in Subzero.jl are forced by gridded ocean velocity fields supplied by Oceananigans.jl and interpolated on a mesh carried by each floe. In turn, floe-resolved ice-ocean stresses computed by Subzero.jl are interpolated on the ocean grid and returned to the ocean model as a spatially heterogeneous surface and temporally evolving surface boundary condition. The exchange of fields is implemented using a callback functionality in Oceananigans.jl, allowing serial coupling at user-defined frequencies. This coupled DEM-LES system resolves the mechanical interaction between evolving ocean fields and individual sea ice floes, enabling investigation of floe-scale modulation of upper-ocean dynamics [e.g., @Brenner2025]. An example coupled simulation is demonstrated in  \autoref{fig:oceananigans_coupled_example}.
+The code now also includes a framework that enables two-way coupled simulations with the Julia ocean model Oceananigans.jl [@ramadhan2020; @wagner2025]. In this configuration, sea-ice floes in Subzero.jl are forced by gridded ocean velocity fields supplied by Oceananigans.jl and interpolated onto a mesh carried by each floe. In turn, floe-resolved ice-ocean stresses computed by Subzero.jl are interpolated onto the ocean grid and returned to the ocean model as a spatially heterogeneous and temporally evolving surface boundary condition. The exchange of fields is implemented using a callback functionality in Oceananigans.jl, allowing serial coupling at user-defined frequencies. This coupled DEM-LES system resolves the mechanical interaction between evolving ocean fields and individual sea ice floes, enabling investigation of floe-scale modulation of upper-ocean dynamics [@Brenner2025]. An example coupled simulation is demonstrated in  \autoref{fig:oceananigans_coupled_example}.
 
 
 \begin{figure}
   \includegraphics[width=\linewidth]{oceananigans_coupled_example.png}
-  \caption{Example Subzero-Oceananigans coupled simulation. Left: surface fields of ocean vorticity, overlain by sea ice floes, each coloured by their vorticity; Right: the same ocean vorticity field with floes not plotted-the impacts of ice-ocean coupling are still evident in the "patchiness" of the field.}
+  \caption{Example Subzero-Oceananigans coupled simulation. Left: surface fields of ocean vorticity, overlain by sea ice floes, each coloured by their vorticity; Right: the same ocean vorticity field with floes not plotted; the impacts of ice-ocean coupling are still evident in the "patchiness" of the field.}
   \label{fig:oceananigans_coupled_example}
 \end{figure}
 
 ## Performance improvements
-Subzero.jl gives significant performance improvements relative to the original MATLAB implementation of the model.
-We used the `shear_flow` example from the repository ([link](https://caltech-octo.github.io/Subzero.jl/dev/examples/shear_flow/)) as a basis for testing speed enhancements.
+Beyond this new functionality, Subzero.jl provides significant performance improvements relative to the original MATLAB implementation of the model.
+We used the `shear_flow` example from the Subzero.jl repository ([link](https://caltech-octo.github.io/Subzero.jl/dev/examples/shear_flow/)) as a basis for testing speed enhancements.
 The simulation includes 50 floes at 75% sea ice concentration, forced by sheared ocean currents in a doubly-periodic domain; we also created a version with 1000 floes, and then implemented both versions in the MATLAB SubZero codebase.
 We tested the models on the California Institute of Technology's "Resnick" High Performance Computing system, on a single compute node using 1-16 CPU cores, with each configuration repeated five times.
 Results in \autoref{fig:speed_comparison} show comparisons of both end-to-end runtime (including initialization and I/O) and simulation time (time spent advancing the model state).  
@@ -72,20 +73,19 @@ Results in \autoref{fig:speed_comparison} show comparisons of both end-to-end ru
 
 \begin{figure}
   \includegraphics[width=\linewidth]{speed_comparison.png}
-  \caption{Add caption...}
+  \caption{Runtime of `shear_flow` simulation in Julia Subzero.jl (blue) and MATLAB SubZero (red) for comparison. Left: 50 floe simulation. Right: 1000 floe simulation. Solid lines show end-to-end time while dashed lines show strictly simulation time.}
+  \label{fig:speed_comparison}
 \end{figure}
 
 
 Subzero.jl achieves substantial speedups relative to the MATLAB implementation: 7.2-13.0 times faster (end-to-end) and 17.4-31.1 times faster (simulation) for 50 floes, increasing to 32.2-48.5× (end-to-end) and 43.9-61.1 times (simulation) for 1000 floes.
-Parallel scaling is modest in both implementations, with simulation time speedups of 1.1 times (Julia) and 1.8 times (MATLAB) for 50 floes, and 1.9 times (Julia) and 2.3 times (MATLAB) for 1000 floes when increasing from 1 to 16 cores. 
-
-The speed increase of Subzero.jl relative to the original MATLAB model will enable longer and more complex simulations, particularly at higher floe counts.
+Parallel scaling is modest in both implementations, with simulation time speedups of 1.1 times (Julia) and 1.8 times (MATLAB) for 50 floes, and 1.9 times (Julia) and 2.3 times (MATLAB) for 1000 floes when increasing from 1 to 16 cores. The speed increase of Subzero.jl relative to the original MATLAB model will enable longer and more complex simulations, particularly at higher floe counts.
 
 
 # Acknowledgements
 
 Our work is supported by the Office of Naval Research (ONR) grant
-N00014-19-1-2421. The authors thank the authors of Subzero, Georgy Manucharyan and Brandon Montemuro for their guidance and advice during the porting process.
+N00014-19-1-2421. The authors thank the authors of MATLAB code SubZero, Georgy Manucharyan and Brandon Montemuro, for their guidance and advice during the porting process.
 
 # References
 
