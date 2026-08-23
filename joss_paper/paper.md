@@ -10,12 +10,12 @@ authors:
     orcid: 0000-0000-0000-0000
     corresponding: true
     affiliation: "1, 2"
-  - name: Mukund Gupta
-    orcid: 0000-0000-0000-0000
-    affiliation: 3
   - name: Samuel Brenner
     orcid: 0000-0002-0826-1294
     affiliation: 1
+  - name: Mukund Gupta
+    orcid: 0000-0000-0000-0000
+    affiliation: 3
   - name: Andrew Thompson
     orcid: 0000-0000-0000-0000
     affiliation: 1
@@ -32,20 +32,21 @@ bibliography: paper.bib
 
 # Summary
 
-Subzero.jl is a discrete-element model (DEM) for simulating the dynamics of two-dimensional polygonal sea-ice floes. The model is a port of the MATLAB-based SubZero [@montemuro2023] to the Julia programming language [@bezanson2017], with substantial re-engineering to increase performance, improve extensibility and usability, and provide native infrastructure for two-way coupling with the external ocean dynamics model Oceananigans.jl [@ramadhan2020,@wagner2025]. Subzero.jl is available as a registered Julia package.
+Subzero.jl is a discrete-element model (DEM) for simulating the dynamics of two-dimensional polygonal sea-ice floes. The model is a port of the MATLAB-based SubZero model [@montemuro2025] to the Julia programming language [@bezanson2017], with substantial re-engineering to increase performance, improve extensibility and usability, and provide native Julia infrastructure for two-way coupling with the external ocean dynamics model Oceananigans.jl [@ramadhan2020, @wagner2025]. Subzero.jl is available as a registered Julia package.
 
 # Statement of need
 
-Arctic sea ice extent and concentration continue to decline at rates that are commonly underestimated by climate projection models [@cite]. Potential sources of uncertainty arise from an inaccurate representation of interactions between the ocean and sea ice within these climate models, as well as the assumption of continuum sea-ice dynamics for the sake of reducing computational complexity.
+Arctic sea ice extent and concentration continue to decline at rates that are commonly underestimated by climate projection models [@notz2020, @shu2020]. Potential sources of uncertainty arise from an inaccurate representation of interactions between the ocean and sea ice within these climate models, as well as the assumption of continuum sea-ice dynamics for the sake of reducing computational complexity.
 
-Discrete-element models (DEMs), where each piece of sea ice is represented as an individual simulation element, all of which can dynamically interact, are used to explore these uncertainties and study fine-scale sea ice dynamics. While a range of sea ice DEMs are available [e.g., @Hopkins2004,@Herman2013,@Rabatel2015,@Damsgaard2018, and others], many of these models make a range of simplifications, particularly in the geometric representation of the floes.
+Discrete-element models (DEMs), where each piece of sea ice is represented as an individual simulation element, all of which can dynamically interact, are used to explore these uncertainties and study fine-scale sea ice dynamics. While a range of sea ice DEMs are available [e.g., @hopkins2004a, @herman2013, @rabatel2015a, @damsgaard2018, and others], many of these models make a range of simplifications, particularly in the geometric representation of the ice floes.
 
-The MATLAB-based SubZero model [@montemuro2023] allows for complex, and evolving, floe shapes but is computationally expensive. Moreover, due to the highly connected nature of sea ice floes and ocean processes [@horvat2018,@gupta2022,@gupta2024,@brenner2023c], there is a need for DEM simulations to be coupled to a dynamic ocean model to explore two-way feedbacks, which is a feature not readily available for most extant models. 
+The MATLAB-based SubZero model [@montemuro2025] allows for complex, and evolving, floe shapes but is computationally expensive. Moreover, due to the highly connected nature of sea ice floes and ocean processes [@horvat2018, @gupta2022, @gupta2024, @brenner2023c], there is a need for DEM simulations to be coupled to a dynamic ocean model to explore two-way feedbacks, which is a feature not readily available for most extant models. 
 
-We present Subzero.jl, a native Julia [@bezanson2017] version of the MATLAB discrete-element model SubZero [@Montemuro2023, @Manucharyan2022] that addresses both of these two problems. 
+We present Subzero.jl, a native Julia [@bezanson2017] version of the MATLAB discrete-element model SubZero [@montemuro2025, @Manucharyan2022] that addresses both of these two problems. 
+
 # Functionality
 
-Subzero.jl, represents sea ice floes as polygonal elements that move in response to forcing from the atmosphere and the ocean [@manucharyan2022b]. Over time, a given floe may change its horizontal shape and vertical thickness, and fracture into multiple pieces, as a result of interactions with other floes and topographical elements.  SubZero.jl improves upon the MATLAB version in three major ways: (i) a modular interface that limits the need for users to modify source code,, (ii) the ability to couple to a Julia-based ocean model, and (iii) enhancement in computational speed.
+Subzero.jl, represents sea ice floes as polygonal elements that move in response to forcing from the atmosphere and the ocean [@manucharyan2022b]. Over time, a given floe may change its horizontal shape and vertical thickness, even fracturing into multiple pieces, as a result of interactions with other floes and topographical elements.  SubZero.jl improves upon the MATLAB version in three major ways: (i) a modular interface that limits the need for users to modify source code, (ii) the ability to couple to a performant native-Julia ocean model, and (iii) enhancement in computational speed.
 
 ## Modular interface
 
