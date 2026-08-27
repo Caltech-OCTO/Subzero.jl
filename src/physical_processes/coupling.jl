@@ -965,8 +965,8 @@ function calc_two_way_coupling!(
             end
             if ocean.si_frac[cartidx] > 0
                 # Divide by total floe area in cell to get ocean stress
-                ocean.τx[cartidx] /= ocean.si_frac[cartidx]
-                ocean.τy[cartidx] /= ocean.si_frac[cartidx]
+                ocean.τx[cartidx] /= cell_area
+                ocean.τy[cartidx] /= cell_area
                 # Divide by cell area to get sea-ice fraction
                 ocean.si_frac[cartidx] /= cell_area
             end
