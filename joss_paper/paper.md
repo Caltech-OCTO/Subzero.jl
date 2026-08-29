@@ -38,7 +38,7 @@ Subzero.jl is a discrete-element model (DEM) for simulating the dynamics of two-
 
 Arctic sea ice extent and concentration have declined at rates that are commonly underestimated by climate projection models [@notz2020; @shu2020]. Potential sources of uncertainty arise from an inaccurate representation of interactions between the ocean and sea ice within these climate models, as well as the assumption of continuum sea-ice dynamics for the sake of reducing computational complexity.
 
-Discrete-element models (DEMs), where each piece of sea ice is represented as an individual simulation element, all of which can dynamically interact, are used to explore these uncertainties and study fine-scale sea ice dynamics. While a range of sea ice DEMs are available [@hopkins2004a; @herman2013; @rabatel2015a; herman2016discrete; @damsgaard2018], many of these models make a range of simplifications, particularly in the geometric representation of the ice floes.
+Discrete-element models (DEMs), where each piece of sea ice is represented as an individual simulation element, all of which can dynamically interact, are used to explore these uncertainties and study fine-scale sea ice dynamics. While a range of sea ice DEMs are available [@hopkins2004a; @herman2013; @rabatel2015a; @herman2016discrete; @damsgaard2018], many of these models make a range of simplifications, particularly in the geometric representation of the ice floes.
 
 The MATLAB-based SubZero model [@montemuro2025] allows for complex and evolving floe shapes, but is computationally expensive. Moreover, due to the highly connected nature of sea ice floes and ocean processes [@horvat2018; @gupta2022; @gupta2024; @brenner2023c], there is a need for DEM simulations to be coupled to a dynamic ocean model to explore two-way feedbacks, which is a feature not readily available for most extant models. 
 
@@ -59,7 +59,7 @@ The code now also includes a framework that enables two-way mechanically coupled
 
 \begin{figure}
   \includegraphics[width=\linewidth]{oceananigans_coupled_example.png}
-  \caption{Example Subzero-Oceananigans coupled simulation. Left: surface fields of ocean vorticity, overlain by sea ice floes, each coloured by their vorticity. Right: the same ocean vorticity field with floes not plotted; the impacts of ice-ocean coupling are still evident in the "patchiness" of the field. Vorticity units are given in terms of the Coriolis frequency, $f$, which has a value of $1.26 x 10^{-4} s^{-1}$ at $60^\circ$N.}
+  \caption{Example Subzero-Oceananigans coupled simulation. Left: surface fields of ocean vorticity, overlain by sea ice floes, each coloured by their vorticity. Right: the same ocean vorticity field with floes not plotted; the impacts of ice-ocean coupling are still evident in the "patchiness" of the field. Vorticity units are given in terms of the Coriolis frequency, $f$, which has a value of $1.26 \times 10^{-4} s^{-1}$ at $60^\circ$N.}
   \label{fig:oceananigans_coupled_example}
 \end{figure}
 
