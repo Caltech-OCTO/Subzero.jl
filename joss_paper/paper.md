@@ -78,8 +78,7 @@ Results in \autoref{fig:speed_comparison} show comparisons of both end-to-end ru
 \end{figure}
 
 
-Subzero.jl achieves substantial speedups relative to the MATLAB implementation: 7.2-13.0 times faster (end-to-end) and 17.4-31.1 times faster (simulation) for 50 floes, increasing to 32.2-48.5× (end-to-end) and 43.9-61.1 times (simulation) for 1000 floes.
-Parallel scaling is modest in both implementations, with simulation time speedups of 1.1 times (Julia) and 1.8 times (MATLAB) for 50 floes, and 1.9 times (Julia) and 2.3 times (MATLAB) for 1000 floes when increasing from 1 to 16 cores. The speed increase of Subzero.jl relative to the original MATLAB model will enable longer and more complex simulations, particularly at higher floe counts.
+Subzero.jl achieves substantial speedups relative to the MATLAB implementation: 7.2-13.0 times faster (end-to-end) and 17.4-31.1 times faster (simulation) for 50 floes, increasing to 32.2-48.5 times (end-to-end) and 43.9-61.1 times (simulation) for 1000 floes. Parallel scaling is modest in both implementations, with simulation time speedups of 1.1 times (Julia) and 1.8 times (MATLAB) for 50 floes, and 1.9 times (Julia) and 2.3 times (MATLAB) for 1000 floes when increasing from 1 to 16 cores. The speed increase of Subzero.jl relative to the original MATLAB model will enable longer and more complex simulations, particularly at higher floe counts.
 
 
 # Acknowledgements
