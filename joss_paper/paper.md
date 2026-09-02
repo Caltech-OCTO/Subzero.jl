@@ -7,17 +7,17 @@ tags:
   - dynamics
 authors:
   - name: Skylar Gering
-    orcid: 0000-0000-0000-0000
+    orcid: 0000-0003-1974-3966
     corresponding: true
     affiliation: "1, 2"
   - name: Samuel Brenner
     orcid: 0000-0002-0826-1294
     affiliation: 1
   - name: Mukund Gupta
-    orcid: 0000-0000-0000-0000
+    orcid: 0000-0003-0181-9504
     affiliation: 3
   - name: Andrew F. Thompson
-    orcid: 0000-0000-0000-0000
+    orcid: 0000-0003-0322-4811
     affiliation: 1
 affiliations:
  - name: California Institute of Technology, USA
