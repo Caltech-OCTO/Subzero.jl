@@ -6,16 +6,16 @@ tags:
   - sea ice
   - dynamics
 authors:
-  - name: Skylar Gering
+  - name: Skylar A. Gering
     orcid: 0000-0003-1974-3966
     corresponding: true
     affiliation: "1, 2"
+  - name: Mukund Gupta
+    orcid: 0000-0003-0181-9504
+    affiliation: "1, 3"
   - name: Samuel Brenner
     orcid: 0000-0002-0826-1294
     affiliation: 1
-  - name: Mukund Gupta
-    orcid: 0000-0003-0181-9504
-    affiliation: 3
   - name: Andrew F. Thompson
     orcid: 0000-0003-0322-4811
     affiliation: 1
@@ -83,8 +83,12 @@ Subzero.jl achieves substantial speedups relative to the MATLAB implementation: 
 
 # Acknowledgements
 
-Our work is supported by the Office of Naval Research (ONR) grant
-N00014-19-1-2421. The authors thank the authors of MATLAB code SubZero, Georgy Manucharyan and Brandon Montemuro, for their guidance and advice during the porting process.
+Our work is supported by the Office of Naval Research (ONR) grant N00014-19-1-2421. The authors thank the authors of MATLAB code SubZero, Georgy Manucharyan and Brandon Montemuro, for their guidance and advice during the porting process. 
+
+
+S.A.G. would also like to acknowledge funding support from the Schmidt Academy for Software Engineering from 2022-2024 and the MIT Presidential Fellowship for 2024-2025. The manuscript was completed in 2026 while S.A.G. was supported by the U.S. Department of Energy, Office of Science, Office of Advanced Scientific Computing Research, Department of Energy Computational Science Graduate Fellowship under Award Number DE-SC0026073. 
+
+
 
 # References
 
