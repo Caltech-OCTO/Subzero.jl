@@ -155,7 +155,7 @@ HiblerYieldCurve{Float32}
   ⊢ pstar: 225000.0
   ⊢ c: 24.0
   ⊢ yield curve area: 2.4833815e9
-  ⊢ yield curve centroid: (-28124.994f0, -28124.998f0)
+  ⊢ yield curve centroid: (-28124.994f0, -28124.994f0)
 ```
 """
 function HiblerYieldCurve(::Type{FT} = Float64; floes, pstar = 2.25e5, c = 20.0) where FT
