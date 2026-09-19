@@ -65,7 +65,7 @@ The code now also includes a framework that enables two-way mechanically coupled
 
 ## Performance improvements
 Beyond this new functionality, Subzero.jl provides significant performance improvements relative to the original MATLAB implementation of the model.
-We used the \texttt{shear\_flow} example from the [Subzero.jl repository](https://caltech-octo.github.io/Subzero.jl/dev/examples/shear_flow/) as a basis for testing speed enhancements.
+We used the \texttt{shear\_flow} example from the [Subzero.jl repository](https://subzero-sea-ice.github.io/Subzero.jl/dev/examples/shear_flow/) as a basis for testing speed enhancements.
 The simulation includes 50 floes at 75% sea ice concentration, forced by sheared ocean currents in a doubly-periodic domain; we also created a version with 1000 floes, and then implemented both versions in the MATLAB SubZero codebase.
 We tested the models on the California Institute of Technology's "Resnick" High Performance Computing system, on a single compute node using 1-16 CPU cores, with each configuration repeated five times.
 Results in \autoref{fig:speed_comparison} show comparisons of both end-to-end runtime (including initialization and I/O) and simulation time (time spent advancing the model state).  
