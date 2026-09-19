@@ -484,7 +484,7 @@ julia> g = RegRectilinearGrid(Float32; x0 = 0.0, xf = 5e5, y0 = 0.0, yf = 5e5, N
 
 julia> MovingBoundary(North; u = 0.5, grid = g)
 MovingBoundary{North, Float64}
-  ⊢polygon points are defined by the following set: (-250000.0, 750000.0), (750000.0, 500000.0), (750000.0, 750000.0), (-250000.0, 500000.0)
+  ⊢polygon points are defined by the following set: (750000.0, 750000.0), (-250000.0, 500000.0), (750000.0, 500000.0), (-250000.0, 750000.0)
   ⊢val is 500000.0
   ⊢u-velocity of 0.5 m/s
   ∟v-velocity of 0.0 m/s
